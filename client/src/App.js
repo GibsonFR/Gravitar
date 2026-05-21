@@ -320,6 +320,7 @@ export function startApp() {
     audio.update(me, input);
     const dt = Math.min(0.05, Math.max(0, t - lastFrameTime));
     lastFrameTime = t;
+    store.interpolate(dt);
     updateCamera(me, dt);
     const camX = camera.x;
     const camY = camera.y;
