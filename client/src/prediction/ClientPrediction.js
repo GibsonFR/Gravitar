@@ -181,6 +181,8 @@ export class ClientPrediction {
     if (!myState.cooldowns) myState.cooldowns = {};
     myState.cooldowns[slot] = cd;
     if (hud) hud.cooldownLeft = cd;
+    this.store.noteLocalAbilityCast?.(slot, cd);
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 700);
     spendEnergyLocal(me, myState, slot);
 
     const target = getSelectedTarget(this.store);
@@ -218,13 +220,16 @@ export class ClientPrediction {
   applyDash(me, worldMouse, distPx) {
     if (hasBlockingStatus(me)) return;
     const d = norm(worldMouse.x - me.x, worldMouse.y - me.y);
+    if (!d.x && !d.y) return;
     me.x += d.x * distPx;
     me.y += d.y * distPx;
-    me.vx = d.x * finite(this.store.myState?.derived?.moveSpeed, me.engine || 250);
-    me.vy = d.y * finite(this.store.myState?.derived?.moveSpeed, me.engine || 250);
-    if (d.x || d.y) me.rot = Math.atan2(d.y, d.x);
+    me.vx = d.x * Math.max(finite(this.store.myState?.derived?.moveSpeed, me.engine || 250), distPx / 0.12);
+    me.vy = d.y * Math.max(finite(this.store.myState?.derived?.moveSpeed, me.engine || 250), distPx / 0.12);
+    me.rot = Math.atan2(d.y, d.x);
     me._localThrust = 1;
-    me._clientDashGrace = 0.12;
+    me._clientDashGrace = 0.22;
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 900);
+    this.applyLocalSectorWrap(me);
   }
 
   spawnLocalProjectile(me, targetOrPoint, opts = {}) {
@@ -398,11 +403,14 @@ export class ClientPrediction {
     me.hasMoveTarget = !!local.hasMoveTarget;
     me._forceServerPose = false;
     me._localSectorChangedAt = performance.now();
-    me._sectorLockUntil = me._localSectorChangedAt + 360;
+    me._sectorLockUntil = me._localSectorChangedAt + 260;
     me._sectorLockDirX = dirX;
     me._sectorLockDirY = dirY;
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 360);
     this.lastSectorWrapAt = me._localSectorChangedAt;
+    local.sectorSeq = (local.sectorSeq | 0) + 1;
     this.store.noteLocalSectorTransition(me.sx | 0, me.sy | 0, me.x, me.y, { keepMoveTarget: !!local.hasMoveTarget });
+    this.store.beginPortalLoading?.(`Secteur [${me.sx | 0},${me.sy | 0}]`, 230, local.sectorSeq | 0);
   }
 
   reconcileSoftly(me, dt, isMoving = false) {

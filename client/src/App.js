@@ -242,7 +242,7 @@ export function startApp() {
       }
       sendCmd('set_frame', { frameId });
     },
-    onAbilityUpgrade: (slot) => sendCmd('upgrade_ability', { slot }),
+    onAbilityUpgrade: (slot) => { store.upgradeAbilityLocal?.(slot); sendCmd('upgrade_ability', { slot }); },
     onRocketSlotSwitch: (slot) => sendCmd('switch_rocket_slot', { slot })
   });
   audio.installUnlock(canvas);
@@ -279,6 +279,7 @@ export function startApp() {
     if (!slot) return;
     const hudSlot = store.myState?.abilityHud?.[slot];
     if (hudSlot?.canUpgrade) {
+      store.upgradeAbilityLocal?.(slot);
       sendCmd('upgrade_ability', { slot });
       ev.preventDefault();
     }
@@ -511,7 +512,9 @@ export function startApp() {
       cvy: me?.vy,
       crot: me?.rot,
       cthrust: me?._localThrust ?? 0,
-      clientTime: performance.now()
+      clientTime: performance.now(),
+      sectorSeq: store.localPrediction?.sectorSeq | 0,
+      abilitySeq: store.localPrediction?.abilitySeq | 0
     });
 
     input.moveWorldQueued = false;

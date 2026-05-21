@@ -43,6 +43,27 @@ function unloadSector(state, sx, sy) {
   state.sectors.delete(key);
 }
 
+
+function beginSectorTransition(player, sx, sy, timeMs) {
+  const id = ((player.sectorTransitionId | 0) + 1) | 0;
+  player.sectorTransitionId = id;
+  player.portalTransition = {
+    id,
+    type: 'sector',
+    label: `Secteur [${sx | 0},${sy | 0}]`,
+    targetSx: sx | 0,
+    targetSy: sy | 0,
+    startedAt: timeMs,
+    until: timeMs + 260,
+    forceServerPose: true
+  };
+  // Pendant un passage de frontière, les derniers inputs client de l'ancien secteur
+  // ne doivent pas pouvoir remettre le joueur de l'autre côté. On garde un gel très
+  // court, masqué par l'écran de transition, puis on rend la main au client.
+  player.ignoreClientPoseUntil = Math.max(player.ignoreClientPoseUntil ?? 0, timeMs + 320);
+  player.clientAuthoritativeUntil = 0;
+}
+
 function applyWrapToPlayer(state, p, timeMs) {
   const beforeSx = p.sx | 0;
   const beforeSy = p.sy | 0;
@@ -77,12 +98,13 @@ function applyWrapToPlayer(state, p, timeMs) {
   if (changed) {
     const dirX = (w.sx | 0) - beforeSx;
     const dirY = (w.sy | 0) - beforeSy;
-    // Ne pas recaler artificiellement au centre/à une marge fixe : wrapIntoSector()
-    // conserve déjà l'overshoot exact à travers la frontière. C'est ce qui rend le
-    // passage 1,0 -> 0,0 visuellement continu au lieu de donner un spawn faux.
-    p.sectorLockUntil = timeMs + 360;
+    // Le wrap garde exactement l'overshoot : traverser la ligne x=2000 place le
+    // joueur à x=-2000+overshoot dans le secteur suivant, et inversement. Aucun
+    // recentrage, aucun preload voisin. On masque juste le chargement de contenu.
+    p.sectorLockUntil = timeMs + 220;
     p.sectorLockDirX = dirX;
     p.sectorLockDirY = dirY;
+    beginSectorTransition(p, w.sx | 0, w.sy | 0, timeMs);
   }
   if (!changed) return;
 
@@ -160,31 +182,9 @@ export function updateSectors(state, dt, timeMs) {
     active.add(sectorKey(sx, sy));
     ensureSectorLoaded(state, sx, sy, timeMs);
 
-    // Préchargement borné des secteurs adjacents quand un joueur approche d'un bord.
-    // Important : ne jamais muter la liste pendant qu'on l'itère. L'ancienne version
-    // ajoutait les diagonales dans `dirs` pendant la double boucle ; dans un coin, ça
-    // pouvait grossir sans limite et finir en heap out of memory sur Render.
-    const preloadPad = 520;
-    const nearRight = p.x > SECTOR.half - preloadPad;
-    const nearLeft = p.x < -SECTOR.half + preloadPad;
-    const nearDown = p.y > SECTOR.half - preloadPad;
-    const nearUp = p.y < -SECTOR.half + preloadPad;
-    const dirs = [];
-    if (nearRight) dirs.push([1, 0]);
-    if (nearLeft) dirs.push([-1, 0]);
-    if (nearDown) dirs.push([0, 1]);
-    if (nearUp) dirs.push([0, -1]);
-    if (nearRight && nearDown) dirs.push([1, 1]);
-    if (nearRight && nearUp) dirs.push([1, -1]);
-    if (nearLeft && nearDown) dirs.push([-1, 1]);
-    if (nearLeft && nearUp) dirs.push([-1, -1]);
-
-    for (const [dx, dy] of dirs) {
-      const psx = sx + dx;
-      const psy = sy + dy;
-      active.add(sectorKey(psx, psy));
-      ensureSectorLoaded(state, psx, psy, timeMs);
-    }
+    // Pas de préchargement des voisins ici : les passages de secteur utilisent le
+    // même modèle que les portails, avec une courte transition. Cela évite les
+    // coins qui chargent trop de secteurs et les états hybrides old/new sector.
   }
 
   // 3) Unload sectors with no players after a grace period.

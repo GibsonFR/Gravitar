@@ -15,17 +15,25 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
   if (Number.isFinite(msg.msy)) player.mouseSy = msg.msy;
 
   if (!player.sessionSetupPending && timeMs >= (player.ignoreClientPoseUntil ?? 0) && Number.isFinite(msg.cx) && Number.isFinite(msg.cy)) {
-    // Prototype .io / priorité réactivité : le client est autoritaire sur son déplacement.
-    // Ça évite que le joueur local soit constamment ramené vers une position serveur en retard.
-    player.x = msg.cx;
-    player.y = msg.cy;
+    // Prototype .io : pose client autoritaire. Les paquets de secteur plus anciens
+    // sont ignorés pour éviter les allers-retours à la frontière.
+    const seq = msg.sectorSeq | 0;
+    const lastSeq = player.lastClientSectorSeq | 0;
+    const acceptSectorPose = seq >= lastSeq;
+    if (acceptSectorPose) {
+      player.lastClientSectorSeq = seq;
+      player.x = msg.cx;
+      player.y = msg.cy;
+      if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
+      if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
+    }
     if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
     if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
     if (Number.isFinite(msg.crot)) player.rot = msg.crot;
     if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
-    if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
-    if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
-    player.clientAuthoritativeUntil = timeMs + 240;
+    const abilityFresh = (msg.abilitySeq | 0) > (player.lastClientAbilitySeq | 0);
+    if (abilityFresh) player.lastClientAbilitySeq = msg.abilitySeq | 0;
+    player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 720 : 260);
   }
 
   if (!player.sessionSetupPending && Number.isFinite(msg.aimWorldX) && Number.isFinite(msg.aimWorldY)) {

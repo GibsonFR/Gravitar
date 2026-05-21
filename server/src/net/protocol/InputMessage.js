@@ -49,7 +49,9 @@ export function sanitizeInputMessage(raw) {
     aimWorldY: Number.isFinite(raw.aimWorldY) ? clamp(raw.aimWorldY, -10000000, 10000000) : null,
     localMoveX: Number.isFinite(raw.localMoveX) ? clamp(raw.localMoveX, -10000000, 10000000) : null,
     localMoveY: Number.isFinite(raw.localMoveY) ? clamp(raw.localMoveY, -10000000, 10000000) : null,
-    clientTime: Number.isFinite(raw.clientTime) ? raw.clientTime : 0
+    clientTime: Number.isFinite(raw.clientTime) ? raw.clientTime : 0,
+    sectorSeq: Number.isFinite(raw.sectorSeq) ? Math.max(0, raw.sectorSeq | 0) : 0,
+    abilitySeq: Number.isFinite(raw.abilitySeq) ? Math.max(0, raw.abilitySeq | 0) : 0
   };
 }
 

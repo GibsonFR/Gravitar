@@ -37,7 +37,11 @@ export class WorldStore {
       sectorY: 0,
       loadingUntil: 0,
       loadingLabel: '',
-      remoteTransitionId: 0
+      remoteTransitionId: 0,
+      localCooldownLocks: {},
+      localUpgradeLocks: {},
+      abilitySeq: 0,
+      sectorSeq: 0
     };
   }
 
@@ -46,6 +50,23 @@ export class WorldStore {
     if (options.preserveLocalPosition) {
       const sectorChanged = ((previous.sx | 0) !== (next.sx | 0)) || ((previous.sy | 0) !== (next.sy | 0));
       const merged = { ...previous, ...next };
+      const nowPose = performance.now();
+      const keepLocalPose = nowPose < (previous._keepLocalPoseUntil || 0);
+      if (keepLocalPose && !previous._forceServerPose) {
+        merged.x = previous.x;
+        merged.y = previous.y;
+        merged.sx = previous.sx;
+        merged.sy = previous.sy;
+        merged.vx = previous.vx;
+        merged.vy = previous.vy;
+        if (Number.isFinite(previous.rot)) merged.rot = previous.rot;
+        if (Number.isFinite(previous._localThrust)) merged._localThrust = previous._localThrust;
+        merged._serverX = next.x;
+        merged._serverY = next.y;
+        merged._tx = previous.x;
+        merged._ty = previous.y;
+        return this._applyLocalDamageToEntity(merged);
+      }
       if (sectorChanged || previous._forceServerPose) {
         const now = performance.now();
         const forceServerPose = !!previous._forceServerPose;
@@ -211,9 +232,17 @@ export class WorldStore {
   _mergeAbilityHudWithCooldowns(abilityHud, cooldowns) {
     if (!abilityHud || !cooldowns) return abilityHud;
     const out = { ...abilityHud };
+    const now = performance.now();
     for (const slot of ['A', 'Z', 'E', 'R']) {
       if (!out[slot] || !Number.isFinite(cooldowns[slot])) continue;
-      out[slot] = { ...out[slot], cooldownLeft: Math.max(0, cooldowns[slot]) };
+      const locked = now < (this.localPrediction.localCooldownLocks?.[slot] || 0);
+      const localLeft = this.myState?.cooldowns?.[slot];
+      const localHudLeft = this.myState?.abilityHud?.[slot]?.cooldownLeft;
+      if (locked && (Number.isFinite(localLeft) || Number.isFinite(localHudLeft))) {
+        out[slot] = { ...out[slot], cooldownLeft: Math.max(0, Number.isFinite(localLeft) ? localLeft : localHudLeft) };
+      } else {
+        out[slot] = { ...out[slot], cooldownLeft: Math.max(0, cooldowns[slot]) };
+      }
     }
     return out;
   }
@@ -221,13 +250,38 @@ export class WorldStore {
   _mergeMyState(next) {
     if (!next) return null;
     if (!next.lite || !this.myState) {
-      const cooldowns = next.cooldowns || null;
-      return {
+      const now = performance.now();
+      const cooldowns = { ...(next.cooldowns || {}) };
+      for (const slot of ['A', 'Z', 'E', 'R']) {
+        if (now < (this.localPrediction.localCooldownLocks?.[slot] || 0) && Number.isFinite(this.myState.cooldowns?.[slot])) {
+          cooldowns[slot] = this.myState.cooldowns[slot];
+        }
+      }
+      const merged = {
         ...next,
+        cooldowns,
         abilityHud: this._mergeAbilityHudWithCooldowns(next.abilityHud, cooldowns)
       };
+      // Pendant quelques centaines de ms après un clic de level-up, on garde le HUD
+      // local optimiste. Le serveur confirmera ensuite, mais le clic ne doit pas
+      // sembler refusé/rollbacké à cause d'un snapshot précédent.
+      for (const slot of ['A', 'Z', 'E', 'R']) {
+        if (now < (this.localPrediction.localUpgradeLocks?.[slot] || 0) && this.myState.abilityHud?.[slot] && merged.abilityHud?.[slot]) {
+          merged.abilityHud[slot] = { ...merged.abilityHud[slot], ...this.myState.abilityHud[slot] };
+        }
+      }
+      if (now < Math.max(...Object.values(this.localPrediction.localUpgradeLocks || { none: 0 }))) {
+        merged.progression = this.myState.progression ?? merged.progression;
+      }
+      return merged;
     }
+    const now = performance.now();
     const cooldowns = { ...(this.myState.cooldowns || {}), ...(next.cooldowns || {}) };
+    for (const slot of ['A', 'Z', 'E', 'R']) {
+      if (now < (this.localPrediction.localCooldownLocks?.[slot] || 0) && Number.isFinite(this.myState.cooldowns?.[slot])) {
+        cooldowns[slot] = this.myState.cooldowns[slot];
+      }
+    }
     return {
       ...this.myState,
       ...next,
@@ -274,8 +328,9 @@ export class WorldStore {
     this.playerDirectory = msg.playerDirectory ?? [];
     this.myState = this._mergeMyState(msg.me ?? null);
     const transition = this.myState?.transition || null;
-    if (transition && transition.type === 'portal') {
-      this.beginPortalLoading(transition.label || 'Chargement du secteur…', Math.max(450, (transition.until || msg.time || 0) - (msg.time || 0) + 120), transition.id | 0);
+    if (transition) {
+      const base = transition.type === 'sector' ? 220 : 450;
+      this.beginPortalLoading(transition.label || 'Chargement du secteur…', Math.max(base, (transition.until || msg.time || 0) - (msg.time || 0) + 90), transition.id | 0);
       const me = this.players.get(this.myId);
       if (me && transition.forceServerPose) me._forceServerPose = true;
     }
@@ -422,6 +477,41 @@ export class WorldStore {
       if (Number.isFinite(me.rocketCooldownLeft)) me.rocketCooldownLeft = Math.max(0, me.rocketCooldownLeft - dt);
       if (Number.isFinite(me.groundMarkerTimer)) me.groundMarkerTimer = Math.max(0, me.groundMarkerTimer - dt);
     }
+  }
+
+  noteLocalAbilityCast(slot, cooldownLeft = 0) {
+    if (!slot || !this.myState) return;
+    const s = String(slot).toUpperCase();
+    if (!['A', 'Z', 'E', 'R'].includes(s)) return;
+    const now = performance.now();
+    this.localPrediction.abilitySeq = (this.localPrediction.abilitySeq | 0) + 1;
+    this.localPrediction.localCooldownLocks[s] = now + 900;
+    if (!this.myState.cooldowns) this.myState.cooldowns = {};
+    if (Number.isFinite(cooldownLeft)) this.myState.cooldowns[s] = Math.max(0, cooldownLeft);
+    if (this.myState.abilityHud?.[s] && Number.isFinite(cooldownLeft)) {
+      this.myState.abilityHud[s].cooldownLeft = Math.max(0, cooldownLeft);
+    }
+  }
+
+  upgradeAbilityLocal(slot) {
+    const s = String(slot || '').toUpperCase();
+    if (!['A', 'Z', 'E', 'R'].includes(s) || !this.myState?.progression || !this.myState?.abilityHud?.[s]) return false;
+    const hud = this.myState.abilityHud[s];
+    if (hud.canUpgrade === false) return false;
+    const prog = this.myState.progression;
+    if ((prog.skillPoints ?? 0) <= 0) return false;
+    const max = s === 'R' ? 5 : 15;
+    const current = Math.max(0, hud.investedLevel | 0);
+    if (current >= max) return false;
+    prog.skillPoints = Math.max(0, (prog.skillPoints | 0) - 1);
+    hud.investedLevel = current + 1;
+    hud.unlocked = hud.investedLevel > 0;
+    hud.phase = s === 'R' ? hud.investedLevel : (hud.investedLevel >= 15 ? 5 : hud.investedLevel >= 10 ? 4 : hud.investedLevel >= 6 ? 3 : hud.investedLevel >= 3 ? 2 : 1);
+    hud.canUpgrade = prog.skillPoints > 0 && hud.investedLevel < max;
+    this.localPrediction.localUpgradeLocks[s] = performance.now() + 1200;
+    this.myState.hint = `${s} niveau ${hud.investedLevel}`;
+    this.myState._optimisticHintLeft = 0.55;
+    return true;
   }
 
   setOptimisticSelection(kind, id) {
