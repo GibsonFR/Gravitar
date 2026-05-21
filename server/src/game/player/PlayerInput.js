@@ -14,6 +14,18 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
   if (Number.isFinite(msg.msx)) player.mouseSx = msg.msx;
   if (Number.isFinite(msg.msy)) player.mouseSy = msg.msy;
 
+  if (!player.sessionSetupPending && Number.isFinite(msg.cx) && Number.isFinite(msg.cy)) {
+    // Prototype .io / priorité réactivité : le client est autoritaire sur son déplacement.
+    // Ça évite que le joueur local soit constamment ramené vers une position serveur en retard.
+    player.x = msg.cx;
+    player.y = msg.cy;
+    if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
+    if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
+    if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
+    if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
+    player.clientAuthoritativeUntil = timeMs + 150;
+  }
+
   if (player.sessionSetupPending) {
     player.abilityA = false;
     player.abilityZ = false;

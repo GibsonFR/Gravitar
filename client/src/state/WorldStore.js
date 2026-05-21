@@ -31,6 +31,34 @@ export class WorldStore {
 
   _mergeEntity(previous, next, options = {}) {
     if (!previous) return { ...next };
+    if (options.preserveLocalPosition) {
+      const sectorChanged = ((previous.sx | 0) !== (next.sx | 0)) || ((previous.sy | 0) !== (next.sy | 0));
+      const merged = { ...previous, ...next };
+      if (sectorChanged || previous._forceServerPose) {
+        if (Number.isFinite(next.x) && Number.isFinite(next.y)) {
+          merged.x = next.x;
+          merged.y = next.y;
+          merged.vx = Number.isFinite(next.vx) ? next.vx : 0;
+          merged.vy = Number.isFinite(next.vy) ? next.vy : 0;
+          merged._tx = next.x;
+          merged._ty = next.y;
+        }
+        merged._forceServerPose = false;
+        return merged;
+      }
+      // Pour le joueur local, les snapshots sont forcément en retard réseau.
+      // On synchronise les PV/stats/etc., mais on ne rembobine plus x/y/vx/vy.
+      merged.x = previous.x;
+      merged.y = previous.y;
+      merged.vx = previous.vx;
+      merged.vy = previous.vy;
+      merged._serverX = next.x;
+      merged._serverY = next.y;
+      merged._tx = previous.x;
+      merged._ty = previous.y;
+      merged._snapDistanceSq = 0;
+      return merged;
+    }
     const merged = { ...previous, ...next };
     if (options.snapPosition) {
       if (Number.isFinite(next.x) && Number.isFinite(next.y)) {
@@ -67,8 +95,10 @@ export class WorldStore {
     const seen = new Set();
     for (const item of arr) {
       seen.add(item.id);
-      const snapPosition = options.snapOwnPlayer && item.id === this.myId;
-      map.set(item.id, this._mergeEntity(map.get(item.id), item, { snapPosition }));
+      const isOwn = item.id === this.myId;
+      const snapPosition = options.snapOwnPlayer && isOwn;
+      const preserveLocalPosition = options.preserveOwnPlayerPosition && isOwn;
+      map.set(item.id, this._mergeEntity(map.get(item.id), item, { snapPosition, preserveLocalPosition }));
     }
     for (const id of map.keys()) {
       const item = map.get(id);
@@ -130,7 +160,7 @@ export class WorldStore {
     if (msg.worldSfx?.length) this.pendingSfx.push(...msg.worldSfx);
     if (msg.combatFx?.length) this.pendingCombatFx.push(...msg.combatFx);
     if (msg.me?.sfx?.length) this.pendingSfx.push(...msg.me.sfx);
-    this._syncMap(this.players, msg.players ?? [], { snapOwnPlayer: false });
+    this._syncMap(this.players, msg.players ?? [], { snapOwnPlayer: false, preserveOwnPlayerPosition: true });
     this._syncMap(this.mobs, msg.mobs ?? []);
     this._syncMap(this.asteroids, msg.asteroids ?? []);
     this._syncMap(this.stations, msg.stations ?? []);

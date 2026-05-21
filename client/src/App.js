@@ -360,7 +360,16 @@ export function startApp() {
       py: mouseForServer.y,
       moveWorld: input.moveWorldQueued,
       moveWorldX: input.moveWorldX,
-      moveWorldY: input.moveWorldY
+      moveWorldY: input.moveWorldY,
+      // Mode .io réactif : on laisse temporairement le client piloter sa pose.
+      // Le serveur la reprend comme vérité pour éviter les rollbacks perceptibles.
+      cx: me?.x,
+      cy: me?.y,
+      csx: me?.sx,
+      csy: me?.sy,
+      cvx: me?.vx,
+      cvy: me?.vy,
+      clientTime: performance.now()
     });
 
     input.moveWorldQueued = false;
@@ -446,7 +455,7 @@ export function startApp() {
     statusEl.textContent = store.myId ? '' : 'Connexion…';
 
     const now = performance.now();
-    if (now - lastSend >= 16) {
+    if (now - lastSend >= 8) {
       lastSend = now;
       if (store.myState?.sessionSetup?.pending ?? true) clearQueuedInput();
       else sendInput(input.rightDown && input.holdActive);

@@ -1,4 +1,4 @@
-const INPUT_MIN_INTERVAL_MS = 16;
+const INPUT_MIN_INTERVAL_MS = 4;
 
 function clamp(value, min, max) {
   return value < min ? min : value > max ? max : value;
@@ -34,7 +34,14 @@ export function sanitizeInputMessage(raw) {
     py: clamp(finiteOr(raw.py, viewportH * 0.5), -mouseLimitY, mouseLimitY),
     moveWorld: !!raw.moveWorld,
     moveWorldX: clamp(finiteOr(raw.moveWorldX, 0), -10000000, 10000000),
-    moveWorldY: clamp(finiteOr(raw.moveWorldY, 0), -10000000, 10000000)
+    moveWorldY: clamp(finiteOr(raw.moveWorldY, 0), -10000000, 10000000),
+    cx: Number.isFinite(raw.cx) ? clamp(raw.cx, -10000000, 10000000) : null,
+    cy: Number.isFinite(raw.cy) ? clamp(raw.cy, -10000000, 10000000) : null,
+    csx: Number.isFinite(raw.csx) ? clamp(raw.csx | 0, -100000, 100000) : null,
+    csy: Number.isFinite(raw.csy) ? clamp(raw.csy | 0, -100000, 100000) : null,
+    cvx: Number.isFinite(raw.cvx) ? clamp(raw.cvx, -5000, 5000) : null,
+    cvy: Number.isFinite(raw.cvy) ? clamp(raw.cvy, -5000, 5000) : null,
+    clientTime: Number.isFinite(raw.clientTime) ? raw.clientTime : 0
   };
 }
 

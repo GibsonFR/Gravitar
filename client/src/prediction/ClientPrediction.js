@@ -203,7 +203,6 @@ export class ClientPrediction {
     }
 
     if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
-      this.reconcileSoftly(me, dt);
       return;
     }
 
@@ -214,7 +213,6 @@ export class ClientPrediction {
       if (local.hasMoveTarget && !local.hold) local.hasMoveTarget = false;
       me.vx = 0;
       me.vy = 0;
-      this.reconcileSoftly(me, dt);
       return;
     }
 
@@ -224,22 +222,13 @@ export class ClientPrediction {
     me.y += (dy / d) * step;
     me.vx = (dx / d) * speed;
     me.vy = (dy / d) * speed;
-    this.reconcileSoftly(me, dt, true);
+    // Pas de réconciliation dure ici : le serveur accepte désormais la pose client.
   }
 
   reconcileSoftly(me, dt, isMoving = false) {
-    if (!Number.isFinite(me._tx) || !Number.isFinite(me._ty)) return;
-    const dx = me._tx - me.x;
-    const dy = me._ty - me.y;
-    const d2 = dx * dx + dy * dy;
-    if (d2 > 1200 * 1200) {
-      me.x = me._tx;
-      me.y = me._ty;
-      return;
-    }
-    const strength = isMoving ? 1.8 : 7.0;
-    const a = clamp(1 - Math.exp(-strength * dt), 0, 0.28);
-    me.x += dx * a;
-    me.y += dy * a;
+    // Ancien mode : tirait le joueur local vers la dernière position serveur.
+    // En ligne, cette position est en retard de latence et donne l'impression de rollback.
+    // Pour cette version .io prototype, le client est autoritaire sur son déplacement.
+    return;
   }
 }

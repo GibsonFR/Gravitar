@@ -368,10 +368,16 @@ export function updatePlayer(state, p, dt, timeMs = null) {
     }
   }
 
-  const motionOverride = consumeMotionOverride(state, p);
+  const clientAuthoritative = Number.isFinite(p.clientAuthoritativeUntil) && timeMs <= p.clientAuthoritativeUntil;
+  const motionOverride = clientAuthoritative ? null : consumeMotionOverride(state, p);
   if (motionOverride?.stopVoluntaryMove) p.hasMoveTarget = false;
 
-  if (motionOverride?.x != null && motionOverride?.y != null) {
+  if (clientAuthoritative) {
+    // Le client a déjà appliqué le mouvement de cette frame. Le serveur garde les
+    // cooldowns, dégâts, mobs et projectiles, mais ne double-intègre pas le déplacement.
+    mx = 0;
+    my = 0;
+  } else if (motionOverride?.x != null && motionOverride?.y != null) {
     mx = motionOverride.x;
     my = motionOverride.y;
   } else if (!blocksVoluntaryMove(p) && p.hasMoveTarget) {
@@ -390,7 +396,9 @@ export function updatePlayer(state, p, dt, timeMs = null) {
   }
 
   const moveSpeed = (motionOverride?.speed ?? p.engine) * getMoveSpeedMultiplier(p) * getFrameMoveMultiplier(p) * getBastionMoveSpeedMultiplier(p);
-  if ((mx * mx + my * my) > 1e-6) {
+  if (clientAuthoritative) {
+    resolvePlayerSolidWalls(state, p);
+  } else if ((mx * mx + my * my) > 1e-6) {
     const n = norm(mx, my);
     p.vx = n.x * moveSpeed;
     p.vy = n.y * moveSpeed;
