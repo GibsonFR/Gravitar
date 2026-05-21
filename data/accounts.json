@@ -1,0 +1,18 @@
+{
+  "accounts": {
+    "testuser": {
+      "key": "testuser",
+      "name": "TestUser",
+      "salt": "e65c34cf1f5da271209b2a44a14d4f4c",
+      "passwordHash": "84afb063d36f6a00b293b7faf33fc16a472bf6597b527e2eaf04991e2a41af8d",
+      "createdAt": 1779365504179,
+      "endless": null,
+      "battleStats": {
+        "played": 0,
+        "wins": 0,
+        "kills": 0,
+        "deaths": 0
+      }
+    }
+  }
+}

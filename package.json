@@ -1,0 +1,16 @@
+{
+  "name": "gravitar-online",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "bots": "node server/bots.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.19.0"
+  }
+}
