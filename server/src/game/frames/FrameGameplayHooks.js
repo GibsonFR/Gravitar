@@ -1,0 +1,1352 @@
+import { SHIP_FRAME_IDS } from '../../../../shared/content/frames/ShipFrameIds.js';
+import {
+  getVanguardAbilityTuning,
+  VANGUARD_PASSIVE
+} from '../../../../shared/content/frames/vanguard/VanguardFrameSpec.js';
+import {
+  getSigilAbilityTuning,
+  SIGIL_PASSIVE
+} from '../../../../shared/content/frames/sigil/SigilFrameSpec.js';
+import {
+  getBulwarkAbilityTuning,
+  BULWARK_PASSIVE
+} from '../../../../shared/content/frames/bulwark/BulwarkFrameSpec.js';
+import { WEAPON_PULSE_MK1 } from '../../../../shared/content/combat/WeaponDefs.js';
+import { getAbilityInvestedLevel } from '../progression/AbilityInvestment.js';
+import { applyStatus, getStatusEntry, hasStatus, removeStatus } from '../status/StatusRack.js';
+import { cleanseControlOnly } from '../status/StatusCleanse.js';
+import { STATUS_EFFECT_IDS as I } from '../../../../shared/content/status/StatusEffectIds.js';
+import { applyDashMove, applyPullMove, blocksDash } from '../status/StatusMotion.js';
+import { consumeEnergy, healStatBlock } from '../stats/StatBlockRuntime.js';
+import { spawnProjectile } from '../projectile/ProjectileSystem.js';
+import { applyDamage } from '../combat/DamageSystem.js';
+import { distSq, norm } from '../util/Math.js';
+import { getAbilityMouseWorld } from '../abilities/AbilityMouseWorld.js';
+import { createAreaEffect } from '../abilities/area/AreaEffectFactory.js';
+
+const VANGUARD_MARK_KEY = 'vanguard_a';
+const SIGIL_MARK_KEY = 'sigil_runes';
+
+function clamp(v, min, max) {
+  return v < min ? min : v > max ? max : v;
+}
+
+function linePointDistance(px, py, ax, ay, bx, by) {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const apx = px - ax;
+  const apy = py - ay;
+  const ab2 = abx * abx + aby * aby;
+  if (ab2 <= 1e-6) return Math.hypot(px - ax, py - ay);
+  const t = clamp((apx * abx + apy * aby) / ab2, 0, 1);
+  const cx = ax + abx * t;
+  const cy = ay + aby * t;
+  return Math.hypot(px - cx, py - cy);
+}
+
+function getFrameStateBag(player) {
+  return player?.frameState ?? {};
+}
+
+function getVanguardState(player) {
+  return getFrameStateBag(player).vanguard ?? null;
+}
+
+function getSigilState(player) {
+  return getFrameStateBag(player).sigil ?? null;
+}
+
+function getBulwarkState(player) {
+  return getFrameStateBag(player).bulwark ?? null;
+}
+
+function getWeaponReferenceDamage(player) {
+  const base = player?.progressionBonuses?.autoAttackBaseDamage ?? WEAPON_PULSE_MK1.damage;
+  return base * (player?.progressionBonuses?.damageMult ?? 1);
+}
+
+function getBulwarkArmor(player) {
+  return Math.max(0, (player?.baseArmor ?? 0) + (player?.frameBonuses?.armorFlat ?? 0));
+}
+
+function forEachHostileEntityInSector(state, owner, fn, options = {}) {
+  const includeAsteroids = !!options.includeAsteroids;
+  for (const target of state.players.values()) {
+    if (!target || target.id === owner.id) continue;
+    if ((target.sx | 0) !== (owner.sx | 0) || (target.sy | 0) !== (owner.sy | 0)) continue;
+    fn(target);
+  }
+  for (const target of state.mobs.values()) {
+    if (!target || (target.stats?.hp ?? 0) <= 0) continue;
+    if ((target.sx | 0) !== (owner.sx | 0) || (target.sy | 0) !== (owner.sy | 0)) continue;
+    fn(target);
+  }
+  if (!includeAsteroids) return;
+  for (const target of state.asteroids.values()) {
+    if (!target || (target.stats?.hp ?? 0) <= 0) continue;
+    if ((target.sx | 0) !== (owner.sx | 0) || (target.sy | 0) !== (owner.sy | 0)) continue;
+    fn(target);
+  }
+}
+
+function forEachHostileInRadius(state, owner, x, y, radius, fn, options = {}) {
+  const radiusSq = radius * radius;
+  forEachHostileEntityInSector(state, owner, (target) => {
+    const rr = radius + (target.radius ?? 0);
+    if (distSq(x, y, target.x, target.y) <= Math.max(radiusSq, rr * rr)) fn(target);
+  }, options);
+}
+
+function findClosestHostileInRadius(state, owner, x, y, radius) {
+  let best = null;
+  let bestD2 = Infinity;
+  forEachHostileEntityInSector(state, owner, (target) => {
+    const rr = radius + (target.radius ?? 0);
+    const d2 = distSq(x, y, target.x, target.y);
+    if (d2 > rr * rr) return;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = target;
+    }
+  });
+  return best;
+}
+
+function getA(player) { return getVanguardAbilityTuning('A', Math.max(1, getAbilityInvestedLevel(player, 'A'))); }
+function getZ(player) { return getVanguardAbilityTuning('Z', Math.max(1, getAbilityInvestedLevel(player, 'Z'))); }
+function getE(player) { return getVanguardAbilityTuning('E', Math.max(1, getAbilityInvestedLevel(player, 'E'))); }
+function getR(player) { return getVanguardAbilityTuning('R', Math.max(1, getAbilityInvestedLevel(player, 'R'))); }
+function getSigilA(player) { return getSigilAbilityTuning('A', Math.max(1, getAbilityInvestedLevel(player, 'A'))); }
+function getSigilZ(player) { return getSigilAbilityTuning('Z', Math.max(1, getAbilityInvestedLevel(player, 'Z'))); }
+function getSigilE(player) { return getSigilAbilityTuning('E', Math.max(1, getAbilityInvestedLevel(player, 'E'))); }
+function getSigilR(player) { return getSigilAbilityTuning('R', Math.max(1, getAbilityInvestedLevel(player, 'R'))); }
+function getBulwarkA(player) { return getBulwarkAbilityTuning('A', Math.max(1, getAbilityInvestedLevel(player, 'A')), getBulwarkArmor(player)); }
+function getBulwarkZ(player) { return getBulwarkAbilityTuning('Z', Math.max(1, getAbilityInvestedLevel(player, 'Z')), getBulwarkArmor(player)); }
+function getBulwarkE(player) { return getBulwarkAbilityTuning('E', Math.max(1, getAbilityInvestedLevel(player, 'E')), getBulwarkArmor(player)); }
+function getBulwarkR(player) { return getBulwarkAbilityTuning('R', Math.max(1, getAbilityInvestedLevel(player, 'R')), getBulwarkArmor(player)); }
+
+function addVanguardHeat(player, amount, timeMs) {
+  const fs = getVanguardState(player);
+  if (!fs || amount <= 0) return;
+  fs.passiveStacks = clamp(fs.passiveStacks + amount, 0, VANGUARD_PASSIVE.maxStacks);
+  fs.passiveLastGainAtMs = timeMs;
+  fs.passiveDecayCarry = 0;
+}
+
+function hasVanguardMark(target) {
+  return !!getStatusEntry(target, I.MARK, { markKey: VANGUARD_MARK_KEY });
+}
+
+function applyVanguardMark(source, target, duration, timeMs = Date.now()) {
+  return applyStatus(target, I.MARK, duration, {
+    sourceId: source.id,
+    hostile: true,
+    markKey: VANGUARD_MARK_KEY,
+    label: 'A',
+    timeMs
+  });
+}
+
+function applyOverheatTenacity(player, tuning, timeMs = Date.now()) {
+  const fs = getVanguardState(player);
+  if (!fs || fs.passiveStacks < VANGUARD_PASSIVE.maxStacks) return false;
+  applyStatus(player, I.TENACITY, tuning.passive.overheatTenacityDuration, {
+    sourceId: player.id,
+    hostile: false,
+    value: tuning.passive.overheatTenacityPct,
+    label: 'Surchauffe',
+    timeMs
+  });
+  return true;
+}
+
+function getSigilRuneEntry(target) {
+  return getStatusEntry(target, I.MARK, { markKey: SIGIL_MARK_KEY });
+}
+
+function getSigilRuneCount(target) {
+  return getSigilRuneEntry(target)?.stacks ?? 0;
+}
+
+function clearSigilRunes(target) {
+  removeStatus(target, I.MARK, { markKey: SIGIL_MARK_KEY });
+}
+
+function consumeSigilRunes(target, count) {
+  const entry = getSigilRuneEntry(target);
+  if (!entry) return 0;
+  const current = Math.max(0, entry.stacks ?? 0);
+  const spent = Math.min(current, Math.max(0, count | 0));
+  const next = current - spent;
+  if (next <= 0) clearSigilRunes(target);
+  else entry.stacks = next;
+  return spent;
+}
+
+function applySigilRunes(source, target, tuning, stacks, timeMs) {
+  const fs = getSigilState(source);
+  const durationMult = fs?.ultLeft > 0 ? (1 + (getSigilR(source).ultRuneDurationBonusPct ?? 0)) : 1;
+  const duration = tuning.passive.runeDuration * durationMult;
+  applyStatus(target, I.MARK, duration, {
+    sourceId: source.id,
+    hostile: true,
+    markKey: SIGIL_MARK_KEY,
+    label: 'Rune',
+    stacks,
+    maxStacks: tuning.passive.maxRunes,
+    timeMs
+  });
+}
+
+function maybeSlowFromSigilRunes(owner, target, tuning, timeMs) {
+  if (getSigilRuneCount(target) < tuning.passive.slowThreshold) return;
+  applyStatus(target, I.SLOW, 1.0, {
+    sourceId: owner.id,
+    hostile: true,
+    value: tuning.passive.slowPct,
+    label: 'Runes',
+    timeMs
+  });
+}
+
+function maybeDetonateSigilRunes(state, owner, target, timeMs, options = {}) {
+  const fs = getSigilState(owner);
+  const tuning = getSigilA(owner);
+  if (!fs || fs.detonationCooldownLeft > 0) return false;
+  const runes = getSigilRuneCount(target);
+  if (runes < tuning.passive.detonationThreshold) return false;
+
+  const spent = consumeSigilRunes(target, tuning.passive.detonationConsumeRunes);
+  if (spent <= 0) return false;
+
+  const bonus = tuning.passive.detonationBonusFlat
+    + getWeaponReferenceDamage(owner) * tuning.passive.detonationBonusWeaponPct
+    + Math.max(0, owner.stats?.energy ?? 0) * tuning.passive.detonationBonusCurrentEnergyPct;
+  applyDamage(state, target, bonus, owner, { timeMs });
+  fs.detonationCooldownLeft = tuning.passive.detonationCooldown;
+
+  if (options.applyStasisDuration > 0) {
+    applyStatus(target, I.STASIS, options.applyStasisDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      label: 'A',
+      timeMs
+    });
+  } else if (options.applyStunDuration > 0) {
+    applyStatus(target, I.STUN, options.applyStunDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      label: 'R',
+      timeMs
+    });
+  }
+  return true;
+}
+
+function getBulwarkPlateCount(player) {
+  const fs = getBulwarkState(player);
+  return fs ? fs.plateDurations.length : 0;
+}
+
+function addBulwarkPlate(player) {
+  const fs = getBulwarkState(player);
+  if (!fs) return false;
+  const max = BULWARK_PASSIVE.maxPlates;
+  if (fs.plateDurations.length >= max) {
+    let idx = 0;
+    let best = Infinity;
+    for (let i = 0; i < fs.plateDurations.length; i += 1) {
+      if (fs.plateDurations[i] < best) {
+        best = fs.plateDurations[i];
+        idx = i;
+      }
+    }
+    fs.plateDurations[idx] = BULWARK_PASSIVE.plateDuration;
+    return false;
+  }
+  fs.plateDurations.push(BULWARK_PASSIVE.plateDuration);
+  return true;
+}
+
+function tickBulwarkPlates(player, dt) {
+  const fs = getBulwarkState(player);
+  if (!fs) return;
+  if (fs.plateGainIcdLeft > 0) fs.plateGainIcdLeft = Math.max(0, fs.plateGainIcdLeft - dt);
+  if (!fs.plateDurations.length) return;
+  fs.plateDurations = fs.plateDurations.map((v) => Math.max(0, v - dt)).filter((v) => v > 0);
+}
+
+function updateFrameBonuses(player) {
+  if (!player.frameBonuses) player.frameBonuses = {};
+
+  if (player.frameId === SHIP_FRAME_IDS.VANGUARD) {
+    const fs = getVanguardState(player);
+    const ult = getR(player);
+    const z = getZ(player);
+    const stacks = fs?.passiveStacks ?? 0;
+    player.frameBonuses = {
+      moveHaste: stacks * VANGUARD_PASSIVE.moveSpeedPerStack + (fs?.moveBoostLeft > 0 ? z.moveBoostPct : 0) + (fs?.ultLeft > 0 ? ult.ultMoveSpeedPct : 0),
+      slowResist: stacks * VANGUARD_PASSIVE.slowResistPerStack,
+      tenacity: stacks >= 6 ? VANGUARD_PASSIVE.tenacityAtSixPct : 0,
+      attackSpeed: stacks * VANGUARD_PASSIVE.attackSpeedPerStack + (fs?.ultLeft > 0 ? ult.ultAttackSpeedPct : 0),
+      ultEmpowerPct: fs?.ultLeft > 0 ? ult.ultEmpowerPct : 0,
+      incomingDamageReductionPct: fs?.phaseLeft > 0 ? getE(player).damageReductionPct : 0,
+      armorFlat: 0
+    };
+    return;
+  }
+
+  if (player.frameId === SHIP_FRAME_IDS.SIGIL) {
+    player.frameBonuses = {
+      moveHaste: 0,
+      slowResist: 0,
+      tenacity: 0,
+      attackSpeed: 0,
+      ultEmpowerPct: 0,
+      incomingDamageReductionPct: 0,
+      armorFlat: 0
+    };
+    return;
+  }
+
+  if (player.frameId === SHIP_FRAME_IDS.BULWARK) {
+    const fs = getBulwarkState(player);
+    const plates = getBulwarkPlateCount(player);
+    const anchor = getBulwarkA(player);
+    const meditation = getBulwarkE(player);
+    player.frameBonuses = {
+      moveHaste: -(fs?.anchorLeft > 0 ? anchor.anchorSelfSlowPct : 0) - (fs?.meditationLeft > 0 ? meditation.meditationSelfSlowPct : 0),
+      slowResist: 0,
+      tenacity: plates * BULWARK_PASSIVE.plateTenacityPerPlate,
+      attackSpeed: 0,
+      ultEmpowerPct: 0,
+      incomingDamageReductionPct: plates * BULWARK_PASSIVE.plateDamageReductionPerPlate
+        + (fs?.anchorLeft > 0 ? anchor.anchorDamageReductionPct : 0)
+        + (fs?.meditationLeft > 0 ? meditation.meditationDamageReductionPct : 0),
+      armorFlat: plates * BULWARK_PASSIVE.plateArmorPerPlate + (fs?.anchorLeft > 0 ? fs.anchorArmorFlat : 0) + (fs?.stormArmorStolen ?? 0)
+    };
+    return;
+  }
+
+  player.frameBonuses = {};
+}
+
+function tickVanguardTrail(state, player, dt, timeMs) {
+  const fs = getVanguardState(player);
+  if (!fs || fs.trailLeft <= 0) return;
+  fs.trailLeft = Math.max(0, fs.trailLeft - dt);
+  if (fs.trailLeft <= 0 || fs.trailSlowPct <= 0 || fs.trailSlowDuration <= 0) return;
+
+  forEachHostileEntityInSector(state, player, (target) => {
+    const rr = 20 + (target.radius ?? 0);
+    if (linePointDistance(target.x, target.y, fs.trailStartX, fs.trailStartY, fs.trailEndX, fs.trailEndY) > rr) return;
+    applyStatus(target, I.SLOW, fs.trailSlowDuration, {
+      sourceId: player.id,
+      hostile: true,
+      value: fs.trailSlowPct,
+      label: 'Z',
+      timeMs
+    });
+  });
+}
+
+function handleInertialPhaseExit(state, player, timeMs) {
+  const fs = getVanguardState(player);
+  if (!fs) return;
+  const tuning = getE(player);
+  if (tuning.spellShieldDuration > 0) {
+    applyStatus(player, I.SPELL_SHIELD, tuning.spellShieldDuration, {
+      sourceId: player.id,
+      hostile: false,
+      label: 'E',
+      timeMs
+    });
+  }
+  if (tuning.exitShieldPctMaxShield > 0) {
+    player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + player.stats.maxShield * tuning.exitShieldPctMaxShield);
+  }
+  let hits = 0;
+  if (tuning.exitRadius > 0 && tuning.groundedDuration > 0) {
+    forEachHostileInRadius(state, player, player.x, player.y, tuning.exitRadius, (target) => {
+      applyStatus(target, I.GROUNDED, tuning.groundedDuration, {
+        sourceId: player.id,
+        hostile: true,
+        label: 'E',
+        timeMs
+      });
+      hits += 1;
+    });
+  }
+  if (hits > 0) addVanguardHeat(player, hits, timeMs);
+  if (tuning.restoreAChargeOnMaxHeat && fs.phaseStartedAtMaxHeat) {
+    const a = getA(player);
+    fs.empowerPct = a.empowerPct;
+    fs.empowerFlat = a.empowerFlat;
+    const maxEmpoweredCharges = Math.max(1, Math.min(5, a.empowerCharges | 0));
+    fs.empoweredMaxCharges = maxEmpoweredCharges;
+    fs.empoweredCharges = Math.min(maxEmpoweredCharges, (fs.empoweredCharges | 0) + 1);
+  }
+  fs.phaseStartedAtMaxHeat = false;
+}
+
+function tickVanguard(state, player, dt, timeMs) {
+  const fs = getVanguardState(player);
+  if (!fs) return;
+
+  if (fs.moveBoostLeft > 0) fs.moveBoostLeft = Math.max(0, fs.moveBoostLeft - dt);
+  if (fs.comboWindowLeft > 0) fs.comboWindowLeft = Math.max(0, fs.comboWindowLeft - dt);
+  if (fs.ultLeft > 0) fs.ultLeft = Math.max(0, fs.ultLeft - dt);
+
+  if (fs.phaseLeft > 0) {
+    const wasActive = fs.phaseLeft > 0;
+    fs.phaseLeft = Math.max(0, fs.phaseLeft - dt);
+    if (wasActive && fs.phaseLeft <= 0) handleInertialPhaseExit(state, player, timeMs);
+  }
+
+  tickVanguardTrail(state, player, dt, timeMs);
+
+  if (fs.passiveStacks > 0) {
+    if ((timeMs - fs.passiveLastGainAtMs) > VANGUARD_PASSIVE.stackDuration * 1000) {
+      fs.passiveDecayCarry += dt;
+      const lose = Math.floor(fs.passiveDecayCarry / VANGUARD_PASSIVE.decayInterval);
+      if (lose > 0) {
+        fs.passiveStacks = Math.max(0, fs.passiveStacks - lose);
+        fs.passiveDecayCarry -= lose * VANGUARD_PASSIVE.decayInterval;
+      }
+    } else {
+      fs.passiveDecayCarry = 0;
+    }
+  } else {
+    fs.passiveDecayCarry = 0;
+  }
+
+  updateFrameBonuses(player);
+}
+
+function tickSigilTrail(state, player, dt, timeMs) {
+  const fs = getSigilState(player);
+  if (!fs || fs.trailLeft <= 0) return;
+  fs.trailLeft = Math.max(0, fs.trailLeft - dt);
+  if (fs.trailLeft <= 0 || fs.trailSlowPct <= 0 || fs.trailSlowDuration <= 0) return;
+  forEachHostileEntityInSector(state, player, (target) => {
+    const rr = 16 + (target.radius ?? 0);
+    if (linePointDistance(target.x, target.y, fs.trailStartX, fs.trailStartY, fs.trailEndX, fs.trailEndY) > rr) return;
+    applyStatus(target, I.SLOW, fs.trailSlowDuration, {
+      sourceId: player.id,
+      hostile: true,
+      value: fs.trailSlowPct,
+      label: 'E',
+      timeMs
+    });
+  });
+}
+
+function tickSigil(state, player, dt, timeMs) {
+  const fs = getSigilState(player);
+  if (!fs) return;
+
+  if (fs.detonationCooldownLeft > 0) fs.detonationCooldownLeft = Math.max(0, fs.detonationCooldownLeft - dt);
+  if (fs.veilLeft > 0) {
+    const was = fs.veilLeft;
+    fs.veilLeft = Math.max(0, fs.veilLeft - dt);
+    if (was > 0 && fs.veilLeft <= 0) {
+      const tuning = getSigilE(player);
+      if (tuning.eSpellShieldOnEndDuration > 0) {
+        applyStatus(player, I.SPELL_SHIELD, tuning.eSpellShieldOnEndDuration, {
+          sourceId: player.id,
+          hostile: false,
+          label: 'E',
+          timeMs
+        });
+      }
+    }
+  }
+  if (fs.ultLeft > 0) fs.ultLeft = Math.max(0, fs.ultLeft - dt);
+
+  if (fs.zoneEffectId && !state.areaEffects.has(fs.zoneEffectId)) fs.zoneEffectId = 0;
+  tickSigilTrail(state, player, dt, timeMs);
+
+  if (fs.zoneEffectId && fs.ultLeft > 0) {
+    const zone = state.areaEffects.get(fs.zoneEffectId);
+    const r = getSigilR(player);
+    if (zone && r.ultZoneCamouflageDuration > 0) {
+      const rr = zone.radius + (player.radius ?? 0);
+      if (distSq(player.x, player.y, zone.x, zone.y) <= rr * rr) {
+        applyStatus(player, I.CAMOUFLAGE, r.ultZoneCamouflageDuration, {
+          sourceId: player.id,
+          hostile: false,
+          label: 'R',
+          timeMs
+        });
+      }
+    }
+  }
+
+  updateFrameBonuses(player);
+}
+
+function resolveBulwarkStormTick(state, player, timeMs) {
+  const fs = getBulwarkState(player);
+  if (!fs || fs.stormLeft <= 0) return;
+  const tuning = getBulwarkR(player);
+  const tickEvery = 0.5;
+  const dmgPerSec = tuning.stormBaseDpsFlat + getWeaponReferenceDamage(player) * tuning.stormBaseDpsPct;
+  const damage = dmgPerSec * tickEvery;
+  forEachHostileInRadius(state, player, player.x, player.y, tuning.stormRadius, (target) => {
+    applyDamage(state, target, damage, player, { timeMs });
+    applyStatus(target, I.SLOW, tickEvery + 0.2, {
+      sourceId: player.id,
+      hostile: true,
+      value: tuning.stormSlowPct,
+      label: 'R',
+      timeMs
+    });
+    if (tuning.stormArmorStealPerSecond > 0) {
+      fs.stormArmorStolen = Math.min(tuning.stormStealCap || 0, (fs.stormArmorStolen || 0) + tuning.stormArmorStealPerSecond * tickEvery);
+    }
+    if (hasStatus(target, I.TAUNT) && tuning.stormTauntedDamageAmpPct > 0) {
+      applyStatus(target, I.DAMAGE_AMP, tickEvery + 0.2, {
+        sourceId: player.id,
+        hostile: true,
+        value: tuning.stormTauntedDamageAmpPct,
+        label: 'R',
+        timeMs
+      });
+    }
+    if (tuning.stormExposureStunThreshold > 0) {
+      fs.stormExposureById[target.id] = (fs.stormExposureById[target.id] ?? 0) + tickEvery;
+      if (fs.stormExposureById[target.id] >= tuning.stormExposureStunThreshold) {
+        fs.stormExposureById[target.id] = 0;
+        applyStatus(target, I.STUN, tuning.stormExposureStunDuration, {
+          sourceId: player.id,
+          hostile: true,
+          label: 'R',
+          timeMs
+        });
+      }
+    }
+  });
+}
+
+function tickBulwark(state, player, dt, timeMs) {
+  const fs = getBulwarkState(player);
+  if (!fs) return;
+
+  tickBulwarkPlates(player, dt);
+  if (fs.harpoonHasteLeft > 0) fs.harpoonHasteLeft = Math.max(0, fs.harpoonHasteLeft - dt);
+
+  if (fs.anchorLeft > 0) fs.anchorLeft = Math.max(0, fs.anchorLeft - dt);
+
+  if (fs.meditationLeft > 0) {
+    const tuning = getBulwarkE(player);
+    const missing = Math.max(0, player.stats.maxHp - player.stats.hp);
+    if (missing > 0 && tuning.meditationHealMissingPctPerSecond > 0) {
+      healStatBlock(player.stats, missing * tuning.meditationHealMissingPctPerSecond * dt);
+    }
+    const prev = fs.meditationLeft;
+    fs.meditationLeft = Math.max(0, fs.meditationLeft - dt);
+    if (prev > 0 && fs.meditationLeft <= 0) {
+      const armor = getBulwarkArmor(player);
+      const shieldGain = player.stats.maxHp * tuning.meditationShieldPctMaxHp + armor * tuning.meditationShieldArmorPct;
+      player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + shieldGain);
+      if (tuning.meditationPulseRadius > 0 && tuning.meditationFinalSlowPct > 0) {
+        forEachHostileInRadius(state, player, player.x, player.y, tuning.meditationPulseRadius, (target) => {
+          applyStatus(target, I.SLOW, tuning.meditationFinalSlowDuration, {
+            sourceId: player.id,
+            hostile: true,
+            value: tuning.meditationFinalSlowPct,
+            label: 'E',
+            timeMs
+          });
+          if (tuning.meditationFinalGroundedDuration > 0) {
+            applyStatus(target, I.GROUNDED, tuning.meditationFinalGroundedDuration, {
+              sourceId: player.id,
+              hostile: true,
+              label: 'E',
+              timeMs
+            });
+          }
+        });
+      }
+    }
+  }
+
+  if (fs.stormLeft > 0) {
+    fs.stormLeft = Math.max(0, fs.stormLeft - dt);
+    fs.stormTickLeft = Math.max(0, fs.stormTickLeft - dt);
+    while (fs.stormTickLeft <= 0 && fs.stormLeft > 0) {
+      resolveBulwarkStormTick(state, player, timeMs);
+      fs.stormTickLeft += 0.5;
+    }
+    const stormTuning = getBulwarkR(player);
+    if (stormTuning.stormShieldGainPctMaxShieldPerTick > 0) {
+      fs.stormShieldTickLeft = Math.max(0, fs.stormShieldTickLeft - dt);
+      while (fs.stormShieldTickLeft <= 0 && fs.stormLeft > 0) {
+        const cap = player.stats.maxShield * (stormTuning.stormShieldGainCapPctMaxShield || 0);
+        const gain = Math.min(player.stats.maxShield * stormTuning.stormShieldGainPctMaxShieldPerTick, Math.max(0, cap - (fs.stormShieldGained || 0)));
+        if (gain > 0) {
+          player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + gain);
+          fs.stormShieldGained = (fs.stormShieldGained || 0) + gain;
+        }
+        fs.stormShieldTickLeft += Math.max(0.1, stormTuning.stormShieldGainTickInterval || 1.2);
+      }
+    }
+    if (getBulwarkR(player).stormPullInterval > 0) {
+      fs.stormPullTickLeft = Math.max(0, fs.stormPullTickLeft - dt);
+      while (fs.stormPullTickLeft <= 0 && fs.stormLeft > 0) {
+        const tuning = getBulwarkR(player);
+        forEachHostileInRadius(state, player, player.x, player.y, tuning.stormRadius, (target) => {
+          if (distSq(player.x, player.y, target.x, target.y) < tuning.stormInnerRadius * tuning.stormInnerRadius) return;
+          applyPullMove(target, player, tuning.stormPullWindow, tuning.stormPullStrength);
+        });
+        fs.stormPullTickLeft += tuning.stormPullInterval;
+      }
+    }
+  } else {
+    fs.stormExposureById = Object.create(null);
+    fs.stormArmorStolen = 0;
+    fs.stormShieldGained = 0;
+  }
+
+  updateFrameBonuses(player);
+}
+
+export function tickFrameGameplay(state, player, dt, timeMs) {
+  if (player.frameId === SHIP_FRAME_IDS.VANGUARD) return tickVanguard(state, player, dt, timeMs);
+  if (player.frameId === SHIP_FRAME_IDS.SIGIL) return tickSigil(state, player, dt, timeMs);
+  if (player.frameId === SHIP_FRAME_IDS.BULWARK) return tickBulwark(state, player, dt, timeMs);
+  if (player.frameBonuses && Object.keys(player.frameBonuses).length) player.frameBonuses = {};
+}
+
+export function getFrameAutoAttackProfile(player, options = {}) {
+  const defaultProfile = {
+    cooldownMult: Math.max(0.15, player.progressionBonuses?.fireRateMult ?? 1),
+    damage: getWeaponReferenceDamage(player),
+    projectileSpeed: WEAPON_PULSE_MK1.projectileSpeed,
+    extras: { sourceAbilitySlot: -1, autoAttackImpactRoll: true, sourceFrameId: player.frameId }
+  };
+
+  if (player.frameId === SHIP_FRAME_IDS.VANGUARD) {
+    const fs = getVanguardState(player);
+    const baseDamage = getWeaponReferenceDamage(player);
+    let damage = baseDamage;
+    let empoweredUsed = false;
+
+    if (fs?.empoweredCharges > 0) {
+      damage += baseDamage * fs.empowerPct + fs.empowerFlat;
+      if (!options.peekOnly) fs.empoweredCharges = Math.max(0, fs.empoweredCharges - 1);
+      empoweredUsed = true;
+    }
+    if ((player.frameBonuses?.ultEmpowerPct ?? 0) > 0) damage += baseDamage * player.frameBonuses.ultEmpowerPct;
+
+    return {
+      cooldownMult: Math.max(0.15, (player.progressionBonuses?.fireRateMult ?? 1) * (1 + (player.frameBonuses?.attackSpeed ?? 0))),
+      damage,
+      projectileSpeed: WEAPON_PULSE_MK1.projectileSpeed,
+      extras: {
+        sourceAbilitySlot: -1,
+        autoAttackImpactRoll: true,
+        empoweredAutoUsed: empoweredUsed,
+        ultAutoUsed: (fs?.ultLeft ?? 0) > 0,
+        sourceFrameId: player.frameId
+      }
+    };
+  }
+
+  if (player.frameId === SHIP_FRAME_IDS.SIGIL) {
+    return {
+      cooldownMult: Math.max(0.15, player.progressionBonuses?.fireRateMult ?? 1),
+      damage: getWeaponReferenceDamage(player),
+      projectileSpeed: WEAPON_PULSE_MK1.projectileSpeed,
+      extras: { sourceAbilitySlot: -1, autoAttackImpactRoll: true, sourceFrameId: player.frameId }
+    };
+  }
+
+  if (player.frameId === SHIP_FRAME_IDS.BULWARK) {
+    const fs = getBulwarkState(player);
+    const armor = getBulwarkArmor(player);
+    const passive = BULWARK_PASSIVE;
+    const empowered = getBulwarkPlateCount(player) >= passive.maxPlates;
+    const pct = empowered ? passive.empoweredArmorToAttackDamagePct : passive.armorToAttackDamagePct;
+    const damage = getWeaponReferenceDamage(player) + armor * pct;
+    return {
+      cooldownMult: Math.max(0.15, player.progressionBonuses?.fireRateMult ?? 1),
+      damage,
+      projectileSpeed: WEAPON_PULSE_MK1.projectileSpeed,
+      extras: { sourceAbilitySlot: -1, autoAttackImpactRoll: true, sourceFrameId: player.frameId, bulwarkEmpowered: empowered, armorUsed: armor }
+    };
+  }
+
+  return defaultProfile;
+}
+
+export function getFrameMoveMultiplier(player) {
+  if (player.frameId === SHIP_FRAME_IDS.VANGUARD) return 1 + (player.frameBonuses?.moveHaste ?? 0);
+  if (player.frameId === SHIP_FRAME_IDS.BULWARK) return Math.max(0.25, 1 + (player.frameBonuses?.moveHaste ?? 0));
+  return 1;
+}
+
+export function adjustIncomingDamageByFrame(target, amount) {
+  let adjusted = amount;
+  const reduction = target?.frameBonuses?.incomingDamageReductionPct ?? 0;
+  if (reduction > 0) adjusted *= Math.max(0, 1 - reduction);
+
+  if (target?.frameId === SHIP_FRAME_IDS.BULWARK) {
+    const fs = getBulwarkState(target);
+    if (fs?.anchorLeft > 0) {
+      const tuning = getBulwarkA(target);
+      if (tuning.anchorSingleHitCapPctMaxHp > 0) adjusted = Math.min(adjusted, target.stats.maxHp * tuning.anchorSingleHitCapPctMaxHp);
+    }
+  }
+
+  return adjusted;
+}
+
+export function onDamageTakenByFrame(state, target, amount, sourcePlayer, timeMs, options = {}) {
+  if (!target || target.frameId !== SHIP_FRAME_IDS.BULWARK) return;
+  const fs = getBulwarkState(target);
+  if (!fs) return;
+
+  if (!options.isReflected && amount >= target.stats.maxHp * BULWARK_PASSIVE.plateBurstThresholdPctMaxHp && fs.plateGainIcdLeft <= 0) {
+    fs.plateGainIcdLeft = BULWARK_PASSIVE.plateGainInternalCooldown;
+    const added = addBulwarkPlate(target);
+    if (added && getBulwarkPlateCount(target) >= BULWARK_PASSIVE.maxPlates) {
+      const armor = getBulwarkArmor(target);
+      const shieldGain = target.stats.maxHp * BULWARK_PASSIVE.plateShieldPctMaxHp + armor * BULWARK_PASSIVE.plateShieldArmorPct;
+      target.stats.shield = Math.min(target.stats.maxShield, target.stats.shield + shieldGain);
+    }
+  }
+
+  if (!options.isReflected && fs.anchorLeft > 0 && sourcePlayer) {
+    const tuning = getBulwarkA(target);
+    const reflected = clamp(amount * tuning.anchorReflectPct, tuning.anchorReflectMinDamage, tuning.anchorReflectMaxDamage);
+    if (reflected > 0) applyDamage(state, sourcePlayer, reflected, target, { timeMs, isReflected: true });
+    if (tuning.anchorPulseRadius > 0 && tuning.anchorPulseSlowPct > 0) {
+      forEachHostileInRadius(state, target, target.x, target.y, tuning.anchorPulseRadius, (entity) => {
+        applyStatus(entity, I.SLOW, tuning.anchorPulseSlowDuration, {
+          sourceId: target.id,
+          hostile: true,
+          value: tuning.anchorPulseSlowPct,
+          label: 'A',
+          timeMs
+        });
+      });
+    }
+  }
+}
+
+export function onEntityKilledByFrame(state, killer, victim) {
+  if (!killer || killer.frameId !== SHIP_FRAME_IDS.VANGUARD) return;
+  const fs = getVanguardState(killer);
+  if (!fs || fs.ultLeft <= 0) return;
+  const tuning = getR(killer);
+  if (tuning.extensionDuration <= 0 || tuning.extensionMaxBonusDuration <= 0) return;
+  const grant = Math.min(tuning.extensionDuration, tuning.extensionMaxBonusDuration - fs.ultBonusDurationGained);
+  if (grant <= 0) return;
+  fs.ultBonusDurationGained += grant;
+  fs.ultLeft += grant;
+}
+
+function handleVanguardProjectileImpact(state, owner, target, projectile, timeMs) {
+  const fs = getVanguardState(owner);
+  if (!fs) return;
+
+  if (projectile.autoAttackImpactRoll || (projectile.sourceAbilitySlot != null && projectile.sourceAbilitySlot !== -1)) addVanguardHeat(owner, 1, timeMs);
+
+  if (projectile.sourceAbilitySlot === -1) {
+    const r = getR(owner);
+    if (fs.ultLeft > 0 && r.ultBurnDuration > 0 && hasVanguardMark(target)) {
+      const totalBurn = r.ultBurnFlat + r.ultBurnWeaponPct * getWeaponReferenceDamage(owner);
+      applyStatus(target, I.BURN, r.ultBurnDuration, {
+        sourceId: owner.id,
+        hostile: true,
+        periodicDamage: totalBurn / Math.max(0.1, r.ultBurnDuration),
+        tickEvery: 1,
+        label: 'R',
+        timeMs
+      });
+    }
+    if (fs.ultLeft > 0 && r.ultCloseEnergyRestore > 0) {
+      const rr = r.ultCloseEnergyRange + (target.radius ?? 0);
+      if (distSq(owner.x, owner.y, target.x, target.y) <= rr * rr) {
+        owner.stats.energy = Math.min(owner.stats.maxEnergy, owner.stats.energy + r.ultCloseEnergyRestore);
+      }
+    }
+    return;
+  }
+
+  if (projectile.sourceAbilitySlot !== 'A') return;
+  const a = getA(owner);
+  const targetHadAmp = hasStatus(target, I.DAMAGE_AMP);
+  if (a.refundEnergyOnCrowdControlledTarget > 0 && (hasStatus(target, I.SLOW) || hasStatus(target, I.GROUNDED))) {
+    owner.stats.energy = Math.min(owner.stats.maxEnergy, owner.stats.energy + a.refundEnergyOnCrowdControlledTarget);
+  }
+  applyVanguardMark(owner, target, Math.max(2.0, a.damageAmpDuration), timeMs);
+  if (a.damageAmpDuration > 0 && a.damageAmpPct > 0) {
+    applyStatus(target, I.DAMAGE_AMP, a.damageAmpDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      value: a.damageAmpPct,
+      label: 'A',
+      timeMs
+    });
+  }
+  const r = getR(owner);
+  if (fs.ultLeft > 0 && r.ultCloseAStunDuration > 0) {
+    const rr = r.ultCloseAStunRange + (target.radius ?? 0);
+    if (distSq(owner.x, owner.y, target.x, target.y) <= rr * rr) {
+      applyStatus(target, I.STUN, r.ultCloseAStunDuration, {
+        sourceId: owner.id,
+        hostile: true,
+        label: 'R+A',
+        timeMs
+      });
+    }
+  }
+  if (targetHadAmp && a.disarmDuration > 0) {
+    applyStatus(target, I.DISARM, a.disarmDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      label: 'A',
+      timeMs
+    });
+  }
+  if (projectile.linkedAbilitySynergyActive) {
+    const z = getZ(owner);
+    if (z.cooldownRefundPct > 0) owner.cooldownZLeft = Math.max(0.45, owner.cooldownZLeft * (1 - z.cooldownRefundPct));
+  }
+}
+
+function handleSigilProjectileImpact(state, owner, target, projectile, timeMs) {
+  const fs = getSigilState(owner);
+  if (!fs) return;
+  const a = getSigilA(owner);
+  const r = getSigilR(owner);
+  const runesBefore = getSigilRuneCount(target);
+
+  if (runesBefore > 0) {
+    const bonus = runesBefore * (a.passive.runeDamageFlatPerRune + getWeaponReferenceDamage(owner) * a.passive.runeDamageWeaponPctPerRune);
+    if (bonus > 0) applyDamage(state, target, bonus, owner, { timeMs });
+    maybeSlowFromSigilRunes(owner, target, a, timeMs);
+  }
+
+  if (projectile.sourceAbilitySlot !== 'A') return;
+
+  applySigilRunes(owner, target, a, a.aImpactRunes, timeMs);
+  const runesAfter = getSigilRuneCount(target);
+  if (a.aRevealThreshold > 0 && runesAfter >= a.aRevealThreshold) {
+    applyStatus(target, I.REVEAL, a.aRevealDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      label: 'A',
+      timeMs
+    });
+  }
+  if (a.aHealCutThreshold > 0 && runesAfter >= a.aHealCutThreshold) {
+    applyStatus(target, I.HEAL_CUT, a.aHealCutDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      value: a.aHealCutPct,
+      label: 'A',
+      timeMs
+    });
+  }
+  if (fs.ultLeft > 0 && r.ultRevealOnAHitDuration > 0) {
+    applyStatus(target, I.REVEAL, r.ultRevealOnAHitDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      label: 'R+A',
+      timeMs
+    });
+  }
+  if (fs.ultLeft > 0 && r.ultHealCutThresholdRunes > 0 && runesAfter >= r.ultHealCutThresholdRunes) {
+    applyStatus(target, I.HEAL_CUT, r.ultHealCutDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      value: r.ultHealCutPct,
+      label: 'R+A',
+      timeMs
+    });
+  }
+  maybeDetonateSigilRunes(state, owner, target, timeMs, {
+    applyStasisDuration: a.aDetonationStasisDuration,
+    applyStunDuration: fs.ultLeft > 0 ? r.ultDetonationStunDuration : 0
+  });
+}
+
+function handleBulwarkProjectileImpact(state, owner, target, projectile, timeMs) {
+  if (projectile.sourceAbilitySlot !== 'Z') return;
+  const tuning = getBulwarkZ(owner);
+  applyStatus(target, I.TAUNT, tuning.harpoonTauntDuration, {
+    sourceId: owner.id,
+    hostile: true,
+    label: 'Z',
+    timeMs
+  });
+  if (tuning.harpoonArmorShredPct > 0) {
+    applyStatus(target, I.ARMOR_SHRED, tuning.harpoonArmorShredDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      value: tuning.harpoonArmorShredPct,
+      label: 'Z',
+      timeMs
+    });
+  }
+  if (tuning.harpoonGroundedDuration > 0) {
+    applyStatus(target, I.GROUNDED, tuning.harpoonGroundedDuration, {
+      sourceId: owner.id,
+      hostile: true,
+      label: 'Z',
+      timeMs
+    });
+  }
+  if (tuning.harpoonPullStrength > 0) applyPullMove(target, owner, 0.18, tuning.harpoonPullStrength);
+  if (tuning.harpoonSelfHastePct > 0) {
+    applyStatus(owner, I.HASTE, 1.6, {
+      sourceId: owner.id,
+      hostile: false,
+      value: tuning.harpoonSelfHastePct,
+      label: 'Z',
+      timeMs
+    });
+  }
+  if (tuning.harpoonDashDistance > 0) {
+    const dir = norm(target.x - owner.x, target.y - owner.y);
+    applyDashMove(owner, owner.x + dir.x * tuning.harpoonDashDistance, owner.y + dir.y * tuning.harpoonDashDistance, 0.12, tuning.harpoonDashDistance / 0.12);
+  }
+}
+
+export function onProjectileImpactForFrame(state, owner, target, projectile, timeMs) {
+  if (!owner) return;
+  if (owner.frameId === SHIP_FRAME_IDS.VANGUARD) return handleVanguardProjectileImpact(state, owner, target, projectile, timeMs);
+  if (owner.frameId === SHIP_FRAME_IDS.SIGIL) return handleSigilProjectileImpact(state, owner, target, projectile, timeMs);
+  if (owner.frameId === SHIP_FRAME_IDS.BULWARK) return handleBulwarkProjectileImpact(state, owner, target, projectile, timeMs);
+}
+
+function castVanguardA(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'A') <= 0) return false;
+  const a = getA(player);
+  if (player.cooldownALeft > 0) return false;
+  if (!consumeEnergy(player.stats, a.energyCost)) return false;
+
+  const world = getAbilityMouseWorld(player);
+  const dir = norm(world.x - player.x, world.y - player.y);
+  const fs = getVanguardState(player);
+  const combo = fs.comboWindowLeft > 0;
+  if (combo) fs.comboWindowLeft = 0;
+
+  let damage = getWeaponReferenceDamage(player) * a.damagePct + a.damageFlat;
+  let speed = a.projectileSpeed;
+  if (combo) {
+    damage *= 1 + a.comboDamagePct;
+    speed *= 1 + a.comboProjectileSpeedPct;
+  }
+
+  fs.empowerPct = a.empowerPct;
+  fs.empowerFlat = a.empowerFlat;
+  const maxEmpoweredCharges = Math.max(1, Math.min(5, a.empowerCharges | 0));
+  fs.empoweredCharges = Math.min(maxEmpoweredCharges, (fs.empoweredCharges | 0) + a.empowerCharges);
+  fs.empoweredMaxCharges = maxEmpoweredCharges;
+
+  spawnProjectile(state, player, player.x + dir.x * a.projectileRange, player.y + dir.y * a.projectileRange, { r: 130, g: 225, b: 255 }, damage, Math.max(4, a.projectileWidth * 0.22), speed, a.projectileRange, 0, timeMs, {
+    sourceAbilitySlot: 'A',
+    linkedAbilitySynergyActive: combo,
+    pierceLeft: a.pierceCount,
+    hitIds: new Set(),
+    sourceFrameId: player.frameId
+  });
+  player.cooldownALeft = a.baseCooldown;
+  return true;
+}
+
+function castVanguardZ(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'Z') <= 0) return false;
+  const z = getZ(player);
+  if (player.cooldownZLeft > 0) return false;
+  if (blocksDash(player)) return false;
+  if (!consumeEnergy(player.stats, z.energyCost)) return false;
+
+  const world = getAbilityMouseWorld(player);
+  const dir = norm(world.x - player.x, world.y - player.y);
+  const toX = player.x + dir.x * z.dashDistance;
+  const toY = player.y + dir.y * z.dashDistance;
+  applyDashMove(player, toX, toY, 0.10, z.dashDistance / 0.10);
+
+  const fs = getVanguardState(player);
+  fs.moveBoostLeft = Math.max(fs.moveBoostLeft, z.moveBoostDuration);
+  if (z.comboWindowDuration > 0) fs.comboWindowLeft = Math.max(fs.comboWindowLeft, z.comboWindowDuration);
+  if (z.cleanseSlowAndRoot) {
+    removeStatus(player, I.SLOW);
+    removeStatus(player, I.ROOT);
+  }
+  if (z.trailSlowDuration > 0 && z.trailSlowPct > 0) {
+    let hits = 0;
+    forEachHostileEntityInSector(state, player, (target) => {
+      const rr = 20 + (target.radius ?? 0);
+      if (linePointDistance(target.x, target.y, player.x, player.y, toX, toY) > rr) return;
+      applyStatus(target, I.SLOW, z.trailSlowDuration, {
+        sourceId: player.id,
+        hostile: true,
+        value: z.trailSlowPct,
+        label: 'Z',
+        timeMs
+      });
+      hits += 1;
+    });
+    if (hits > 0) addVanguardHeat(player, hits, timeMs);
+    fs.trailLeft = z.trailSlowDuration;
+    fs.trailStartX = player.x;
+    fs.trailStartY = player.y;
+    fs.trailEndX = toX;
+    fs.trailEndY = toY;
+    fs.trailSlowPct = z.trailSlowPct;
+    fs.trailSlowDuration = z.trailSlowDuration;
+  }
+  applyOverheatTenacity(player, z, timeMs);
+  const r = getR(player);
+  if (fs.ultLeft > 0 && r.unstoppableDuration > 0) {
+    applyStatus(player, I.UNSTOPPABLE, r.unstoppableDuration, {
+      sourceId: player.id,
+      hostile: false,
+      label: 'R+Z',
+      timeMs
+    });
+  }
+  player.cooldownZLeft = z.baseCooldown;
+  return true;
+}
+
+function castVanguardE(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'E') <= 0) return false;
+  const e = getE(player);
+  if (player.cooldownELeft > 0) return false;
+  if (!consumeEnergy(player.stats, e.energyCost)) return false;
+  const fs = getVanguardState(player);
+  fs.phaseLeft = Math.max(fs.phaseLeft, e.phaseDuration);
+  fs.phaseStartedAtMaxHeat = fs.passiveStacks >= VANGUARD_PASSIVE.maxStacks;
+  applyOverheatTenacity(player, e, timeMs);
+  player.cooldownELeft = e.baseCooldown;
+  return true;
+}
+
+function castVanguardR(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'R') <= 0) return false;
+  const r = getR(player);
+  if (player.cooldownRLeft > 0) return false;
+  if (!consumeEnergy(player.stats, r.energyCost)) return false;
+  const fs = getVanguardState(player);
+  fs.ultLeft = r.ultDuration;
+  fs.ultBonusDurationGained = 0;
+  player.cooldownRLeft = r.baseCooldown;
+  return true;
+}
+
+function castSigilA(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'A') <= 0) return false;
+  const a = getSigilA(player);
+  if (player.cooldownALeft > 0) return false;
+  if (!consumeEnergy(player.stats, a.energyCost)) return false;
+
+  const world = getAbilityMouseWorld(player);
+  const dir = norm(world.x - player.x, world.y - player.y);
+  const fs = getSigilState(player);
+  let damage = getWeaponReferenceDamage(player) * a.aImpactDamagePct + a.aImpactDamageFlat;
+  if (fs.veilLeft > 0 && a.aEmpowerFromVeilDamagePct > 0) damage *= 1 + a.aEmpowerFromVeilDamagePct;
+
+  spawnProjectile(state, player, player.x + dir.x * a.aProjectileRange, player.y + dir.y * a.aProjectileRange, { r: 197, g: 120, b: 255 }, damage, Math.max(4, a.aProjectileWidth * 0.22), a.aProjectileSpeed, a.aProjectileRange, 0, timeMs, {
+    sourceAbilitySlot: 'A',
+    pierceLeft: Math.max(0, a.aPierceCount),
+    hitIds: new Set(),
+    sourceFrameId: player.frameId
+  });
+
+  const ult = getSigilR(player);
+  player.cooldownALeft = a.baseCooldown * (fs.ultLeft > 0 ? ult.ultACooldownMultiplier : 1);
+  return true;
+}
+
+function castSigilZ(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'Z') <= 0) return false;
+  const z = getSigilZ(player);
+  const fs = getSigilState(player);
+
+  if (fs.zoneEffectId && z.zCanRecastClose) {
+    const zone = state.areaEffects.get(fs.zoneEffectId);
+    if (zone) {
+      forEachHostileInRadius(state, player, zone.x, zone.y, zone.radius, (target) => {
+        const runes = getSigilRuneCount(target);
+        if (runes >= z.zCloseControlThresholdRunes && z.zClosePullStrength > 0) applyPullMove(target, player, 0.18, z.zClosePullStrength);
+        if (runes >= z.zCloseControlThresholdRunes && z.zCloseSuppressDuration > 0) {
+          applyStatus(target, I.SUPPRESS, z.zCloseSuppressDuration, {
+            sourceId: player.id,
+            hostile: true,
+            label: 'Z2',
+            timeMs
+          });
+        }
+      });
+      state.areaEffects.delete(fs.zoneEffectId);
+      fs.zoneEffectId = 0;
+      return true;
+    }
+    fs.zoneEffectId = 0;
+  }
+
+  if (player.cooldownZLeft > 0) return false;
+  if (!consumeEnergy(player.stats, z.energyCost)) return false;
+
+  const world = getAbilityMouseWorld(player);
+  const dir = norm(world.x - player.x, world.y - player.y);
+  const dist = Math.min(z.zCastRange, Math.hypot(world.x - player.x, world.y - player.y));
+  const x = player.x + dir.x * dist;
+  const y = player.y + dir.y * dist;
+  const damage = z.zZoneDamageFlatPerSecond + getWeaponReferenceDamage(player) * z.zZoneDamageWeaponPctPerSecond;
+
+  const effect = createAreaEffect(state, player, {
+    slot: 'Z',
+    x,
+    y,
+    radius: z.zZoneRadius,
+    duration: z.zZoneDuration,
+    tickEvery: z.zRunePulseInterval,
+    damage,
+    color: { r: 177, g: 104, b: 255 },
+    onTickStatuses: [
+      {
+        effectId: I.SLOW,
+        duration: z.zRunePulseInterval + 0.1,
+        value: z.zZoneSlowPct,
+        hostile: true,
+        label: 'Z'
+      },
+      z.zRunePulseStacks > 0 ? ((innerState, source, target) => ({
+        effectId: I.MARK,
+        duration: z.passive.runeDuration * ((getSigilState(source)?.ultLeft ?? 0) > 0 ? (1 + getSigilR(source).ultRuneDurationBonusPct) : 1),
+        hostile: true,
+        markKey: SIGIL_MARK_KEY,
+        stacks: z.zRunePulseStacks,
+        maxStacks: z.passive.maxRunes,
+        label: 'Rune'
+      })) : null
+    ].filter(Boolean)
+  });
+
+  fs.zoneEffectId = effect.id;
+  fs.zoneX = x;
+  fs.zoneY = y;
+  player.cooldownZLeft = z.baseCooldown;
+  return true;
+}
+
+function castSigilE(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'E') <= 0) return false;
+  const e = getSigilE(player);
+  if (player.cooldownELeft > 0) return false;
+  if (blocksDash(player)) return false;
+  if (!consumeEnergy(player.stats, e.energyCost)) return false;
+
+  const world = getAbilityMouseWorld(player);
+  const dir = norm(world.x - player.x, world.y - player.y);
+  const toX = player.x + dir.x * e.eDashDistance;
+  const toY = player.y + dir.y * e.eDashDistance;
+  applyDashMove(player, toX, toY, 0.10, e.eDashDistance / 0.10);
+  applyStatus(player, I.CAMOUFLAGE, e.eCamouflageDuration, {
+    sourceId: player.id,
+    hostile: false,
+    label: 'E',
+    timeMs
+  });
+  const fs = getSigilState(player);
+  fs.veilLeft = Math.max(fs.veilLeft, e.eCamouflageDuration);
+  fs.trailLeft = e.eTrailDuration;
+  fs.trailStartX = player.x;
+  fs.trailStartY = player.y;
+  fs.trailEndX = toX;
+  fs.trailEndY = toY;
+  fs.trailSlowPct = e.eTrailSlowPct;
+  fs.trailSlowDuration = e.eTrailSlowDuration;
+  if (e.eGroundedDurationOnMaxRunes > 0) {
+    forEachHostileInRadius(state, player, player.x, player.y, e.eGroundedCheckRadius || 260, (target) => {
+      if (getSigilRuneCount(target) < (e.passive?.maxRunes ?? 5)) return;
+      applyStatus(target, I.GROUNDED, e.eGroundedDurationOnMaxRunes, {
+        sourceId: player.id,
+        hostile: true,
+        label: 'E',
+        timeMs
+      });
+    });
+  }
+  player.cooldownELeft = e.baseCooldown;
+  return true;
+}
+
+function castSigilR(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'R') <= 0) return false;
+  const r = getSigilR(player);
+  if (player.cooldownRLeft > 0) return false;
+  if (!consumeEnergy(player.stats, r.energyCost)) return false;
+  const fs = getSigilState(player);
+  fs.ultLeft = r.ultDuration;
+  applyStatus(player, I.LIFESTEAL, r.ultDuration, {
+    sourceId: player.id,
+    hostile: false,
+    value: r.ultLifestealPct,
+    label: 'R',
+    timeMs
+  });
+  player.cooldownRLeft = r.baseCooldown;
+  return true;
+}
+
+function castBulwarkA(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'A') <= 0) return false;
+  const a = getBulwarkA(player);
+  if (player.cooldownALeft > 0) return false;
+  if (!consumeEnergy(player.stats, a.energyCost)) return false;
+  const fs = getBulwarkState(player);
+  fs.anchorLeft = a.anchorDuration;
+  fs.anchorArmorFlat = a.anchorArmorFlat;
+  fs.anchorPulseRadius = a.anchorPulseRadius;
+  fs.anchorPulseSlowPct = a.anchorPulseSlowPct;
+  fs.anchorPulseSlowDuration = a.anchorPulseSlowDuration;
+  player.cooldownALeft = a.baseCooldown;
+  return true;
+}
+
+function castBulwarkZ(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'Z') <= 0) return false;
+  const z = getBulwarkZ(player);
+  if (player.cooldownZLeft > 0) return false;
+  if (!consumeEnergy(player.stats, z.energyCost)) return false;
+  const world = getAbilityMouseWorld(player);
+  const dir = norm(world.x - player.x, world.y - player.y);
+  const armor = getBulwarkArmor(player);
+  const damage = z.harpoonDamageFlat + getWeaponReferenceDamage(player) * z.harpoonDamageWeaponPct + armor * z.harpoonDamageArmorPct;
+  spawnProjectile(state, player, player.x + dir.x * z.harpoonRange, player.y + dir.y * z.harpoonRange, { r: 234, g: 190, b: 112 }, damage, Math.max(5, z.harpoonWidth * 0.22), z.harpoonProjectileSpeed, z.harpoonRange, 0, timeMs, {
+    sourceAbilitySlot: 'Z',
+    pierceLeft: 0,
+    hitIds: new Set(),
+    sourceFrameId: player.frameId
+  });
+  player.cooldownZLeft = z.baseCooldown;
+  return true;
+}
+
+function castBulwarkE(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'E') <= 0) return false;
+  const e = getBulwarkE(player);
+  if (player.cooldownELeft > 0) return false;
+  if (!consumeEnergy(player.stats, e.energyCost)) return false;
+  if (e.meditationCleanseSilenceDisarmRoot) cleanseControlOnly(player);
+  if (e.meditationCastUnstoppableDuration > 0) {
+    applyStatus(player, I.UNSTOPPABLE, e.meditationCastUnstoppableDuration, {
+      sourceId: player.id,
+      hostile: false,
+      label: 'E',
+      timeMs
+    });
+  }
+  const fs = getBulwarkState(player);
+  fs.meditationLeft = e.meditationDuration;
+  player.cooldownELeft = e.baseCooldown;
+  return true;
+}
+
+function castBulwarkR(state, player, timeMs) {
+  if (getAbilityInvestedLevel(player, 'R') <= 0) return false;
+  const r = getBulwarkR(player);
+  if (player.cooldownRLeft > 0) return false;
+  if (!consumeEnergy(player.stats, r.energyCost)) return false;
+  const fs = getBulwarkState(player);
+  fs.stormLeft = r.stormDuration;
+  fs.stormTickLeft = 0.5;
+  fs.stormPullTickLeft = r.stormPullInterval || 0;
+  fs.stormShieldTickLeft = r.stormShieldGainTickInterval || 1.2;
+  fs.stormShieldGained = 0;
+  fs.stormArmorStolen = 0;
+  fs.stormExposureById = Object.create(null);
+  player.cooldownRLeft = r.baseCooldown;
+  return true;
+}
+
+export function tryCastFrameAbility(state, player, slot, timeMs) {
+  if (player.frameId === SHIP_FRAME_IDS.VANGUARD) {
+    if (slot === 'A') return castVanguardA(state, player, timeMs);
+    if (slot === 'Z') return castVanguardZ(state, player, timeMs);
+    if (slot === 'E') return castVanguardE(state, player, timeMs);
+    if (slot === 'R') return castVanguardR(state, player, timeMs);
+    return false;
+  }
+  if (player.frameId === SHIP_FRAME_IDS.SIGIL) {
+    if (slot === 'A') return castSigilA(state, player, timeMs);
+    if (slot === 'Z') return castSigilZ(state, player, timeMs);
+    if (slot === 'E') return castSigilE(state, player, timeMs);
+    if (slot === 'R') return castSigilR(state, player, timeMs);
+    return false;
+  }
+  if (player.frameId === SHIP_FRAME_IDS.BULWARK) {
+    if (slot === 'A') return castBulwarkA(state, player, timeMs);
+    if (slot === 'Z') return castBulwarkZ(state, player, timeMs);
+    if (slot === 'E') return castBulwarkE(state, player, timeMs);
+    if (slot === 'R') return castBulwarkR(state, player, timeMs);
+    return false;
+  }
+  return false;
+}
+
+export function buildFrameUiState(player, timeMs) {
+  if (player.frameId === SHIP_FRAME_IDS.VANGUARD) {
+    const fs = getVanguardState(player);
+    if (!fs) return null;
+    const decayLeft = fs.passiveStacks <= 0
+      ? 0
+      : Math.max(0, VANGUARD_PASSIVE.stackDuration - (timeMs - fs.passiveLastGainAtMs) / 1000);
+    return {
+      kind: 'vanguard',
+      passiveName: 'Surchauffe',
+      passiveStacks: fs.passiveStacks,
+      passiveMaxStacks: VANGUARD_PASSIVE.maxStacks,
+      passiveDecayLeft: decayLeft,
+      passiveDecaying: fs.passiveStacks > 0 && decayLeft <= 0.001,
+      empoweredCharges: fs.empoweredCharges,
+      empoweredMaxCharges: fs.empoweredMaxCharges || Math.max(1, Math.min(5, getA(player).empowerCharges | 0)),
+      comboWindowLeft: fs.comboWindowLeft,
+      moveBoostLeft: fs.moveBoostLeft,
+      phaseLeft: fs.phaseLeft,
+      ultLeft: fs.ultLeft
+    };
+  }
+
+  if (player.frameId === SHIP_FRAME_IDS.SIGIL) {
+    const fs = getSigilState(player);
+    if (!fs) return null;
+    return {
+      kind: 'sigil',
+      passiveName: 'Runes',
+      passiveStacks: 0,
+      passiveMaxStacks: SIGIL_PASSIVE.maxRunes,
+      detonationCooldownLeft: fs.detonationCooldownLeft,
+      zoneActive: !!fs.zoneEffectId,
+      veilLeft: fs.veilLeft,
+      ultLeft: fs.ultLeft
+    };
+  }
+
+  if (player.frameId === SHIP_FRAME_IDS.BULWARK) {
+    const fs = getBulwarkState(player);
+    if (!fs) return null;
+    return {
+      kind: 'bulwark',
+      passiveName: 'Plaques',
+      passiveStacks: getBulwarkPlateCount(player),
+      passiveMaxStacks: BULWARK_PASSIVE.maxPlates,
+      anchorLeft: fs.anchorLeft,
+      meditationLeft: fs.meditationLeft,
+      stormLeft: fs.stormLeft,
+      stormArmorStolen: fs.stormArmorStolen || 0,
+      stormShieldGained: fs.stormShieldGained || 0
+    };
+  }
+
+  return null;
+}
