@@ -30,6 +30,12 @@ function getTarget(store, kind, id) {
   return null;
 }
 
+function getSelectedTarget(store) {
+  const kind = store.localPrediction?.selectedKind || store.myState?.selectedKind || '';
+  const id = store.localPrediction?.selectedId || store.myState?.selectedId || 0;
+  return { kind, id, entity: getTarget(store, kind, id) };
+}
+
 function getCooldownMax(myState, slot) {
   const hud = myState?.abilityHud?.[slot];
   return Math.max(0.15, finite(hud?.cooldownMax, finite(hud?.tuning?.baseCooldown, 0.6)));
@@ -49,13 +55,21 @@ function spendEnergyLocal(me, myState, slot) {
 
 function shouldDash(myState, slot) {
   const frameId = String(myState?.frameId || '').toLowerCase();
-  if (frameId === 'vanguard' && slot === 'Z') return 170;
-  if (frameId === 'sigil' && slot === 'E') return 160;
+  if (frameId === 'vanguard' && slot === 'Z') return 190;
+  if (frameId === 'sigil' && slot === 'E') return 175;
   return 0;
 }
 
 function shouldProjectile(slot) {
   return slot === 'A' || slot === 'Z' || slot === 'R';
+}
+
+function localDamageFor(slot, rocket = false) {
+  if (rocket) return 18;
+  if (slot === 'R') return 32;
+  if (slot === 'Z') return 20;
+  if (slot === 'E') return 12;
+  return 14;
 }
 
 export class ClientPrediction {
@@ -64,6 +78,7 @@ export class ClientPrediction {
     this.lastKeys = { A: false, Z: false, E: false, R: false, F: false, D: false };
     this.lastAttackFxAt = 0;
     this.localId = -1;
+    this.localAutoCooldown = 0;
   }
 
   update(dt, input, view, camera) {
@@ -83,7 +98,7 @@ export class ClientPrediction {
     this.handleAbilityEdges(me, input, worldMouse);
     this.handleRocketEdge(me, input, worldMouse);
     this.predictMovement(me, dt);
-    this.predictAutoAttackFx(me);
+    this.predictAutoAttackFx(me, dt);
   }
 
   handleAbilityEdges(me, input, worldMouse) {
@@ -99,7 +114,9 @@ export class ClientPrediction {
     if (down && !this.lastKeys.F) {
       if (finite(me.rocketCooldownLeft, 0) <= 0 && finite(me.vitals?.energy, 999) > 1) {
         me.rocketCooldownLeft = Math.max(0.25, finite(this.store.myState?.equipment?.launcher?.cooldown, 0.75));
-        this.spawnLocalProjectile(me, worldMouse, { rocket: true });
+        const target = getSelectedTarget(this.store);
+        this.spawnLocalProjectile(me, target.entity || worldMouse, { rocket: true });
+        if (target.entity && target.kind !== 'station') this.store.applyLocalDamage(target.kind, target.id, localDamageFor('', true), target.entity.x, target.entity.y);
       }
     }
     this.lastKeys.F = down;
@@ -118,15 +135,36 @@ export class ClientPrediction {
     if (hud) hud.cooldownLeft = cd;
     spendEnergyLocal(me, myState, slot);
 
+    const target = getSelectedTarget(this.store);
+    const aim = target.entity || worldMouse;
     const dash = shouldDash(myState, slot);
     if (dash > 0) this.applyDash(me, worldMouse, dash);
-    if (shouldProjectile(slot)) this.spawnLocalProjectile(me, worldMouse, { slot });
+    if (shouldProjectile(slot)) this.spawnLocalProjectile(me, aim, { slot });
+    if (target.entity && target.kind !== 'station') this.store.applyLocalDamage(target.kind, target.id, localDamageFor(slot), target.entity.x, target.entity.y);
+    this.spawnLocalCastArea(me, aim, slot);
 
-    if (!myState.hint) {
-      const label = hud?.label || slot;
-      myState.hint = label;
-      myState._optimisticHintLeft = 0.35;
-    }
+    const label = hud?.label || slot;
+    myState.hint = label;
+    myState._optimisticHintLeft = 0.35;
+  }
+
+  spawnLocalCastArea(me, worldMouse, slot) {
+    if (!this.store.areaEffects) return;
+    if (slot !== 'E' && slot !== 'R') return;
+    const id = this.localId--;
+    this.store.areaEffects.set(id, {
+      id,
+      localOnly: true,
+      ownerId: me.id,
+      sx: me.sx | 0,
+      sy: me.sy | 0,
+      x: finite(worldMouse.x, me.x),
+      y: finite(worldMouse.y, me.y),
+      radius: slot === 'R' ? 92 : 58,
+      durationLeft: slot === 'R' ? 0.34 : 0.22,
+      ttl: slot === 'R' ? 0.34 : 0.22,
+      color: slot === 'R' ? { r: 255, g: 205, b: 96 } : { r: 92, g: 255, b: 190 }
+    });
   }
 
   applyDash(me, worldMouse, distPx) {
@@ -139,10 +177,12 @@ export class ClientPrediction {
     me._clientDashGrace = 0.12;
   }
 
-  spawnLocalProjectile(me, worldMouse, opts = {}) {
+  spawnLocalProjectile(me, targetOrPoint, opts = {}) {
     if (!this.store.projectiles) return;
-    const d = norm(worldMouse.x - me.x, worldMouse.y - me.y);
-    const speed = opts.rocket ? 760 : (opts.slot === 'R' ? 920 : 1150);
+    const tx = finite(targetOrPoint?.x, me.x + 500);
+    const ty = finite(targetOrPoint?.y, me.y);
+    const d = norm(tx - me.x, ty - me.y);
+    const speed = opts.rocket ? 820 : (opts.slot === 'R' ? 980 : 1250);
     const id = this.localId--;
     this.store.projectiles.set(id, {
       id,
@@ -158,22 +198,26 @@ export class ClientPrediction {
       color: opts.rocket ? { r: 255, g: 188, b: 92 } : { r: 130, g: 225, b: 255 },
       tint: opts.rocket ? { r: 255, g: 188, b: 92 } : { r: 130, g: 225, b: 255 },
       visualKind: opts.rocket ? 'rocket' : 'auto',
-      ttl: opts.rocket ? 0.65 : 0.45,
+      sourceAbilitySlot: opts.slot || '',
+      ttl: opts.rocket ? 0.70 : 0.38,
       _tx: me.x + d.x * 500,
       _ty: me.y + d.y * 500
     });
   }
 
-  predictAutoAttackFx(me) {
-    const target = getTarget(this.store, this.store.myState?.selectedKind, this.store.myState?.selectedId);
-    if (!target) return;
-    const now = performance.now();
-    if (now - this.lastAttackFxAt < 520) return;
-    const range = 380;
-    const dx = target.x - me.x;
-    const dy = target.y - me.y;
+  predictAutoAttackFx(me, dt) {
+    this.localAutoCooldown = Math.max(0, this.localAutoCooldown - Math.max(0, dt));
+    const target = getSelectedTarget(this.store);
+    if (!target.entity || target.kind === 'station') return;
+    const range = 420;
+    const dx = target.entity.x - me.x;
+    const dy = target.entity.y - me.y;
     if (dx * dx + dy * dy > range * range) return;
-    this.lastAttackFxAt = now;
+    if (this.localAutoCooldown > 0) return;
+    this.localAutoCooldown = 0.22;
+    this.lastAttackFxAt = performance.now();
+    this.spawnLocalProjectile(me, target.entity, { auto: true });
+    this.store.applyLocalDamage(target.kind, target.id, 7, target.entity.x, target.entity.y);
   }
 
   predictMovement(me, dt) {
@@ -202,9 +246,7 @@ export class ClientPrediction {
       ty = local.moveY;
     }
 
-    if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
-      return;
-    }
+    if (!Number.isFinite(tx) || !Number.isFinite(ty)) return;
 
     const dx = tx - me.x;
     const dy = ty - me.y;
@@ -222,13 +264,9 @@ export class ClientPrediction {
     me.y += (dy / d) * step;
     me.vx = (dx / d) * speed;
     me.vy = (dy / d) * speed;
-    // Pas de réconciliation dure ici : le serveur accepte désormais la pose client.
   }
 
   reconcileSoftly(me, dt, isMoving = false) {
-    // Ancien mode : tirait le joueur local vers la dernière position serveur.
-    // En ligne, cette position est en retard de latence et donne l'impression de rollback.
-    // Pour cette version .io prototype, le client est autoritaire sur son déplacement.
     return;
   }
 }

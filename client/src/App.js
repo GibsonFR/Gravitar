@@ -361,6 +361,12 @@ export function startApp() {
       moveWorld: input.moveWorldQueued,
       moveWorldX: input.moveWorldX,
       moveWorldY: input.moveWorldY,
+      selectedKind: store.myState?.selectedKind || store.localPrediction?.selectedKind || '',
+      selectedId: store.myState?.selectedId || store.localPrediction?.selectedId || 0,
+      aimWorldX: camera.x + (input.msx - view.cssW * 0.5),
+      aimWorldY: camera.y + (input.msy - view.cssH * 0.5),
+      localMoveX: store.localPrediction?.moveX ?? 0,
+      localMoveY: store.localPrediction?.moveY ?? 0,
       // Mode .io réactif : on laisse temporairement le client piloter sa pose.
       // Le serveur la reprend comme vérité pour éviter les rollbacks perceptibles.
       cx: me?.x,
@@ -455,7 +461,7 @@ export function startApp() {
     statusEl.textContent = store.myId ? '' : 'Connexion…';
 
     const now = performance.now();
-    if (now - lastSend >= 8) {
+    if (now - lastSend >= 4) {
       lastSend = now;
       if (store.myState?.sessionSetup?.pending ?? true) clearQueuedInput();
       else sendInput(input.rightDown && input.holdActive);

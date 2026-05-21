@@ -25,7 +25,9 @@ export class WorldStore {
       hold: false,
       selectedKind: '',
       selectedId: 0,
-      selectedAt: 0
+      selectedAt: 0,
+      moveAt: 0,
+      localDamage: new Map()
     };
   }
 
@@ -52,12 +54,18 @@ export class WorldStore {
       merged.y = previous.y;
       merged.vx = previous.vx;
       merged.vy = previous.vy;
+      const now = performance.now();
+      if (now - (this.localPrediction.moveAt || 0) < 1400) {
+        merged.groundMarkerX = previous.groundMarkerX;
+        merged.groundMarkerY = previous.groundMarkerY;
+        merged.groundMarkerTimer = previous.groundMarkerTimer;
+      }
       merged._serverX = next.x;
       merged._serverY = next.y;
       merged._tx = previous.x;
       merged._ty = previous.y;
       merged._snapDistanceSq = 0;
-      return merged;
+      return this._applyLocalDamageToEntity(merged);
     }
     const merged = { ...previous, ...next };
     if (options.snapPosition) {
@@ -88,7 +96,61 @@ export class WorldStore {
         merged.y = py;
       }
     }
-    return merged;
+    return this._applyLocalDamageToEntity(merged);
+  }
+
+  _entityDamageKey(entity) {
+    if (!entity) return '';
+    const kind = entity.kind || entity.type || (entity.mobId ? 'mob' : '');
+    return `${kind}:${entity.id}`;
+  }
+
+  _applyLocalDamageToEntity(entity) {
+    if (!entity?.vitals) return entity;
+    const now = performance.now();
+    const candidates = [
+      `${entity.kind || ''}:${entity.id}`,
+      `mob:${entity.id}`,
+      `asteroid:${entity.id}`,
+      `player:${entity.id}`
+    ];
+    let best = null;
+    for (const key of candidates) {
+      const entry = this.localPrediction.localDamage.get(key);
+      if (!entry) continue;
+      if (now > entry.until) {
+        this.localPrediction.localDamage.delete(key);
+        continue;
+      }
+      if (!best || entry.hp < best.hp) best = entry;
+    }
+    if (!best) return entity;
+    entity.vitals = { ...entity.vitals, hp: Math.min(entity.vitals.hp ?? best.hp, best.hp) };
+    return entity;
+  }
+
+  applyLocalDamage(kind, id, amount, x = null, y = null) {
+    if (!kind || !id || !Number.isFinite(amount) || amount <= 0) return;
+    let map = null;
+    if (kind === 'mob') map = this.mobs;
+    else if (kind === 'asteroid') map = this.asteroids;
+    else if (kind === 'player') map = this.players;
+    if (!map) return;
+    const entity = map.get(id);
+    if (!entity?.vitals) return;
+    const hp = Math.max(0, (entity.vitals.hp ?? 0) - amount);
+    entity.vitals = { ...entity.vitals, hp };
+    this.localPrediction.localDamage.set(`${kind}:${id}`, { hp, until: performance.now() + 650 });
+    this.pendingCombatFx.push({
+      type: 'damage',
+      amount: Math.max(1, Math.round(amount)),
+      x: Number.isFinite(x) ? x : entity.x,
+      y: Number.isFinite(y) ? y : entity.y,
+      targetId: id,
+      crit: false,
+      shielded: false,
+      periodic: false
+    });
   }
 
   _syncMap(map, arr, options = {}) {
@@ -153,9 +215,9 @@ export class WorldStore {
     this.modes = msg.modes ?? this.modes;
     this.playerDirectory = msg.playerDirectory ?? [];
     this.myState = this._mergeMyState(msg.me ?? null);
-    if (this.myState && this.localPrediction.selectedId && performance.now() - this.localPrediction.selectedAt < 750) {
-      this.myState.selectedKind = this.localPrediction.selectedKind;
-      this.myState.selectedId = this.localPrediction.selectedId;
+    if (this.myState && performance.now() - (this.localPrediction.selectedAt || 0) < 10000) {
+      this.myState.selectedKind = this.localPrediction.selectedKind || '';
+      this.myState.selectedId = this.localPrediction.selectedId || 0;
     }
     if (msg.worldSfx?.length) this.pendingSfx.push(...msg.worldSfx);
     if (msg.combatFx?.length) this.pendingCombatFx.push(...msg.combatFx);
@@ -230,6 +292,7 @@ export class WorldStore {
     this.localPrediction.moveX = x;
     this.localPrediction.moveY = y;
     this.localPrediction.hold = !!options.fromHold;
+    this.localPrediction.moveAt = performance.now();
     this.localPrediction.selectedKind = '';
     this.localPrediction.selectedId = 0;
     me.groundMarkerX = x;

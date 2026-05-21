@@ -23,7 +23,21 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
     if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
     if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
-    player.clientAuthoritativeUntil = timeMs + 150;
+    player.clientAuthoritativeUntil = timeMs + 240;
+  }
+
+  if (!player.sessionSetupPending && Number.isFinite(msg.aimWorldX) && Number.isFinite(msg.aimWorldY)) {
+    player.mouseSx = msg.aimWorldX - player.x + player.viewportW * 0.5;
+    player.mouseSy = msg.aimWorldY - player.y + player.viewportH * 0.5;
+  }
+
+  if (!player.sessionSetupPending && msg.selectedKind && msg.selectedId) {
+    player.selectedKind = msg.selectedKind;
+    player.selectedId = msg.selectedId;
+    player.autoTargetKind = msg.selectedKind;
+    player.autoTargetId = msg.selectedId;
+    player.hasMoveTarget = false;
+    player.holdMoveAllowed = false;
   }
 
   if (player.sessionSetupPending) {
@@ -44,7 +58,7 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
   if (msg.interactTap) player.interactTap = true;
   if (msg.rocketTap) player.rocketTap = true;
 
-  if (msg.moveWorld && Number.isFinite(msg.moveWorldX) && Number.isFinite(msg.moveWorldY)) {
+  if (!msg.selectedKind && msg.moveWorld && Number.isFinite(msg.moveWorldX) && Number.isFinite(msg.moveWorldY)) {
     player.autoTargetKind = '';
     player.autoTargetId = 0;
     player.selectedKind = '';
@@ -56,7 +70,7 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     player.groundMarkerX = msg.moveWorldX;
     player.groundMarkerY = msg.moveWorldY;
     player.groundMarkerTimer = 0.85;
-  } else if (msg.primaryClick && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
+  } else if (!msg.selectedKind && msg.primaryClick && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
     applyPrimaryClick(state, player, msg.px, msg.py);
   }
 
