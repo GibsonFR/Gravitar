@@ -1,0 +1,13 @@
+{
+  "name": "spacefrontier-io",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "bots": "node bots.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
