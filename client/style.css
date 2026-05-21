@@ -3509,3 +3509,60 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(7, 16, 27, .95);
 }
 .players-panel__chat-input::placeholder { color: rgba(177,198,224,.55); }
+
+/* V77 portal/sector travel overlay */
+.travel-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 45%, rgba(26, 61, 86, .22), rgba(2, 5, 9, .94) 58%, #000 100%);
+  pointer-events: none;
+  color: #edf8ff;
+  font-family: inherit;
+}
+.travel-loading.is-active { display: flex; }
+.travel-loading__box {
+  min-width: 310px;
+  max-width: min(520px, 84vw);
+  border: 1px solid rgba(89, 210, 255, .36);
+  border-radius: 18px;
+  padding: 24px 28px 22px;
+  background: rgba(5, 11, 18, .78);
+  box-shadow: 0 0 40px rgba(51, 184, 255, .14), inset 0 0 26px rgba(51, 184, 255, .05);
+  text-align: center;
+}
+.travel-loading__title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.travel-loading__label {
+  margin-top: 9px;
+  color: rgba(198, 223, 246, .86);
+  font-size: 13px;
+  font-weight: 700;
+}
+.travel-loading__bar {
+  position: relative;
+  overflow: hidden;
+  height: 7px;
+  margin-top: 18px;
+  border-radius: 999px;
+  background: rgba(112, 179, 220, .16);
+}
+.travel-loading__bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(92, 225, 255, .12), rgba(92, 225, 255, .95), rgba(255, 217, 126, .82));
+  animation: travel-loading-bar 920ms ease-in-out infinite;
+}
+@keyframes travel-loading-bar {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(250%); }
+}

@@ -4,7 +4,40 @@ import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
 import { distSq } from '../util/Math.js';
 import { enterBastion, exitBastion } from '../bastion/BastionSystem.js';
 import { getBastionAtSector, isBastionUnlockedForPlayer } from '../bastion/BastionSession.js';
+import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
 
+
+function preloadPortalDestination(state, sx, sy, timeMs) {
+  const baseSx = sx | 0;
+  const baseSy = sy | 0;
+  for (let dx = -1; dx <= 1; dx += 1) {
+    for (let dy = -1; dy <= 1; dy += 1) {
+      ensureSectorLoaded(state, baseSx + dx, baseSy + dy, timeMs);
+    }
+  }
+}
+
+function beginPortalTransition(player, portal, timeMs) {
+  const targetSx = portal.targetSx | 0;
+  const targetSy = portal.targetSy | 0;
+  const distance = Math.max(Math.abs(targetSx - (portal.sx | 0)), Math.abs(targetSy - (portal.sy | 0)));
+  const durationMs = distance > 1 ? 900 : 420;
+  const id = ((player.portalTransitionId | 0) + 1) | 0;
+  player.portalTransitionId = id;
+  player.portalTransition = {
+    id,
+    type: 'portal',
+    label: portal.label || `Saut → [${targetSx},${targetSy}]`,
+    targetSx,
+    targetSy,
+    startedAt: timeMs,
+    until: timeMs + durationMs,
+    forceServerPose: true
+  };
+  // Pendant un téléport, ne jamais laisser une vieille pose client écraser la pose serveur.
+  player.ignoreClientPoseUntil = timeMs + durationMs + 350;
+  player.clientAuthoritativeUntil = 0;
+}
 
 function prepareTestArenaPlayer(player) {
   if (!player?.progression) return;
@@ -65,14 +98,25 @@ export function tryUsePortal(state, player, timeMs) {
     return true;
   }
 
-  // Teleport: keep local coordinates in the target sector.
-  player.sx = best.targetSx | 0;
-  player.sy = best.targetSy | 0;
+  // Téléport lointain : on prépare explicitement la destination + voisins puis on
+  // impose une courte transition noire côté client. Sans ce gel, le client-authority
+  // continuait d'envoyer l'ancienne pose et pouvait rembobiner le joueur.
+  const targetSx = best.targetSx | 0;
+  const targetSy = best.targetSy | 0;
+  preloadPortalDestination(state, targetSx, targetSy, timeMs);
+  beginPortalTransition(player, best, timeMs);
+
+  player.sx = targetSx;
+  player.sy = targetSy;
   player.x = 0;
   player.y = 0;
   player.vx = 0;
   player.vy = 0;
   player.hasMoveTarget = false;
+  player.holdMoveAllowed = false;
+  player.moveTx = 0;
+  player.moveTy = 0;
+  player.groundMarkerTimer = 0;
   player.autoTargetKind = '';
   player.autoTargetId = 0;
   player.selectedKind = '';

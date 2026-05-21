@@ -75,16 +75,12 @@ function applyWrapToPlayer(state, p, timeMs) {
   p.sy = w.sy;
 
   if (changed) {
-    const margin = Math.max(34, (p.radius ?? 18) + 14);
     const dirX = (w.sx | 0) - beforeSx;
     const dirY = (w.sy | 0) - beforeSy;
-    if (dirX > 0) p.x = -SECTOR.half + margin;
-    else if (dirX < 0) p.x = SECTOR.half - margin;
-    else p.x = Math.max(-SECTOR.half + margin, Math.min(SECTOR.half - margin, p.x));
-    if (dirY > 0) p.y = -SECTOR.half + margin;
-    else if (dirY < 0) p.y = SECTOR.half - margin;
-    else p.y = Math.max(-SECTOR.half + margin, Math.min(SECTOR.half - margin, p.y));
-    p.sectorLockUntil = timeMs + 500;
+    // Ne pas recaler artificiellement au centre/à une marge fixe : wrapIntoSector()
+    // conserve déjà l'overshoot exact à travers la frontière. C'est ce qui rend le
+    // passage 1,0 -> 0,0 visuellement continu au lieu de donner un spawn faux.
+    p.sectorLockUntil = timeMs + 360;
     p.sectorLockDirX = dirX;
     p.sectorLockDirY = dirY;
   }

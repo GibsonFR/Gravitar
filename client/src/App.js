@@ -169,6 +169,10 @@ export function startApp() {
   const dock = new TopRightDock(uiRoot);
   const playersPanel = new PlayersPanelView();
   uiRoot.appendChild(playersPanel.el);
+  const travelOverlay = document.createElement('div');
+  travelOverlay.className = 'travel-loading';
+  travelOverlay.innerHTML = '<div class="travel-loading__box"><div class="travel-loading__title">Chargement</div><div class="travel-loading__label">Saut de secteur…</div><div class="travel-loading__bar"><span></span></div></div>';
+  uiRoot.appendChild(travelOverlay);
 
   const net = new NetClient(store, (txt) => { statusEl.textContent = txt; });
   net.connect();
@@ -423,6 +427,31 @@ export function startApp() {
     store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y);
   }
 
+
+  function findNearbyPortalForLocalPlayer() {
+    const me = store.getMe();
+    if (!me) return null;
+    let best = null;
+    let bestD2 = Infinity;
+    for (const portal of store.portals.values()) {
+      if ((portal.sx | 0) !== (me.sx | 0) || (portal.sy | 0) !== (me.sy | 0)) continue;
+      const dx = (portal.x || 0) - me.x;
+      const dy = (portal.y || 0) - me.y;
+      const d2 = dx * dx + dy * dy;
+      const r = (me.radius || 18) + (portal.radius || 38) + 28;
+      if (d2 <= r * r && d2 < bestD2) { best = portal; bestD2 = d2; }
+    }
+    return best;
+  }
+
+  function updateTravelOverlay() {
+    const loading = store.getLoadingState();
+    travelOverlay.classList.toggle('is-active', !!loading.active);
+    if (!loading.active) return;
+    const label = travelOverlay.querySelector('.travel-loading__label');
+    if (label) label.textContent = loading.label || 'Saut de secteur…';
+  }
+
   function clearQueuedInput() {
     input.clickQueued = false;
     input.interactTap = false;
@@ -437,6 +466,15 @@ export function startApp() {
 
   function sendInput(primaryHold) {
     const me = store.getMe();
+    if (input.interactTap) {
+      const portal = findNearbyPortalForLocalPlayer();
+      if (portal) {
+        const far = Math.max(Math.abs((portal.targetSx | 0) - (portal.sx | 0)), Math.abs((portal.targetSy | 0) - (portal.sy | 0))) > 1;
+        if (far || portal.mode === 'test_arena' || portal.mode === 'mob_bestiary') {
+          store.beginPortalLoading(portal.label || `Saut → [${portal.targetSx | 0},${portal.targetSy | 0}]`, far ? 900 : 520);
+        }
+      }
+    }
     const mouseForServer = toPlayerRelativeScreen(me, input.msx, input.msy);
     net.send({
       t: 'input',
@@ -494,6 +532,7 @@ export function startApp() {
     store.interpolate(dt);
     predictor.update(dt, input, view, camera);
     updateCamera(store.getMe(), dt);
+    updateTravelOverlay();
     const camX = camera.x;
     const camY = camera.y;
     const mouseWorld = { x: camX + (input.msx - view.cssW * 0.5), y: camY + (input.msy - view.cssH * 0.5) };

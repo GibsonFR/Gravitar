@@ -34,7 +34,10 @@ export class WorldStore {
       sectorSx: 0,
       sectorSy: 0,
       sectorX: 0,
-      sectorY: 0
+      sectorY: 0,
+      loadingUntil: 0,
+      loadingLabel: '',
+      remoteTransitionId: 0
     };
   }
 
@@ -45,7 +48,8 @@ export class WorldStore {
       const merged = { ...previous, ...next };
       if (sectorChanged || previous._forceServerPose) {
         const now = performance.now();
-        const recentLocalSector = now - (this.localPrediction.sectorTransitionAt || 0) < 1500;
+        const forceServerPose = !!previous._forceServerPose;
+        const recentLocalSector = !forceServerPose && now - (this.localPrediction.sectorTransitionAt || 0) < 1500;
         const expectedSx = this.localPrediction.sectorSx | 0;
         const expectedSy = this.localPrediction.sectorSy | 0;
         const serverIsOldSector = recentLocalSector && ((next.sx | 0) !== expectedSx || (next.sy | 0) !== expectedSy);
@@ -73,6 +77,11 @@ export class WorldStore {
           merged.vy = recentLocalSector ? previous.vy : (Number.isFinite(next.vy) ? next.vy : 0);
           merged._tx = merged.x;
           merged._ty = merged.y;
+          if (forceServerPose) {
+            this.localPrediction.hasMoveTarget = false;
+            this.localPrediction.selectedKind = '';
+            this.localPrediction.selectedId = 0;
+          }
         }
         merged._forceServerPose = false;
         return this._applyLocalDamageToEntity(merged);
@@ -264,6 +273,12 @@ export class WorldStore {
     this.modes = msg.modes ?? this.modes;
     this.playerDirectory = msg.playerDirectory ?? [];
     this.myState = this._mergeMyState(msg.me ?? null);
+    const transition = this.myState?.transition || null;
+    if (transition && transition.type === 'portal') {
+      this.beginPortalLoading(transition.label || 'Chargement du secteur…', Math.max(450, (transition.until || msg.time || 0) - (msg.time || 0) + 120), transition.id | 0);
+      const me = this.players.get(this.myId);
+      if (me && transition.forceServerPose) me._forceServerPose = true;
+    }
     if (this.myState && performance.now() - (this.localPrediction.selectedAt || 0) < 10000) {
       this.myState.selectedKind = this.localPrediction.selectedKind || '';
       this.myState.selectedId = this.localPrediction.selectedId || 0;
@@ -459,6 +474,23 @@ export class WorldStore {
     this.localPrediction.selectedKind = '';
     this.localPrediction.selectedId = 0;
     if (!options.keepMoveTarget) this.localPrediction.hasMoveTarget = false;
+  }
+
+
+  beginPortalLoading(label = 'Chargement du secteur…', durationMs = 650, transitionId = 0) {
+    const now = performance.now();
+    const id = transitionId | 0;
+    if (id && id === (this.localPrediction.remoteTransitionId | 0) && now < (this.localPrediction.loadingUntil || 0)) return;
+    if (id) this.localPrediction.remoteTransitionId = id;
+    this.localPrediction.loadingLabel = String(label || 'Chargement du secteur…');
+    this.localPrediction.loadingUntil = Math.max(this.localPrediction.loadingUntil || 0, now + Math.max(180, durationMs));
+  }
+
+  getLoadingState() {
+    const now = performance.now();
+    const until = this.localPrediction.loadingUntil || 0;
+    if (now >= until) return { active: false, label: '' };
+    return { active: true, label: this.localPrediction.loadingLabel || 'Chargement du secteur…', leftMs: until - now };
   }
 
   consumePendingSfx() {

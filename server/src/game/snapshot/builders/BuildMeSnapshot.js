@@ -12,6 +12,22 @@ import { ITEM_CATEGORY_IDS } from '../../../../../shared/content/items/ItemCateg
 import { getActiveRocketAmmoDef } from '../../rocket/RocketAmmoRules.js';
 import { buildBastionBuffSnapshot, getBastionCooldownRecoveryMultiplier, getBastionDamageMultiplier, getBastionMoveSpeedMultiplier } from '../../bastion/BastionBuffs.js';
 
+
+function buildTransitionSnapshot(player, timeMs) {
+  const t = player?.portalTransition || null;
+  if (!t || !Number.isFinite(t.until) || timeMs > t.until) return null;
+  return {
+    id: t.id | 0,
+    type: t.type || 'portal',
+    label: t.label || 'Chargement du secteur…',
+    targetSx: t.targetSx | 0,
+    targetSy: t.targetSy | 0,
+    startedAt: t.startedAt || timeMs,
+    until: t.until,
+    forceServerPose: !!t.forceServerPose
+  };
+}
+
 function buildDerivedSnapshot(player) {
   const auto = getFrameAutoAttackProfile(player, { peekOnly: true });
   const equippedWeapon = getEquippedEquipmentDefs(player).find((def) => def?.categoryId === ITEM_CATEGORY_IDS.WEAPON) || null;
@@ -85,7 +101,8 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     frameState: buildFrameUiState(player, timeMs),
     derived: buildDerivedSnapshot(player),
     bastions: buildBastionBuffSnapshot(player),
-    sfx: drainPlayerSfx(player)
+    sfx: drainPlayerSfx(player),
+    transition: buildTransitionSnapshot(player, timeMs)
   };
 }
 
@@ -121,6 +138,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
       R: player.cooldownRLeft
     },
     statuses: buildStatusSnapshot(player, 4),
-    sfx: drainPlayerSfx(player)
+    sfx: drainPlayerSfx(player),
+    transition: buildTransitionSnapshot(player, timeMs)
   };
 }

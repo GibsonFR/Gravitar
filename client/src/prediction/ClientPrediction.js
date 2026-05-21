@@ -370,20 +370,16 @@ export class ClientPrediction {
 
     const dirX = (wrapped.sx | 0) - beforeSx;
     const dirY = (wrapped.sy | 0) - beforeSy;
-    const margin = 34;
     me.x = wrapped.x;
     me.y = wrapped.y;
     me.sx = wrapped.sx | 0;
     me.sy = wrapped.sy | 0;
 
-    // Ancrage explicite sur la frontière du nouveau secteur. Cela évite les retours
-    // visuels au centre quand un snapshot serveur arrive avec une pose ambiguë.
-    if (dirX > 0) me.x = -2000 + margin;
-    else if (dirX < 0) me.x = 2000 - margin;
-    else me.x = clamp(me.x, -2000 + margin, 2000 - margin);
-    if (dirY > 0) me.y = -2000 + margin;
-    else if (dirY < 0) me.y = 2000 - margin;
-    else me.y = clamp(me.y, -2000 + margin, 2000 - margin);
+    // Continuité stricte : on garde l'overshoot exact calculé par wrapIntoSector().
+    // Les anciennes versions forçaient -2000+margin / 2000-margin, ce qui donnait
+    // des spawns faux et un effet de pas/rollback en franchissant les bordures.
+    me.x = clamp(me.x, -2000, 2000);
+    me.y = clamp(me.y, -2000, 2000);
 
     const dx = me.x - beforeX;
     const dy = me.y - beforeY;
@@ -402,7 +398,7 @@ export class ClientPrediction {
     me.hasMoveTarget = !!local.hasMoveTarget;
     me._forceServerPose = false;
     me._localSectorChangedAt = performance.now();
-    me._sectorLockUntil = me._localSectorChangedAt + 520;
+    me._sectorLockUntil = me._localSectorChangedAt + 360;
     me._sectorLockDirX = dirX;
     me._sectorLockDirY = dirY;
     this.lastSectorWrapAt = me._localSectorChangedAt;
