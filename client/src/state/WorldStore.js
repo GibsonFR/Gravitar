@@ -232,13 +232,101 @@ export class WorldStore {
     this._syncMap(this.loots, msg.loots ?? []);
   }
 
+
+  _getEntityByKind(kind, id) {
+    if (!kind || !id) return null;
+    if (kind === 'player') return this.players.get(id) || null;
+    if (kind === 'mob') return this.mobs.get(id) || null;
+    if (kind === 'asteroid') return this.asteroids.get(id) || null;
+    if (kind === 'station') return this.stations.get(id) || null;
+    return null;
+  }
+
+  _distancePointToSegmentSq(px, py, ax, ay, bx, by) {
+    const abx = bx - ax;
+    const aby = by - ay;
+    const lenSq = abx * abx + aby * aby;
+    if (lenSq <= 0.000001) {
+      const dx = px - bx;
+      const dy = py - by;
+      return dx * dx + dy * dy;
+    }
+    const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lenSq));
+    const x = ax + abx * t;
+    const y = ay + aby * t;
+    const dx = px - x;
+    const dy = py - y;
+    return dx * dx + dy * dy;
+  }
+
+  _spawnLocalImpact(projectile, target) {
+    const x = Number.isFinite(target?.x) ? target.x : projectile.x;
+    const y = Number.isFinite(target?.y) ? target.y : projectile.y;
+    this.pendingCombatFx.push({
+      type: 'impact',
+      x,
+      y,
+      targetId: target?.id ?? 0,
+      visualKind: projectile.visualKind || 'auto',
+      sourceSlot: projectile.sourceAbilitySlot || '',
+      localOnly: true
+    });
+  }
+
+  _updateLocalProjectile(projectile, dt) {
+    const oldX = projectile.x;
+    const oldY = projectile.y;
+    projectile.x += (projectile.vx || 0) * dt;
+    projectile.y += (projectile.vy || 0) * dt;
+    projectile.ttl = Math.max(0, (projectile.ttl ?? 0) - dt);
+
+    const target = this._getEntityByKind(projectile._targetKind, projectile._targetId);
+    if (target && ((target.sx | 0) === (projectile.sx | 0)) && ((target.sy | 0) === (projectile.sy | 0))) {
+      const r = Math.max(projectile._impactRadius || 0, (projectile.radius || 3) + (target.radius || 18) + 10);
+      const d2 = this._distancePointToSegmentSq(target.x, target.y, oldX, oldY, projectile.x, projectile.y);
+      if (d2 <= r * r) {
+        projectile.x = target.x;
+        projectile.y = target.y;
+        if (!projectile._impactApplied && projectile._impactDamage > 0 && projectile._targetKind !== 'station') {
+          this.applyLocalDamage(projectile._targetKind, projectile._targetId, projectile._impactDamage, target.x, target.y);
+          projectile._impactApplied = true;
+        }
+        this._spawnLocalImpact(projectile, target);
+        return false;
+      }
+
+      // Visuel aim-lock : tant que la cible existe, les tirs locaux se recalibrent légèrement
+      // vers sa position actuelle. Cela évite l'impression que le laser traverse à côté de la cible
+      // quand le snapshot serveur arrive en retard ou que la cible a bougé entre deux frames.
+      const speed = Math.max(1, Math.hypot(projectile.vx || 0, projectile.vy || 0));
+      const desiredX = target.x - projectile.x;
+      const desiredY = target.y - projectile.y;
+      const desiredLen = Math.hypot(desiredX, desiredY);
+      if (desiredLen > 0.001) {
+        const blend = Math.min(0.35, Math.max(0.04, dt * 7));
+        const nvx = ((projectile.vx || 0) * (1 - blend)) + (desiredX / desiredLen) * speed * blend;
+        const nvy = ((projectile.vy || 0) * (1 - blend)) + (desiredY / desiredLen) * speed * blend;
+        projectile.vx = nvx;
+        projectile.vy = nvy;
+      }
+    }
+
+    return projectile.ttl > 0;
+  }
+
   _smoothMap(map, alpha, dt = 0) {
-    for (const entity of map.values()) {
+    for (const entity of [...map.values()]) {
       if (entity.localOnly) {
-        entity.x += (entity.vx || 0) * dt;
-        entity.y += (entity.vy || 0) * dt;
-        entity.ttl = Math.max(0, (entity.ttl ?? 0) - dt);
-        if (entity.ttl <= 0) { map.delete(entity.id); continue; }
+        const keep = entity.kind === 'projectile' || map === this.projectiles
+          ? this._updateLocalProjectile(entity, dt)
+          : (() => {
+              entity.x += (entity.vx || 0) * dt;
+              entity.y += (entity.vy || 0) * dt;
+              entity.ttl = Math.max(0, (entity.ttl ?? 0) - dt);
+              return entity.ttl > 0;
+            })();
+        if (!keep) { map.delete(entity.id); continue; }
+        continue;
       }
       if (Number.isFinite(entity.vx) && Number.isFinite(entity.vy) && entity.id !== this.myId) {
         entity.x += entity.vx * dt;

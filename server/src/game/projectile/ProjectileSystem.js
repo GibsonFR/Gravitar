@@ -23,6 +23,37 @@ function circleHitsRect(cx, cy, radius, wall) {
   return dx * dx + dy * dy <= radius * radius;
 }
 
+function distPointToSegmentSq(px, py, ax, ay, bx, by) {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const lenSq = abx * abx + aby * aby;
+  if (lenSq <= 0.000001) return distSq(px, py, bx, by);
+  const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lenSq));
+  const x = ax + abx * t;
+  const y = ay + aby * t;
+  return distSq(px, py, x, y);
+}
+
+function segmentHitsCircle(x1, y1, x2, y2, cx, cy, radius) {
+  return distPointToSegmentSq(cx, cy, x1, y1, x2, y2) <= radius * radius;
+}
+
+function pointInsideExpandedRect(x, y, wall, pad) {
+  const w = wall.w || wall.radius * 2;
+  const h = wall.h || wall.radius * 2;
+  return x >= wall.x - w * 0.5 - pad && x <= wall.x + w * 0.5 + pad && y >= wall.y - h * 0.5 - pad && y <= wall.y + h * 0.5 + pad;
+}
+
+function segmentHitsExpandedRect(x1, y1, x2, y2, wall, pad) {
+  if (pointInsideExpandedRect(x1, y1, wall, pad) || pointInsideExpandedRect(x2, y2, wall, pad)) return true;
+  const steps = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / Math.max(5, pad * 0.5)));
+  for (let i = 1; i < steps; i += 1) {
+    const t = i / steps;
+    if (pointInsideExpandedRect(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, wall, pad)) return true;
+  }
+  return false;
+}
+
 export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, speed, rangeLeft, splashRadius, timeMs, extras = null) {
   const dir = norm(tx - owner.x, ty - owner.y);
   const startX = owner.x + dir.x * (owner.radius + 8);
@@ -70,6 +101,8 @@ export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, spee
 export function updateProjectiles(state, dt, timeMs = null) {
   timeMs = getSimulationTimeMs(state, timeMs);
   for (const proj of state.projectiles.values()) {
+    const oldX = proj.x;
+    const oldY = proj.y;
     const step = Math.hypot(proj.vx * dt, proj.vy * dt);
     proj.x += proj.vx * dt;
     proj.y += proj.vy * dt;
@@ -88,7 +121,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
       if (!hostileToPlayers && sourcePlayerForPvp && p.id !== sourcePlayerForPvp.id && isSafeNoPvpSector(p.sx | 0, p.sy | 0) && isSafeNoPvpSector(sourcePlayerForPvp.sx | 0, sourcePlayerForPvp.sy | 0)) continue;
       if ((p.sx | 0) !== (proj.sx | 0) || (p.sy | 0) !== (proj.sy | 0)) continue;
       if (isUntargetable(p)) continue;
-      if (distSq(proj.x, proj.y, p.x, p.y) <= (proj.radius + p.radius) * (proj.radius + p.radius)) {
+      if (segmentHitsCircle(oldX, oldY, proj.x, proj.y, p.x, p.y, proj.radius + p.radius)) {
         hit = p;
         break;
       }
@@ -99,7 +132,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
         if (mob.id === proj.sourceId) continue;
         if (mob.stats.hp <= 0) continue;
         if ((mob.sx | 0) !== (proj.sx | 0) || (mob.sy | 0) !== (proj.sy | 0)) continue;
-        if (distSq(proj.x, proj.y, mob.x, mob.y) <= (proj.radius + mob.radius) * (proj.radius + mob.radius)) {
+        if (segmentHitsCircle(oldX, oldY, proj.x, proj.y, mob.x, mob.y, proj.radius + mob.radius)) {
           hit = mob;
           break;
         }
@@ -111,8 +144,8 @@ export function updateProjectiles(state, dt, timeMs = null) {
         if (a.stats.hp <= 0) continue;
         if ((a.sx | 0) !== (proj.sx | 0) || (a.sy | 0) !== (proj.sy | 0)) continue;
         const collides = a.bastionWall
-          ? circleHitsRect(proj.x, proj.y, proj.radius, a)
-          : distSq(proj.x, proj.y, a.x, a.y) <= (proj.radius + a.radius) * (proj.radius + a.radius);
+          ? (circleHitsRect(proj.x, proj.y, proj.radius, a) || segmentHitsExpandedRect(oldX, oldY, proj.x, proj.y, a, proj.radius + 1.5))
+          : segmentHitsCircle(oldX, oldY, proj.x, proj.y, a.x, a.y, proj.radius + a.radius);
         if (collides) {
           hit = a;
           break;

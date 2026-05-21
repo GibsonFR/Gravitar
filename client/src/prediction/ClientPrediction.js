@@ -1,3 +1,5 @@
+import { wrapIntoSector } from '../../../shared/proc/SectorMath.js';
+
 function finite(v, fallback = 0) {
   return Number.isFinite(v) ? v : fallback;
 }
@@ -115,7 +117,7 @@ export class ClientPrediction {
       if (finite(me.rocketCooldownLeft, 0) <= 0 && finite(me.vitals?.energy, 999) > 1) {
         me.rocketCooldownLeft = Math.max(0.25, finite(this.store.myState?.equipment?.launcher?.cooldown, 0.75));
         const target = getSelectedTarget(this.store);
-        this.spawnLocalProjectile(me, target.entity || worldMouse, { rocket: true });
+        this.spawnLocalProjectile(me, target.entity || worldMouse, { rocket: true, targetKind: target.kind, targetId: target.id, impactDamage: localDamageFor('', true) });
         if (target.entity && target.kind !== 'station') this.store.applyLocalDamage(target.kind, target.id, localDamageFor('', true), target.entity.x, target.entity.y);
       }
     }
@@ -139,7 +141,7 @@ export class ClientPrediction {
     const aim = target.entity || worldMouse;
     const dash = shouldDash(myState, slot);
     if (dash > 0) this.applyDash(me, worldMouse, dash);
-    if (shouldProjectile(slot)) this.spawnLocalProjectile(me, aim, { slot });
+    if (shouldProjectile(slot)) this.spawnLocalProjectile(me, aim, { slot, targetKind: target.kind, targetId: target.id, impactDamage: localDamageFor(slot) });
     if (target.entity && target.kind !== 'station') this.store.applyLocalDamage(target.kind, target.id, localDamageFor(slot), target.entity.x, target.entity.y);
     this.spawnLocalCastArea(me, aim, slot);
 
@@ -184,6 +186,9 @@ export class ClientPrediction {
     const d = norm(tx - me.x, ty - me.y);
     const speed = opts.rocket ? 820 : (opts.slot === 'R' ? 980 : 1250);
     const id = this.localId--;
+    const targetKind = opts.targetKind || targetOrPoint?.kind || '';
+    const targetId = opts.targetId || targetOrPoint?.id || 0;
+    const distToTarget = Math.max(20, Math.hypot(tx - me.x, ty - me.y));
     this.store.projectiles.set(id, {
       id,
       localOnly: true,
@@ -199,9 +204,14 @@ export class ClientPrediction {
       tint: opts.rocket ? { r: 255, g: 188, b: 92 } : { r: 130, g: 225, b: 255 },
       visualKind: opts.rocket ? 'rocket' : 'auto',
       sourceAbilitySlot: opts.slot || '',
-      ttl: opts.rocket ? 0.70 : 0.38,
-      _tx: me.x + d.x * 500,
-      _ty: me.y + d.y * 500
+      ttl: Math.max(opts.rocket ? 0.24 : 0.12, Math.min(opts.rocket ? 0.75 : 0.42, distToTarget / Math.max(1, speed) + 0.05)),
+      _tx: tx,
+      _ty: ty,
+      _targetKind: targetKind,
+      _targetId: targetId,
+      _impactDamage: finite(opts.impactDamage, 0),
+      _impactApplied: false,
+      _impactRadius: opts.rocket ? 34 : 24
     });
   }
 
@@ -216,7 +226,7 @@ export class ClientPrediction {
     if (this.localAutoCooldown > 0) return;
     this.localAutoCooldown = 0.22;
     this.lastAttackFxAt = performance.now();
-    this.spawnLocalProjectile(me, target.entity, { auto: true });
+    this.spawnLocalProjectile(me, target.entity, { auto: true, targetKind: target.kind, targetId: target.id, impactDamage: 7 });
     this.store.applyLocalDamage(target.kind, target.id, 7, target.entity.x, target.entity.y);
   }
 
@@ -264,6 +274,39 @@ export class ClientPrediction {
     me.y += (dy / d) * step;
     me.vx = (dx / d) * speed;
     me.vy = (dy / d) * speed;
+    this.applyLocalSectorWrap(me);
+  }
+
+  applyLocalSectorWrap(me) {
+    const beforeX = me.x;
+    const beforeY = me.y;
+    const beforeSx = me.sx | 0;
+    const beforeSy = me.sy | 0;
+    const wrapped = wrapIntoSector({ x: me.x, y: me.y }, beforeSx, beforeSy);
+    if ((wrapped.sx | 0) === beforeSx && (wrapped.sy | 0) === beforeSy) return;
+
+    me.x = wrapped.x;
+    me.y = wrapped.y;
+    me.sx = wrapped.sx | 0;
+    me.sy = wrapped.sy | 0;
+
+    const dx = me.x - beforeX;
+    const dy = me.y - beforeY;
+    const local = this.store.localPrediction || {};
+    if (local.hasMoveTarget) {
+      local.moveX += dx;
+      local.moveY += dy;
+    }
+    if (Number.isFinite(me.groundMarkerX)) me.groundMarkerX += dx;
+    if (Number.isFinite(me.groundMarkerY)) me.groundMarkerY += dy;
+
+    // On évite de garder une cible ou un point de déplacement de l'ancien secteur.
+    this.store.setOptimisticSelection('', 0);
+    this.store.localPrediction.hasMoveTarget = false;
+    me.hasMoveTarget = false;
+    me.groundMarkerTimer = 0;
+    me._forceServerPose = false;
+    me._localSectorChangedAt = performance.now();
   }
 
   reconcileSoftly(me, dt, isMoving = false) {
