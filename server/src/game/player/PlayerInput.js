@@ -21,6 +21,8 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     player.y = msg.cy;
     if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
     if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
+    if (Number.isFinite(msg.crot)) player.rot = msg.crot;
+    if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
     if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
     if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
     player.clientAuthoritativeUntil = timeMs + 240;

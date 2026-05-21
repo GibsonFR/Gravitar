@@ -41,6 +41,8 @@ export function sanitizeInputMessage(raw) {
     csy: Number.isFinite(raw.csy) ? clamp(raw.csy | 0, -100000, 100000) : null,
     cvx: Number.isFinite(raw.cvx) ? clamp(raw.cvx, -5000, 5000) : null,
     cvy: Number.isFinite(raw.cvy) ? clamp(raw.cvy, -5000, 5000) : null,
+    crot: Number.isFinite(raw.crot) ? raw.crot : null,
+    cthrust: Number.isFinite(raw.cthrust) ? clamp(raw.cthrust, 0, 1) : null,
     selectedKind: ['player', 'mob', 'asteroid', 'station', ''].includes(String(raw.selectedKind || '')) ? String(raw.selectedKind || '') : '',
     selectedId: Number.isFinite(raw.selectedId) ? Math.max(0, raw.selectedId | 0) : 0,
     aimWorldX: Number.isFinite(raw.aimWorldX) ? clamp(raw.aimWorldX, -10000000, 10000000) : null,

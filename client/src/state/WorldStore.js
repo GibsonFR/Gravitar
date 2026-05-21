@@ -83,6 +83,8 @@ export class WorldStore {
       merged.y = previous.y;
       merged.vx = previous.vx;
       merged.vy = previous.vy;
+      if (Number.isFinite(previous.rot)) merged.rot = previous.rot;
+      if (Number.isFinite(previous._localThrust)) merged._localThrust = previous._localThrust;
       const now = performance.now();
       if (now - (this.localPrediction.moveAt || 0) < 1400) {
         merged.groundMarkerX = previous.groundMarkerX;
@@ -446,16 +448,17 @@ export class WorldStore {
     this.tickLocalUi(dt);
   }
 
-  noteLocalSectorTransition(sx, sy, x, y) {
+  noteLocalSectorTransition(sx, sy, x, y, options = {}) {
     this.localPrediction.sectorTransitionAt = performance.now();
     this.localPrediction.sectorSx = sx | 0;
     this.localPrediction.sectorSy = sy | 0;
     this.localPrediction.sectorX = Number.isFinite(x) ? x : 0;
     this.localPrediction.sectorY = Number.isFinite(y) ? y : 0;
-    // Les cibles/points de l'ancien secteur deviennent volontairement locaux-obsolètes.
+    // Les cibles de l'ancien secteur deviennent obsolètes, mais le déplacement peut
+    // continuer à travers la frontière pour éviter les arrêts/retours de secteur.
     this.localPrediction.selectedKind = '';
     this.localPrediction.selectedId = 0;
-    this.localPrediction.hasMoveTarget = false;
+    if (!options.keepMoveTarget) this.localPrediction.hasMoveTarget = false;
   }
 
   consumePendingSfx() {
@@ -469,8 +472,6 @@ export class WorldStore {
     if (!this.pendingCombatFx.length) return [];
     const out = this.pendingCombatFx;
     this.pendingCombatFx = [];
-    this.chatMessages = [];
-    this.chatUnread = 0;
     return out;
   }
 

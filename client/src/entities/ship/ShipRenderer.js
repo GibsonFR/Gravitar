@@ -568,14 +568,16 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
     ctx.stroke();
   }
 
-  const speed = Math.hypot(p.vx, p.vy);
-  if (speed > 8) {
-    const thrust = clamp((speed - 8) / Math.max(1, p.engine * 0.55), 0.18, 1);
+  const speed = Math.hypot(p.vx || 0, p.vy || 0);
+  const localThrust = Number.isFinite(p._localThrust) ? p._localThrust : Number.isFinite(p.localThrust) ? p.localThrust : 0;
+  const thrustIntent = Math.max(localThrust, speed > 8 ? clamp((speed - 8) / Math.max(1, (p.engine || 250) * 0.55), 0.18, 1) : 0);
+  if (thrustIntent > 0.03) {
+    const thrust = clamp(thrustIntent, 0.12, 1);
     const pulse = 0.82 + 0.22 * Math.sin(t * 18);
     const spread = 0.62;
     const length = p.radius * 1.38 * (0.72 + thrust * 0.62) * pulse;
     const startRadius = p.radius * 0.62;
-    const aBase = Math.atan2(p.vy, p.vx) + Math.PI;
+    const aBase = (Number.isFinite(p.rot) ? p.rot : (speed > 1 ? Math.atan2(p.vy || 0, p.vx || 0) : 0)) + Math.PI;
     for (const i of [-1, 1]) {
       const a = aBase + i * spread;
       const p0 = polar(sx, sy, startRadius, a);

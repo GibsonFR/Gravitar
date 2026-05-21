@@ -174,7 +174,7 @@ export function startApp() {
   net.connect();
 
   const sendCmd = (cmd, payload) => net.send({ t: 'cmd', cmd, ...(payload || {}) });
-  const chatUi = createChatUi(uiRoot, store, (text) => net.send({ t: 'chat', text }));
+  playersPanel.bindChat((text) => net.send({ t: 'chat', text }));
 
   const cargoPanel = new CargoPanelView(sendCmd);
   dock.registerPanel({ id: 'cargo', title: 'Cargo', iconMarkup: getCargoIconSvg(), panelEl: cargoPanel.el });
@@ -320,9 +320,21 @@ export function startApp() {
     const sx = me.sx | 0;
     const sy = me.sy | 0;
     const sectorChanged = camera.sx !== sx || camera.sy !== sy;
-    if (!camera.initialized || sectorChanged) {
+    if (!camera.initialized) {
       hardCenterCameraOnPlayer(me);
       return;
+    }
+    if (sectorChanged) {
+      // Continuité visuelle au passage de secteur : le joueur garde sa position écran
+      // au lieu d'être recadré brutalement comme s'il apparaissait au centre.
+      const oldSx = Number.isFinite(camera.sx) ? camera.sx : sx;
+      const oldSy = Number.isFinite(camera.sy) ? camera.sy : sy;
+      camera.x += (oldSx - sx) * SECTOR.size;
+      camera.y += (oldSy - sy) * SECTOR.size;
+      camera.sx = sx;
+      camera.sy = sy;
+      camera.forceCenterFrames = 0;
+      clampCameraToSector(me);
     }
 
     if (input.cameraLocked || (store.myState?.sessionSetup?.pending ?? true) || camera.forceCenterFrames > 0) {
@@ -459,6 +471,8 @@ export function startApp() {
       csy: me?.sy,
       cvx: me?.vx,
       cvy: me?.vy,
+      crot: me?.rot,
+      cthrust: me?._localThrust ?? 0,
       clientTime: performance.now()
     });
 
@@ -531,11 +545,10 @@ export function startApp() {
     dock.setBadge('converters', activeConverterCount > 0 ? `${activeConverterCount}` : '');
     dock.setEnabled('converters', !!store.myState?.equipment?.converters);
 
-    playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes);
+    playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
     stationWindow.update(store.myState, store.stations);
     sessionSetup.sync(store.myState, !!store.myId, store.modes);
-    chatUi.refresh();
 
     if (me && !(store.myState?.sessionSetup?.pending ?? true)) {
       drawHud(ctx, view, me, store.myState, input);

@@ -18,6 +18,13 @@ function norm(x, y) {
   return { x: x / d, y: y / d };
 }
 
+function angleLerp(a, b, t) {
+  if (!Number.isFinite(a)) return b;
+  let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return a + d * Math.max(0, Math.min(1, t));
+}
+
 function hasBlockingStatus(me) {
   const ids = new Set((me?.statuses ?? []).map((s) => String(s.id || s.effectId || '').toLowerCase()));
   return ids.has('root') || ids.has('stun') || ids.has('suppress') || ids.has('fear') || ids.has('sleep');
@@ -111,6 +118,7 @@ export class ClientPrediction {
       this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true });
     }
 
+    this.updateLocalFacing(me, worldMouse, dt);
     this.handleAbilityEdges(me, input, worldMouse);
     this.handleRocketEdge(me, input, worldMouse);
     this.predictMovement(me, dt);
@@ -122,6 +130,30 @@ export class ClientPrediction {
       const down = !!input[slot.toLowerCase()];
       if (down && !this.lastKeys[slot]) this.castAbilityOptimistic(me, slot, worldMouse);
       this.lastKeys[slot] = down;
+    }
+  }
+
+
+  updateLocalFacing(me, worldMouse, dt) {
+    if (!me) return;
+    const target = getSelectedTarget(this.store);
+    let tx = null;
+    let ty = null;
+    if (target.entity && (target.entity.sx | 0) === (me.sx | 0) && (target.entity.sy | 0) === (me.sy | 0)) {
+      tx = target.entity.x;
+      ty = target.entity.y;
+    } else if (this.store.localPrediction?.hasMoveTarget) {
+      tx = this.store.localPrediction.moveX;
+      ty = this.store.localPrediction.moveY;
+    } else {
+      tx = worldMouse.x;
+      ty = worldMouse.y;
+    }
+    const dx = tx - me.x;
+    const dy = ty - me.y;
+    if (dx * dx + dy * dy > 0.001) {
+      const desired = Math.atan2(dy, dx);
+      me.rot = angleLerp(me.rot, desired, Math.min(1, Math.max(0.18, dt * 28)));
     }
   }
 
@@ -190,6 +222,8 @@ export class ClientPrediction {
     me.y += d.y * distPx;
     me.vx = d.x * finite(this.store.myState?.derived?.moveSpeed, me.engine || 250);
     me.vy = d.y * finite(this.store.myState?.derived?.moveSpeed, me.engine || 250);
+    if (d.x || d.y) me.rot = Math.atan2(d.y, d.x);
+    me._localThrust = 1;
     me._clientDashGrace = 0.12;
   }
 
@@ -290,7 +324,10 @@ export class ClientPrediction {
       ty = local.moveY;
     }
 
-    if (!Number.isFinite(tx) || !Number.isFinite(ty)) return;
+    if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
+      me._localThrust = Math.max(0, finite(me._localThrust, 0) - dt * 5);
+      return;
+    }
 
     const dx = tx - me.x;
     const dy = ty - me.y;
@@ -299,6 +336,7 @@ export class ClientPrediction {
       if (local.hasMoveTarget && !local.hold) local.hasMoveTarget = false;
       me.vx = 0;
       me.vy = 0;
+      me._localThrust = Math.max(0, finite(me._localThrust, 0) - dt * 6);
       return;
     }
 
@@ -308,6 +346,8 @@ export class ClientPrediction {
     me.y += (dy / d) * step;
     me.vx = (dx / d) * speed;
     me.vy = (dy / d) * speed;
+    me.rot = angleLerp(me.rot, Math.atan2(dy, dx), Math.min(1, Math.max(0.22, dt * 30)));
+    me._localThrust = Math.min(1, Math.max(finite(me._localThrust, 0), Math.min(1, d / 180)));
     this.applyLocalSectorWrap(me);
   }
 
@@ -319,17 +359,22 @@ export class ClientPrediction {
     const wrapped = wrapIntoSector({ x: me.x, y: me.y }, beforeSx, beforeSy);
     if ((wrapped.sx | 0) === beforeSx && (wrapped.sy | 0) === beforeSy) return;
 
+    const dirX = (wrapped.sx | 0) - beforeSx;
+    const dirY = (wrapped.sy | 0) - beforeSy;
+    const margin = 72;
     me.x = wrapped.x;
     me.y = wrapped.y;
     me.sx = wrapped.sx | 0;
     me.sy = wrapped.sy | 0;
 
-    // Petite marge à l'intérieur du nouveau secteur : sans ça, un snapshot serveur
-    // légèrement en retard peut remettre le joueur exactement sur la frontière et
-    // provoquer un aller-retour visuel horrible.
-    const margin = 42;
-    me.x = clamp(me.x, -2000 + margin, 2000 - margin);
-    me.y = clamp(me.y, -2000 + margin, 2000 - margin);
+    // Ancrage explicite sur la frontière du nouveau secteur. Cela évite les retours
+    // visuels au centre quand un snapshot serveur arrive avec une pose ambiguë.
+    if (dirX > 0) me.x = -2000 + margin;
+    else if (dirX < 0) me.x = 2000 - margin;
+    else me.x = clamp(me.x, -2000 + margin, 2000 - margin);
+    if (dirY > 0) me.y = -2000 + margin;
+    else if (dirY < 0) me.y = 2000 - margin;
+    else me.y = clamp(me.y, -2000 + margin, 2000 - margin);
 
     const dx = me.x - beforeX;
     const dy = me.y - beforeY;
@@ -341,15 +386,18 @@ export class ClientPrediction {
     if (Number.isFinite(me.groundMarkerX)) me.groundMarkerX += dx;
     if (Number.isFinite(me.groundMarkerY)) me.groundMarkerY += dy;
 
-    // On évite de garder une cible ou un point de déplacement de l'ancien secteur.
+    // On ne supprime plus le point de déplacement au changement de secteur : c'était
+    // la cause des allers-retours/arrêts brutaux aux bordures. Seule la cible combat
+    // de l'ancien secteur est nettoyée.
     this.store.setOptimisticSelection('', 0);
-    this.store.localPrediction.hasMoveTarget = false;
-    me.hasMoveTarget = false;
-    me.groundMarkerTimer = 0;
+    me.hasMoveTarget = !!local.hasMoveTarget;
     me._forceServerPose = false;
     me._localSectorChangedAt = performance.now();
+    me._sectorLockUntil = me._localSectorChangedAt + 520;
+    me._sectorLockDirX = dirX;
+    me._sectorLockDirY = dirY;
     this.lastSectorWrapAt = me._localSectorChangedAt;
-    this.store.noteLocalSectorTransition(me.sx | 0, me.sy | 0, me.x, me.y);
+    this.store.noteLocalSectorTransition(me.sx | 0, me.sy | 0, me.x, me.y, { keepMoveTarget: !!local.hasMoveTarget });
   }
 
   reconcileSoftly(me, dt, isMoving = false) {

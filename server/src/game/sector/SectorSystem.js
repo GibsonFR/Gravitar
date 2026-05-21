@@ -54,16 +54,25 @@ function applyWrapToPlayer(state, p, timeMs) {
   const beforeY = p.y;
 
   const w = wrapIntoSector({ x: p.x, y: p.y }, beforeSx, beforeSy);
+  const changed = (beforeSx !== w.sx) || (beforeSy !== w.sy);
   p.x = w.x;
   p.y = w.y;
   p.sx = w.sx;
   p.sy = w.sy;
 
-  const changed = (beforeSx !== w.sx) || (beforeSy !== w.sy);
   if (changed) {
-    const margin = Math.max(36, (p.radius ?? 18) + 18);
-    p.x = Math.max(-SECTOR.half + margin, Math.min(SECTOR.half - margin, p.x));
-    p.y = Math.max(-SECTOR.half + margin, Math.min(SECTOR.half - margin, p.y));
+    const margin = Math.max(72, (p.radius ?? 18) + 54);
+    const dirX = (w.sx | 0) - beforeSx;
+    const dirY = (w.sy | 0) - beforeSy;
+    if (dirX > 0) p.x = -SECTOR.half + margin;
+    else if (dirX < 0) p.x = SECTOR.half - margin;
+    else p.x = Math.max(-SECTOR.half + margin, Math.min(SECTOR.half - margin, p.x));
+    if (dirY > 0) p.y = -SECTOR.half + margin;
+    else if (dirY < 0) p.y = SECTOR.half - margin;
+    else p.y = Math.max(-SECTOR.half + margin, Math.min(SECTOR.half - margin, p.y));
+    p.sectorLockUntil = timeMs + 500;
+    p.sectorLockDirX = dirX;
+    p.sectorLockDirY = dirY;
   }
   if (!changed) return;
 
@@ -80,7 +89,8 @@ function applyWrapToPlayer(state, p, timeMs) {
     p.groundMarkerY += dy;
   }
 
-  // Drop stale references that do not carry across sectors.
+  // Drop stale combat references only. Movement is deliberately preserved so a border
+  // crossing does not feel like a teleport/stop/rollback.
   p.selectedKind = '';
   p.selectedId = 0;
   p.autoTargetKind = '';
