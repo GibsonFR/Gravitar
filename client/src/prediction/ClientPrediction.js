@@ -1,0 +1,245 @@
+function finite(v, fallback = 0) {
+  return Number.isFinite(v) ? v : fallback;
+}
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function len(x, y) {
+  return Math.hypot(x, y);
+}
+
+function norm(x, y) {
+  const d = Math.hypot(x, y);
+  if (d <= 0.0001) return { x: 0, y: 0 };
+  return { x: x / d, y: y / d };
+}
+
+function hasBlockingStatus(me) {
+  const ids = new Set((me?.statuses ?? []).map((s) => String(s.id || s.effectId || '').toLowerCase()));
+  return ids.has('root') || ids.has('stun') || ids.has('suppress') || ids.has('fear') || ids.has('sleep');
+}
+
+function getTarget(store, kind, id) {
+  if (!kind || !id) return null;
+  if (kind === 'player') return store.players.get(id) || null;
+  if (kind === 'mob') return store.mobs.get(id) || null;
+  if (kind === 'asteroid') return store.asteroids.get(id) || null;
+  if (kind === 'station') return store.stations.get(id) || null;
+  return null;
+}
+
+function getCooldownMax(myState, slot) {
+  const hud = myState?.abilityHud?.[slot];
+  return Math.max(0.15, finite(hud?.cooldownMax, finite(hud?.tuning?.baseCooldown, 0.6)));
+}
+
+function canSpendEnergy(me, myState, slot) {
+  const cost = myState?.abilityHud?.[slot]?.energyCost;
+  if (!Number.isFinite(cost)) return true;
+  return finite(me?.vitals?.energy, finite(me?.stats?.energy, 9999)) >= cost;
+}
+
+function spendEnergyLocal(me, myState, slot) {
+  const cost = myState?.abilityHud?.[slot]?.energyCost;
+  if (!Number.isFinite(cost) || !me?.vitals) return;
+  me.vitals.energy = Math.max(0, finite(me.vitals.energy, 0) - cost);
+}
+
+function shouldDash(myState, slot) {
+  const frameId = String(myState?.frameId || '').toLowerCase();
+  if (frameId === 'vanguard' && slot === 'Z') return 170;
+  if (frameId === 'sigil' && slot === 'E') return 160;
+  return 0;
+}
+
+function shouldProjectile(slot) {
+  return slot === 'A' || slot === 'Z' || slot === 'R';
+}
+
+export class ClientPrediction {
+  constructor(store) {
+    this.store = store;
+    this.lastKeys = { A: false, Z: false, E: false, R: false, F: false, D: false };
+    this.lastAttackFxAt = 0;
+    this.localId = -1;
+  }
+
+  update(dt, input, view, camera) {
+    const me = this.store.getMe();
+    if (!me || (this.store.myState?.sessionSetup?.pending ?? true)) return;
+
+    const worldMouse = {
+      x: camera.x + (input.msx - view.cssW * 0.5),
+      y: camera.y + (input.msy - view.cssH * 0.5)
+    };
+
+    if (input.rightDown && input.holdActive) {
+      this.store.setOptimisticSelection('', 0);
+      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true });
+    }
+
+    this.handleAbilityEdges(me, input, worldMouse);
+    this.handleRocketEdge(me, input, worldMouse);
+    this.predictMovement(me, dt);
+    this.predictAutoAttackFx(me);
+  }
+
+  handleAbilityEdges(me, input, worldMouse) {
+    for (const slot of ['A', 'Z', 'E', 'R']) {
+      const down = !!input[slot.toLowerCase()];
+      if (down && !this.lastKeys[slot]) this.castAbilityOptimistic(me, slot, worldMouse);
+      this.lastKeys[slot] = down;
+    }
+  }
+
+  handleRocketEdge(me, input, worldMouse) {
+    const down = !!input.rocketTap;
+    if (down && !this.lastKeys.F) {
+      if (finite(me.rocketCooldownLeft, 0) <= 0 && finite(me.vitals?.energy, 999) > 1) {
+        me.rocketCooldownLeft = Math.max(0.25, finite(this.store.myState?.equipment?.launcher?.cooldown, 0.75));
+        this.spawnLocalProjectile(me, worldMouse, { rocket: true });
+      }
+    }
+    this.lastKeys.F = down;
+  }
+
+  castAbilityOptimistic(me, slot, worldMouse) {
+    const myState = this.store.myState;
+    const hud = myState?.abilityHud?.[slot];
+    if (hud && hud.unlocked === false) return;
+    if (finite(myState?.cooldowns?.[slot], finite(hud?.cooldownLeft, 0)) > 0.03) return;
+    if (!canSpendEnergy(me, myState, slot)) return;
+
+    const cd = getCooldownMax(myState, slot);
+    if (!myState.cooldowns) myState.cooldowns = {};
+    myState.cooldowns[slot] = cd;
+    if (hud) hud.cooldownLeft = cd;
+    spendEnergyLocal(me, myState, slot);
+
+    const dash = shouldDash(myState, slot);
+    if (dash > 0) this.applyDash(me, worldMouse, dash);
+    if (shouldProjectile(slot)) this.spawnLocalProjectile(me, worldMouse, { slot });
+
+    if (!myState.hint) {
+      const label = hud?.label || slot;
+      myState.hint = label;
+      myState._optimisticHintLeft = 0.35;
+    }
+  }
+
+  applyDash(me, worldMouse, distPx) {
+    if (hasBlockingStatus(me)) return;
+    const d = norm(worldMouse.x - me.x, worldMouse.y - me.y);
+    me.x += d.x * distPx;
+    me.y += d.y * distPx;
+    me.vx = d.x * finite(this.store.myState?.derived?.moveSpeed, me.engine || 250);
+    me.vy = d.y * finite(this.store.myState?.derived?.moveSpeed, me.engine || 250);
+    me._clientDashGrace = 0.12;
+  }
+
+  spawnLocalProjectile(me, worldMouse, opts = {}) {
+    if (!this.store.projectiles) return;
+    const d = norm(worldMouse.x - me.x, worldMouse.y - me.y);
+    const speed = opts.rocket ? 760 : (opts.slot === 'R' ? 920 : 1150);
+    const id = this.localId--;
+    this.store.projectiles.set(id, {
+      id,
+      localOnly: true,
+      ownerId: me.id,
+      sx: me.sx | 0,
+      sy: me.sy | 0,
+      x: me.x + d.x * 24,
+      y: me.y + d.y * 24,
+      vx: d.x * speed,
+      vy: d.y * speed,
+      radius: opts.rocket ? 6 : 4,
+      color: opts.rocket ? { r: 255, g: 188, b: 92 } : { r: 130, g: 225, b: 255 },
+      tint: opts.rocket ? { r: 255, g: 188, b: 92 } : { r: 130, g: 225, b: 255 },
+      visualKind: opts.rocket ? 'rocket' : 'auto',
+      ttl: opts.rocket ? 0.65 : 0.45,
+      _tx: me.x + d.x * 500,
+      _ty: me.y + d.y * 500
+    });
+  }
+
+  predictAutoAttackFx(me) {
+    const target = getTarget(this.store, this.store.myState?.selectedKind, this.store.myState?.selectedId);
+    if (!target) return;
+    const now = performance.now();
+    if (now - this.lastAttackFxAt < 520) return;
+    const range = 380;
+    const dx = target.x - me.x;
+    const dy = target.y - me.y;
+    if (dx * dx + dy * dy > range * range) return;
+    this.lastAttackFxAt = now;
+  }
+
+  predictMovement(me, dt) {
+    if (!Number.isFinite(dt) || dt <= 0 || hasBlockingStatus(me)) return;
+    const local = this.store.localPrediction || {};
+    let tx = null;
+    let ty = null;
+
+    const target = getTarget(this.store, local.selectedKind || this.store.myState?.selectedKind, local.selectedId || this.store.myState?.selectedId);
+    if (target && (target.kind === 'station' || local.selectedKind === 'station')) {
+      tx = target.x;
+      ty = target.y;
+    } else if (target && (local.selectedKind || this.store.myState?.selectedKind) !== 'station') {
+      const aaRange = 330;
+      const d = Math.max(0.001, len(me.x - target.x, me.y - target.y));
+      if (d > aaRange) {
+        const nx = (me.x - target.x) / d;
+        const ny = (me.y - target.y) / d;
+        tx = target.x + nx * (aaRange * 0.82);
+        ty = target.y + ny * (aaRange * 0.82);
+      }
+    }
+
+    if (local.hasMoveTarget) {
+      tx = local.moveX;
+      ty = local.moveY;
+    }
+
+    if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
+      this.reconcileSoftly(me, dt);
+      return;
+    }
+
+    const dx = tx - me.x;
+    const dy = ty - me.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= 10) {
+      if (local.hasMoveTarget && !local.hold) local.hasMoveTarget = false;
+      me.vx = 0;
+      me.vy = 0;
+      this.reconcileSoftly(me, dt);
+      return;
+    }
+
+    const speed = finite(this.store.myState?.derived?.moveSpeed, finite(me.engine, 250));
+    const step = Math.min(d, speed * dt);
+    me.x += (dx / d) * step;
+    me.y += (dy / d) * step;
+    me.vx = (dx / d) * speed;
+    me.vy = (dy / d) * speed;
+    this.reconcileSoftly(me, dt, true);
+  }
+
+  reconcileSoftly(me, dt, isMoving = false) {
+    if (!Number.isFinite(me._tx) || !Number.isFinite(me._ty)) return;
+    const dx = me._tx - me.x;
+    const dy = me._ty - me.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > 1200 * 1200) {
+      me.x = me._tx;
+      me.y = me._ty;
+      return;
+    }
+    const strength = isMoving ? 1.8 : 7.0;
+    const a = clamp(1 - Math.exp(-strength * dt), 0, 0.28);
+    me.x += dx * a;
+    me.y += dy * a;
+  }
+}

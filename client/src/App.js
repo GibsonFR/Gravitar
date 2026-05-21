@@ -37,6 +37,7 @@ import { drawWorldStatuses } from './ui/status/WorldStatusRenderer.js';
 import { PlayersPanelView } from './ui/players/PlayersPanelView.js';
 import { OptionsPanelView } from './ui/options/OptionsPanelView.js';
 import { getOptionsIconSvg } from './ui/options/OptionsIconSvg.js';
+import { ClientPrediction } from './prediction/ClientPrediction.js';
 
 import { clamp, rgba } from './core/Math.js';
 import { SECTOR } from '../../shared/world/SectorDefs.js';
@@ -76,6 +77,7 @@ export function startApp() {
 
   const view = new CanvasView(canvas);
   const store = new WorldStore();
+  const predictor = new ClientPrediction(store);
   const input = createInputState();
   const audio = new AudioSystem();
   let graphicsOptions = { starDensity: 1, showGrid: true, showFx: true, renderScale: 1 };
@@ -156,6 +158,13 @@ export function startApp() {
     onRocketSlotSwitch: (slot) => sendCmd('switch_rocket_slot', { slot })
   });
   audio.installUnlock(canvas);
+
+  canvas.addEventListener('mousedown', (ev) => {
+    if (ev.button !== 2) return;
+    if (store.myState?.sessionSetup?.pending ?? true) return;
+    const rect = canvas.getBoundingClientRect();
+    applyOptimisticPrimaryClick(ev.clientX - rect.left, ev.clientY - rect.top);
+  });
 
   canvas.addEventListener('mousedown', (ev) => {
     if (ev.button !== 0) return;
@@ -269,6 +278,55 @@ export function startApp() {
     };
   }
 
+
+
+  function pickLocalPrimaryTarget(worldX, worldY) {
+    const me = store.getMe();
+    if (!me) return null;
+    let best = null;
+    let bestD2 = Infinity;
+    const sameSector = (e) => (e?.sx | 0) === (me.sx | 0) && (e?.sy | 0) === (me.sy | 0);
+    const tryPick = (kind, e, baseR) => {
+      if (!e || !sameSector(e)) return;
+      const r = Math.max(baseR, (e.radius || 0) + baseR - 12);
+      const dx = (e.x || 0) - worldX;
+      const dy = (e.y || 0) - worldY;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= r * r && d2 < bestD2) {
+        bestD2 = d2;
+        best = { kind, id: e.id || 0, x: e.x || 0, y: e.y || 0 };
+      }
+    };
+
+    for (const p of store.players.values()) {
+      if (p.id === me.id) continue;
+      tryPick('player', p, 42);
+    }
+    for (const mob of store.mobs.values()) tryPick('mob', mob, 46);
+    for (const a of store.asteroids.values()) {
+      if (a.bastionWall || a.unselectable) continue;
+      tryPick('asteroid', a, 52);
+    }
+    if (best) return best;
+    for (const station of store.stations.values()) tryPick('station', station, 48);
+    return best;
+  }
+
+  function applyOptimisticPrimaryClick(screenX, screenY) {
+    if (store.myState?.sessionSetup?.pending ?? true) return;
+    const mouseWorld = {
+      x: camera.x + (screenX - view.cssW * 0.5),
+      y: camera.y + (screenY - view.cssH * 0.5)
+    };
+    const target = pickLocalPrimaryTarget(mouseWorld.x, mouseWorld.y);
+    if (target) {
+      store.setOptimisticSelection(target.kind, target.id);
+      return;
+    }
+    store.setOptimisticSelection('', 0);
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y);
+  }
+
   function clearQueuedInput() {
     input.clickQueued = false;
     input.interactTap = false;
@@ -321,7 +379,8 @@ export function startApp() {
     const dt = Math.min(0.05, Math.max(0, t - lastFrameTime));
     lastFrameTime = t;
     store.interpolate(dt);
-    updateCamera(me, dt);
+    predictor.update(dt, input, view, camera);
+    updateCamera(store.getMe(), dt);
     const camX = camera.x;
     const camY = camera.y;
     const mouseWorld = { x: camX + (input.msx - view.cssW * 0.5), y: camY + (input.msy - view.cssH * 0.5) };
