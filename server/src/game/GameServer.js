@@ -1,6 +1,6 @@
 import { createGameState, newPlayerId } from './state/GameState.js';
 import { seedWorld } from './seed/SeedWorld.js';
-import { TICK, SNAP_RATE } from './constants.js';
+import { TICK, SNAP_RATE, SNAP_FULL_UI_RATE_MS } from './constants.js';
 import { advanceSimulationTick, getSimulationTimeMs, nowMs, setSimulationTime } from './util/Time.js';
 import { updateAsteroids } from './asteroid/AsteroidSystem.js';
 import { updateStations } from './station/StationSystem.js';
@@ -33,6 +33,7 @@ export function createGameServer() {
   let acc = 0;
   let snapAcc = 0;
   let running = false;
+  const lastFullSnapshotByPlayer = new Map();
 
   function allocatePlayerId() {
     return newPlayerId(state);
@@ -56,6 +57,7 @@ export function createGameServer() {
       if (battleStats) state.accounts.saveBattleStats(p.accountKey, battleStats);
     }
     state.modes?.battleQueueNext?.delete?.(id | 0);
+    lastFullSnapshotByPlayer.delete(id);
     state.players.delete(id);
   }
 
@@ -109,7 +111,11 @@ export function createGameServer() {
       const timeMs = setSimulationTime(state, nowMs());
       for (const id of ids) {
         if (!state.players.has(id)) continue;
-        const snap = buildSnapshot(state, id, timeMs);
+        const p = state.players.get(id);
+        const previousFullAt = lastFullSnapshotByPlayer.get(id) || 0;
+        const fullUi = !!p?.sessionSetupPending || !!p?.dockedStationId || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
+        if (fullUi) lastFullSnapshotByPlayer.set(id, timeMs);
+        const snap = buildSnapshot(state, id, timeMs, { fullUi });
         sendSnapshot(id, snap);
       }
       clearWorldSfx(state);

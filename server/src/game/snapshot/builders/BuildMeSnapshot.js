@@ -88,3 +88,39 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     sfx: drainPlayerSfx(player)
   };
 }
+
+
+export function buildMeLiteSnapshot(player, timeMs, state = null) {
+  if (!player) return null;
+  return {
+    id: player.id,
+    pseudo: player.pseudo || '',
+    lite: true,
+    sessionSetup: {
+      pending: !!player.sessionSetupPending,
+      authStatus: player.authStatus || null,
+      step: player.sessionSetupStep || ''
+    },
+    frameId: player.frameId,
+    frameName: player.frameName,
+    sx: player.sx | 0,
+    sy: player.sy | 0,
+    selectedKind: player.selectedKind,
+    selectedId: player.selectedId,
+    dockedStationId: player.dockedStationId,
+    dockPhase: player.dockPhase || 'none',
+    dockStationId: player.dockStationId || 0,
+    dockProg01: player.dockProg01 || 0,
+    hint: player.uiHintTimer > 0 ? player.uiHint : '',
+    kills: player.kills,
+    deaths: player.deaths,
+    cooldowns: {
+      A: player.cooldownALeft,
+      Z: player.cooldownZLeft,
+      E: player.cooldownELeft,
+      R: player.cooldownRLeft
+    },
+    statuses: buildStatusSnapshot(player, 4),
+    sfx: drainPlayerSfx(player)
+  };
+}
