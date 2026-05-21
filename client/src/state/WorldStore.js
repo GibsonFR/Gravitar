@@ -17,6 +17,8 @@ export class WorldStore {
     this.loots = new Map();
     this.pendingSfx = [];
     this.pendingCombatFx = [];
+    this.chatMessages = [];
+    this.chatUnread = 0;
     this.lastSnapAt = 0;
     this.localPrediction = {
       hasMoveTarget: false,
@@ -27,7 +29,12 @@ export class WorldStore {
       selectedId: 0,
       selectedAt: 0,
       moveAt: 0,
-      localDamage: new Map()
+      localDamage: new Map(),
+      sectorTransitionAt: 0,
+      sectorSx: 0,
+      sectorSy: 0,
+      sectorX: 0,
+      sectorY: 0
     };
   }
 
@@ -37,16 +44,38 @@ export class WorldStore {
       const sectorChanged = ((previous.sx | 0) !== (next.sx | 0)) || ((previous.sy | 0) !== (next.sy | 0));
       const merged = { ...previous, ...next };
       if (sectorChanged || previous._forceServerPose) {
+        const now = performance.now();
+        const recentLocalSector = now - (this.localPrediction.sectorTransitionAt || 0) < 1500;
+        const expectedSx = this.localPrediction.sectorSx | 0;
+        const expectedSy = this.localPrediction.sectorSy | 0;
+        const serverIsOldSector = recentLocalSector && ((next.sx | 0) !== expectedSx || (next.sy | 0) !== expectedSy);
+        if (serverIsOldSector && !previous._forceServerPose) {
+          // Le client vient de franchir une bordure. Les snapshots précédents peuvent encore
+          // contenir l'ancien secteur ; on les ignore pour éviter le ping-pong de secteur.
+          merged.x = previous.x;
+          merged.y = previous.y;
+          merged.sx = previous.sx;
+          merged.sy = previous.sy;
+          merged.vx = previous.vx;
+          merged.vy = previous.vy;
+          merged._serverX = next.x;
+          merged._serverY = next.y;
+          merged._tx = previous.x;
+          merged._ty = previous.y;
+          return this._applyLocalDamageToEntity(merged);
+        }
         if (Number.isFinite(next.x) && Number.isFinite(next.y)) {
-          merged.x = next.x;
-          merged.y = next.y;
-          merged.vx = Number.isFinite(next.vx) ? next.vx : 0;
-          merged.vy = Number.isFinite(next.vy) ? next.vy : 0;
-          merged._tx = next.x;
-          merged._ty = next.y;
+          merged.x = recentLocalSector ? previous.x : next.x;
+          merged.y = recentLocalSector ? previous.y : next.y;
+          merged.sx = recentLocalSector ? previous.sx : next.sx;
+          merged.sy = recentLocalSector ? previous.sy : next.sy;
+          merged.vx = recentLocalSector ? previous.vx : (Number.isFinite(next.vx) ? next.vx : 0);
+          merged.vy = recentLocalSector ? previous.vy : (Number.isFinite(next.vy) ? next.vy : 0);
+          merged._tx = merged.x;
+          merged._ty = merged.y;
         }
         merged._forceServerPose = false;
-        return merged;
+        return this._applyLocalDamageToEntity(merged);
       }
       // Pour le joueur local, les snapshots sont forcément en retard réseau.
       // On synchronise les PV/stats/etc., mais on ne rembobine plus x/y/vx/vy.
@@ -203,6 +232,24 @@ export class WorldStore {
     };
   }
 
+  applyChatMessage(msg) {
+    if (!msg || !msg.text) return;
+    const clean = {
+      id: msg.id || `${Date.now()}-${Math.random()}`,
+      fromId: msg.fromId | 0,
+      name: String(msg.name || 'Pilote').slice(0, 24),
+      text: String(msg.text || '').slice(0, 220),
+      time: Number.isFinite(msg.time) ? msg.time : Date.now()
+    };
+    this.chatMessages.push(clean);
+    if (this.chatMessages.length > 80) this.chatMessages.splice(0, this.chatMessages.length - 80);
+    this.chatUnread += 1;
+  }
+
+  clearChatUnread() {
+    this.chatUnread = 0;
+  }
+
   applyHello(id) {
     this.myId = id;
   }
@@ -287,7 +334,7 @@ export class WorldStore {
       if (d2 <= r * r) {
         projectile.x = target.x;
         projectile.y = target.y;
-        if (!projectile._impactApplied && projectile._impactDamage > 0 && projectile._targetKind !== 'station') {
+        if (!projectile._impactApplied && !projectile._visualOnly && projectile._impactDamage > 0 && projectile._targetKind !== 'station') {
           this.applyLocalDamage(projectile._targetKind, projectile._targetId, projectile._impactDamage, target.x, target.y);
           projectile._impactApplied = true;
         }
@@ -399,6 +446,18 @@ export class WorldStore {
     this.tickLocalUi(dt);
   }
 
+  noteLocalSectorTransition(sx, sy, x, y) {
+    this.localPrediction.sectorTransitionAt = performance.now();
+    this.localPrediction.sectorSx = sx | 0;
+    this.localPrediction.sectorSy = sy | 0;
+    this.localPrediction.sectorX = Number.isFinite(x) ? x : 0;
+    this.localPrediction.sectorY = Number.isFinite(y) ? y : 0;
+    // Les cibles/points de l'ancien secteur deviennent volontairement locaux-obsolètes.
+    this.localPrediction.selectedKind = '';
+    this.localPrediction.selectedId = 0;
+    this.localPrediction.hasMoveTarget = false;
+  }
+
   consumePendingSfx() {
     if (!this.pendingSfx.length) return [];
     const out = this.pendingSfx;
@@ -410,6 +469,8 @@ export class WorldStore {
     if (!this.pendingCombatFx.length) return [];
     const out = this.pendingCombatFx;
     this.pendingCombatFx = [];
+    this.chatMessages = [];
+    this.chatUnread = 0;
     return out;
   }
 

@@ -74,6 +74,18 @@ function localDamageFor(slot, rocket = false) {
   return 14;
 }
 
+function getLocalAutoInterval(store) {
+  const rate = finite(store?.myState?.derived?.autoAttackRate, 0);
+  if (rate > 0.05) return clamp(1 / rate, 0.12, 2.2);
+  const hudRate = finite(store?.myState?.stats?.cadence, 0);
+  if (hudRate > 0.05) return clamp(1 / hudRate, 0.12, 2.2);
+  return 0.72;
+}
+
+function sameLocalTarget(a, b) {
+  return !!a && !!b && String(a.kind || '') === String(b.kind || '') && (a.id | 0) === (b.id | 0);
+}
+
 export class ClientPrediction {
   constructor(store) {
     this.store = store;
@@ -81,6 +93,8 @@ export class ClientPrediction {
     this.lastAttackFxAt = 0;
     this.localId = -1;
     this.localAutoCooldown = 0;
+    this.lastLocalAutoTarget = null;
+    this.lastSectorWrapAt = 0;
   }
 
   update(dt, input, view, camera) {
@@ -210,6 +224,9 @@ export class ClientPrediction {
       _targetKind: targetKind,
       _targetId: targetId,
       _impactDamage: finite(opts.impactDamage, 0),
+      _visualOnly: !!opts.visualOnly,
+      _bornClientAt: performance.now(),
+      _expectedServerEchoWindow: finite(opts.expectedServerEchoWindow, 0),
       _impactApplied: false,
       _impactRadius: opts.rocket ? 34 : 24
     });
@@ -219,15 +236,32 @@ export class ClientPrediction {
     this.localAutoCooldown = Math.max(0, this.localAutoCooldown - Math.max(0, dt));
     const target = getSelectedTarget(this.store);
     if (!target.entity || target.kind === 'station') return;
-    const range = 420;
+
+    const interval = getLocalAutoInterval(this.store);
+    const rateRange = finite(this.store?.myState?.derived?.autoAttackRange, 0);
+    const range = rateRange > 0 ? rateRange + finite(target.entity.radius, 18) : 420;
     const dx = target.entity.x - me.x;
     const dy = target.entity.y - me.y;
     if (dx * dx + dy * dy > range * range) return;
+
+    const currentTarget = { kind: target.kind, id: target.id | 0 };
+    if (!sameLocalTarget(this.lastLocalAutoTarget, currentTarget)) {
+      // Changement de cible = feedback immédiat, mais pas une mitraillette infinie.
+      this.localAutoCooldown = Math.min(this.localAutoCooldown, 0.02);
+      this.lastLocalAutoTarget = currentTarget;
+    }
+
     if (this.localAutoCooldown > 0) return;
-    this.localAutoCooldown = 0.22;
+    this.localAutoCooldown = interval;
     this.lastAttackFxAt = performance.now();
-    this.spawnLocalProjectile(me, target.entity, { auto: true, targetKind: target.kind, targetId: target.id, impactDamage: 7 });
-    this.store.applyLocalDamage(target.kind, target.id, 7, target.entity.x, target.entity.y);
+    this.spawnLocalProjectile(me, target.entity, {
+      auto: true,
+      targetKind: target.kind,
+      targetId: target.id,
+      impactDamage: Math.max(1, finite(this.store?.myState?.derived?.autoAttackDamage, 7)),
+      visualOnly: true,
+      expectedServerEchoWindow: Math.max(0.18, interval * 0.55)
+    });
   }
 
   predictMovement(me, dt) {
@@ -290,6 +324,13 @@ export class ClientPrediction {
     me.sx = wrapped.sx | 0;
     me.sy = wrapped.sy | 0;
 
+    // Petite marge à l'intérieur du nouveau secteur : sans ça, un snapshot serveur
+    // légèrement en retard peut remettre le joueur exactement sur la frontière et
+    // provoquer un aller-retour visuel horrible.
+    const margin = 42;
+    me.x = clamp(me.x, -2000 + margin, 2000 - margin);
+    me.y = clamp(me.y, -2000 + margin, 2000 - margin);
+
     const dx = me.x - beforeX;
     const dy = me.y - beforeY;
     const local = this.store.localPrediction || {};
@@ -307,6 +348,8 @@ export class ClientPrediction {
     me.groundMarkerTimer = 0;
     me._forceServerPose = false;
     me._localSectorChangedAt = performance.now();
+    this.lastSectorWrapAt = me._localSectorChangedAt;
+    this.store.noteLocalSectorTransition(me.sx | 0, me.sy | 0, me.x, me.y);
   }
 
   reconcileSoftly(me, dt, isMoving = false) {

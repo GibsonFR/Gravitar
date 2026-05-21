@@ -3352,3 +3352,72 @@ button.station-item-icon[draggable="true"]:active,
   .session-setup__queue-card { grid-template-columns: 1fr; }
   .session-setup__server-meta { justify-items: start; }
 }
+
+/* V74 in-game chat */
+.game-chat {
+  position: fixed;
+  left: 16px;
+  bottom: 178px;
+  width: min(420px, calc(100vw - 32px));
+  z-index: 35;
+  pointer-events: none;
+  opacity: .72;
+  transform: translateY(8px);
+  transition: opacity .16s ease, transform .16s ease;
+  font-family: var(--ui-font, system-ui, sans-serif);
+}
+.game-chat.is-open,
+.game-chat:focus-within {
+  opacity: 1;
+  transform: translateY(0);
+}
+.game-chat__log {
+  max-height: 172px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(126, 162, 214, .16);
+  border-radius: 14px 14px 10px 10px;
+  background: linear-gradient(180deg, rgba(5,9,15,.28), rgba(5,9,15,.68));
+  box-shadow: 0 16px 40px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.game-chat__msg {
+  color: rgba(232, 242, 255, .94);
+  text-shadow: 0 1px 2px rgba(0,0,0,.9);
+  font: 800 12px/1.25 var(--ui-font, system-ui, sans-serif);
+  overflow-wrap: anywhere;
+}
+.game-chat__name {
+  color: rgba(125, 233, 255, .98);
+  margin-right: 6px;
+}
+.game-chat__text { color: rgba(240, 247, 255, .95); }
+.game-chat__form {
+  margin-top: 6px;
+  pointer-events: auto;
+  opacity: .18;
+  transition: opacity .14s ease;
+}
+.game-chat.is-open .game-chat__form,
+.game-chat:focus-within .game-chat__form { opacity: 1; }
+.game-chat__input {
+  width: 100%;
+  height: 38px;
+  box-sizing: border-box;
+  border: 1px solid rgba(125, 233, 255, .30);
+  border-radius: 12px;
+  outline: none;
+  padding: 0 12px;
+  background: rgba(5, 10, 18, .86);
+  color: rgba(242, 248, 255, .96);
+  font: 900 13px/1 var(--ui-font, system-ui, sans-serif);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 28px rgba(0,0,0,.24);
+}
+.game-chat__input:focus {
+  border-color: rgba(125, 233, 255, .66);
+  background: rgba(7, 16, 27, .95);
+}
+.game-chat__input::placeholder { color: rgba(177,198,224,.55); }

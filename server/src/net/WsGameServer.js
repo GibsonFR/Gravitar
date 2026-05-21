@@ -3,6 +3,32 @@ import { WebSocketServer } from 'ws';
 export function createWsGameServer(httpServer, game) {
   const wss = new WebSocketServer({ server: httpServer });
   const connections = new Map();
+  let chatSeq = 1;
+
+  function sanitizeChatText(text) {
+    return String(text || '')
+      .replace(/[\r\n\t]+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+      .slice(0, 220);
+  }
+
+  function broadcastChat(fromId, text) {
+    const clean = sanitizeChatText(text);
+    if (!clean) return;
+    const p = game.state?.players?.get?.(fromId) || null;
+    const payload = JSON.stringify({
+      t: 'chat',
+      id: `${Date.now()}-${chatSeq++}`,
+      fromId,
+      name: String(p?.pseudo || `Pilote ${fromId}`).slice(0, 24),
+      text: clean,
+      time: Date.now()
+    });
+    for (const ws of connections.values()) {
+      if (ws.readyState === ws.OPEN) ws.send(payload);
+    }
+  }
 
   function getConnectedIds() {
     return [...connections.keys()];
@@ -29,6 +55,7 @@ export function createWsGameServer(httpServer, game) {
       if (!msg) return;
       if (msg.t === 'input') game.handleInput(id, msg);
       if (msg.t === 'cmd') game.handleCommand(id, msg);
+      if (msg.t === 'chat') broadcastChat(id, msg.text);
     });
 
     ws.on('close', () => {

@@ -18,6 +18,7 @@ export class NetClient {
       try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.t === 'hello') this.store.applyHello(msg.id);
       if (msg.t === 'snap') this.store.applySnapshot(msg);
+      if (msg.t === 'chat') this.store.applyChatMessage(msg);
     };
 
     this.ws.onclose = () => {

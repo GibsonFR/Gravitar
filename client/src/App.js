@@ -71,6 +71,89 @@ function drawBlindViewportMask(ctx, view, me, t) {
 }
 
 
+function createChatUi(root, store, sendChat) {
+  const wrap = document.createElement('div');
+  wrap.className = 'game-chat';
+  wrap.innerHTML = `
+    <div class="game-chat__log"></div>
+    <form class="game-chat__form" autocomplete="off">
+      <input class="game-chat__input" maxlength="220" placeholder="Entrée pour discuter…" />
+    </form>
+  `;
+  root.appendChild(wrap);
+  const log = wrap.querySelector('.game-chat__log');
+  const form = wrap.querySelector('.game-chat__form');
+  const input = wrap.querySelector('.game-chat__input');
+  let lastCount = -1;
+  let visibleUntil = 0;
+
+  function escapeHtml(txt) {
+    return String(txt || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function open() {
+    wrap.classList.add('is-open');
+    visibleUntil = performance.now() + 8500;
+    store.clearChatUnread?.();
+    input.focus();
+  }
+
+  function close() {
+    input.blur();
+    if (performance.now() > visibleUntil) wrap.classList.remove('is-open');
+  }
+
+  function refresh(force = false) {
+    const messages = store.chatMessages || [];
+    if (!force && messages.length === lastCount) {
+      if (document.activeElement !== input && performance.now() > visibleUntil) wrap.classList.remove('is-open');
+      return;
+    }
+    lastCount = messages.length;
+    log.innerHTML = messages.slice(-9).map((m) => `
+      <div class="game-chat__msg">
+        <span class="game-chat__name">${escapeHtml(m.name)}</span>
+        <span class="game-chat__text">${escapeHtml(m.text)}</span>
+      </div>
+    `).join('');
+    log.scrollTop = log.scrollHeight;
+    if (messages.length) {
+      visibleUntil = performance.now() + 6500;
+      wrap.classList.add('is-open');
+    }
+  }
+
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const text = input.value.trim();
+    if (!text) { close(); return; }
+    sendChat(text);
+    input.value = '';
+    visibleUntil = performance.now() + 6500;
+  });
+
+  input.addEventListener('keydown', (ev) => {
+    ev.stopPropagation();
+    if (ev.key === 'Escape') {
+      input.value = '';
+      close();
+      ev.preventDefault();
+    }
+  });
+
+  window.addEventListener('keydown', (ev) => {
+    const tag = String(ev.target?.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || ev.target?.isContentEditable) return;
+    if (ev.key === 'Enter') {
+      open();
+      ev.preventDefault();
+    }
+  });
+
+  return { refresh, open, close, el: wrap };
+}
+
+
 export function startApp() {
   const canvas = document.getElementById('c');
   const statusEl = document.getElementById('status');
@@ -91,6 +174,7 @@ export function startApp() {
   net.connect();
 
   const sendCmd = (cmd, payload) => net.send({ t: 'cmd', cmd, ...(payload || {}) });
+  const chatUi = createChatUi(uiRoot, store, (text) => net.send({ t: 'chat', text }));
 
   const cargoPanel = new CargoPanelView(sendCmd);
   dock.registerPanel({ id: 'cargo', title: 'Cargo', iconMarkup: getCargoIconSvg(), panelEl: cargoPanel.el });
@@ -451,6 +535,7 @@ export function startApp() {
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
     stationWindow.update(store.myState, store.stations);
     sessionSetup.sync(store.myState, !!store.myId, store.modes);
+    chatUi.refresh();
 
     if (me && !(store.myState?.sessionSetup?.pending ?? true)) {
       drawHud(ctx, view, me, store.myState, input);

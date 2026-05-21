@@ -60,6 +60,11 @@ function applyWrapToPlayer(state, p, timeMs) {
   p.sy = w.sy;
 
   const changed = (beforeSx !== w.sx) || (beforeSy !== w.sy);
+  if (changed) {
+    const margin = Math.max(36, (p.radius ?? 18) + 18);
+    p.x = Math.max(-SECTOR.half + margin, Math.min(SECTOR.half - margin, p.x));
+    p.y = Math.max(-SECTOR.half + margin, Math.min(SECTOR.half - margin, p.y));
+  }
   if (!changed) return;
 
   const dx = p.x - beforeX;
@@ -134,6 +139,30 @@ export function updateSectors(state, dt, timeMs) {
     const sy = p.sy | 0;
     active.add(sectorKey(sx, sy));
     ensureSectorLoaded(state, sx, sy, timeMs);
+
+    // Préchargement léger des secteurs adjacents quand un joueur approche d'un bord.
+    // Ça évite l'impression de mur/chargement quand le client franchit localement la limite.
+    const preloadPad = 520;
+    const dirs = [];
+    if (p.x > SECTOR.half - preloadPad) dirs.push([1, 0]);
+    if (p.x < -SECTOR.half + preloadPad) dirs.push([-1, 0]);
+    if (p.y > SECTOR.half - preloadPad) dirs.push([0, 1]);
+    if (p.y < -SECTOR.half + preloadPad) dirs.push([0, -1]);
+    if (dirs.length >= 2) {
+      for (let i = 0; i < dirs.length; i += 1) {
+        for (let j = i + 1; j < dirs.length; j += 1) {
+          const dx = dirs[i][0] + dirs[j][0];
+          const dy = dirs[i][1] + dirs[j][1];
+          if (dx && dy) dirs.push([dx, dy]);
+        }
+      }
+    }
+    for (const [dx, dy] of dirs) {
+      const psx = sx + dx;
+      const psy = sy + dy;
+      active.add(sectorKey(psx, psy));
+      ensureSectorLoaded(state, psx, psy, timeMs);
+    }
   }
 
   // 3) Unload sectors with no players after a grace period.
