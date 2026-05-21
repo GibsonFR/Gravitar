@@ -352,6 +352,15 @@ export class ClientPrediction {
   }
 
   applyLocalSectorWrap(me) {
+    const now = performance.now();
+    if (now < finite(me._sectorLockUntil, 0)) {
+      const pad = 34;
+      if ((me._sectorLockDirX | 0) > 0 && me.x < -2000) me.x = -2000 + pad;
+      if ((me._sectorLockDirX | 0) < 0 && me.x > 2000) me.x = 2000 - pad;
+      if ((me._sectorLockDirY | 0) > 0 && me.y < -2000) me.y = -2000 + pad;
+      if ((me._sectorLockDirY | 0) < 0 && me.y > 2000) me.y = 2000 - pad;
+    }
+
     const beforeX = me.x;
     const beforeY = me.y;
     const beforeSx = me.sx | 0;
@@ -361,7 +370,7 @@ export class ClientPrediction {
 
     const dirX = (wrapped.sx | 0) - beforeSx;
     const dirY = (wrapped.sy | 0) - beforeSy;
-    const margin = 72;
+    const margin = 34;
     me.x = wrapped.x;
     me.y = wrapped.y;
     me.sx = wrapped.sx | 0;

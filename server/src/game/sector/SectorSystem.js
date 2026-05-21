@@ -50,6 +50,20 @@ function applyWrapToPlayer(state, p, timeMs) {
     clampDetachedPlayer(p);
     return;
   }
+
+  // Anti ping-pong de frontière : après un changement de secteur, on empêche
+  // pendant quelques frames un retour immédiat dans le secteur précédent causé
+  // par une pose client/snapshot légèrement en retard. Sans ça, les coins de
+  // secteurs peuvent déclencher des allers-retours violents.
+  const lockUntil = Number.isFinite(p.sectorLockUntil) ? p.sectorLockUntil : 0;
+  if (timeMs < lockUntil) {
+    const pad = Math.max(28, (p.radius ?? 18) + 12);
+    if ((p.sectorLockDirX | 0) > 0 && p.x < -SECTOR.half) p.x = -SECTOR.half + pad;
+    if ((p.sectorLockDirX | 0) < 0 && p.x > SECTOR.half) p.x = SECTOR.half - pad;
+    if ((p.sectorLockDirY | 0) > 0 && p.y < -SECTOR.half) p.y = -SECTOR.half + pad;
+    if ((p.sectorLockDirY | 0) < 0 && p.y > SECTOR.half) p.y = SECTOR.half - pad;
+  }
+
   const beforeX = p.x;
   const beforeY = p.y;
 
@@ -61,7 +75,7 @@ function applyWrapToPlayer(state, p, timeMs) {
   p.sy = w.sy;
 
   if (changed) {
-    const margin = Math.max(72, (p.radius ?? 18) + 54);
+    const margin = Math.max(34, (p.radius ?? 18) + 14);
     const dirX = (w.sx | 0) - beforeSx;
     const dirY = (w.sy | 0) - beforeSy;
     if (dirX > 0) p.x = -SECTOR.half + margin;
@@ -150,23 +164,25 @@ export function updateSectors(state, dt, timeMs) {
     active.add(sectorKey(sx, sy));
     ensureSectorLoaded(state, sx, sy, timeMs);
 
-    // Préchargement léger des secteurs adjacents quand un joueur approche d'un bord.
-    // Ça évite l'impression de mur/chargement quand le client franchit localement la limite.
+    // Préchargement borné des secteurs adjacents quand un joueur approche d'un bord.
+    // Important : ne jamais muter la liste pendant qu'on l'itère. L'ancienne version
+    // ajoutait les diagonales dans `dirs` pendant la double boucle ; dans un coin, ça
+    // pouvait grossir sans limite et finir en heap out of memory sur Render.
     const preloadPad = 520;
+    const nearRight = p.x > SECTOR.half - preloadPad;
+    const nearLeft = p.x < -SECTOR.half + preloadPad;
+    const nearDown = p.y > SECTOR.half - preloadPad;
+    const nearUp = p.y < -SECTOR.half + preloadPad;
     const dirs = [];
-    if (p.x > SECTOR.half - preloadPad) dirs.push([1, 0]);
-    if (p.x < -SECTOR.half + preloadPad) dirs.push([-1, 0]);
-    if (p.y > SECTOR.half - preloadPad) dirs.push([0, 1]);
-    if (p.y < -SECTOR.half + preloadPad) dirs.push([0, -1]);
-    if (dirs.length >= 2) {
-      for (let i = 0; i < dirs.length; i += 1) {
-        for (let j = i + 1; j < dirs.length; j += 1) {
-          const dx = dirs[i][0] + dirs[j][0];
-          const dy = dirs[i][1] + dirs[j][1];
-          if (dx && dy) dirs.push([dx, dy]);
-        }
-      }
-    }
+    if (nearRight) dirs.push([1, 0]);
+    if (nearLeft) dirs.push([-1, 0]);
+    if (nearDown) dirs.push([0, 1]);
+    if (nearUp) dirs.push([0, -1]);
+    if (nearRight && nearDown) dirs.push([1, 1]);
+    if (nearRight && nearUp) dirs.push([1, -1]);
+    if (nearLeft && nearDown) dirs.push([-1, 1]);
+    if (nearLeft && nearUp) dirs.push([-1, -1]);
+
     for (const [dx, dy] of dirs) {
       const psx = sx + dx;
       const psy = sy + dy;
