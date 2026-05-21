@@ -1,6 +1,6 @@
 import { createGameState, newPlayerId } from './state/GameState.js';
 import { seedWorld } from './seed/SeedWorld.js';
-import { TICK, SNAP_RATE, SNAP_FULL_UI_RATE_MS } from './constants.js';
+import { TICK, SNAP_RATE, SNAP_FULL_UI_RATE_MS, SERVER_LOOP_INTERVAL_MS } from './constants.js';
 import { advanceSimulationTick, getSimulationTimeMs, nowMs, setSimulationTime } from './util/Time.js';
 import { updateAsteroids } from './asteroid/AsteroidSystem.js';
 import { updateStations } from './station/StationSystem.js';
@@ -33,6 +33,7 @@ export function createGameServer() {
   let acc = 0;
   let snapAcc = 0;
   let running = false;
+  let loopHandle = null;
   const lastFullSnapshotByPlayer = new Map();
 
   function allocatePlayerId() {
@@ -122,7 +123,6 @@ export function createGameServer() {
       clearCombatFx(state);
     }
 
-    setImmediate(() => tickLoop(getConnectedIds, sendSnapshot));
   }
 
   function start(getConnectedIds, sendSnapshot) {
@@ -132,7 +132,7 @@ export function createGameServer() {
     setSimulationTime(state, last);
     acc = 0;
     snapAcc = 0;
-    tickLoop(getConnectedIds, sendSnapshot);
+    loopHandle = setInterval(() => tickLoop(getConnectedIds, sendSnapshot), SERVER_LOOP_INTERVAL_MS);
   }
 
   return {
