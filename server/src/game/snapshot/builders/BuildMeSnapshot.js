@@ -132,6 +132,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
     hint: player.uiHintTimer > 0 ? player.uiHint : '',
     kills: player.kills,
     deaths: player.deaths,
+    inv: buildInventorySnapshot(player.inv),
     cooldowns: {
       A: player.cooldownALeft,
       Z: player.cooldownZLeft,

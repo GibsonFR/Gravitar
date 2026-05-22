@@ -84,6 +84,7 @@ export function buildAsteroidSnapshots(asteroids, inSector) {
     .filter(inSector)
     .map((asteroid) => ({
       id: asteroid.id,
+      kind: 'asteroid',
       sx: asteroid.sx | 0,
       sy: asteroid.sy | 0,
       x: q(asteroid.x),
@@ -99,7 +100,8 @@ export function buildAsteroidSnapshots(asteroids, inSector) {
       resourceName: asteroid.resourceName,
       resourceColorHex: asteroid.resourceColorHex,
       color: asteroid.color,
-      rot: asteroid.rot,
+      rot: q(asteroid.rot ?? 0, 4),
+      spin: q(asteroid.spin ?? 0, 4),
       shapeSeed: asteroid.shapeSeed,
       secret: asteroid.secret,
       testCore: !!asteroid.testCore,
@@ -107,6 +109,40 @@ export function buildAsteroidSnapshots(asteroids, inSector) {
       demoLabel: asteroid.demoLabel || '',
       testStatusId: asteroid.testStatusId || '',
       statuses: buildStatusSnapshot(asteroid, 4)
+    }));
+}
+
+export function buildAsteroidCombatSnapshots(asteroids, inSector) {
+  return [...asteroids.values()]
+    .filter((asteroid) => asteroid.stats.hp > 0)
+    .filter(inSector)
+    .map((asteroid) => ({
+      id: asteroid.id,
+      kind: 'asteroid',
+      sx: asteroid.sx | 0,
+      sy: asteroid.sy | 0,
+      x: q(asteroid.x),
+      y: q(asteroid.y),
+      radius: q(asteroid.radius),
+      w: q(asteroid.w || 0),
+      h: q(asteroid.h || 0),
+      bastionWall: !!asteroid.bastionWall,
+      solid: !!asteroid.solid,
+      borderColor: asteroid.borderColor || null,
+      vitals: qv(asteroid.stats),
+      resource: asteroid.resource,
+      resourceName: asteroid.resourceName,
+      resourceColorHex: asteroid.resourceColorHex,
+      color: asteroid.color,
+      spin: q(asteroid.spin ?? 0, 4),
+      shapeSeed: asteroid.shapeSeed,
+      secret: asteroid.secret,
+      testCore: !!asteroid.testCore,
+      demoDummy: !!asteroid.demoDummy,
+      demoLabel: asteroid.demoLabel || '',
+      testStatusId: asteroid.testStatusId || '',
+      statuses: buildStatusSnapshot(asteroid, 4),
+      combatLite: true
     }));
 }
 

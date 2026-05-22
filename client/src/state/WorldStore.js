@@ -156,6 +156,7 @@ export class WorldStore {
       return this._applyLocalDamageToEntity(this._applyLocalVitalAuthority(previous, merged, performance.now()));
     }
     const merged = { ...previous, ...next };
+    if (options.preserveLocalRotation && !Number.isFinite(next.rot) && Number.isFinite(previous.rot)) merged.rot = previous.rot;
     if (options.snapPosition) {
       if (Number.isFinite(next.x) && Number.isFinite(next.y)) {
         merged.x = next.x;
@@ -253,34 +254,6 @@ export class WorldStore {
     for (const id of map.keys()) {
       const item = map.get(id);
       if (!seen.has(id) && !item?.localOnly) map.delete(id);
-    }
-  }
-
-
-  _applyAsteroidDeltas(arr) {
-    if (!Array.isArray(arr)) return;
-    for (const d of arr) {
-      const id = d?.id | 0;
-      if (!id) continue;
-      const asteroid = this.asteroids.get(id);
-      if (!asteroid) continue;
-      const alive = d.alive !== false && (d.hp ?? 0) > 0;
-      if (!alive) {
-        this.asteroids.delete(id);
-        continue;
-      }
-      const hp = Number(d.hp);
-      const maxHp = Number(d.maxHp);
-      const shield = Number(d.shield);
-      const maxShield = Number(d.maxShield);
-      asteroid.vitals = {
-        ...(asteroid.vitals || {}),
-        hp: Number.isFinite(hp) ? hp : asteroid.vitals?.hp,
-        maxHp: Number.isFinite(maxHp) ? maxHp : asteroid.vitals?.maxHp,
-        shield: Number.isFinite(shield) ? shield : asteroid.vitals?.shield,
-        maxShield: Number.isFinite(maxShield) ? maxShield : asteroid.vitals?.maxShield
-      };
-      if (Number.isFinite(d.rot)) asteroid.rot = d.rot;
     }
   }
 
@@ -425,8 +398,7 @@ export class WorldStore {
     // Les entités statiques du secteur sont volontairement envoyées moins souvent.
     // Quand le serveur omet ces tableaux, on garde la dernière version locale au lieu
     // de vider la map, ce qui évite de retransmettre 20-40 astéroïdes à chaque frame.
-    if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids);
-    if (Array.isArray(msg.asteroidDeltas)) this._applyAsteroidDeltas(msg.asteroidDeltas);
+    if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true });
     if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
     if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles);
@@ -529,10 +501,6 @@ export class WorldStore {
             })();
         if (!keep) { map.delete(entity.id); continue; }
         continue;
-      }
-      if (map === this.asteroids && Number.isFinite(entity.spin) && Number.isFinite(entity.rot)) {
-        const hp = entity.vitals?.hp ?? 1;
-        if (hp > 0) entity.rot += entity.spin * dt * 2.2;
       }
       if (Number.isFinite(entity.vx) && Number.isFinite(entity.vy) && entity.id !== this.myId) {
         entity.x += entity.vx * dt;
@@ -671,15 +639,27 @@ export class WorldStore {
     me.groundMarkerTimer = 0.85;
   }
 
+  _tickAsteroids(dt) {
+    if (!Number.isFinite(dt) || dt <= 0) return;
+    const maxStep = Math.min(0.05, dt);
+    for (const asteroid of this.asteroids.values()) {
+      if (!Number.isFinite(asteroid.rot)) asteroid.rot = 0;
+      const spin = Number(asteroid.spin || 0);
+      if (Number.isFinite(spin) && spin !== 0 && !asteroid.bastionWall) {
+        asteroid.rot += spin * maxStep * 2.2;
+      }
+    }
+  }
+
   interpolate(dt) {
     const dynamicAlpha = Math.max(0.05, Math.min(1, 1 - Math.exp(-22 * Math.max(0, dt))));
     const fastAlpha = Math.max(0.08, Math.min(1, 1 - Math.exp(-32 * Math.max(0, dt))));
     this._smoothMap(this.players, dynamicAlpha, dt);
     this._smoothMap(this.mobs, dynamicAlpha, dt);
-    this._smoothMap(this.asteroids, fastAlpha, dt);
     this._smoothMap(this.projectiles, fastAlpha, dt);
     this._smoothMap(this.areaEffects, fastAlpha, dt);
     this._smoothMap(this.loots, fastAlpha, dt);
+    this._tickAsteroids(dt);
     this.tickLocalUi(dt);
   }
 

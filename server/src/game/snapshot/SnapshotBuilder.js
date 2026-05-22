@@ -10,6 +10,7 @@ import { buildModeSnapshot } from '../modes/GameModes.js';
 import {
   buildAreaEffectSnapshots,
   buildAsteroidSnapshots,
+  buildAsteroidCombatSnapshots,
   buildMobSnapshots,
   buildLootSnapshots,
   buildPortalSnapshots,
@@ -70,7 +71,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     players: buildPlayerSnapshots(state.players, playerInMyWorldAndSector, timeMs),
     playerDirectory: buildPlayerDirectorySnapshot(state, me),
     mobs: buildMobSnapshots(state.mobs, nearDynamic, { compact: !staticWorld }),
-    asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : undefined,
+    asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : buildAsteroidCombatSnapshots(state.asteroids, nearStatic),
     stations: staticWorld ? buildStationSnapshots(state.stations, nearStatic) : undefined,
     portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
     staticWorld,
