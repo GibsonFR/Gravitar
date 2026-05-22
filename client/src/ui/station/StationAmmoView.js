@@ -142,6 +142,10 @@ export class StationAmmoView {
       if (target) this.assignAmmo(itemId, source, target.slot);
     });
 
+    this.el.addEventListener('wheel', (ev) => {
+      const scrollNode = ev.target?.closest?.('.station-ammo-drop__grid, .station-ammo-drop__details');
+      if (scrollNode) ev.stopPropagation();
+    }, { passive: true });
   }
 
   assignAmmo(itemId, source, slot) {
@@ -218,14 +222,11 @@ export class StationAmmoView {
   }
 
   getFocusedSlot() {
-    const slotId = this.selectedSlotId;
-    return this.getSlots().find((entry) => entry.id === slotId) || null;
+    return this.getSlots().find((entry) => entry.id === this.selectedSlotId) || null;
   }
 
   getFocusedItem() {
-    const itemId = this.selectedItemId;
-    const source = this.selectedSource;
-    if (itemId) return this.getItemById(itemId, source);
+    if (this.selectedItemId) return this.getItemById(this.selectedItemId, this.selectedSource);
     return this.getFocusedSlot()?.item || null;
   }
 
@@ -423,16 +424,25 @@ export class StationAmmoView {
   }
 
   render() {
+    const inventoryScrollTop = this.inventoryEl?.scrollTop || 0;
+    const shopScrollTop = this.shopEl?.scrollTop || 0;
+    const detailsScrollTop = this.detailsEl?.scrollTop || 0;
+
     const existingIds = new Set([
       ...this.getInventoryItems().map((item) => item.itemId),
       ...this.getShopItems().map((item) => item.itemId),
       ...this.getSlots().map((slot) => slot.item?.itemId).filter(Boolean)
     ]);
     if (this.selectedItemId && !existingIds.has(this.selectedItemId)) this.selectedItemId = '';
+    if (this.hoverItemId && !existingIds.has(this.hoverItemId)) this.hoverItemId = '';
     this.renderSlots();
     this.renderInventory();
     this.renderShop();
     this.renderDetails();
+
+    if (this.inventoryEl) this.inventoryEl.scrollTop = inventoryScrollTop;
+    if (this.shopEl) this.shopEl.scrollTop = shopScrollTop;
+    if (this.detailsEl) this.detailsEl.scrollTop = detailsScrollTop;
   }
 
   update(equipment, shop, inv, docked) {
