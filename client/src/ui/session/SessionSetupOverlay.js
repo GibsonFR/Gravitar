@@ -18,12 +18,13 @@ function loadStoredSetup() {
     return {
       pseudo: normalizePseudo(parsed.pseudo || 'Pilote'),
       frameId: String(parsed.frameId || 'vanguard'),
+      framesByMode: parsed.framesByMode && typeof parsed.framesByMode === 'object' ? parsed.framesByMode : {},
       mode: String(parsed.mode || 'endless'),
       battleSessionId: String(parsed.battleSessionId || ''),
       accountName: normalizePseudo(parsed.accountName || parsed.pseudo || 'Pilote')
     };
   } catch {
-    return { pseudo: 'Pilote', frameId: 'vanguard', mode: 'endless', battleSessionId: '', accountName: 'Pilote' };
+    return { pseudo: 'Pilote', frameId: 'vanguard', framesByMode: {}, mode: 'endless', battleSessionId: '', accountName: 'Pilote' };
   }
 }
 
@@ -38,8 +39,10 @@ export class SessionSetupOverlay {
     this.onAuth = typeof onAuth === 'function' ? onAuth : null;
     this.cards = getSessionFrameCards();
     const stored = loadStoredSetup();
-    this.selectedFrameId = this.cards.some((card) => card.id === stored.frameId) ? stored.frameId : this.cards[0]?.id || 'vanguard';
+    this.framesByMode = stored.framesByMode && typeof stored.framesByMode === 'object' ? { ...stored.framesByMode } : {};
     this.selectedMode = ['endless', 'test_server', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
+    const storedFrameForMode = String(this.framesByMode[this.selectedMode] || stored.frameId || 'vanguard');
+    this.selectedFrameId = this.cards.some((card) => card.id === storedFrameForMode) ? storedFrameForMode : this.cards[0]?.id || 'vanguard';
     this.selectedBattleSessionId = stored.battleSessionId || '';
     this.selectedAbilityIndex = 0;
     this.selectedPreviewPhase = 1;
@@ -319,9 +322,12 @@ export class SessionSetupOverlay {
   }
 
   saveStored() {
+    this.framesByMode = this.framesByMode && typeof this.framesByMode === 'object' ? this.framesByMode : {};
+    this.framesByMode[this.selectedMode || 'endless'] = this.selectedFrameId;
     storeSetup({
       pseudo: normalizePseudo(this.inputEl.value),
       frameId: this.selectedFrameId,
+      framesByMode: { ...this.framesByMode },
       mode: this.selectedMode,
       battleSessionId: this.selectedBattleSessionId || '',
       accountName: normalizePseudo(this.loginNameEl?.value || this.registerNameEl?.value || this.inputEl.value)
@@ -536,10 +542,17 @@ export class SessionSetupOverlay {
 
   selectMode(mode, battleSessionId = '') {
     if (!['endless', 'test_server', 'battle_next', 'battle_server'].includes(mode)) return;
+    this.framesByMode = this.framesByMode && typeof this.framesByMode === 'object' ? this.framesByMode : {};
+    this.framesByMode[this.selectedMode || 'endless'] = this.selectedFrameId;
     this.selectedMode = mode;
+    const modeFrame = String(this.framesByMode[mode] || this.selectedFrameId || 'vanguard');
+    if (this.cards.some((card) => card.id === modeFrame)) this.selectedFrameId = modeFrame;
     this.selectedBattleSessionId = mode === 'battle_server' ? String(battleSessionId || '') : '';
+    this.selectedScenarioIndex = 0;
     this.saveStored();
     this.renderModeList();
+    this.renderShipList();
+    this.renderDetails();
   }
 
   getSelectedCard() { return this.cards.find((card) => card.id === this.selectedFrameId) || this.cards[0]; }

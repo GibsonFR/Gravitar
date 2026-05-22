@@ -1,5 +1,4 @@
 import { normalizePlayerPseudo } from '../player/PlayerSessionSetup.js';
-import { applyEndlessSave } from '../accounts/AccountStore.js';
 
 export function handleAuthSessionAccount(state, player, msg) {
   if (!player?.sessionSetupPending) return false;
@@ -22,7 +21,6 @@ export function handleAuthSessionAccount(state, player, msg) {
   player.accountName = auth.name;
   player.pseudo = normalizePlayerPseudo(auth.name || accountName);
   player.authStatus = { ok: true, message: auth.message || (accountAction === 'register' ? 'Compte créé' : 'Connexion réussie') };
-  if (auth.endless) applyEndlessSave(player, auth.endless);
   if (auth.battleStats) state.modes?.battleStats?.set?.(auth.key, { ...auth.battleStats });
   return true;
 }

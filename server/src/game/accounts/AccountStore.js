@@ -35,6 +35,47 @@ function writeDb(db) {
   fs.writeFileSync(f, JSON.stringify(db, null, 2));
 }
 
+export function accountProfileKeyForMode(mode) {
+  const m = String(mode || '').toLowerCase();
+  if (m === 'test' || m === 'test_server') return 'test';
+  if (m === 'battle' || m === 'battle_next' || m === 'battle_current' || m === 'battle_server') return 'battle';
+  return 'endless';
+}
+
+function normalizeProfiles(account) {
+  if (!account) return {};
+  if (!account.profiles || typeof account.profiles !== 'object') account.profiles = {};
+  if (account.endless && !account.profiles.endless) account.profiles.endless = account.endless;
+  return account.profiles;
+}
+
+function publicAuth(account, extra = {}) {
+  const profiles = normalizeProfiles(account);
+  return {
+    ...extra,
+    ok: true,
+    key: account.key,
+    name: account.name,
+    battleStats: account.battleStats || null,
+    profiles,
+    endless: profiles.endless || account.endless || null
+  };
+}
+
+export function getAccountProfileSave(auth, mode) {
+  if (!auth) return null;
+  const key = accountProfileKeyForMode(mode);
+  if (key === 'battle') return null;
+  const profiles = auth.profiles && typeof auth.profiles === 'object' ? auth.profiles : {};
+  if (profiles[key]) return profiles[key];
+  if (key === 'endless') return auth.endless || null;
+  return null;
+}
+
+export function shouldPersistProfileMode(mode) {
+  return accountProfileKeyForMode(mode) === 'endless';
+}
+
 export function createAccountStore() {
   const db = readDb();
   function save() { writeDb(db); }
@@ -49,26 +90,43 @@ export function createAccountStore() {
       if (!account) {
         if (action === 'login') return { ok: false, error: 'Compte introuvable' };
         const salt = crypto.randomBytes(16).toString('hex');
-        account = { key, name, salt, passwordHash: hashPassword(password, salt), createdAt: Date.now(), endless: null, battleStats: { played: 0, wins: 0, kills: 0, deaths: 0 } };
+        account = {
+          key,
+          name,
+          salt,
+          passwordHash: hashPassword(password, salt),
+          createdAt: Date.now(),
+          endless: null,
+          profiles: {},
+          battleStats: { played: 0, wins: 0, kills: 0, deaths: 0 }
+        };
         db.accounts[key] = account;
         save();
-        return { ok: true, created: true, message: 'Compte créé', key, name: account.name, battleStats: account.battleStats || null, endless: account.endless || null };
+        return publicAuth(account, { created: true, message: 'Compte créé' });
       }
+      normalizeProfiles(account);
       if (action === 'register') return { ok: false, error: 'Pseudo déjà utilisé' };
       if (account.passwordHash !== hashPassword(password, account.salt)) {
         return { ok: false, error: 'Mot de passe incorrect' };
       }
       account.lastLoginAt = Date.now();
       save();
-      return { ok: true, created: false, message: 'Connexion réussie', key, name: account.name || name, battleStats: account.battleStats || null, endless: account.endless || null };
+      return publicAuth(account, { created: false, message: 'Connexion réussie' });
     },
-    saveEndless(key, snapshot) {
+    saveProfile(key, mode, snapshot) {
       const accountKey = accountKeyFromName(key);
       const account = db.accounts[accountKey];
       if (!account) return;
-      account.endless = snapshot;
+      const profileKey = accountProfileKeyForMode(mode);
+      if (!shouldPersistProfileMode(profileKey)) return;
+      const profiles = normalizeProfiles(account);
+      profiles[profileKey] = snapshot;
+      if (profileKey === 'endless') account.endless = snapshot;
       account.updatedAt = Date.now();
       save();
+    },
+    saveEndless(key, snapshot) {
+      this.saveProfile(key, 'endless', snapshot);
     },
     saveBattleStats(key, stats) {
       const accountKey = accountKeyFromName(key);

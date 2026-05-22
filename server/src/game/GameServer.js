@@ -53,7 +53,7 @@ export function createGameServer() {
     const p = state.players.get(id);
     if (p) clearPlayerBattleResidue(state, p, getSimulationTimeMs(state, nowMs()), { checkWinner: true });
     if (p?.accountKey && state.accounts) {
-      if (p.gameMode !== GAME_MODES.TEST) state.accounts.saveEndless(p.accountKey, buildEndlessSave(p));
+      if (p.gameMode === GAME_MODES.ENDLESS) state.accounts.saveEndless(p.accountKey, buildEndlessSave(p));
       const battleStats = state.modes?.battleStats?.get?.(p.accountKey);
       if (battleStats) state.accounts.saveBattleStats(p.accountKey, battleStats);
     }
