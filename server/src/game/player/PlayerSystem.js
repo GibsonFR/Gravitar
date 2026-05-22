@@ -352,13 +352,11 @@ export function updatePlayer(state, p, dt, timeMs = null) {
         const d2 = distSq(p.x, p.y, t.x, t.y);
         const fireRange = aaRange + targetRadius * 0.35;
         if (d2 <= fireRange * fireRange) {
-          if (p.hasMoveTarget && p.autoTargetId === t.id && p.autoTargetKind === t.kind) p.hasMoveTarget = false;
           if (!blocksAttacks(p) && timeMs >= p.nextShotAt) fireAutoAttack(state, p, t, timeMs);
         } else {
           // Combat target = cible de tir uniquement. Le serveur ne force plus
           // un auto-chase vers la cible, sinon le ciblage donne l'impression
           // d'un ordre de déplacement imposé et clunky.
-          if (p.hasMoveTarget && p.autoTargetId === t.id && p.autoTargetKind === t.kind) p.hasMoveTarget = false;
         }
       }
     }

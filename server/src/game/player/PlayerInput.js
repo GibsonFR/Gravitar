@@ -41,13 +41,24 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     player.mouseSy = msg.aimWorldY - player.y + player.viewportH * 0.5;
   }
 
-  if (!player.sessionSetupPending && msg.selectedKind && msg.selectedId) {
+  if (!player.sessionSetupPending && msg.targetClick && msg.targetClickKind && msg.targetClickId) {
+    const seq = msg.selectSeq | 0;
+    if (seq >= (player.lastClientSelectSeq | 0)) {
+      player.lastClientSelectSeq = seq;
+      player.selectedKind = msg.targetClickKind;
+      player.selectedId = msg.targetClickId;
+      player.autoTargetKind = msg.targetClickKind;
+      player.autoTargetId = msg.targetClickId;
+      player.holdMoveAllowed = false;
+      player.groundMarkerTimer = 0;
+    }
+  } else if (!player.sessionSetupPending && msg.selectedKind && msg.selectedId) {
+    // Sélection persistante client-first : le serveur accepte le lock affiché côté client
+    // mais ne coupe plus le déplacement. Le joueur peut kite/move pendant que la cible reste lockée.
     player.selectedKind = msg.selectedKind;
     player.selectedId = msg.selectedId;
     player.autoTargetKind = msg.selectedKind;
     player.autoTargetId = msg.selectedId;
-    player.hasMoveTarget = false;
-    player.holdMoveAllowed = false;
   }
 
   if (player.sessionSetupPending) {
@@ -68,11 +79,9 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
   if (msg.interactTap) player.interactTap = true;
   if (msg.rocketTap) player.rocketTap = true;
 
-  if (!msg.selectedKind && msg.moveWorld && Number.isFinite(msg.moveWorldX) && Number.isFinite(msg.moveWorldY)) {
-    player.autoTargetKind = '';
-    player.autoTargetId = 0;
-    player.selectedKind = '';
-    player.selectedId = 0;
+  if (msg.moveWorld && Number.isFinite(msg.moveWorldX) && Number.isFinite(msg.moveWorldY)) {
+    // Move et target lock sont indépendants, comme dans un MMO spatial :
+    // cliquer au sol ne doit pas casser le lock combat.
     player.moveTx = msg.moveWorldX;
     player.moveTy = msg.moveWorldY;
     player.hasMoveTarget = true;
@@ -80,13 +89,11 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     player.groundMarkerX = msg.moveWorldX;
     player.groundMarkerY = msg.moveWorldY;
     player.groundMarkerTimer = 0.85;
-  } else if (!msg.selectedKind && msg.primaryClick && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
+  } else if (!msg.selectedKind && !msg.targetClick && msg.primaryClick && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
     applyPrimaryClick(state, player, msg.px, msg.py);
   }
 
   if (msg.primaryHold && player.holdMoveAllowed && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
-    player.autoTargetKind = '';
-    player.autoTargetId = 0;
     const world = screenToWorld(player, msg.px, msg.py);
     player.moveTx = world.x;
     player.moveTy = world.y;

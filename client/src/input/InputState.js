@@ -18,6 +18,11 @@ export function createInputState() {
     moveWorldY: 0,
     cameraLocked: false,
     cameraToggleQueued: false,
-    suppressRightHoldUntilUp: false
+    suppressRightHoldUntilUp: false,
+    targetClickQueued: false,
+    targetKind: '',
+    targetId: 0,
+    inputSeq: 0,
+    selectSeq: 0
   };
 }

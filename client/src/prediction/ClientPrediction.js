@@ -126,7 +126,7 @@ export class ClientPrediction {
 
     if (input.rightDown && input.holdActive) {
       this.store.setOptimisticSelection('', 0);
-      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true });
+      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true, preserveSelection: true });
     }
 
     this.updateLocalFacing(me, worldMouse, dt);

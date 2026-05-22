@@ -28,6 +28,7 @@ export class WorldStore {
       selectedKind: '',
       selectedId: 0,
       selectedAt: 0,
+      selectedUntil: 0,
       moveAt: 0,
       localDamage: new Map(),
       sectorTransitionAt: 0,
@@ -334,7 +335,7 @@ export class WorldStore {
       const me = this.players.get(this.myId);
       if (me && transition.forceServerPose) me._forceServerPose = true;
     }
-    if (this.myState && performance.now() - (this.localPrediction.selectedAt || 0) < 10000) {
+    if (this.myState && performance.now() < (this.localPrediction.selectedUntil || 0)) {
       this.myState.selectedKind = this.localPrediction.selectedKind || '';
       this.myState.selectedId = this.localPrediction.selectedId || 0;
     }
@@ -514,14 +515,18 @@ export class WorldStore {
     return true;
   }
 
-  setOptimisticSelection(kind, id) {
+  setOptimisticSelection(kind, id, options = {}) {
     if (!this.myState) return;
-    this.myState.selectedKind = kind || '';
-    this.myState.selectedId = id || 0;
-    this.localPrediction.selectedKind = kind || '';
-    this.localPrediction.selectedId = id || 0;
-    this.localPrediction.selectedAt = performance.now();
-    if (kind && id) {
+    const k = kind || '';
+    const targetId = id || 0;
+    this.myState.selectedKind = k;
+    this.myState.selectedId = targetId;
+    this.localPrediction.selectedKind = k;
+    this.localPrediction.selectedId = targetId;
+    const now = performance.now();
+    this.localPrediction.selectedAt = now;
+    this.localPrediction.selectedUntil = k && targetId ? now + Math.max(1500, options.lockMs || 30000) : 0;
+    if (k && targetId) {
       this.localPrediction.hasMoveTarget = false;
       this.localPrediction.hold = false;
     }
@@ -535,8 +540,15 @@ export class WorldStore {
     this.localPrediction.moveY = y;
     this.localPrediction.hold = !!options.fromHold;
     this.localPrediction.moveAt = performance.now();
-    this.localPrediction.selectedKind = '';
-    this.localPrediction.selectedId = 0;
+    if (!options.preserveSelection) {
+      this.localPrediction.selectedKind = '';
+      this.localPrediction.selectedId = 0;
+      this.localPrediction.selectedUntil = 0;
+      if (this.myState) {
+        this.myState.selectedKind = '';
+        this.myState.selectedId = 0;
+      }
+    }
     me.groundMarkerX = x;
     me.groundMarkerY = y;
     me.groundMarkerTimer = 0.85;

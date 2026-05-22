@@ -18,6 +18,7 @@ export function sanitizeInputMessage(raw) {
 
   return {
     t: 'input',
+    inputSeq: Number.isFinite(raw.inputSeq) ? Math.max(0, raw.inputSeq | 0) : 0,
     vw: viewportW,
     vh: viewportH,
     msx: clamp(finiteOr(raw.msx, viewportW * 0.5), -mouseLimitX, mouseLimitX),
@@ -43,6 +44,10 @@ export function sanitizeInputMessage(raw) {
     cvy: Number.isFinite(raw.cvy) ? clamp(raw.cvy, -5000, 5000) : null,
     crot: Number.isFinite(raw.crot) ? raw.crot : null,
     cthrust: Number.isFinite(raw.cthrust) ? clamp(raw.cthrust, 0, 1) : null,
+    targetClick: !!raw.targetClick,
+    targetClickKind: ['player', 'mob', 'asteroid', 'station', ''].includes(String(raw.targetClickKind || '')) ? String(raw.targetClickKind || '') : '',
+    targetClickId: Number.isFinite(raw.targetClickId) ? Math.max(0, raw.targetClickId | 0) : 0,
+    selectSeq: Number.isFinite(raw.selectSeq) ? Math.max(0, raw.selectSeq | 0) : 0,
     selectedKind: ['player', 'mob', 'asteroid', 'station', ''].includes(String(raw.selectedKind || '')) ? String(raw.selectedKind || '') : '',
     selectedId: Number.isFinite(raw.selectedId) ? Math.max(0, raw.selectedId | 0) : 0,
     aimWorldX: Number.isFinite(raw.aimWorldX) ? clamp(raw.aimWorldX, -10000000, 10000000) : null,

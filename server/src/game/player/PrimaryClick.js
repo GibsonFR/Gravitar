@@ -69,9 +69,6 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
     }
   }
 
-  player.autoTargetKind = '';
-  player.autoTargetId = 0;
-
   if (interact) {
     const target = getTargetForPlayer(state, player, interact.kind, interact.id);
     player.selectedKind = interact.kind;
@@ -86,8 +83,6 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
     }
   }
 
-  player.selectedKind = '';
-  player.selectedId = 0;
   player.moveTx = world.x;
   player.moveTy = world.y;
   player.hasMoveTarget = true;

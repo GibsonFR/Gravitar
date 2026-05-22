@@ -243,16 +243,14 @@ export function startApp() {
       sendCmd('set_frame', { frameId });
     },
     onAbilityUpgrade: (slot) => { store.upgradeAbilityLocal?.(slot); sendCmd('upgrade_ability', { slot }); },
-    onRocketSlotSwitch: (slot) => sendCmd('switch_rocket_slot', { slot })
+    onRocketSlotSwitch: (slot) => sendCmd('switch_rocket_slot', { slot }),
+    onPrimaryDown: handlePrimaryDown
   });
   audio.installUnlock(canvas);
 
-  canvas.addEventListener('mousedown', (ev) => {
-    if (ev.button !== 2) return;
-    if (store.myState?.sessionSetup?.pending ?? true) return;
-    const rect = canvas.getBoundingClientRect();
-    applyOptimisticPrimaryClick(ev.clientX - rect.left, ev.clientY - rect.top);
-  });
+  // Le clic droit est traité directement dans InputController.onPrimaryDown.
+  // L'ancien handler frame-delayed créait des désaccords entre le clic local, la caméra
+  // et le paquet serveur quand le joueur était déjà en mouvement.
 
   canvas.addEventListener('mousedown', (ev) => {
     if (ev.button !== 0) return;
@@ -413,6 +411,50 @@ export function startApp() {
     return best;
   }
 
+  function pickLocalPrimaryTargetScreen(screenX, screenY) {
+    const me = store.getMe();
+    if (!me) return null;
+    let best = null;
+    let bestD2 = Infinity;
+    const sameSector = (e) => (e?.sx | 0) === (me.sx | 0) && (e?.sy | 0) === (me.sy | 0);
+    const tryPick = (kind, e, baseR) => {
+      if (!e || !sameSector(e)) return;
+      if (kind === 'player' && e.id === me.id) return;
+      if (e.bastionWall || e.unselectable) return;
+      const sx = (e.x || 0) - camera.x + view.cssW * 0.5;
+      const sy = (e.y || 0) - camera.y + view.cssH * 0.5;
+      const r = Math.max(baseR, (e.radius || 0) + baseR - 10);
+      const dx = sx - screenX;
+      const dy = sy - screenY;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= r * r && d2 < bestD2) {
+        bestD2 = d2;
+        best = { kind, id: e.id || 0, x: e.x || 0, y: e.y || 0 };
+      }
+    };
+    for (const p of store.players.values()) tryPick('player', p, 46);
+    for (const mob of store.mobs.values()) tryPick('mob', mob, 52);
+    for (const a of store.asteroids.values()) tryPick('asteroid', a, 58);
+    if (best) return best;
+    for (const station of store.stations.values()) tryPick('station', station, 52);
+    return best;
+  }
+
+  function handlePrimaryDown(screenX, screenY) {
+    if (store.myState?.sessionSetup?.pending ?? true) return null;
+    const mouseWorld = {
+      x: camera.x + (screenX - view.cssW * 0.5),
+      y: camera.y + (screenY - view.cssH * 0.5)
+    };
+    const target = pickLocalPrimaryTargetScreen(screenX, screenY) || pickLocalPrimaryTarget(mouseWorld.x, mouseWorld.y);
+    if (target) {
+      store.setOptimisticSelection(target.kind, target.id, { lockMs: 30000 });
+      return { type: 'target', kind: target.kind, id: target.id };
+    }
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true });
+    return { type: 'move', x: mouseWorld.x, y: mouseWorld.y };
+  }
+
   function applyOptimisticPrimaryClick(screenX, screenY) {
     if (store.myState?.sessionSetup?.pending ?? true) return;
     const mouseWorld = {
@@ -430,8 +472,7 @@ export function startApp() {
       input.moveWorldQueued = false;
       return;
     }
-    store.setOptimisticSelection('', 0);
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y);
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true });
   }
 
 
@@ -486,6 +527,7 @@ export function startApp() {
     const mouseForServer = toPlayerRelativeScreen(me, input.msx, input.msy);
     net.send({
       t: 'input',
+      inputSeq: (input.inputSeq = (input.inputSeq | 0) + 1),
       vw: view.cssW,
       vh: view.cssH,
       msx: mouseForServer.x,
@@ -503,6 +545,10 @@ export function startApp() {
       moveWorld: input.moveWorldQueued,
       moveWorldX: input.moveWorldX,
       moveWorldY: input.moveWorldY,
+      targetClick: !!input.targetClickQueued,
+      targetClickKind: input.targetKind || '',
+      targetClickId: input.targetId || 0,
+      selectSeq: input.selectSeq | 0,
       selectedKind: store.localPrediction?.selectedKind || store.myState?.selectedKind || '',
       selectedId: store.localPrediction?.selectedId || store.myState?.selectedId || 0,
       aimWorldX: camera.x + (input.msx - view.cssW * 0.5),
@@ -526,6 +572,7 @@ export function startApp() {
 
     input.moveWorldQueued = false;
     input.clickQueued = false;
+    input.targetClickQueued = false;
     input.interactTap = false;
     input.rocketTap = false;
   }

@@ -32,7 +32,25 @@ export class InputController {
       input.suppressRightHoldUntilUp = false;
       input.downX = input.msx;
       input.downY = input.msy;
-      input.clickQueued = true;
+
+      const handled = handlers.onPrimaryDown?.(input.msx, input.msy);
+      if (handled?.type === 'target') {
+        input.clickQueued = false;
+        input.moveWorldQueued = false;
+        input.targetClickQueued = true;
+        input.targetKind = handled.kind || '';
+        input.targetId = handled.id || 0;
+        input.selectSeq = (input.selectSeq | 0) + 1;
+        input.suppressRightHoldUntilUp = true;
+      } else if (handled?.type === 'move') {
+        input.clickQueued = false;
+        input.moveWorldQueued = true;
+        input.moveWorldX = handled.x;
+        input.moveWorldY = handled.y;
+      } else {
+        input.clickQueued = true;
+      }
+
       canvas.focus();
       ev.preventDefault();
     });
