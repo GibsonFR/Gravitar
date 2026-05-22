@@ -44,6 +44,7 @@ export class SessionSetupOverlay {
     this.selectedAbilityIndex = 0;
     this.selectedPreviewPhase = 1;
     this.previewRaf = 0;
+    this.previewErrorLogged = false;
     this.accountAction = 'guest';
     this.step = 'auth';
     this.modes = null;
@@ -528,16 +529,46 @@ export class SessionSetupOverlay {
     if (this.abilityDetailKeyEl) this.abilityDetailKeyEl.textContent = ability?.key || '';
     if (this.abilityDetailTitleEl) this.abilityDetailTitleEl.textContent = ability?.name || ability?.label || '';
     if (this.abilityDetailTextEl) this.abilityDetailTextEl.textContent = ability?.text || '';
-    this.drawPreview(performance.now() / 1000);
+    this.safeDrawPreview(performance.now() / 1000);
   }
 
   startPreviewLoop() {
     const tick = (now) => {
       this.previewRaf = requestAnimationFrame(tick);
       if (this.step !== 'ship' || this.el.classList.contains('is-hidden')) return;
-      this.drawPreview(now / 1000);
+      this.safeDrawPreview(now / 1000);
     };
     this.previewRaf = requestAnimationFrame(tick);
+  }
+
+  safeDrawPreview(time) {
+    try {
+      this.drawPreview(time);
+    } catch (err) {
+      if (!this.previewErrorLogged) {
+        this.previewErrorLogged = true;
+        console.error('[SessionSetupOverlay] preview disabled after renderer error', err);
+      }
+      const canvas = this.previewEl;
+      const ctx = this.previewCtx;
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+      const w = Math.max(1, Math.floor(rect.width || 760));
+      const h = Math.max(1, Math.floor(rect.height || 330));
+      if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(5, 9, 16, 0.98)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(235, 242, 255, 0.86)';
+      ctx.font = `700 ${13 * dpr}px var(--ui-font, Segoe UI)`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Prévisualisation indisponible', canvas.width * 0.5, canvas.height * 0.5);
+    }
   }
 
   drawPreview(time) {
