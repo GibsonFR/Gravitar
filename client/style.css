@@ -3849,3 +3849,44 @@ button.station-item-icon[draggable="true"]:active,
   .session-setup__page--ship.is-active { grid-template-columns: 1fr; overflow: auto; }
   .session-setup__right--ship .session-setup__abilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.session-setup__hero--compact .session-setup__ship-meta,
+.session-setup__hero--compact .session-setup__tagline,
+.session-setup__left--ship .session-setup__ship-card-meta {
+  display: none;
+}
+
+.session-setup__side-panel {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.session-setup__ability-detail-text {
+  display: grid;
+  gap: 4px;
+}
+
+.session-setup__ship-guide {
+  border: 1px solid rgba(126,162,214,.16);
+  border-radius: 12px;
+  background: rgba(7, 11, 17, .74);
+  padding: 14px;
+  min-height: 122px;
+}
+
+.session-setup__guide-title {
+  color: rgba(245,249,255,.98);
+  font: 900 15px/1.15 var(--ui-font);
+  margin-bottom: 10px;
+}
+
+.session-setup__guide-lines {
+  display: grid;
+  gap: 7px;
+  color: rgba(180, 200, 224, .82);
+  font: 600 12px/1.42 var(--ui-font);
+}
+
+.session-setup__launch:disabled {
+  opacity: .72;
+  cursor: wait;
+}

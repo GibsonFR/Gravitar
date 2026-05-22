@@ -45,6 +45,7 @@ export class SessionSetupOverlay {
     this.selectedPreviewPhase = 1;
     this.previewRaf = 0;
     this.previewErrorLogged = false;
+    this.previewSuspended = true;
     this.accountAction = 'guest';
     this.step = 'auth';
     this.modes = null;
@@ -171,6 +172,10 @@ export class SessionSetupOverlay {
                     <div class="session-setup__ability-detail-text"></div>
                   </div>
                 </div>
+                <div class="session-setup__ship-guide">
+                  <div class="session-setup__guide-title">Guide</div>
+                  <div class="session-setup__guide-lines"></div>
+                </div>
               </aside>
             </div>
             <div class="session-setup__ability-controls">
@@ -234,6 +239,7 @@ export class SessionSetupOverlay {
     this.abilityDetailKeyEl = this.el.querySelector('.session-setup__ability-detail-key');
     this.abilityDetailTitleEl = this.el.querySelector('.session-setup__ability-detail-title');
     this.abilityDetailTextEl = this.el.querySelector('.session-setup__ability-detail-text');
+    this.guideLinesEl = this.el.querySelector('.session-setup__guide-lines');
     this.launchBtn = this.el.querySelector('.session-setup__launch');
     this.shipHelpEl = this.el.querySelector('.session-setup__ship-help');
 
@@ -339,6 +345,7 @@ export class SessionSetupOverlay {
   goToStep(step) {
     if (!STEPS.includes(step)) return;
     this.step = step;
+    this.previewSuspended = step !== 'ship' || this.waitingAck;
     this.el.querySelectorAll('[data-step]').forEach((page) => page.classList.toggle('is-active', page.dataset.step === step));
     this.el.querySelectorAll('[data-step-dot]').forEach((dot) => dot.classList.toggle('is-active', dot.dataset.stepDot === step));
     this.renderModeList();
@@ -370,7 +377,6 @@ export class SessionSetupOverlay {
         <canvas class="session-setup__ship-card-glyph" width="72" height="72"></canvas>
         <span class="session-setup__ship-card-copy">
           <span class="session-setup__ship-card-name">${card.name}</span>
-          <span class="session-setup__ship-card-meta">${card.role}</span>
         </span>
       `;
       button.addEventListener('click', () => this.selectFrame(card.id));
@@ -516,8 +522,8 @@ export class SessionSetupOverlay {
     if (this.selectedAbilityIndex >= card.abilities.length) this.selectedAbilityIndex = 0;
     this.el.style.setProperty('--session-accent', card.accent);
     this.nameEl.textContent = card.name;
-    this.metaEl.textContent = `${card.role} · ${card.difficulty}`;
-    this.taglineEl.textContent = card.tagline;
+    this.metaEl.textContent = '';
+    this.taglineEl.textContent = '';
     this.statsEl.innerHTML = card.stats.map((stat) => `
       <div class="session-setup__stat-row">
         <div class="session-setup__stat-top"><span>${stat.label}</span><span>${stat.value}</span></div>
@@ -528,14 +534,23 @@ export class SessionSetupOverlay {
     const ability = card.abilities[this.selectedAbilityIndex] || card.abilities[0];
     if (this.abilityDetailKeyEl) this.abilityDetailKeyEl.textContent = ability?.key || '';
     if (this.abilityDetailTitleEl) this.abilityDetailTitleEl.textContent = ability?.name || ability?.label || '';
-    if (this.abilityDetailTextEl) this.abilityDetailTextEl.textContent = ability?.text || '';
-    this.safeDrawPreview(performance.now() / 1000);
+    if (this.abilityDetailTextEl) {
+      const lines = typeof ability?.getLines === 'function' ? ability.getLines(this.selectedPreviewPhase) : (ability?.lines || [ability?.text || '']);
+      this.abilityDetailTextEl.innerHTML = lines.filter(Boolean).map((line) => `<div>${line}</div>`).join('');
+    }
+    if (this.guideLinesEl) {
+      this.guideLinesEl.innerHTML = (card.guide || []).map((line) => `<div>${line}</div>`).join('');
+    }
+    if (!this.previewSuspended) this.safeDrawPreview(performance.now() / 1000);
   }
 
   startPreviewLoop() {
+    let lastPreviewAt = 0;
     const tick = (now) => {
       this.previewRaf = requestAnimationFrame(tick);
-      if (this.step !== 'ship' || this.el.classList.contains('is-hidden')) return;
+      if (this.previewSuspended || this.step !== 'ship' || this.el.classList.contains('is-hidden')) return;
+      if (now - lastPreviewAt < 1000 / 30) return;
+      lastPreviewAt = now;
       this.safeDrawPreview(now / 1000);
     };
     this.previewRaf = requestAnimationFrame(tick);
@@ -621,6 +636,8 @@ export class SessionSetupOverlay {
     storeSetup(payload);
     this.inputDirty = false;
     this.waitingAck = true;
+    this.previewSuspended = true;
+    this.launchBtn.disabled = true;
     this.launchBtn.textContent = payload.mode === 'battle_next' ? 'Mise en attente…' : 'Déploiement…';
     this.onCommit?.(payload);
   }
@@ -661,7 +678,12 @@ export class SessionSetupOverlay {
     }
     if (!this.serverPending) {
       this.waitingAck = false;
+      this.previewSuspended = true;
+      this.launchBtn.disabled = false;
       this.launchBtn.textContent = 'Déployer';
+    } else if (this.step === 'ship' && !this.waitingAck) {
+      this.previewSuspended = false;
+      this.launchBtn.disabled = false;
     }
     this.renderModeList();
     this.applyVisibility(queuedNext);
