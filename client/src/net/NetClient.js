@@ -3,13 +3,35 @@ export class NetClient {
     this.store = store;
     this.onStatus = onStatus;
     this.ws = null;
+    this.reconnectDelayMs = 500;
+    this.reconnectTimer = 0;
+    this.sessionToken = this.getOrCreateSessionToken();
+  }
+
+  getOrCreateSessionToken() {
+    const key = 'gravitar_ws_session_token_v1';
+    try {
+      let token = String(localStorage.getItem(key) || '').trim();
+      if (!/^[a-zA-Z0-9_-]{24,96}$/.test(token)) {
+        const bytes = new Uint8Array(24);
+        crypto.getRandomValues(bytes);
+        token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem(key, token);
+      }
+      return token;
+    } catch {
+      return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    }
   }
 
   connect() {
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    this.ws = new WebSocket(`${proto}://${location.host}`);
+    const token = encodeURIComponent(this.sessionToken || '');
+    this.ws = new WebSocket(`${proto}://${location.host}?sid=${token}`);
 
     this.ws.onopen = () => {
+      this.reconnectDelayMs = 500;
       this.onStatus?.('Connecté.');
     };
 
@@ -23,8 +45,12 @@ export class NetClient {
     };
 
     this.ws.onclose = () => {
-      this.onStatus?.('Déconnecté.');
-      setTimeout(() => this.connect(), 500);
+      this.ws = null;
+      this.onStatus?.('Reconnexion…');
+      clearTimeout(this.reconnectTimer);
+      const delay = this.reconnectDelayMs;
+      this.reconnectDelayMs = Math.min(5000, Math.round(this.reconnectDelayMs * 1.6));
+      this.reconnectTimer = setTimeout(() => this.connect(), delay);
     };
   }
 

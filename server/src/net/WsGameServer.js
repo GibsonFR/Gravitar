@@ -1,8 +1,26 @@
 import { WebSocketServer } from 'ws';
 
+const RECONNECT_GRACE_MS = 45000;
+
+function normalizeSessionToken(raw) {
+  const token = String(raw || '').trim();
+  if (!/^[a-zA-Z0-9_-]{24,96}$/.test(token)) return '';
+  return token;
+}
+
+function getSessionTokenFromRequest(req) {
+  try {
+    const url = new URL(req.url || '/', 'http://localhost');
+    return normalizeSessionToken(url.searchParams.get('sid') || '');
+  } catch {
+    return '';
+  }
+}
+
 export function createWsGameServer(httpServer, game) {
   const wss = new WebSocketServer({ server: httpServer });
   const connections = new Map();
+  const sessions = new Map();
   let chatSeq = 1;
 
   function sanitizeChatText(text) {
@@ -43,12 +61,38 @@ export function createWsGameServer(httpServer, game) {
     ws.send(JSON.stringify(snapshot));
   }
 
-  wss.on('connection', (ws) => {
-    const id = game.allocatePlayerId();
-    ws.playerId = id;
-    connections.set(id, ws);
+  function removeSessionPlayer(sessionToken, playerId) {
+    const current = sessionToken ? sessions.get(sessionToken) : null;
+    if (current?.playerId === playerId) sessions.delete(sessionToken);
+    connections.delete(playerId);
+    game.removePlayer(playerId);
+  }
 
-    game.addPlayer(id);
+  wss.on('connection', (ws, req) => {
+    const sessionToken = getSessionTokenFromRequest(req);
+    let id = 0;
+    let session = sessionToken ? sessions.get(sessionToken) : null;
+
+    if (session && game.state?.players?.has?.(session.playerId)) {
+      id = session.playerId;
+      if (session.removeTimer) clearTimeout(session.removeTimer);
+      session.removeTimer = null;
+      const previousWs = connections.get(id);
+      if (previousWs && previousWs !== ws && previousWs.readyState === previousWs.OPEN) {
+        try { previousWs.close(4000, 'replaced'); } catch {}
+      }
+    } else {
+      id = game.allocatePlayerId();
+      game.addPlayer(id);
+      if (sessionToken) {
+        session = { playerId: id, removeTimer: null };
+        sessions.set(sessionToken, session);
+      }
+    }
+
+    ws.playerId = id;
+    ws.sessionToken = sessionToken;
+    connections.set(id, ws);
 
     ws.send(JSON.stringify({ t: 'hello', id }));
 
@@ -88,8 +132,16 @@ export function createWsGameServer(httpServer, game) {
     });
 
     ws.on('close', () => {
+      if (connections.get(id) !== ws) return;
       connections.delete(id);
-      game.removePlayer(id);
+      const token = ws.sessionToken || '';
+      const entry = token ? sessions.get(token) : null;
+      if (entry?.playerId === id) {
+        if (entry.removeTimer) clearTimeout(entry.removeTimer);
+        entry.removeTimer = setTimeout(() => removeSessionPlayer(token, id), RECONNECT_GRACE_MS);
+      } else {
+        game.removePlayer(id);
+      }
     });
   });
 
