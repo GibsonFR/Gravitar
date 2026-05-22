@@ -14,6 +14,7 @@ export class InputController {
       input.actionSeq = (input.actionSeq | 0) + 1;
       input.actions.push({ seq: input.actionSeq, time: performance.now(), ...action });
       if (input.actions.length > 32) input.actions.splice(0, input.actions.length - 32);
+      input.forceSend = true;
     };
 
     canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());

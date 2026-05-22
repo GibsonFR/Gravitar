@@ -70,6 +70,29 @@ function spendEnergyLocal(me, myState, slot) {
   me.vitals.energy = Math.max(0, finite(me.vitals.energy, 0) - cost);
 }
 
+function getLocalAbilityReadyAt(store, slot) {
+  const ready = store?.localPrediction?.localAbilityReadyAt?.[slot];
+  return Number.isFinite(ready) ? ready : 0;
+}
+
+function setLocalAbilityReadyAt(store, slot, readyAt) {
+  if (!store?.localPrediction) return;
+  if (!store.localPrediction.localAbilityReadyAt) store.localPrediction.localAbilityReadyAt = {};
+  if (!store.localPrediction.localAbilityLastCastAt) store.localPrediction.localAbilityLastCastAt = {};
+  store.localPrediction.localAbilityReadyAt[slot] = readyAt;
+  store.localPrediction.localAbilityLastCastAt[slot] = performance.now();
+}
+
+function canCastAbilityLocalFirst(store, me, myState, slot) {
+  const now = performance.now();
+  const lastLocalCastAt = store?.localPrediction?.localAbilityLastCastAt?.[slot] || 0;
+  const localReadyAt = getLocalAbilityReadyAt(store, slot);
+  if (lastLocalCastAt > 0) return now + 15 >= localReadyAt;
+  const hud = myState?.abilityHud?.[slot];
+  const serverCd = finite(myState?.cooldowns?.[slot], finite(hud?.cooldownLeft, 0));
+  return serverCd <= 0.03;
+}
+
 function getLocalDashDistance(myState, slot) {
   const hud = myState?.abilityHud?.[slot];
   const tuning = hud?.tuning || hud || {};
@@ -210,6 +233,7 @@ export class ClientPrediction {
     input.actionSeq = (input.actionSeq | 0) + 1;
     input.actions.push({ seq: input.actionSeq, time: performance.now(), ...action });
     if (input.actions.length > 32) input.actions.splice(0, input.actions.length - 32);
+    input.forceSend = true;
   }
 
   handleAbilityEdges(me, input, worldMouse) {
@@ -269,10 +293,11 @@ export class ClientPrediction {
     const myState = this.store.myState;
     const hud = myState?.abilityHud?.[slot];
     if (hud && hud.unlocked === false) return;
-    if (finite(myState?.cooldowns?.[slot], finite(hud?.cooldownLeft, 0)) > 0.03) return;
+    if (!canCastAbilityLocalFirst(this.store, me, myState, slot)) return;
     if (!canSpendEnergy(me, myState, slot)) return;
 
     const cd = getCooldownMax(myState, slot);
+    setLocalAbilityReadyAt(this.store, slot, performance.now() + cd * 1000);
     if (!myState.cooldowns) myState.cooldowns = {};
     myState.cooldowns[slot] = cd;
     if (hud) hud.cooldownLeft = cd;
@@ -297,6 +322,8 @@ export class ClientPrediction {
       local.localMoveBoostUntil = Math.max(local.localMoveBoostUntil || 0, performance.now() + boost.duration * 1000);
       me._localMoveBoostUntil = local.localMoveBoostUntil;
       me._localMoveBoostMult = local.localMoveBoostMult;
+      const derivedSpeed = finite(myState?.derived?.moveSpeed, finite(me.engine, 250)) * local.localMoveBoostMult;
+      local.localDerived = { ...(local.localDerived || myState?.derived || {}), moveSpeed: derivedSpeed };
     }
     // V92: seuls le mouvement/dash/HUD sont locaux. Les projectiles/dégâts restent serveur-authority.
     this.spawnLocalCastArea(me, aim, slot);
@@ -359,8 +386,13 @@ export class ClientPrediction {
     me._clientDashGrace = 0.70;
     me._localDashFromX = beforeX;
     me._localDashFromY = beforeY;
-    me._localDashUntil = performance.now() + 700;
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 2600);
+    const now = performance.now();
+    me._localDashUntil = now + 900;
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, now + 3200);
+    const local = this.store.localPrediction || {};
+    local.abilityMovementLockUntil = Math.max(local.abilityMovementLockUntil || 0, now + 120);
+    local.hasMoveTarget = false;
+    local.hold = false;
     this.requestServerSectorWrapIfNeeded(me);
     return true;
   }
@@ -416,6 +448,13 @@ export class ClientPrediction {
   predictMovement(me, dt) {
     if (!Number.isFinite(dt) || dt <= 0 || hasBlockingStatus(me)) return;
     const local = this.store.localPrediction || {};
+    const now = performance.now();
+    if (now < finite(local.abilityMovementLockUntil, 0)) {
+      me.vx *= Math.max(0, 1 - dt * 5);
+      me.vy *= Math.max(0, 1 - dt * 5);
+      me._localThrust = Math.max(finite(me._localThrust, 0), 0.75);
+      return;
+    }
     let tx = null;
     let ty = null;
     let stopDistance = 10;

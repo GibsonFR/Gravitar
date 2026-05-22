@@ -48,6 +48,9 @@ export class WorldStore {
       loadingLabel: '',
       remoteTransitionId: 0,
       localCooldownLocks: {},
+      localAbilityReadyAt: {},
+      localAbilityLastCastAt: {},
+      abilityMovementLockUntil: 0,
       localUpgradeLocks: {},
       abilitySeq: 0,
       sectorSeq: 0,
@@ -248,9 +251,11 @@ export class WorldStore {
     for (const slot of ['A', 'Z', 'E', 'R']) {
       if (!out[slot] || !Number.isFinite(cooldowns[slot])) continue;
       const locked = now < (this.localPrediction.localCooldownLocks?.[slot] || 0);
+      const localReady = this.localPrediction.localAbilityReadyAt?.[slot] || 0;
+      const locallyOwnedCooldown = now < localReady + 220;
       const localLeft = this.myState?.cooldowns?.[slot];
       const localHudLeft = this.myState?.abilityHud?.[slot]?.cooldownLeft;
-      if (locked && (Number.isFinite(localLeft) || Number.isFinite(localHudLeft))) {
+      if ((locked || locallyOwnedCooldown) && (Number.isFinite(localLeft) || Number.isFinite(localHudLeft))) {
         out[slot] = { ...out[slot], cooldownLeft: Math.max(0, Number.isFinite(localLeft) ? localLeft : localHudLeft) };
       } else {
         out[slot] = { ...out[slot], cooldownLeft: Math.max(0, cooldowns[slot]) };
@@ -285,7 +290,8 @@ export class WorldStore {
       const now = performance.now();
       const cooldowns = { ...(next.cooldowns || {}) };
       for (const slot of ['A', 'Z', 'E', 'R']) {
-        if (now < (this.localPrediction.localCooldownLocks?.[slot] || 0) && Number.isFinite(this.myState.cooldowns?.[slot])) {
+        const localReady = this.localPrediction.localAbilityReadyAt?.[slot] || 0;
+        if ((now < (this.localPrediction.localCooldownLocks?.[slot] || 0) || now < localReady + 220) && Number.isFinite(this.myState.cooldowns?.[slot])) {
           cooldowns[slot] = this.myState.cooldowns[slot];
         }
       }
@@ -523,6 +529,12 @@ export class WorldStore {
     const authorityMs = Math.max(900, Number(meta.authorityMs) || 1700);
     this.localPrediction.localCooldownLocks[s] = Math.max(this.localPrediction.localCooldownLocks[s] || 0, now + Math.max(authorityMs, 1400));
     this.localPrediction.localAbilityAuthorityUntil = Math.max(this.localPrediction.localAbilityAuthorityUntil || 0, now + authorityMs);
+    if (!this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt = {};
+    if (!this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt = {};
+    if (Number.isFinite(cooldownLeft)) {
+      this.localPrediction.localAbilityReadyAt[s] = Math.max(this.localPrediction.localAbilityReadyAt[s] || 0, now + cooldownLeft * 1000);
+      this.localPrediction.localAbilityLastCastAt[s] = now;
+    }
     if (!this.myState.cooldowns) this.myState.cooldowns = {};
     if (Number.isFinite(cooldownLeft)) this.myState.cooldowns[s] = Math.max(0, cooldownLeft);
     if (this.myState.abilityHud?.[s] && Number.isFinite(cooldownLeft)) {

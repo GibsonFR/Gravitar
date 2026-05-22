@@ -25,6 +25,7 @@ export function createInputState() {
     inputSeq: 0,
     selectSeq: 0,
     actionSeq: 0,
-    actions: []
+    actions: [],
+    forceSend: false
   };
 }

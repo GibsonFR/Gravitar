@@ -523,6 +523,7 @@ export function startApp() {
     input.rightDown = false;
     input.holdActive = false;
     input.suppressRightHoldUntilUp = false;
+    input.forceSend = false;
   }
 
   function sendInput(primaryHold) {
@@ -627,6 +628,7 @@ export function startApp() {
     input.targetClickQueued = false;
     input.interactTap = false;
     input.rocketTap = false;
+    input.forceSend = false;
   }
 
   function frame() {
@@ -715,7 +717,7 @@ export function startApp() {
     statusEl.textContent = store.myId ? '' : 'Connexion…';
 
     const now = performance.now();
-    if (now - lastSend >= 4) {
+    if (input.forceSend || now - lastSend >= 4) {
       lastSend = now;
       if (store.myState?.sessionSetup?.pending ?? true) clearQueuedInput();
       else sendInput(input.rightDown && input.holdActive && !input.suppressRightHoldUntilUp && !store.getLoadingState?.().active);
