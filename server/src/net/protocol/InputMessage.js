@@ -1,4 +1,5 @@
-const INPUT_MIN_INTERVAL_MS = 4;
+const INPUT_MIN_INTERVAL_MS = 0;
+const MAX_ACTIONS_PER_PACKET = 24;
 
 function clamp(value, min, max) {
   return value < min ? min : value > max ? max : value;
@@ -8,43 +9,64 @@ function finiteOr(value, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function sanitizePoseFields(raw, out) {
+  out.cx = Number.isFinite(raw.cx) ? clamp(raw.cx, -10000000, 10000000) : null;
+  out.cy = Number.isFinite(raw.cy) ? clamp(raw.cy, -10000000, 10000000) : null;
+  out.csx = Number.isFinite(raw.csx) ? clamp(raw.csx | 0, -100000, 100000) : null;
+  out.csy = Number.isFinite(raw.csy) ? clamp(raw.csy | 0, -100000, 100000) : null;
+  out.cvx = Number.isFinite(raw.cvx) ? clamp(raw.cvx, -5000, 5000) : null;
+  out.cvy = Number.isFinite(raw.cvy) ? clamp(raw.cvy, -5000, 5000) : null;
+  out.crot = Number.isFinite(raw.crot) ? raw.crot : null;
+  out.cthrust = Number.isFinite(raw.cthrust) ? clamp(raw.cthrust, 0, 1) : null;
+  return out;
+}
+
 function sanitizeAction(raw, viewportW, viewportH) {
   if (!raw || typeof raw !== 'object') return null;
   const type = String(raw.type || '');
   const seq = Number.isFinite(raw.seq) ? Math.max(0, raw.seq | 0) : 0;
   if (!seq) return null;
   if (type === 'move') {
-    return {
+    return sanitizePoseFields(raw, {
       type,
       seq,
       x: clamp(finiteOr(raw.x, 0), -10000000, 10000000),
       y: clamp(finiteOr(raw.y, 0), -10000000, 10000000)
-    };
+    });
   }
   if (type === 'target') {
     const kind = ['player', 'mob', 'asteroid', 'station'].includes(String(raw.kind || '')) ? String(raw.kind || '') : '';
     const id = Number.isFinite(raw.id) ? Math.max(0, raw.id | 0) : 0;
     if (!kind || !id) return null;
-    return { type, seq, kind, id, selectSeq: Number.isFinite(raw.selectSeq) ? Math.max(0, raw.selectSeq | 0) : seq };
+    return sanitizePoseFields(raw, {
+      type,
+      seq,
+      kind,
+      id,
+      selectSeq: Number.isFinite(raw.selectSeq) ? Math.max(0, raw.selectSeq | 0) : seq,
+      attack: raw.attack !== false,
+      targetX: Number.isFinite(raw.targetX) ? clamp(raw.targetX, -10000000, 10000000) : null,
+      targetY: Number.isFinite(raw.targetY) ? clamp(raw.targetY, -10000000, 10000000) : null
+    });
   }
   if (type === 'cast') {
     const slot = String(raw.slot || '').toUpperCase();
     if (!['A', 'Z', 'E', 'R'].includes(slot)) return null;
-    return {
+    return sanitizePoseFields(raw, {
       type,
       seq,
       slot,
       aimX: Number.isFinite(raw.aimX) ? clamp(raw.aimX, -10000000, 10000000) : null,
       aimY: Number.isFinite(raw.aimY) ? clamp(raw.aimY, -10000000, 10000000) : null
-    };
+    });
   }
   if (type === 'rocket' || type === 'interact' || type === 'cancelAttack') {
-    return {
+    return sanitizePoseFields(raw, {
       type,
       seq,
       aimX: Number.isFinite(raw.aimX) ? clamp(raw.aimX, -10000000, 10000000) : null,
       aimY: Number.isFinite(raw.aimY) ? clamp(raw.aimY, -10000000, 10000000) : null
-    };
+    });
   }
   return null;
 }
@@ -52,7 +74,7 @@ function sanitizeAction(raw, viewportW, viewportH) {
 function sanitizeActions(rawActions, viewportW, viewportH) {
   if (!Array.isArray(rawActions)) return [];
   const out = [];
-  for (const raw of rawActions.slice(-16)) {
+  for (const raw of rawActions.slice(-MAX_ACTIONS_PER_PACKET)) {
     const action = sanitizeAction(raw, viewportW, viewportH);
     if (action) out.push(action);
   }
@@ -116,16 +138,23 @@ export function sanitizeInputMessage(raw) {
   };
 }
 
-export function canAcceptInput(player, timeMs) {
+export function canAcceptInput(player, timeMs, inputSeq = 0) {
   if (!player) return false;
   const net = player.net ?? (player.net = {
     lastAcceptedInputAt: timeMs - 1000,
     lastAcceptedCommandAt: timeMs - 1000,
     droppedInputCount: 0,
-    droppedCommandCount: 0
+    droppedCommandCount: 0,
+    lastInputSeq: 0
   });
+  const seq = inputSeq | 0;
+  if (seq && seq <= (net.lastInputSeq | 0)) {
+    net.droppedInputCount = (net.droppedInputCount | 0) + 1;
+    return false;
+  }
+  if (seq) net.lastInputSeq = seq;
   if (!Number.isFinite(net.lastAcceptedInputAt)) net.lastAcceptedInputAt = timeMs - INPUT_MIN_INTERVAL_MS;
-  if ((timeMs - (net.lastAcceptedInputAt | 0)) < INPUT_MIN_INTERVAL_MS) {
+  if (INPUT_MIN_INTERVAL_MS > 0 && (timeMs - (net.lastAcceptedInputAt | 0)) < INPUT_MIN_INTERVAL_MS) {
     net.droppedInputCount = (net.droppedInputCount | 0) + 1;
     return false;
   }

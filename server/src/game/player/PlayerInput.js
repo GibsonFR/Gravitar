@@ -22,39 +22,47 @@ function acceptClientPose(player, msg, timeMs, abilityFresh) {
   if (player.sessionSetupPending || timeMs < (player.ignoreClientPoseUntil ?? 0)) return;
   if (!Number.isFinite(msg.cx) || !Number.isFinite(msg.cy)) return;
 
-  const lastAt = Number.isFinite(player.lastClientPoseAt) ? player.lastClientPoseAt : timeMs - 16;
-  const dt = Math.max(0.004, Math.min(0.25, (timeMs - lastAt) / 1000));
-  const dx = msg.cx - player.x;
-  const dy = msg.cy - player.y;
-  const d = Math.hypot(dx, dy);
-  const speed = Math.max(160, Math.abs(player.engine || 260));
-  const grace = abilityFresh ? 620 : 190;
-  const coherent = d <= speed * dt * 5.5 + grace;
-
-  // Mode .io réactif : si le mouvement client est cohérent, le serveur l'accepte.
-  // S'il est incohérent, on ignore seulement cette pose au lieu de créer un rollback brutal.
-  if (coherent) {
-    const seq = msg.sectorSeq | 0;
-    const lastSeq = player.lastClientSectorSeq | 0;
-    if (seq >= lastSeq) {
-      player.lastClientSectorSeq = seq;
-      player.x = msg.cx;
-      player.y = msg.cy;
-      if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
-      if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
-    }
-    player.lastClientPoseAt = timeMs;
+  // V83: client-authority assumée pour la pose locale.
+  // Le serveur ne doit plus tirer depuis une ancienne position parce qu'il a raté/rejeté
+  // une frame. On garde seulement des bornes grossières, puis la logique collision/secteur
+  // du serveur corrige les cas impossibles.
+  const seq = msg.sectorSeq | 0;
+  const lastSeq = player.lastClientSectorSeq | 0;
+  if (seq >= lastSeq) {
+    player.lastClientSectorSeq = seq;
+    player.x = msg.cx;
+    player.y = msg.cy;
+    if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
+    if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
   }
 
   if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
   if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
   if (Number.isFinite(msg.crot)) player.rot = msg.crot;
   if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
-  player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 720 : 320);
+  player.lastClientPoseAt = timeMs;
+  player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 900 : 520);
 }
+
+function applyClientPoseFromAction(player, action, timeMs) {
+  if (!action || player.sessionSetupPending || timeMs < (player.ignoreClientPoseUntil ?? 0)) return;
+  if (!Number.isFinite(action.cx) || !Number.isFinite(action.cy)) return;
+  player.x = action.cx;
+  player.y = action.cy;
+  if (Number.isFinite(action.csx)) player.sx = action.csx | 0;
+  if (Number.isFinite(action.csy)) player.sy = action.csy | 0;
+  if (Number.isFinite(action.cvx)) player.vx = action.cvx;
+  if (Number.isFinite(action.cvy)) player.vy = action.cvy;
+  if (Number.isFinite(action.crot)) player.rot = action.crot;
+  if (Number.isFinite(action.cthrust)) player.localThrust = action.cthrust;
+  player.lastClientPoseAt = timeMs;
+  player.clientAuthoritativeUntil = timeMs + 650;
+}
+
 
 function applyActionPacket(state, player, action, timeMs) {
   if (!action || (action.seq | 0) <= (player.lastActionSeq | 0)) return;
+  applyClientPoseFromAction(player, action, timeMs);
   player.lastActionSeq = action.seq | 0;
 
   if (action.type === 'move') {
@@ -70,11 +78,12 @@ function applyActionPacket(state, player, action, timeMs) {
   if (action.type === 'target') {
     player.selectedKind = action.kind;
     player.selectedId = action.id;
-    if (action.kind === 'station') {
+    if (action.kind === 'station' || action.attack === false) {
       clearAutoAttack(player);
     } else {
       player.autoTargetKind = action.kind;
       player.autoTargetId = action.id;
+      player.nextShotAt = Math.min(player.nextShotAt || timeMs, timeMs + 35);
     }
     player.holdMoveAllowed = false;
     player.groundMarkerTimer = 0;
@@ -110,7 +119,7 @@ function applyActionPacket(state, player, action, timeMs) {
 export function applyInputMessage(state, player, rawMsg, timeMs) {
   const msg = sanitizeInputMessage(rawMsg);
   if (!msg) return false;
-  if (!canAcceptInput(player, timeMs)) return false;
+  if (!canAcceptInput(player, timeMs, msg.inputSeq | 0)) return false;
 
   player.lastInputAt = timeMs;
 
@@ -136,6 +145,7 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
       player.selectedId = msg.targetClickId;
       player.autoTargetKind = msg.targetClickKind;
       player.autoTargetId = msg.targetClickId;
+      player.nextShotAt = Math.min(player.nextShotAt || timeMs, timeMs + 35);
       player.holdMoveAllowed = false;
       player.groundMarkerTimer = 0;
     }

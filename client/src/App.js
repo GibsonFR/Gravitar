@@ -530,10 +530,32 @@ export function startApp() {
     const actionBatch = Array.isArray(input.actions) && input.actions.length ? input.actions.splice(0, input.actions.length) : [];
     const aimWorldX = camera.x + (input.msx - view.cssW * 0.5);
     const aimWorldY = camera.y + (input.msy - view.cssH * 0.5);
+    const clientPose = {
+      cx: me?.x,
+      cy: me?.y,
+      csx: me?.sx,
+      csy: me?.sy,
+      cvx: me?.vx,
+      cvy: me?.vy,
+      crot: me?.rot,
+      cthrust: me?._localThrust ?? 0
+    };
     for (const action of actionBatch) {
+      Object.assign(action, clientPose);
       if ((action.type === 'cast' || action.type === 'rocket') && !Number.isFinite(action.aimX)) {
         action.aimX = aimWorldX;
         action.aimY = aimWorldY;
+      }
+      if (action.type === 'target') {
+        let target = null;
+        if (action.kind === 'player') target = store.players.get(action.id);
+        if (action.kind === 'mob') target = store.mobs.get(action.id);
+        if (action.kind === 'asteroid') target = store.asteroids.get(action.id);
+        if (action.kind === 'station') target = store.stations.get(action.id);
+        if (target) {
+          action.targetX = target.x;
+          action.targetY = target.y;
+        }
       }
     }
     net.send({
