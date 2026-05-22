@@ -321,6 +321,12 @@ function updateAbilityCasting(state, player, dt, timeMs) {
     }
     if (req.clientPoseApplied) {
       const localAuthorityMs = Math.max(900, Math.min(4000, Number(req.localAuthorityMs) || 1600));
+      player.hasMoveTarget = false;
+      player.holdMoveAllowed = false;
+      player.autoTargetKind = '';
+      player.autoTargetId = 0;
+      player.stationIntentId = 0;
+      player.groundMarkerTimer = 0;
       player._activeClientAppliedAbility = {
         slot,
         seq: req.seq | 0,

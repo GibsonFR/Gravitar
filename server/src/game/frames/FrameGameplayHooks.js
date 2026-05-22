@@ -978,14 +978,14 @@ function castVanguardZ(state, player, timeMs) {
   if (!consumeEnergy(player.stats, z.energyCost)) return false;
 
   const world = getAbilityMouseWorld(player);
-  const dir = norm(world.x - player.x, world.y - player.y);
   const clientAbility = getClientAppliedAbility(player, 'Z', timeMs);
   const dashLine = clientAbility?.dashLine || null;
   const clientDash = !!clientAbility?.dashAlreadyApplied;
   const fromX = dashLine?.startX ?? player.x;
   const fromY = dashLine?.startY ?? player.y;
-  const toX = dashLine?.endX ?? (player.x + dir.x * z.dashDistance);
-  const toY = dashLine?.endY ?? (player.y + dir.y * z.dashDistance);
+  const dir = norm(world.x - fromX, world.y - fromY);
+  const toX = dashLine?.endX ?? (fromX + dir.x * z.dashDistance);
+  const toY = dashLine?.endY ?? (fromY + dir.y * z.dashDistance);
   if (!clientDash) applyDashMove(player, toX, toY, 0.10, z.dashDistance / 0.10);
 
   const fs = getVanguardState(player);
@@ -1162,12 +1162,14 @@ function castSigilE(state, player, timeMs) {
   if (!consumeEnergy(player.stats, e.energyCost)) return false;
 
   const world = getAbilityMouseWorld(player);
-  const dir = norm(world.x - player.x, world.y - player.y);
-  const fromX = player.x;
-  const fromY = player.y;
-  const toX = player.x + dir.x * e.eDashDistance;
-  const toY = player.y + dir.y * e.eDashDistance;
-  const clientDash = clientAlreadyAppliedDash(player, 'E', timeMs);
+  const clientAbility = getClientAppliedAbility(player, 'E', timeMs);
+  const dashLine = clientAbility?.dashLine || null;
+  const clientDash = !!clientAbility?.dashAlreadyApplied;
+  const fromX = dashLine?.startX ?? player.x;
+  const fromY = dashLine?.startY ?? player.y;
+  const dir = norm(world.x - fromX, world.y - fromY);
+  const toX = dashLine?.endX ?? (fromX + dir.x * e.eDashDistance);
+  const toY = dashLine?.endY ?? (fromY + dir.y * e.eDashDistance);
   if (!clientDash) applyDashMove(player, toX, toY, 0.10, e.eDashDistance / 0.10);
   applyStatus(player, I.CAMOUFLAGE, e.eCamouflageDuration, {
     sourceId: player.id,
