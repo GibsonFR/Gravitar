@@ -54,7 +54,18 @@ export function createWsGameServer(httpServer, game) {
       try { msg = JSON.parse(buf.toString('utf8')); } catch { return; }
       if (!msg) return;
       if (msg.t === 'input') game.handleInput(id, msg);
-      if (msg.t === 'cmd') game.handleCommand(id, msg);
+      if (msg.t === 'cmd') {
+        const ok = game.handleCommand(id, msg);
+        if (msg.cmdId && ws.readyState === ws.OPEN) {
+          ws.send(JSON.stringify({
+            t: 'cmd_ack',
+            cmdId: String(msg.cmdId).slice(0, 48),
+            cmd: String(msg.cmd || '').slice(0, 32),
+            ok: !!ok,
+            time: Date.now()
+          }));
+        }
+      }
       if (msg.t === 'chat') broadcastChat(id, msg.text);
     });
 

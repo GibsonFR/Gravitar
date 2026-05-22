@@ -6,8 +6,9 @@ import { StationAmmoView } from './StationAmmoView.js';
 import { StationConvertersView } from './StationConvertersView.js';
 
 export class StationWindowView {
-  constructor(sendCmd) {
+  constructor(sendCmd, store = null) {
     this.sendCmd = typeof sendCmd === 'function' ? sendCmd : null;
+    this.store = store;
     this.activeTab = 'trade';
 
     this.el = document.createElement('section');
@@ -24,6 +25,11 @@ export class StationWindowView {
           </div>
         </div>
 
+        <div class="station-window__pending" data-role="pending" hidden>
+          <span class="station-window__pending-spinner"></span>
+          <span data-role="pendingText">Synchronisation station…</span>
+        </div>
+
         <div class="station-window__body">
           <nav class="station-window__nav" data-role="nav"></nav>
           <div class="station-window__main" data-role="main"></div>
@@ -34,6 +40,8 @@ export class StationWindowView {
     this.titleEl = this.el.querySelector('[data-role="title"]');
     this.navEl = this.el.querySelector('[data-role="nav"]');
     this.mainEl = this.el.querySelector('[data-role="main"]');
+    this.pendingEl = this.el.querySelector('[data-role="pending"]');
+    this.pendingTextEl = this.el.querySelector('[data-role="pendingText"]');
 
     this.tradeView = new StationTradeView(sendCmd);
     this.tradeView.el.classList.add('station-page', 'station-page--trade');
@@ -85,6 +93,20 @@ export class StationWindowView {
     this.setTab(this.activeTab);
   }
 
+  updatePendingUi() {
+    const summary = this.store?.getStationPendingSummary?.() || { count: 0, failedCount: 0 };
+    const pending = summary.count > 0;
+    const failed = summary.failedCount > 0;
+    this.el.classList.toggle('has-pending-station-command', pending);
+    this.el.classList.toggle('has-failed-station-command', failed);
+    if (!this.pendingEl) return;
+    this.pendingEl.hidden = !pending && !failed;
+    if (this.pendingTextEl) {
+      if (pending) this.pendingTextEl.textContent = summary.count > 1 ? `${summary.count} actions en attente…` : 'Action station en attente…';
+      else if (failed) this.pendingTextEl.textContent = 'Action refusée ou impossible.';
+    }
+  }
+
   setTab(tabId) {
     const nextTab = this.pages.has(tabId) ? tabId : 'trade';
     this.activeTab = nextTab;
@@ -111,6 +133,8 @@ export class StationWindowView {
     const sid = myState?.dockedStationId || 0;
     const station = sid ? stationsById?.get?.(sid) : null;
     if (this.titleEl) this.titleEl.textContent = station?.name || 'Station';
+
+    this.updatePendingUi();
 
     this.tradeView.update(myState?.inv, docked);
     this.shopView.update(myState?.stationShop, myState?.inv, docked);

@@ -19,6 +19,7 @@ export class NetClient {
       if (msg.t === 'hello') this.store.applyHello(msg.id);
       if (msg.t === 'snap') this.store.applySnapshot(msg);
       if (msg.t === 'chat') this.store.applyChatMessage(msg);
+      if (msg.t === 'cmd_ack') this.store.applyCommandAck?.(msg);
     };
 
     this.ws.onclose = () => {

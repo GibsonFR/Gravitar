@@ -208,7 +208,7 @@ export class ClientPrediction {
     myState.cooldowns[slot] = cd;
     if (hud) hud.cooldownLeft = cd;
     this.store.noteLocalAbilityCast?.(slot, cd);
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 700);
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 1300);
     spendEnergyLocal(me, myState, slot);
 
     const target = getSelectedTarget(this.store);
@@ -255,8 +255,8 @@ export class ClientPrediction {
     me.vy = d.y * Math.max(finite(this.store.myState?.derived?.moveSpeed, me.engine || 250), distPx / 0.12);
     me.rot = Math.atan2(d.y, d.x);
     me._localThrust = 1;
-    me._clientDashGrace = 0.22;
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 900);
+    me._clientDashGrace = 0.34;
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 1500);
     this.requestServerSectorWrapIfNeeded(me);
   }
 

@@ -1,4 +1,4 @@
-const COMMAND_MIN_INTERVAL_MS = 60;
+const COMMAND_MIN_INTERVAL_MS = 0;
 const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot']);
 
 function cleanWord(value, maxLen = 48) {
@@ -28,6 +28,7 @@ export function sanitizeCommandMessage(raw) {
   if (!COMMANDS.has(cmd)) return null;
 
   const msg = { t: 'cmd', cmd };
+  if (raw.cmdId != null) msg.cmdId = cleanWord(raw.cmdId, 48);
 
   if (cmd === 'sell' || cmd === 'jettison') {
     msg.resourceKey = cleanWord(raw.resourceKey ?? raw.resource ?? raw.key, 48);

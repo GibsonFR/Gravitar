@@ -70,7 +70,6 @@ export class StationEquipmentView {
     this.pointerDrag = null;
     this.dragGhostEl = null;
     this.suppressClickUntil = 0;
-    this.lastCommandAt = 0;
 
     this.el = document.createElement('div');
     this.el.className = 'station-equipment';
@@ -201,15 +200,8 @@ export class StationEquipmentView {
 
 
   sendStationCommand(cmd, payload = {}) {
-    if (!this.sendCmd || !cmd) return;
-    const now = performance.now();
-    const delay = Math.max(0, 75 - (now - this.lastCommandAt));
-    const send = () => {
-      this.lastCommandAt = performance.now();
-      this.sendCmd(cmd, payload);
-    };
-    if (delay > 0) window.setTimeout(send, delay);
-    else send();
+    if (!this.sendCmd || !cmd) return '';
+    return this.sendCmd(cmd, payload, { station: true, source: 'equipment' }) || '';
   }
 
   getItemById(itemId) {

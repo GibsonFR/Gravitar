@@ -64,7 +64,7 @@ function acceptClientPose(player, msg, timeMs, abilityFresh) {
   if (Number.isFinite(msg.crot)) player.rot = msg.crot;
   if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
   player.lastClientPoseAt = timeMs;
-  player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 900 : 520);
+  player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 1400 : 650);
 }
 
 function applyClientPoseFromAction(player, action, timeMs) {
@@ -79,7 +79,7 @@ function applyClientPoseFromAction(player, action, timeMs) {
   if (Number.isFinite(action.crot)) player.rot = action.crot;
   if (Number.isFinite(action.cthrust)) player.localThrust = action.cthrust;
   player.lastClientPoseAt = timeMs;
-  player.clientAuthoritativeUntil = timeMs + 650;
+  player.clientAuthoritativeUntil = timeMs + 1200;
 }
 
 

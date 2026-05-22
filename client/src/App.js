@@ -177,7 +177,11 @@ export function startApp() {
   const net = new NetClient(store, (txt) => { statusEl.textContent = txt; });
   net.connect();
 
-  const sendCmd = (cmd, payload) => net.send({ t: 'cmd', cmd, ...(payload || {}) });
+  const sendCmd = (cmd, payload = {}, meta = {}) => {
+    const cmdId = store.noteCommandPending?.(cmd, payload, meta) || '';
+    net.send({ t: 'cmd', cmd, cmdId, ...(payload || {}) });
+    return cmdId;
+  };
   playersPanel.bindChat((text) => net.send({ t: 'chat', text }));
 
   const cargoPanel = new CargoPanelView(sendCmd);
@@ -222,7 +226,7 @@ export function startApp() {
     isActive: () => mapWindow.isOpen
   });
 
-  const stationWindow = new StationWindowView(sendCmd);
+  const stationWindow = new StationWindowView(sendCmd, store);
   uiRoot.appendChild(stationWindow.el);
 
   const sessionSetup = new SessionSetupOverlay((payload) => {

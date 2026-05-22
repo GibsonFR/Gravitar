@@ -1,5 +1,5 @@
 export class StationCommandQueue {
-  constructor(sendCmd, minDelayMs = 85) {
+  constructor(sendCmd, minDelayMs = 0) {
     this.sendCmd = typeof sendCmd === 'function' ? sendCmd : null;
     this.minDelayMs = Math.max(0, minDelayMs | 0);
     this.lastSentAt = 0;
@@ -7,10 +7,18 @@ export class StationCommandQueue {
     this.pending = [];
   }
 
-  send(cmd, payload = {}) {
-    if (!this.sendCmd || !cmd) return;
-    this.pending.push({ cmd, payload });
+  send(cmd, payload = {}, meta = {}) {
+    if (!this.sendCmd || !cmd) return '';
+    const entry = { cmd, payload, meta };
+    if (this.minDelayMs <= 0) return this.dispatch(entry);
+    this.pending.push(entry);
     this.flush();
+    return '';
+  }
+
+  dispatch(entry) {
+    this.lastSentAt = performance.now();
+    return this.sendCmd(entry.cmd, entry.payload || {}, entry.meta || {}) || '';
   }
 
   flush() {
@@ -25,8 +33,7 @@ export class StationCommandQueue {
       return;
     }
     const next = this.pending.shift();
-    this.lastSentAt = performance.now();
-    this.sendCmd(next.cmd, next.payload || {});
+    this.dispatch(next);
     if (this.pending.length) this.flush();
   }
 }

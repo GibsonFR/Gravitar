@@ -19,6 +19,8 @@ export class WorldStore {
     this.pendingCombatFx = [];
     this.chatMessages = [];
     this.chatUnread = 0;
+    this.pendingCommands = new Map();
+    this.pendingStationCommands = new Map();
     this.lastSnapAt = 0;
     this.localPrediction = {
       hasMoveTarget: false,
@@ -74,27 +76,43 @@ export class WorldStore {
         return this._applyLocalDamageToEntity(merged);
       }
       if (sectorChanged || previous._forceServerPose) {
-        // Passage de secteur : le serveur envoie la pose de spawn exacte. On l'accepte
-        // immédiatement au lieu de garder une pose locale périmée. Les anciennes versions
-        // ignoraient les snapshots pendant ~1.5 s, ce qui donnait des spawns au centre ou
-        // des glissades automatiques vers l'ancien point de mouvement.
+        const now = performance.now();
+        const forceServerPose = !!previous._forceServerPose;
+        const recentLocalSector = !forceServerPose && now - (this.localPrediction.sectorTransitionAt || 0) < 1500;
+        const expectedSx = this.localPrediction.sectorSx | 0;
+        const expectedSy = this.localPrediction.sectorSy | 0;
+        const serverIsOldSector = recentLocalSector && ((next.sx | 0) !== expectedSx || (next.sy | 0) !== expectedSy);
+        if (serverIsOldSector && !previous._forceServerPose) {
+          // Le client vient de franchir une bordure. Les snapshots précédents peuvent encore
+          // contenir l'ancien secteur ; on les ignore pour éviter le ping-pong de secteur.
+          merged.x = previous.x;
+          merged.y = previous.y;
+          merged.sx = previous.sx;
+          merged.sy = previous.sy;
+          merged.vx = previous.vx;
+          merged.vy = previous.vy;
+          merged._serverX = next.x;
+          merged._serverY = next.y;
+          merged._tx = previous.x;
+          merged._ty = previous.y;
+          return this._applyLocalDamageToEntity(merged);
+        }
         if (Number.isFinite(next.x) && Number.isFinite(next.y)) {
-          merged.x = next.x;
-          merged.y = next.y;
-          merged.sx = next.sx;
-          merged.sy = next.sy;
-          merged.vx = Number.isFinite(next.vx) ? next.vx : 0;
-          merged.vy = Number.isFinite(next.vy) ? next.vy : 0;
-          merged._tx = next.x;
-          merged._ty = next.y;
-          this.localPrediction.hasMoveTarget = false;
-          this.localPrediction.hold = false;
-          this.localPrediction.moveX = next.x;
-          this.localPrediction.moveY = next.y;
-          this.clearLocalTargeting?.();
+          merged.x = recentLocalSector ? previous.x : next.x;
+          merged.y = recentLocalSector ? previous.y : next.y;
+          merged.sx = recentLocalSector ? previous.sx : next.sx;
+          merged.sy = recentLocalSector ? previous.sy : next.sy;
+          merged.vx = recentLocalSector ? previous.vx : (Number.isFinite(next.vx) ? next.vx : 0);
+          merged.vy = recentLocalSector ? previous.vy : (Number.isFinite(next.vy) ? next.vy : 0);
+          merged._tx = merged.x;
+          merged._ty = merged.y;
+          if (forceServerPose) {
+            this.localPrediction.hasMoveTarget = false;
+            this.localPrediction.selectedKind = '';
+            this.localPrediction.selectedId = 0;
+          }
         }
         merged._forceServerPose = false;
-        merged._keepLocalPoseUntil = 0;
         return this._applyLocalDamageToEntity(merged);
       }
       // Pour le joueur local, les snapshots sont forcément en retard réseau.
@@ -448,7 +466,9 @@ export class WorldStore {
   }
 
   tickLocalUi(dt) {
-    if (!this.myState || !Number.isFinite(dt) || dt <= 0) return;
+    if (!Number.isFinite(dt) || dt <= 0) return;
+    this.tickPendingCommands();
+    if (!this.myState) return;
     const cooldowns = this.myState.cooldowns || null;
     if (cooldowns) {
       for (const slot of ['A', 'Z', 'E', 'R']) {
@@ -504,18 +524,6 @@ export class WorldStore {
     return true;
   }
 
-
-  clearLocalTargeting(options = {}) {
-    this.localPrediction.selectedKind = '';
-    this.localPrediction.selectedId = 0;
-    this.localPrediction.selectedUntil = 0;
-    this.cancelLocalAttack({ keepSeq: !!options.keepSeq });
-    if (this.myState) {
-      this.myState.selectedKind = '';
-      this.myState.selectedId = 0;
-    }
-  }
-
   setLocalAttackTarget(kind, id, options = {}) {
     const k = kind || '';
     const targetId = id || 0;
@@ -560,7 +568,15 @@ export class WorldStore {
     this.localPrediction.hold = !!options.fromHold;
     this.localPrediction.moveAt = performance.now();
     if (!options.keepAttack) this.cancelLocalAttack({ keepSeq: false });
-    if (!options.preserveSelection) this.clearLocalTargeting({ keepSeq: true });
+    if (!options.preserveSelection) {
+      this.localPrediction.selectedKind = '';
+      this.localPrediction.selectedId = 0;
+      this.localPrediction.selectedUntil = 0;
+      if (this.myState) {
+        this.myState.selectedKind = '';
+        this.myState.selectedId = 0;
+      }
+    }
     me.groundMarkerX = x;
     me.groundMarkerY = y;
     me.groundMarkerTimer = 0.85;
@@ -610,6 +626,67 @@ export class WorldStore {
     const until = this.localPrediction.loadingUntil || 0;
     if (now >= until) return { active: false, label: '' };
     return { active: true, label: this.localPrediction.loadingLabel || 'Chargement du secteur…', leftMs: until - now };
+  }
+
+
+  noteCommandPending(cmd, payload = {}, meta = {}) {
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = performance.now();
+    const entry = {
+      id,
+      cmd: String(cmd || ''),
+      payload: { ...(payload || {}) },
+      meta: { ...(meta || {}) },
+      at: now,
+      status: 'pending'
+    };
+    this.pendingCommands.set(id, entry);
+    const stationCmds = new Set([
+      'sell', 'sell_all', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item',
+      'equip_item_to_slot', 'unequip_item', 'sell_item', 'assign_rocket_ammo',
+      'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'set_frame'
+    ]);
+    if (stationCmds.has(entry.cmd)) this.pendingStationCommands.set(id, entry);
+    return id;
+  }
+
+  applyCommandAck(msg) {
+    const id = String(msg?.cmdId || '');
+    if (!id) return;
+    const entry = this.pendingCommands.get(id) || this.pendingStationCommands.get(id) || null;
+    if (!entry) return;
+    entry.status = msg.ok ? 'ok' : 'failed';
+    entry.ackedAt = performance.now();
+    entry.ok = !!msg.ok;
+    entry.cmd = String(msg.cmd || entry.cmd || '');
+    if (!msg.ok) {
+      this.myState = this.myState || {};
+      this.myState.hint = `Action refusée : ${entry.cmd}`;
+      this.myState._optimisticHintLeft = 0.9;
+    }
+  }
+
+  tickPendingCommands() {
+    const now = performance.now();
+    for (const [id, entry] of [...this.pendingCommands.entries()]) {
+      const done = entry.status === 'ok' || entry.status === 'failed';
+      if ((done && now - (entry.ackedAt || entry.at) > 420) || now - entry.at > 3200) {
+        this.pendingCommands.delete(id);
+        this.pendingStationCommands.delete(id);
+      }
+    }
+  }
+
+  getStationPendingSummary() {
+    this.tickPendingCommands();
+    const pending = [...this.pendingStationCommands.values()].filter((entry) => entry.status === 'pending');
+    const failed = [...this.pendingStationCommands.values()].filter((entry) => entry.status === 'failed' && performance.now() - (entry.ackedAt || entry.at) < 1100);
+    return {
+      count: pending.length,
+      failedCount: failed.length,
+      latest: pending[pending.length - 1] || null,
+      failed: failed[failed.length - 1] || null
+    };
   }
 
   consumePendingSfx() {

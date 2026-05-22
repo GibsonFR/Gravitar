@@ -3566,3 +3566,52 @@ button.station-item-icon[draggable="true"]:active,
   0% { transform: translateX(-110%); }
   100% { transform: translateX(250%); }
 }
+
+/* V88 station command feedback */
+.station-window__pending {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 24px 12px;
+  padding: 9px 12px;
+  border: 1px solid rgba(103, 218, 255, 0.32);
+  border-radius: 12px;
+  background: rgba(15, 34, 48, 0.78);
+  color: rgba(218, 245, 255, 0.92);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.station-window__pending[hidden] { display: none !important; }
+.station-window__pending-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(105, 226, 255, 0.22);
+  border-top-color: rgba(105, 226, 255, 0.95);
+  animation: stationPendingSpin 0.65s linear infinite;
+  flex: 0 0 auto;
+}
+.station-modal.has-failed-station-command .station-window__pending {
+  border-color: rgba(255, 105, 105, 0.35);
+  background: rgba(60, 18, 24, 0.78);
+  color: rgba(255, 220, 220, 0.96);
+}
+.station-modal.has-failed-station-command .station-window__pending-spinner {
+  border-color: rgba(255, 125, 125, 0.25);
+  border-top-color: rgba(255, 125, 125, 0.95);
+}
+.station-modal.has-pending-station-command button[data-act] {
+  position: relative;
+}
+.station-modal.has-pending-station-command button[data-act]::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  display: inline-block;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-top-color: rgba(255,255,255,0.95);
+  animation: stationPendingSpin 0.65s linear infinite;
+}
+@keyframes stationPendingSpin { to { transform: rotate(360deg); } }

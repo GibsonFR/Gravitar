@@ -70,8 +70,8 @@ export function createGameServer() {
 
   function handleCommand(id, msg) {
     const p = state.players.get(id);
-    if (!p) return;
-    applyCommand(state, p, msg, getSimulationTimeMs(state, nowMs()));
+    if (!p) return false;
+    return !!applyCommand(state, p, msg, getSimulationTimeMs(state, nowMs()));
   }
 
   function stepFixed(dt, timeMs) {
