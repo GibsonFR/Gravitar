@@ -68,6 +68,8 @@ function spendEnergyLocal(me, myState, slot) {
   const cost = myState?.abilityHud?.[slot]?.energyCost;
   if (!Number.isFinite(cost) || !me?.vitals) return;
   me.vitals.energy = Math.max(0, finite(me.vitals.energy, 0) - cost);
+  const now = performance.now();
+  me._localVitalsUntil = Math.max(me._localVitalsUntil || 0, now + 1500);
 }
 
 function getLocalAbilityReadyAt(store, slot) {
@@ -181,6 +183,12 @@ function getLocalAutoInterval(store) {
 
 function sameLocalTarget(a, b) {
   return !!a && !!b && String(a.kind || '') === String(b.kind || '') && (a.id | 0) === (b.id | 0);
+}
+
+function pinLocalEntityTarget(entity) {
+  if (!entity) return;
+  entity._tx = entity.x;
+  entity._ty = entity.y;
 }
 
 export class ClientPrediction {
@@ -372,10 +380,16 @@ export class ClientPrediction {
 
   applyDash(me, worldMouse, distPx) {
     if (hasBlockingStatus(me)) return false;
+    const local = this.store.localPrediction || {};
     const d = norm(worldMouse.x - me.x, worldMouse.y - me.y);
     if (!d.x && !d.y) return false;
+
     const beforeX = me.x;
     const beforeY = me.y;
+    const hadMoveTarget = !!local.hasMoveTarget;
+    const moveX = local.moveX;
+    const moveY = local.moveY;
+
     me.x += d.x * distPx;
     me.y += d.y * distPx;
     const dashSpeed = Math.max(finite(this.store.myState?.derived?.moveSpeed, me.engine || 250), distPx / 0.10);
@@ -386,13 +400,21 @@ export class ClientPrediction {
     me._clientDashGrace = 0.70;
     me._localDashFromX = beforeX;
     me._localDashFromY = beforeY;
+    pinLocalEntityTarget(me);
+
     const now = performance.now();
     me._localDashUntil = now + 900;
     me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, now + 3200);
-    const local = this.store.localPrediction || {};
-    local.abilityMovementLockUntil = Math.max(local.abilityMovementLockUntil || 0, now + 120);
-    local.hasMoveTarget = false;
-    local.hold = false;
+
+    // Le dash ne consomme pas l'ordre de déplacement en cours : il saute juste une portion du trajet.
+    if (hadMoveTarget && Number.isFinite(moveX) && Number.isFinite(moveY)) {
+      local.hasMoveTarget = true;
+      local.moveX = moveX;
+      local.moveY = moveY;
+      if (Math.hypot(moveX - me.x, moveY - me.y) <= 10 && !local.hold) local.hasMoveTarget = false;
+    }
+    local.abilityMovementLockUntil = Math.max(local.abilityMovementLockUntil || 0, now + 1);
+
     this.requestServerSectorWrapIfNeeded(me);
     return true;
   }
@@ -453,6 +475,7 @@ export class ClientPrediction {
       me.vx *= Math.max(0, 1 - dt * 5);
       me.vy *= Math.max(0, 1 - dt * 5);
       me._localThrust = Math.max(finite(me._localThrust, 0), 0.75);
+      pinLocalEntityTarget(me);
       return;
     }
     let tx = null;
@@ -493,6 +516,7 @@ export class ClientPrediction {
       me.vx = Math.abs(me.vx || 0) < 1 ? 0 : (me.vx || 0) * Math.max(0, 1 - dt * 18);
       me.vy = Math.abs(me.vy || 0) < 1 ? 0 : (me.vy || 0) * Math.max(0, 1 - dt * 18);
       me._localThrust = Math.max(0, finite(me._localThrust, 0) - dt * 8);
+      pinLocalEntityTarget(me);
       return;
     }
 
@@ -504,6 +528,7 @@ export class ClientPrediction {
       me.vx = 0;
       me.vy = 0;
       me._localThrust = Math.max(0, finite(me._localThrust, 0) - dt * 10);
+      pinLocalEntityTarget(me);
       return;
     }
 
@@ -517,6 +542,7 @@ export class ClientPrediction {
     me.vy = (dy / d) * speed;
     me.rot = angleLerp(me.rot, Math.atan2(dy, dx), Math.min(1, Math.max(0.22, dt * 30)));
     me._localThrust = Math.min(1, Math.max(finite(me._localThrust, 0), Math.min(1, d / 180)));
+    pinLocalEntityTarget(me);
     this.requestServerSectorWrapIfNeeded(me);
   }
 

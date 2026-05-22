@@ -60,6 +60,18 @@ export class WorldStore {
     };
   }
 
+  _applyLocalVitalAuthority(previous, merged, now) {
+    if (!previous || !merged || now >= (previous._localVitalsUntil || 0)) return merged;
+    if (!previous.vitals || !merged.vitals) return merged;
+    const prevEnergy = Number(previous.vitals.energy);
+    const nextEnergy = Number(merged.vitals.energy);
+    if (Number.isFinite(prevEnergy) && Number.isFinite(nextEnergy) && nextEnergy > prevEnergy) {
+      merged.vitals = { ...merged.vitals, energy: prevEnergy };
+    }
+    merged._localVitalsUntil = previous._localVitalsUntil;
+    return merged;
+  }
+
   _mergeEntity(previous, next, options = {}) {
     if (!previous) return { ...next };
     if (options.preserveLocalPosition) {
@@ -80,7 +92,7 @@ export class WorldStore {
         merged._serverY = next.y;
         merged._tx = previous.x;
         merged._ty = previous.y;
-        return this._applyLocalDamageToEntity(merged);
+        return this._applyLocalDamageToEntity(this._applyLocalVitalAuthority(previous, merged, performance.now()));
       }
       if (sectorChanged || previous._forceServerPose) {
         const now = performance.now();
@@ -102,7 +114,7 @@ export class WorldStore {
           merged._serverY = next.y;
           merged._tx = previous.x;
           merged._ty = previous.y;
-          return this._applyLocalDamageToEntity(merged);
+          return this._applyLocalDamageToEntity(this._applyLocalVitalAuthority(previous, merged, performance.now()));
         }
         if (Number.isFinite(next.x) && Number.isFinite(next.y)) {
           merged.x = recentLocalSector ? previous.x : next.x;
@@ -120,7 +132,7 @@ export class WorldStore {
           }
         }
         merged._forceServerPose = false;
-        return this._applyLocalDamageToEntity(merged);
+        return this._applyLocalDamageToEntity(this._applyLocalVitalAuthority(previous, merged, performance.now()));
       }
       // Pour le joueur local, les snapshots sont forcément en retard réseau.
       // On synchronise les PV/stats/etc., mais on ne rembobine plus x/y/vx/vy.
@@ -141,7 +153,7 @@ export class WorldStore {
       merged._tx = previous.x;
       merged._ty = previous.y;
       merged._snapDistanceSq = 0;
-      return this._applyLocalDamageToEntity(merged);
+      return this._applyLocalDamageToEntity(this._applyLocalVitalAuthority(previous, merged, performance.now()));
     }
     const merged = { ...previous, ...next };
     if (options.snapPosition) {
@@ -172,7 +184,7 @@ export class WorldStore {
         merged.y = py;
       }
     }
-    return this._applyLocalDamageToEntity(merged);
+    return this._applyLocalDamageToEntity(this._applyLocalVitalAuthority(previous, merged, performance.now()));
   }
 
   _entityDamageKey(entity) {

@@ -130,36 +130,15 @@ function applyActionPacket(state, player, action, timeMs) {
   }
 
   if (action.type === 'cast') {
-    const aimX = Number.isFinite(action.aimX) ? action.aimX : null;
-    const aimY = Number.isFinite(action.aimY) ? action.aimY : null;
-    const dashStartX = Number.isFinite(action.dashStartX) ? action.dashStartX : null;
-    const dashStartY = Number.isFinite(action.dashStartY) ? action.dashStartY : null;
-    const castX = Number.isFinite(action.castLocalX) ? action.castLocalX : null;
-    const castY = Number.isFinite(action.castLocalY) ? action.castLocalY : null;
-
-    // Une compétence de mobilité est déjà jouée localement. Si le serveur garde
-    // l'ancien move/auto-target, il le reprend dès la fin de clientAuthoritativeUntil
-    // et donne exactement l'impression d'un rollback après le dash.
-    player.hasMoveTarget = false;
-    player.holdMoveAllowed = false;
-    player.autoTargetKind = '';
-    player.autoTargetId = 0;
-    player.stationIntentId = 0;
-    player.groundMarkerTimer = 0;
-
-    if (Number.isFinite(castX) && Number.isFinite(castY)) {
-      player.x = castX;
-      player.y = castY;
+    if (Number.isFinite(action.castLocalX) && Number.isFinite(action.castLocalY)) {
+      player.x = action.castLocalX;
+      player.y = action.castLocalY;
       if (Number.isFinite(action.castLocalSx)) player.sx = action.castLocalSx | 0;
       if (Number.isFinite(action.castLocalSy)) player.sy = action.castLocalSy | 0;
     }
-    if (Number.isFinite(aimX) && Number.isFinite(aimY)) {
-      // Pour les dashes client-applied, la direction serveur doit être reconstruite
-      // depuis le point de départ du dash, pas depuis la position déjà dashée.
-      const refX = Number.isFinite(dashStartX) ? dashStartX : player.x;
-      const refY = Number.isFinite(dashStartY) ? dashStartY : player.y;
-      player.mouseSx = aimX - refX + player.viewportW * 0.5;
-      player.mouseSy = aimY - refY + player.viewportH * 0.5;
+    if (Number.isFinite(action.aimX) && Number.isFinite(action.aimY)) {
+      player.mouseSx = action.aimX - player.x + player.viewportW * 0.5;
+      player.mouseSy = action.aimY - player.y + player.viewportH * 0.5;
     }
     if (!Array.isArray(player.pendingAbilityCasts)) player.pendingAbilityCasts = [];
     const localAuthorityMs = Math.max(900, Math.min(4000, Number(action.localAuthorityMs) || 1600));

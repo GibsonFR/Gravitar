@@ -115,7 +115,7 @@ function getForcedStatusMove(state, entity, effectId, invert = false) {
       x: vector.x,
       y: vector.y,
       speed: entry.meta?.speed ?? entity.engine,
-      stopVoluntaryMove: true
+      stopVoluntaryMove: false
     };
   }
 
