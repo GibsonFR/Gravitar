@@ -142,29 +142,6 @@ export class StationAmmoView {
       if (target) this.assignAmmo(itemId, source, target.slot);
     });
 
-    this.el.addEventListener('mouseover', (ev) => {
-      const itemNode = ev.target?.closest?.('[data-ammo-id]');
-      const slotNode = ev.target?.closest?.('[data-ammo-slot-id]');
-      if (itemNode) {
-        this.hoverItemId = itemNode.dataset.ammoId || '';
-        this.hoverSource = itemNode.dataset.source || 'inventory';
-      }
-      if (slotNode) this.hoverSlotId = slotNode.dataset.ammoSlotId || '';
-      this.renderDetails();
-    });
-
-    this.el.addEventListener('mouseout', (ev) => {
-      const leaving = ev.target?.closest?.('[data-ammo-id], [data-ammo-slot-id]');
-      if (!leaving) return;
-      const nextInside = (ev.relatedTarget && typeof ev.relatedTarget.closest === 'function')
-        ? ev.relatedTarget.closest('[data-ammo-id], [data-ammo-slot-id]')
-        : null;
-      if (nextInside) return;
-      this.hoverItemId = '';
-      this.hoverSource = '';
-      this.hoverSlotId = '';
-      this.renderDetails();
-    });
   }
 
   assignAmmo(itemId, source, slot) {
@@ -241,13 +218,13 @@ export class StationAmmoView {
   }
 
   getFocusedSlot() {
-    const slotId = this.hoverSlotId || this.selectedSlotId;
+    const slotId = this.selectedSlotId;
     return this.getSlots().find((entry) => entry.id === slotId) || null;
   }
 
   getFocusedItem() {
-    const itemId = this.hoverItemId || this.selectedItemId;
-    const source = this.hoverSource || this.selectedSource;
+    const itemId = this.selectedItemId;
+    const source = this.selectedSource;
     if (itemId) return this.getItemById(itemId, source);
     return this.getFocusedSlot()?.item || null;
   }
@@ -355,7 +332,7 @@ export class StationAmmoView {
   }
 
   renderSlots() {
-    const selectedId = this.hoverSlotId || this.selectedSlotId;
+    const selectedId = this.selectedSlotId;
     this.slotsEl.innerHTML = this.getSlots().map((slot) => {
       const selected = slot.id === selectedId;
       const content = slot.item
@@ -387,7 +364,7 @@ export class StationAmmoView {
   }
 
   renderAmmoCard(item, source) {
-    const selected = item.itemId === (this.hoverItemId || this.selectedItemId) && source === (this.hoverSource || this.selectedSource);
+    const selected = item.itemId === this.selectedItemId && source === this.selectedSource;
     const canAfford = source !== 'shop' || item.canAfford !== false;
     const icon = buildItemIconButton(item, { selected, showName: false, compact: true })
       .replace('<button ', `<button data-ammo-id="${item.itemId}" data-source="${source}" `);
@@ -420,7 +397,7 @@ export class StationAmmoView {
   }
 
   renderAmmoDetails(item, slot) {
-    const source = this.hoverSource || this.selectedSource;
+    const source = this.selectedSource;
     const assignedSlots = item.assignedRocketSlots || [];
     const assignedText = source === 'slot'
       ? `assignée à ${slot?.label || 'un slot'}`
@@ -452,7 +429,6 @@ export class StationAmmoView {
       ...this.getSlots().map((slot) => slot.item?.itemId).filter(Boolean)
     ]);
     if (this.selectedItemId && !existingIds.has(this.selectedItemId)) this.selectedItemId = '';
-    if (this.hoverItemId && !existingIds.has(this.hoverItemId)) this.hoverItemId = '';
     this.renderSlots();
     this.renderInventory();
     this.renderShop();

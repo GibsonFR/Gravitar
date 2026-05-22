@@ -5,6 +5,28 @@ import { buildEquippedCountByCategory } from './EquipmentBonuses.js';
 import { getRocketAmmoQuantity } from '../rocket/RocketAmmoRules.js';
 import { buildConverterSnapshot } from './EquipmentConverterSnapshot.js';
 
+
+function serializePassiveEffects(def) {
+  const out = [];
+  const rawPassives = Array.isArray(def?.passives) ? def.passives : [];
+  for (const entry of rawPassives) {
+    if (typeof entry === 'string') out.push(entry);
+    else if (entry) out.push({ name: entry.name || entry.label || '', text: entry.text || entry.description || entry.name || '' });
+  }
+  const rawEffects = Array.isArray(def?.passiveEffects) ? def.passiveEffects : [];
+  for (const entry of rawEffects) {
+    if (typeof entry === 'string') out.push(entry);
+    else if (entry) out.push({
+      name: entry.name || entry.label || '',
+      text: entry.text || entry.description || entry.name || '',
+      trigger: entry.trigger || '',
+      every: entry.every || 0,
+      chance: entry.chance == null ? 1 : Number(entry.chance || 0)
+    });
+  }
+  return out;
+}
+
 function buildItemEntry(player, itemId) {
   const runtime = player?.equipment?.converterRuntimeById?.[itemId] ?? null;
   const def = getItemDef(itemId);
@@ -20,6 +42,7 @@ function buildItemEntry(player, itemId) {
     description: def.description || '',
     sellPriceCredits: Math.max(1, Math.round((def.priceCredits || 0) * 0.6)),
     bonuses: { ...(def.bonuses ?? {}) },
+    passives: serializePassiveEffects(def),
     tags: (def.tags ?? []).map((tag) => ({ ...tag })),
     weaponProfile: def.weaponProfile ? { ...def.weaponProfile } : null,
     launcherProfile: def.launcherProfile ? { ...def.launcherProfile } : null,
@@ -54,6 +77,7 @@ function buildRocketAmmoEntry(player, itemId, activeRocketSlot) {
     description: def.description || '',
     sellPriceCredits: Math.max(1, Math.round((def.priceCredits || 0) * 0.6)),
     bonuses: { ...(def.bonuses ?? {}) },
+    passives: serializePassiveEffects(def),
     tags: (def.tags ?? []).map((tag) => ({ ...tag })),
     ammoProfile: { ...def.ammoProfile },
     ammoQuantity: getRocketAmmoQuantity(player, itemId),

@@ -5,6 +5,28 @@ import { canAffordOffer } from './StationOfferCosts.js';
 import { ensureStationStockCurrent } from './StationStockRefresh.js';
 import { getEffectivePurchasePriceCredits, getEffectiveSellPriceCredits } from '../../bastion/BastionBuffs.js';
 
+
+function serializePassiveEffects(def) {
+  const out = [];
+  const rawPassives = Array.isArray(def?.passives) ? def.passives : [];
+  for (const entry of rawPassives) {
+    if (typeof entry === 'string') out.push(entry);
+    else if (entry) out.push({ name: entry.name || entry.label || '', text: entry.text || entry.description || entry.name || '' });
+  }
+  const rawEffects = Array.isArray(def?.passiveEffects) ? def.passiveEffects : [];
+  for (const entry of rawEffects) {
+    if (typeof entry === 'string') out.push(entry);
+    else if (entry) out.push({
+      name: entry.name || entry.label || '',
+      text: entry.text || entry.description || entry.name || '',
+      trigger: entry.trigger || '',
+      every: entry.every || 0,
+      chance: entry.chance == null ? 1 : Number(entry.chance || 0)
+    });
+  }
+  return out;
+}
+
 function buildResourceCosts(offer, player) {
   return (offer?.resourceCosts || []).map((entry) => {
     const key = String(entry?.resourceKey || '');
@@ -60,8 +82,8 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
         priceCredits: getEffectivePurchasePriceCredits(player, offer.priceCredits || def.priceCredits || 0),
         basePriceCredits: def.priceCredits || 0,
         description: def.description || '',
-        passives: Array.isArray(def.passives) ? def.passives.map((entry) => typeof entry === 'string' ? entry : { ...entry }) : def.passives,
-        passiveEffects: Array.isArray(def.passiveEffects) ? def.passiveEffects.map((entry) => ({ ...entry })) : [],
+        passives: serializePassiveEffects(def),
+        passiveEffects: [],
         bonuses: { ...(def.bonuses ?? {}) },
         tags: (def.tags ?? []).map((tag) => ({ ...tag })),
         weaponProfile: def.weaponProfile ? { ...def.weaponProfile } : null,

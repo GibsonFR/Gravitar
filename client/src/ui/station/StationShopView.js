@@ -82,20 +82,6 @@ export class StationShopView {
     this.actionBtn = this.el.querySelector('[data-role="actionBtn"]');
 
     this.el.addEventListener('contextmenu', (ev) => ev.preventDefault());
-    this.el.addEventListener('mouseover', (ev) => {
-      const btn = ev.target?.closest?.('button[data-item-id]');
-      if (!btn) return;
-      this.hoverItemId = btn.dataset.itemId || '';
-      this.renderDetails();
-    });
-    this.el.addEventListener('mouseout', (ev) => {
-      const leavingItem = ev.target?.closest?.('button[data-item-id]');
-      if (!leavingItem) return;
-      const nextInsideItem = (ev.relatedTarget && typeof ev.relatedTarget.closest === 'function') ? ev.relatedTarget.closest('button[data-item-id]') : null;
-      if (nextInsideItem) return;
-      this.hoverItemId = '';
-      this.renderDetails();
-    });
     this.el.addEventListener('pointerdown', (ev) => {
       if (ev.button !== 0) return;
       const tabBtn = ev.target?.closest?.('button[data-cat]');
@@ -132,7 +118,7 @@ export class StationShopView {
 
   getFocusedItem() {
     const offers = this.shop?.offers || [];
-    const key = this.hoverItemId || this.selectedItemId || this.getOffers()[0]?.itemId || '';
+    const key = this.selectedItemId || this.getOffers()[0]?.itemId || '';
     return offers.find((item) => itemKeyOf(item) === key) || null;
   }
 
@@ -146,7 +132,7 @@ export class StationShopView {
   renderGrid() {
     const items = this.getOffers();
     this.gridEl.innerHTML = items.map((item) => {
-      const selected = item.itemId === (this.hoverItemId || this.selectedItemId);
+      const selected = item.itemId === this.selectedItemId;
       return buildItemIconButton(item, { selected, showName: false, compact: true });
     }).join('') || '<div class="station-shop__empty">Aucun item proposé dans cette catégorie.</div>';
   }
@@ -201,7 +187,6 @@ export class StationShopView {
     if (!this.shopCategoryOrder.includes(this.activeCategory)) this.activeCategory = this.shopCategoryOrder[0];
     const offers = this.shop?.offers || [];
     if (this.selectedItemId && !offers.some((item) => item.itemId === this.selectedItemId)) this.selectedItemId = '';
-    if (this.hoverItemId && !offers.some((item) => item.itemId === this.hoverItemId)) this.hoverItemId = '';
     this.renderCats();
     this.renderGrid();
     this.renderDetails();

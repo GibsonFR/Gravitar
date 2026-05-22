@@ -71,22 +71,6 @@ export class StationConvertersView {
     this.el.addEventListener('dragstart', (ev) => ev.preventDefault());
     this._boundPointerMove = (ev) => this.onPointerDragMove(ev);
     this._boundPointerUp = (ev) => this.onPointerDragEnd(ev);
-    this.el.addEventListener('mouseover', (ev) => {
-      const itemBtn = ev.target?.closest?.('button[data-item-id]');
-      const slotNode = ev.target?.closest?.('[data-slot-id]');
-      if (itemBtn) this.hoverItemId = itemBtn.dataset.itemId || '';
-      if (slotNode) this.hoverSlotId = slotNode.dataset.slotId || '';
-      this.renderDetails();
-    });
-    this.el.addEventListener('mouseout', (ev) => {
-      const leavingNode = ev.target?.closest?.('button[data-item-id], [data-slot-id]');
-      if (!leavingNode) return;
-      const nextInside = (ev.relatedTarget && typeof ev.relatedTarget.closest === 'function') ? ev.relatedTarget.closest('button[data-item-id], [data-slot-id]') : null;
-      if (nextInside) return;
-      this.hoverItemId = '';
-      this.hoverSlotId = '';
-      this.renderDetails();
-    });
     this.el.addEventListener('pointerdown', (ev) => {
       if (ev.button !== 0) return;
       const actionBtn = ev.target?.closest?.('button[data-act]');
@@ -270,12 +254,12 @@ export class StationConvertersView {
   }
 
   getFocusedSlot() {
-    const slotId = this.hoverSlotId || this.selectedSlotId;
+    const slotId = this.selectedSlotId;
     return this.slots.find((entry) => entry.id === slotId) || null;
   }
 
   getFocusedItem() {
-    const itemId = this.hoverItemId || this.selectedItemId;
+    const itemId = this.selectedItemId;
     if (itemId) return this.getInventoryItems().find((item) => item.itemId === itemId) || this.slots.find((slot) => slot.item?.itemId === itemId)?.item || null;
     return this.getFocusedSlot()?.item || null;
   }
@@ -292,7 +276,7 @@ export class StationConvertersView {
 
   renderSlots() {
     this.slotsEl.innerHTML = this.slots.map((slot) => {
-      const selected = slot.id === (this.hoverSlotId || this.selectedSlotId);
+      const selected = slot.id === this.selectedSlotId;
       const content = slot.item
         ? buildItemIconMarkup(slot.item, { selected, compact: true }, 'div')
         : '<span class="station-converters-slot__emptybox"></span>';
@@ -309,7 +293,7 @@ export class StationConvertersView {
   renderInventory() {
     const items = this.getInventoryItems();
     this.inventoryEl.innerHTML = items.map((item) => {
-      const selected = item.itemId === (this.hoverItemId || this.selectedItemId);
+      const selected = item.itemId === this.selectedItemId;
       return buildItemIconButton(item, { selected, showName: false, compact: true }).replace('<button', `<button data-drag-converter-id="${item.itemId}" data-drag-source="inventory"`);
     }).join('') || '<div class="station-converters__empty">Aucun convertisseur possédé.</div>';
   }
@@ -378,7 +362,6 @@ export class StationConvertersView {
     const inventoryIds = new Set(this.getInventoryItems().map((item) => item.itemId));
     const slotIds = new Set(this.slots.map((slot) => slot.item?.itemId).filter(Boolean));
     if (this.selectedItemId && !inventoryIds.has(this.selectedItemId) && !slotIds.has(this.selectedItemId)) this.selectedItemId = '';
-    if (this.hoverItemId && !inventoryIds.has(this.hoverItemId) && !slotIds.has(this.hoverItemId)) this.hoverItemId = '';
     this.renderSlots();
     this.renderInventory();
     this.renderDetails();
