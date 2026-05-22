@@ -50,7 +50,10 @@ export class WorldStore {
       localCooldownLocks: {},
       localUpgradeLocks: {},
       abilitySeq: 0,
-      sectorSeq: 0
+      sectorSeq: 0,
+      localAbilityAuthorityUntil: 0,
+      localFrameState: null,
+      localDerived: null
     };
   }
 
@@ -256,6 +259,26 @@ export class WorldStore {
     return out;
   }
 
+
+  _applyLocalAbilityAuthority(myState) {
+    if (!myState) return myState;
+    const now = performance.now();
+    if (now >= (this.localPrediction.localAbilityAuthorityUntil || 0)) return myState;
+    const out = { ...myState };
+    if (this.localPrediction.localFrameState) {
+      out.frameState = { ...(out.frameState || {}), ...(this.localPrediction.localFrameState || {}) };
+    }
+    if (this.localPrediction.localDerived) {
+      // Ne remplace pas toutes les stats durablement : on conserve surtout la vitesse locale
+      // pendant l'ability pour éviter le snapshot serveur en retard qui casse la sensation.
+      out.derived = { ...(out.derived || {}) };
+      if (Number.isFinite(this.localPrediction.localDerived.moveSpeed)) {
+        out.derived.moveSpeed = Math.max(Number(out.derived.moveSpeed) || 0, Number(this.localPrediction.localDerived.moveSpeed) || 0);
+      }
+    }
+    return out;
+  }
+
   _mergeMyState(next) {
     if (!next) return null;
     if (!next.lite || !this.myState) {
@@ -282,7 +305,7 @@ export class WorldStore {
       if (now < Math.max(...Object.values(this.localPrediction.localUpgradeLocks || { none: 0 }))) {
         merged.progression = this.myState.progression ?? merged.progression;
       }
-      return merged;
+      return this._applyLocalAbilityAuthority(merged);
     }
     const now = performance.now();
     const cooldowns = { ...(this.myState.cooldowns || {}), ...(next.cooldowns || {}) };
@@ -291,7 +314,7 @@ export class WorldStore {
         cooldowns[slot] = this.myState.cooldowns[slot];
       }
     }
-    return {
+    const mergedLite = {
       ...this.myState,
       ...next,
       sessionSetup: { ...(this.myState.sessionSetup || {}), ...(next.sessionSetup || {}) },
@@ -304,6 +327,7 @@ export class WorldStore {
       bastions: next.bastions ?? this.myState.bastions,
       sfx: next.sfx ?? []
     };
+    return this._applyLocalAbilityAuthority(mergedLite);
   }
 
   applyChatMessage(msg) {
@@ -490,21 +514,22 @@ export class WorldStore {
     }
   }
 
-  noteLocalAbilityCast(slot, cooldownLeft = 0) {
+  noteLocalAbilityCast(slot, cooldownLeft = 0, meta = {}) {
     if (!slot || !this.myState) return;
     const s = String(slot).toUpperCase();
     if (!['A', 'Z', 'E', 'R'].includes(s)) return;
     const now = performance.now();
     this.localPrediction.abilitySeq = (this.localPrediction.abilitySeq | 0) + 1;
-    // Les snapshots serveur arrivent souvent en retard par rapport au cast local.
-    // On protège le cooldown/HUD local assez longtemps pour ne pas donner l'impression
-    // que l'ability a été annulée puis rejouée quand le serveur confirme.
-    this.localPrediction.localCooldownLocks[s] = now + 2200;
+    const authorityMs = Math.max(900, Number(meta.authorityMs) || 1700);
+    this.localPrediction.localCooldownLocks[s] = Math.max(this.localPrediction.localCooldownLocks[s] || 0, now + Math.max(authorityMs, 1400));
+    this.localPrediction.localAbilityAuthorityUntil = Math.max(this.localPrediction.localAbilityAuthorityUntil || 0, now + authorityMs);
     if (!this.myState.cooldowns) this.myState.cooldowns = {};
     if (Number.isFinite(cooldownLeft)) this.myState.cooldowns[s] = Math.max(0, cooldownLeft);
     if (this.myState.abilityHud?.[s] && Number.isFinite(cooldownLeft)) {
       this.myState.abilityHud[s].cooldownLeft = Math.max(0, cooldownLeft);
     }
+    this.localPrediction.localFrameState = { ...(this.myState.frameState || {}) };
+    this.localPrediction.localDerived = { ...(this.myState.derived || {}) };
   }
 
   upgradeAbilityLocal(slot) {

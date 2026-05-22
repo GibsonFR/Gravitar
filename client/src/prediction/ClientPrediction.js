@@ -97,6 +97,45 @@ function getLocalMoveBoost(myState, slot) {
   return { pct: 0, duration: 0 };
 }
 
+
+function getAbilityLocalAuthorityMs(myState, slot) {
+  const frameId = String(myState?.frameId || '').toLowerCase();
+  if (frameId === 'vanguard' && slot === 'Z') return 2400;
+  if (frameId === 'sigil' && slot === 'E') return 2200;
+  return 1500;
+}
+
+function applyLocalFrameAbilityState(store, me, slot, worldMouse, now) {
+  const myState = store.myState;
+  if (!myState) return;
+  const frameId = String(myState.frameId || '').toLowerCase();
+  myState.frameState = { ...(myState.frameState || {}) };
+  if (frameId === 'vanguard' && slot === 'Z') {
+    const boost = getLocalMoveBoost(myState, slot);
+    if (boost.duration > 0) {
+      myState.frameState.moveBoostLeft = Math.max(Number(myState.frameState.moveBoostLeft) || 0, boost.duration);
+      myState.frameState.comboWindowLeft = Math.max(Number(myState.frameState.comboWindowLeft) || 0, 1.15);
+      myState.frameState.trailLeft = Math.max(Number(myState.frameState.trailLeft) || 0, 0.32);
+      myState.frameState.trailStartX = Number.isFinite(me?._localDashFromX) ? me._localDashFromX : me?.x;
+      myState.frameState.trailStartY = Number.isFinite(me?._localDashFromY) ? me._localDashFromY : me?.y;
+      myState.frameState.trailEndX = me?.x;
+      myState.frameState.trailEndY = me?.y;
+    }
+  }
+  if (frameId === 'vanguard' && slot === 'E') {
+    myState.frameState.phaseLeft = Math.max(Number(myState.frameState.phaseLeft) || 0, 1.1);
+  }
+  if (frameId === 'vanguard' && slot === 'R') {
+    myState.frameState.ultLeft = Math.max(Number(myState.frameState.ultLeft) || 0, 4.0);
+  }
+  if (frameId === 'sigil' && slot === 'E') {
+    myState.frameState.dashGhostLeft = Math.max(Number(myState.frameState.dashGhostLeft) || 0, 0.35);
+  }
+  store.localPrediction.localAbilityAuthorityUntil = Math.max(store.localPrediction.localAbilityAuthorityUntil || 0, now + getAbilityLocalAuthorityMs(myState, slot));
+  store.localPrediction.localFrameState = { ...(myState.frameState || {}) };
+  store.localPrediction.localDerived = { ...(myState.derived || {}) };
+}
+
 function shouldProjectile(slot) {
   return slot === 'A' || slot === 'Z' || slot === 'R';
 }
@@ -237,18 +276,20 @@ export class ClientPrediction {
     if (!myState.cooldowns) myState.cooldowns = {};
     myState.cooldowns[slot] = cd;
     if (hud) hud.cooldownLeft = cd;
-    this.store.noteLocalAbilityCast?.(slot, cd);
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 1300);
+    const now = performance.now();
+    this.store.noteLocalAbilityCast?.(slot, cd, { authorityMs: getAbilityLocalAuthorityMs(myState, slot) });
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, now + 2600);
     spendEnergyLocal(me, myState, slot);
 
     const target = getSelectedTarget(this.store);
     const aim = target.entity || worldMouse;
     const dash = getLocalDashDistance(myState, slot);
-    const dashFromX = me.x;
-    const dashFromY = me.y;
+    const dashStartX = me.x;
+    const dashStartY = me.y;
     const appliedDash = dash > 0 && this.applyDash(me, worldMouse, dash);
-    const dashToX = me.x;
-    const dashToY = me.y;
+    const dashEndX = me.x;
+    const dashEndY = me.y;
+    applyLocalFrameAbilityState(this.store, me, slot, worldMouse, now);
     const boost = getLocalMoveBoost(myState, slot);
     if (boost.pct > 0 && boost.duration > 0) {
       const local = this.store.localPrediction || {};
@@ -256,7 +297,6 @@ export class ClientPrediction {
       local.localMoveBoostUntil = Math.max(local.localMoveBoostUntil || 0, performance.now() + boost.duration * 1000);
       me._localMoveBoostUntil = local.localMoveBoostUntil;
       me._localMoveBoostMult = local.localMoveBoostMult;
-      me._localAbilityBoostUntil = local.localMoveBoostUntil;
     }
     // V92: seuls le mouvement/dash/HUD sont locaux. Les projectiles/dégâts restent serveur-authority.
     this.spawnLocalCastArea(me, aim, slot);
@@ -265,18 +305,18 @@ export class ClientPrediction {
     this.queueNetAction({
       type: 'cast',
       slot,
-      abilityCastId: this.store.localPrediction?.abilitySeq | 0,
       aimX: aim.x,
       aimY: aim.y,
       clientAppliedDash: !!appliedDash,
-      dashFromX,
-      dashFromY,
-      dashToX,
-      dashToY,
       castLocalX: me.x,
       castLocalY: me.y,
       castLocalSx: me.sx | 0,
-      castLocalSy: me.sy | 0
+      castLocalSy: me.sy | 0,
+      dashStartX,
+      dashStartY,
+      dashEndX,
+      dashEndY,
+      localAuthorityMs: getAbilityLocalAuthorityMs(myState, slot)
     });
 
     const label = hud?.label || slot;
@@ -316,13 +356,11 @@ export class ClientPrediction {
     me.vy = d.y * dashSpeed;
     me.rot = Math.atan2(d.y, d.x);
     me._localThrust = 1;
-    me._clientDashGrace = 0.62;
+    me._clientDashGrace = 0.70;
     me._localDashFromX = beforeX;
     me._localDashFromY = beforeY;
-    me._localDashToX = me.x;
-    me._localDashToY = me.y;
-    me._localDashUntil = performance.now() + 620;
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 2400);
+    me._localDashUntil = performance.now() + 700;
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 2600);
     this.requestServerSectorWrapIfNeeded(me);
     return true;
   }
@@ -432,9 +470,7 @@ export class ClientPrediction {
 
     let speed = finite(this.store.myState?.derived?.moveSpeed, finite(me.engine, 250));
     const predLocal = this.store.localPrediction || {};
-    const nowMs = performance.now();
-    if (nowMs < finite(predLocal.localMoveBoostUntil, 0)) speed *= Math.max(1, finite(predLocal.localMoveBoostMult, 1));
-    if (nowMs < finite(me._localAbilityBoostUntil, 0)) speed *= Math.max(1, finite(me._localMoveBoostMult, 1));
+    if (performance.now() < finite(predLocal.localMoveBoostUntil, 0)) speed *= Math.max(1, finite(predLocal.localMoveBoostMult, 1));
     const step = Math.min(d, speed * dt);
     me.x += (dx / d) * step;
     me.y += (dy / d) * step;

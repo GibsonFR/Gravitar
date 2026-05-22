@@ -79,7 +79,7 @@ function applyClientPoseFromAction(player, action, timeMs) {
   if (Number.isFinite(action.crot)) player.rot = action.crot;
   if (Number.isFinite(action.cthrust)) player.localThrust = action.cthrust;
   player.lastClientPoseAt = timeMs;
-  player.clientAuthoritativeUntil = timeMs + 1800;
+  player.clientAuthoritativeUntil = timeMs + 1200;
 }
 
 
@@ -141,31 +141,23 @@ function applyActionPacket(state, player, action, timeMs) {
       if (Number.isFinite(action.castLocalSy)) player.sy = action.castLocalSy | 0;
     }
     if (!Array.isArray(player.pendingAbilityCasts)) player.pendingAbilityCasts = [];
+    const localAuthorityMs = Math.max(900, Math.min(4000, Number(action.localAuthorityMs) || 1600));
+    const dashLine = Number.isFinite(action.dashStartX) && Number.isFinite(action.dashStartY) && Number.isFinite(action.dashEndX) && Number.isFinite(action.dashEndY)
+      ? { startX: action.dashStartX, startY: action.dashStartY, endX: action.dashEndX, endY: action.dashEndY }
+      : null;
     player.pendingAbilityCasts.push({
       slot: action.slot,
       seq: action.seq | 0,
       timeMs,
       clientPoseApplied: true,
       clientAppliedDash: !!action.clientAppliedDash,
-      abilityCastId: action.abilityCastId | 0,
+      localAuthorityMs,
+      dashLine,
       aimX: action.aimX,
-      aimY: action.aimY,
-      dashFromX: action.dashFromX,
-      dashFromY: action.dashFromY,
-      dashToX: action.dashToX,
-      dashToY: action.dashToY
+      aimY: action.aimY
     });
-    player.clientAppliedAbilityPose = {
-      slot: action.slot,
-      seq: action.seq | 0,
-      abilityCastId: action.abilityCastId | 0,
-      until: timeMs + 1800,
-      dashAlreadyApplied: !!action.clientAppliedDash,
-      dashFromX: action.dashFromX,
-      dashFromY: action.dashFromY,
-      dashToX: action.dashToX,
-      dashToY: action.dashToY
-    };
+    player.clientAppliedAbilityPose = { slot: action.slot, seq: action.seq | 0, until: timeMs + localAuthorityMs, dashAlreadyApplied: !!action.clientAppliedDash, dashLine };
+    player.clientAuthoritativeUntil = Math.max(player.clientAuthoritativeUntil || 0, timeMs + localAuthorityMs);
     if (player.pendingAbilityCasts.length > 8) player.pendingAbilityCasts.splice(0, player.pendingAbilityCasts.length - 8);
     return;
   }

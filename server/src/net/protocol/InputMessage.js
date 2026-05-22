@@ -61,15 +61,15 @@ function sanitizeAction(raw, viewportW, viewportH) {
       aimX: Number.isFinite(raw.aimX) ? clamp(raw.aimX, -10000000, 10000000) : null,
       aimY: Number.isFinite(raw.aimY) ? clamp(raw.aimY, -10000000, 10000000) : null,
       clientAppliedDash: !!raw.clientAppliedDash,
-      abilityCastId: Number.isFinite(raw.abilityCastId) ? Math.max(0, raw.abilityCastId | 0) : seq,
-      dashFromX: Number.isFinite(raw.dashFromX) ? clamp(raw.dashFromX, -10000000, 10000000) : null,
-      dashFromY: Number.isFinite(raw.dashFromY) ? clamp(raw.dashFromY, -10000000, 10000000) : null,
-      dashToX: Number.isFinite(raw.dashToX) ? clamp(raw.dashToX, -10000000, 10000000) : null,
-      dashToY: Number.isFinite(raw.dashToY) ? clamp(raw.dashToY, -10000000, 10000000) : null,
       castLocalX: Number.isFinite(raw.castLocalX) ? clamp(raw.castLocalX, -10000000, 10000000) : null,
       castLocalY: Number.isFinite(raw.castLocalY) ? clamp(raw.castLocalY, -10000000, 10000000) : null,
       castLocalSx: Number.isFinite(raw.castLocalSx) ? clamp(raw.castLocalSx | 0, -100000, 100000) : null,
-      castLocalSy: Number.isFinite(raw.castLocalSy) ? clamp(raw.castLocalSy | 0, -100000, 100000) : null
+      castLocalSy: Number.isFinite(raw.castLocalSy) ? clamp(raw.castLocalSy | 0, -100000, 100000) : null,
+      dashStartX: Number.isFinite(raw.dashStartX) ? clamp(raw.dashStartX, -10000000, 10000000) : null,
+      dashStartY: Number.isFinite(raw.dashStartY) ? clamp(raw.dashStartY, -10000000, 10000000) : null,
+      dashEndX: Number.isFinite(raw.dashEndX) ? clamp(raw.dashEndX, -10000000, 10000000) : null,
+      dashEndY: Number.isFinite(raw.dashEndY) ? clamp(raw.dashEndY, -10000000, 10000000) : null,
+      localAuthorityMs: Number.isFinite(raw.localAuthorityMs) ? clamp(raw.localAuthorityMs, 0, 4000) : 0
     });
   }
   if (type === 'rocket' || type === 'interact' || type === 'cancelAttack') {

@@ -298,14 +298,11 @@ function updateAbilityCasting(state, player, dt, timeMs) {
       slot: action.slot,
       clientPoseApplied: !!action.clientPoseApplied,
       clientAppliedDash: !!action.clientAppliedDash,
+      localAuthorityMs: Number(action.localAuthorityMs) || 1600,
+      dashLine: action.dashLine || null,
       seq: action.seq | 0,
-      abilityCastId: action.abilityCastId | 0,
       aimX: action.aimX,
-      aimY: action.aimY,
-      dashFromX: action.dashFromX,
-      dashFromY: action.dashFromY,
-      dashToX: action.dashToX,
-      dashToY: action.dashToY
+      aimY: action.aimY
     });
   }
   for (const slot of slots) if (consumeAbilityEdge(player, slot)) requested.push({ slot, clientPoseApplied: false, clientAppliedDash: false, seq: 0 });
@@ -323,28 +320,26 @@ function updateAbilityCasting(state, player, dt, timeMs) {
       player.mouseSy = req.aimY - player.y + player.viewportH * 0.5;
     }
     if (req.clientPoseApplied) {
+      const localAuthorityMs = Math.max(900, Math.min(4000, Number(req.localAuthorityMs) || 1600));
       player._activeClientAppliedAbility = {
         slot,
         seq: req.seq | 0,
-        until: timeMs + 900,
+        until: timeMs + localAuthorityMs,
         dashAlreadyApplied: !!req.clientAppliedDash,
-        dashFromX: req.dashFromX,
-        dashFromY: req.dashFromY,
-        dashToX: req.dashToX,
-        dashToY: req.dashToY
+        dashLine: req.dashLine || null
       };
-      player.clientAppliedAbilityPose = player._activeClientAppliedAbility;
+      player.clientAuthoritativeUntil = Math.max(player.clientAuthoritativeUntil || 0, timeMs + localAuthorityMs);
     }
     const ok = tryCastAbility(state, player, slot, timeMs);
     if (ok) {
-      player.forceFullUiSnapshot = true;
-      player.forceFullUiSnapshotReason = `ability_${slot}`;
+      player.forceFullUiSnapshot = false;
+      player.forceFullUiSnapshotReason = ''; // owner already applied local ability; avoid ping-correction snapshot
       queueWorldSfx(state, SFX_EVENT_TYPES[`ABILITY_${slot}`] || SFX_EVENT_TYPES.AUTO_ATTACK, player.sx, player.sy, player.x, player.y, 0);
     } else if (req.clientPoseApplied) {
       // Même en cas de refus serveur, renvoyer vite les cooldowns/énergie réels
       // pour que le HUD local sorte d'un état optimiste faux.
-      player.forceFullUiSnapshot = true;
-      player.forceFullUiSnapshotReason = `ability_${slot}_refused`;
+      player.forceFullUiSnapshot = false;
+      player.forceFullUiSnapshotReason = ''; // do not rollback local-feel on late refusal in permissive prototype mode
     }
     player._activeClientAppliedAbility = null;
   }
