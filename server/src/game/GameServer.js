@@ -22,7 +22,7 @@ import { clearCombatFx } from './combat/CombatFxState.js';
 import { applyCommand } from './commands/CommandRouter.js';
 import { ensureSectorLoaded } from './sector/SectorEnsure.js';
 import { visitSectorOnPlayer } from './map/PlayerMapState.js';
-import { clearPlayerBattleResidue, updateModeSessions } from './modes/GameModes.js';
+import { GAME_MODES, clearPlayerBattleResidue, updateModeSessions } from './modes/GameModes.js';
 import { buildEndlessSave } from './accounts/AccountStore.js';
 
 export function createGameServer() {
@@ -53,7 +53,7 @@ export function createGameServer() {
     const p = state.players.get(id);
     if (p) clearPlayerBattleResidue(state, p, getSimulationTimeMs(state, nowMs()), { checkWinner: true });
     if (p?.accountKey && state.accounts) {
-      state.accounts.saveEndless(p.accountKey, buildEndlessSave(p));
+      if (p.gameMode !== GAME_MODES.TEST) state.accounts.saveEndless(p.accountKey, buildEndlessSave(p));
       const battleStats = state.modes?.battleStats?.get?.(p.accountKey);
       if (battleStats) state.accounts.saveBattleStats(p.accountKey, battleStats);
     }

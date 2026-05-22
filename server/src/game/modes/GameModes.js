@@ -2,8 +2,10 @@ import { restoreStatBlockFull } from '../stats/StatBlockRuntime.js';
 import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
 import { visitSectorOnPlayer } from '../map/PlayerMapState.js';
 import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
+import { SPECIAL_SECTORS } from '../sector/SpecialSectors.js';
+import { PLAYER_PROGRESSION_TUNING } from '../../../../shared/content/progression/PlayerProgressionTuning.js';
 
-export const GAME_MODES = { ENDLESS: 'endless', BATTLE: 'battle' };
+export const GAME_MODES = { ENDLESS: 'endless', BATTLE: 'battle', TEST: 'test' };
 export const BATTLE = {
   intervalMs: 10 * 60 * 1000,
   lobbyDurationMs: 60 * 60 * 1000,
@@ -13,7 +15,7 @@ export const BATTLE = {
   arenaHalf: 4000
 };
 
-export const WORLD_IDS = { SETUP: 'setup', ENDLESS: 'endless', BATTLE_WAIT_NEXT: 'battle-wait-next' };
+export const WORLD_IDS = { SETUP: 'setup', ENDLESS: 'endless', TEST: 'test', BATTLE_WAIT_NEXT: 'battle-wait-next' };
 
 export function battleSectorForSeq(seq) {
   return { sx: BATTLE.arenaBaseSx + Math.abs(seq | 0) % 10000, sy: BATTLE.arenaSy };
@@ -137,12 +139,13 @@ export function getBattleSessionById(state, sessionId) {
 }
 
 function countPlayersByWorld(state) {
-  const counts = { endless: 0, setup: 0, battleWaiting: 0 };
+  const counts = { endless: 0, test: 0, setup: 0, battleWaiting: 0 };
   for (const p of state.players?.values?.() ?? []) {
     if (!p) continue;
     const w = String(p.worldId || WORLD_IDS.ENDLESS);
     if (p.sessionSetupPending && w !== WORLD_IDS.BATTLE_WAIT_NEXT) continue;
     if (w === WORLD_IDS.ENDLESS) counts.endless += 1;
+    else if (w === WORLD_IDS.TEST) counts.test += 1;
     else if (w === WORLD_IDS.SETUP) counts.setup += 1;
     else if (w === WORLD_IDS.BATTLE_WAIT_NEXT) counts.battleWaiting += 1;
   }
@@ -237,6 +240,54 @@ export function setPlayerEndless(state, player, timeMs) {
     player.x = 0;
     player.y = 0;
   }
+}
+
+
+export function setPlayerTestServer(state, player, timeMs) {
+  if (!player) return;
+  clearPlayerBattleResidue(state, player, timeMs, { checkWinner: true });
+  player.gameMode = GAME_MODES.TEST;
+  player.battleSessionId = '';
+  player.battleEliminated = false;
+  player.worldId = WORLD_IDS.TEST;
+  player.sessionSetupPending = false;
+  player.sessionSetupStep = '';
+  player.sx = SPECIAL_SECTORS.TEST_ARENA.sx | 0;
+  player.sy = SPECIAL_SECTORS.TEST_ARENA.sy | 0;
+  player.x = -1180;
+  player.y = 1050;
+  player.vx = 0;
+  player.vy = 0;
+  player.hasMoveTarget = false;
+  player.autoTargetKind = '';
+  player.autoTargetId = 0;
+  player.selectedKind = '';
+  player.selectedId = 0;
+  player.dockedStationId = 0;
+  player.dockPhase = 'none';
+  player.dockStationId = 0;
+  player.dockProg01 = 0;
+  player.dockTimer = 0;
+  if (player.inv) player.inv.credits = 1000000;
+  if (player.progression) {
+    player.progression.level = 50;
+    player.progression.xp = 0;
+    player.progression.nextXp = 1;
+    player.progression.skillPoints = 0;
+    player.progression.abilityLevels = { A: 15, Z: 15, E: 15, R: 5 };
+    player.progression.xpPulseLeft = 0;
+    player.progression.levelUpFlashLeft = 0;
+    player.progression.recentXpGain = 0;
+    player.progression.recentXpReason = '';
+    player.progression.canSpendAt = 0;
+  }
+  syncPlayerFrameStats(player, { restoreVitals: true, preserveRatios: false });
+  restoreStatBlockFull(player.stats);
+  ensureSectorLoaded(state, player.sx | 0, player.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.MOB_BESTIARY.sx | 0, SPECIAL_SECTORS.MOB_BESTIARY.sy | 0, timeMs);
+  visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
+  player.uiHint = 'Serveur test — niveau 50, crédits illimités';
+  player.uiHintTimer = 3.0;
 }
 
 export function clearPlayerBattleResidue(state, player, timeMs, options = {}) {
@@ -403,6 +454,7 @@ export function buildModeSnapshot(state, player, timeMs) {
     battleNextInMs: Math.max(0, nextMs - Number(timeMs || 0)),
     battleWaitingCount: worldCounts.battleWaiting,
     endlessPlayerCount: worldCounts.endless,
+    testPlayerCount: worldCounts.test,
     battleSessions: sessions,
     account: {
       guest: !player?.accountKey,

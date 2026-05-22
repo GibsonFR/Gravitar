@@ -2,7 +2,7 @@ import { getShipFrameDef } from '../../../../shared/content/frames/ShipFrameRegi
 import { switchPlayerFrame } from '../frames/FrameSwitchSystem.js';
 import { normalizePlayerPseudo } from '../player/PlayerSessionSetup.js';
 import { setPlayerHint } from '../player/PlayerUiHints.js';
-import { GAME_MODES, clearPlayerBattleResidue, getBattleSessionById, getNewestOpenBattleSession, joinBattleSession, queueForNextBattle, setPlayerEndless } from '../modes/GameModes.js';
+import { GAME_MODES, clearPlayerBattleResidue, getBattleSessionById, getNewestOpenBattleSession, joinBattleSession, queueForNextBattle, setPlayerEndless, setPlayerTestServer } from '../modes/GameModes.js';
 import { applyEndlessSave } from '../accounts/AccountStore.js';
 import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
 
@@ -72,10 +72,12 @@ export function handleCommitSessionSetup(state, player, msg, timeMs) {
     else queueForNextBattle(state, player, timeMs);
   } else if (mode === 'battle_next') {
     queueForNextBattle(state, player, timeMs);
+  } else if (mode === 'test_server') {
+    setPlayerTestServer(state, player, timeMs);
   } else {
     setPlayerEndless(state, player, timeMs);
   }
 
-  setPlayerHint(player, `${player.pseudo} — ${def.name}${player.gameMode === GAME_MODES.BATTLE ? ' — Battle Royale' : ''}`, 2.2);
+  setPlayerHint(player, `${player.pseudo} — ${def.name}${player.gameMode === GAME_MODES.BATTLE ? ' — Battle Royale' : (player.gameMode === GAME_MODES.TEST ? ' — Test' : '')}`, 2.2);
   return true;
 }

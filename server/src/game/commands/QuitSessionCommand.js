@@ -34,7 +34,7 @@ export function handleQuitSession(state, player, msg, timeMs) {
     player.battleEliminated = false;
     player.gameMode = GAME_MODES.ENDLESS;
     player.worldId = WORLD_IDS.SETUP;
-  } else if (player.accountKey && state.accounts?.saveEndless) {
+  } else if (player.accountKey && state.accounts?.saveEndless && player.gameMode !== GAME_MODES.TEST) {
     state.accounts.saveEndless(player.accountKey, buildEndlessSave(player));
   }
 

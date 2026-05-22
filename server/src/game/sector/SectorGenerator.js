@@ -378,6 +378,16 @@ function generateMobBestiaryContent(state, sx, sy, timeMs, h) {
 
 function generateTestArenaContent(state, sx, sy, timeMs, h) {
   spawnPortal(state, sx, sy, -1600, -1600, 0, 0, '⌂', { label: 'Retour hub', radius: 52 });
+  spawnPortal(state, sx, sy, -1320, -1600, SPECIAL_SECTORS.MOB_BESTIARY.sx, SPECIAL_SECTORS.MOB_BESTIARY.sy, '☠', { label: 'Bestiaire', mode: 'mob_bestiary', radius: 48 });
+  const mobPortalLabels = ['Mite', 'Sapeur', 'Dard', 'Lancier', 'Nodule', 'Broyeur', 'Gardien', 'Spectre', 'Hydre', 'Apex'];
+  for (let i = 0; i < MOB_SHOWCASE_FAMILY_COUNT; i++) {
+    const col = i % 5;
+    const row = Math.floor(i / 5);
+    spawnPortal(state, sx, sy, -1120 + col * 220, -1420 + row * 170, SPECIAL_SECTORS.MOB_FAMILY_BASE.sx + i, SPECIAL_SECTORS.MOB_FAMILY_BASE.sy, String(i + 1), { label: mobPortalLabels[i], mode: 'mob_family_showcase', radius: 38 });
+  }
+  spawnPortal(state, sx, sy, 260, -1250, SPECIAL_SECTORS.MOB_HYPER_LATE.sx, SPECIAL_SECTORS.MOB_HYPER_LATE.sy, 'XI', { label: 'Hyperzone', mode: 'mob_hyperlate_showcase', radius: 42 });
+  const firstBastion = state.bastions?.[0];
+  if (firstBastion) spawnPortal(state, sx, sy, 520, -1250, firstBastion.sx, firstBastion.sy, '◈', { label: 'Bastion T1 proche', mode: 'bastion_locator', radius: 42 });
   spawnStation(state, sx, sy, -1600, 1500, true, h ^ 0xabc123, timeMs);
   spawnAllTestEffectZones(state, sx, sy);
 }
@@ -581,17 +591,6 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   // --- Stations ---
   if (hub) {
     spawnStation(state, sx, sy, 0, 0, true, h, timeMs);
-    spawnPortal(state, sx, sy, -360, -280, SPECIAL_SECTORS.TEST_ARENA.sx, SPECIAL_SECTORS.TEST_ARENA.sy, '✦', { label: 'Simulateur', mode: 'test_arena', radius: 48 });
-    spawnPortal(state, sx, sy, 360, -280, SPECIAL_SECTORS.MOB_BESTIARY.sx, SPECIAL_SECTORS.MOB_BESTIARY.sy, '☠', { label: 'Bestiaire', mode: 'mob_bestiary', radius: 48 });
-    const mobPortalLabels = ['Mite', 'Sapeur', 'Dard', 'Lancier', 'Nodule', 'Broyeur', 'Gardien', 'Spectre', 'Hydre', 'Apex'];
-    for (let i = 0; i < MOB_SHOWCASE_FAMILY_COUNT; i++) {
-      const col = i % 5;
-      const row = Math.floor(i / 5);
-      spawnPortal(state, sx, sy, -460 + col * 230, 260 + row * 185, SPECIAL_SECTORS.MOB_FAMILY_BASE.sx + i, SPECIAL_SECTORS.MOB_FAMILY_BASE.sy, String(i + 1), { label: mobPortalLabels[i], mode: 'mob_family_showcase', radius: 38 });
-    }
-    spawnPortal(state, sx, sy, 690, 540, SPECIAL_SECTORS.MOB_HYPER_LATE.sx, SPECIAL_SECTORS.MOB_HYPER_LATE.sy, 'XI', { label: 'Hyperzone', mode: 'mob_hyperlate_showcase', radius: 42 });
-    const firstBastion = state.bastions?.[0];
-    if (firstBastion) spawnPortal(state, sx, sy, 1020, 540, firstBastion.sx, firstBastion.sy, '◈', { label: 'Bastion T1 proche', mode: 'bastion_locator', radius: 42 });
   } else {
     const frontier = Math.max(Math.abs(sx | 0), Math.abs(sy | 0));
     const hasNormalStation = (h & 7) === 0;

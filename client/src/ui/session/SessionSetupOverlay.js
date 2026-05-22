@@ -39,7 +39,7 @@ export class SessionSetupOverlay {
     this.cards = getSessionFrameCards();
     const stored = loadStoredSetup();
     this.selectedFrameId = this.cards.some((card) => card.id === stored.frameId) ? stored.frameId : this.cards[0]?.id || 'vanguard';
-    this.selectedMode = ['endless', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
+    this.selectedMode = ['endless', 'test_server', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
     this.selectedBattleSessionId = stored.battleSessionId || '';
     this.selectedAbilityIndex = 0;
     this.selectedPreviewPhase = 1;
@@ -118,6 +118,16 @@ export class SessionSetupOverlay {
               <div class="session-setup__server-meta">
                 <span class="session-setup__endless-count">0 joueur</span>
                 <span>Sauvegarde avec compte</span>
+              </div>
+            </button>
+            <button type="button" data-mode="test_server" class="session-setup__server-card session-setup__server-card--test">
+              <div class="session-setup__server-main">
+                <b>Test</b>
+                <span>Serveur bac à sable niveau 50</span>
+              </div>
+              <div class="session-setup__server-meta">
+                <span class="session-setup__test-count">0 joueur</span>
+                <span>1 000 000 crédits · portails démo</span>
               </div>
             </button>
             <div class="session-setup__server-section-title">Serveurs Battle Royale ouverts</div>
@@ -226,6 +236,7 @@ export class SessionSetupOverlay {
     this.modeButtons = [...this.el.querySelectorAll('[data-mode]')];
     this.battleServerListEl = this.el.querySelector('.session-setup__battle-server-list');
     this.endlessCountEl = this.el.querySelector('.session-setup__endless-count');
+    this.testCountEl = this.el.querySelector('.session-setup__test-count');
     this.battleWaitingCountEl = this.el.querySelector('.session-setup__battle-waiting-count');
     this.battleNextEl = this.el.querySelector('.session-setup__battle-next');
     const selectBattleFromEvent = (ev) => {
@@ -460,6 +471,10 @@ export class SessionSetupOverlay {
       const n = this.modes?.endlessPlayerCount ?? 0;
       this.endlessCountEl.textContent = `${n} joueur${n > 1 ? 's' : ''}`;
     }
+    if (this.testCountEl) {
+      const n = this.modes?.testPlayerCount ?? 0;
+      this.testCountEl.textContent = `${n} joueur${n > 1 ? 's' : ''}`;
+    }
     if (this.battleWaitingCountEl) {
       const n = this.modes?.battleWaitingCount ?? 0;
       this.battleWaitingCountEl.textContent = `${n} en attente`;
@@ -508,9 +523,11 @@ export class SessionSetupOverlay {
     if (this.selectionSummaryEl) {
       const label = this.selectedMode === 'endless'
         ? 'Serveur sélectionné : Endless'
-        : (this.selectedMode === 'battle_next'
+        : (this.selectedMode === 'test_server'
+          ? 'Serveur sélectionné : Test — niveau 50, crédits de test, portails de démonstration'
+          : (this.selectedMode === 'battle_next'
           ? 'Action sélectionnée : attente du prochain serveur Battle, sans gameplay avant ouverture'
-          : `Serveur sélectionné : ${this.selectedBattleSessionId || 'Battle non sélectionné'}`);
+          : `Serveur sélectionné : ${this.selectedBattleSessionId || 'Battle non sélectionné'}`));
       this.selectionSummaryEl.textContent = label;
     }
     if (this.currentPseudoEl) this.currentPseudoEl.textContent = this.getActiveAccountName();
@@ -518,7 +535,7 @@ export class SessionSetupOverlay {
   }
 
   selectMode(mode, battleSessionId = '') {
-    if (!['endless', 'battle_next', 'battle_server'].includes(mode)) return;
+    if (!['endless', 'test_server', 'battle_next', 'battle_server'].includes(mode)) return;
     this.selectedMode = mode;
     this.selectedBattleSessionId = mode === 'battle_server' ? String(battleSessionId || '') : '';
     this.saveStored();

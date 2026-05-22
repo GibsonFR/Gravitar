@@ -183,6 +183,29 @@ function addAutoProjectiles(projectiles, from, to, t, color, startTimes, empower
   }
 }
 
+function autoTimeline(t, duration, start = 0.48, cadence = 0.72) {
+  const out = [];
+  for (let at = start; at < duration - 0.15; at += cadence) out.push(at);
+  return out;
+}
+
+function countPassed(t, times, travel = 0.42) {
+  let n = 0;
+  for (const at of times) if (t >= at + travel) n += 1;
+  return n;
+}
+
+function damagePulse(t, at, travel = 0.42) {
+  const p = (t - at - travel) / 0.22;
+  return p >= 0 && p <= 1 ? 1 - p : 0;
+}
+
+function addCombatAutos(projectiles, from, to, t, duration, color, opts = {}) {
+  const times = opts.times || autoTimeline(t, duration, opts.start ?? 0.58, opts.cadence ?? 0.74);
+  addAutoProjectiles(projectiles, from, to, t, color, times, !!opts.empowered);
+  return { times, hits: countPassed(t, times), pulse: Math.max(0, ...times.map((at) => damagePulse(t, at))) };
+}
+
 function demoClock(time, frameId, slot, scenarioIndex) {
   const duration = loopDuration(frameId, slot, scenarioIndex);
   return { duration, t: time % duration, u: (time % duration) / duration };
@@ -220,7 +243,9 @@ function buildVanguard(slot, phase, u, t = u * 4.8, scenarioIndex = 0) {
   const areas = [];
   const selfRef = ships[0];
   const targetRef = ships[1];
-  if (slot === 'A' && scenarioIndex === 1) addAutoProjectiles(projectiles, selfRef, targetRef, t, color, [0.82, 1.42, 2.02, 2.62, 3.22, 3.82, 4.42, 5.02], true);
+  const combat = addCombatAutos(projectiles, selfRef, targetRef, t, loopDuration('vanguard', slot, scenarioIndex), color, { empowered: slot === 'R' || slot === 'P' || scenarioIndex === 1, cadence: slot === 'R' ? 0.52 : 0.76 });
+  if (combat.pulse > 0.01) targetRef.lastHitAt = timeSeed(Math.round(t * 100)) + combat.pulse;
+  targetRef.vitals.hp = Math.max(18, targetRef.vitals.hp - combat.hits * (slot === 'R' ? 9 : 5));
   if (slot === 'R') addAutoProjectiles(projectiles, selfRef, targetRef, t, { r: 255, g: 116, b: 238 }, scenarioIndex >= 4 ? [0.36, 0.88, 1.40, 1.92, 2.44, 2.96, 3.48, 4.00, 4.52, 5.04, 5.56, 6.08] : [0.36, 1.02, 1.68, 2.34, 3.00, 3.66], true);
 
   if (slot === 'A') {
@@ -272,7 +297,9 @@ function buildSigil(slot, phase, u, t = u * 4.8, scenarioIndex = 0) {
   const areas = [];
   const selfRef = ships[0];
   const targetRef = ships[1];
-  if (slot === 'A' && scenarioIndex === 1) addAutoProjectiles(projectiles, selfRef, targetRef, t, color, [0.82, 1.42, 2.02, 2.62, 3.22, 3.82, 4.42, 5.02], true);
+  const combat = addCombatAutos(projectiles, selfRef, targetRef, t, loopDuration('sigil', slot, scenarioIndex), color, { empowered: slot === 'P' || slot === 'R' || scenarioIndex === 1, cadence: slot === 'R' ? 0.58 : 0.82 });
+  if (combat.pulse > 0.01) targetRef.lastHitAt = timeSeed(Math.round(t * 100)) + combat.pulse;
+  targetRef.vitals.hp = Math.max(18, targetRef.vitals.hp - combat.hits * (slot === 'R' ? 8 : 5));
   if (slot === 'R') addAutoProjectiles(projectiles, selfRef, targetRef, t, { r: 255, g: 116, b: 238 }, scenarioIndex >= 4 ? [0.36, 0.88, 1.40, 1.92, 2.44, 2.96, 3.48, 4.00, 4.52, 5.04, 5.56, 6.08] : [0.36, 1.02, 1.68, 2.34, 3.00, 3.66], true);
 
   if (slot === 'A') {
@@ -325,7 +352,9 @@ function buildBulwark(slot, phase, u, t = u * 4.8, scenarioIndex = 0) {
   const areas = [];
   const selfRef = ships[0];
   const targetRef = ships[1];
-  if (slot === 'A' && scenarioIndex === 1) addAutoProjectiles(projectiles, selfRef, targetRef, t, color, [0.82, 1.42, 2.02, 2.62, 3.22, 3.82, 4.42, 5.02], true);
+  const combat = addCombatAutos(projectiles, selfRef, targetRef, t, loopDuration('bulwark', slot, scenarioIndex), color, { empowered: slot === 'P' || scenarioIndex === 1, cadence: slot === 'R' ? 0.68 : 0.92 });
+  if (combat.pulse > 0.01) targetRef.lastHitAt = timeSeed(Math.round(t * 100)) + combat.pulse;
+  targetRef.vitals.hp = Math.max(18, targetRef.vitals.hp - combat.hits * (slot === 'R' ? 7 : 4));
   if (slot === 'R') addAutoProjectiles(projectiles, selfRef, targetRef, t, { r: 255, g: 116, b: 238 }, scenarioIndex >= 4 ? [0.36, 0.88, 1.40, 1.92, 2.44, 2.96, 3.48, 4.00, 4.52, 5.04, 5.56, 6.08] : [0.36, 1.02, 1.68, 2.34, 3.00, 3.66], true);
 
   if (slot === 'A') {
