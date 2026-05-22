@@ -449,9 +449,10 @@ export function startApp() {
     const target = pickLocalPrimaryTargetScreen(screenX, screenY) || pickLocalPrimaryTarget(mouseWorld.x, mouseWorld.y);
     if (target) {
       store.setOptimisticSelection(target.kind, target.id, { lockMs: 30000 });
+      store.setLocalAttackTarget?.(target.kind, target.id, { lockMs: 30000 });
       return { type: 'target', kind: target.kind, id: target.id };
     }
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true });
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true, keepAttack: false });
     return { type: 'move', x: mouseWorld.x, y: mouseWorld.y };
   }
 
@@ -464,6 +465,7 @@ export function startApp() {
     const target = pickLocalPrimaryTarget(mouseWorld.x, mouseWorld.y);
     if (target) {
       store.setOptimisticSelection(target.kind, target.id);
+      store.setLocalAttackTarget?.(target.kind, target.id);
       // Sélection = action combat locale, pas ordre de déplacement.
       // Sans ce verrou, un léger mouvement de souris après clic droit transformait
       // la sélection en hold-move et le vaisseau partait vers le point cliqué.
@@ -472,7 +474,7 @@ export function startApp() {
       input.moveWorldQueued = false;
       return;
     }
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true });
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true, keepAttack: false });
   }
 
 
@@ -525,6 +527,15 @@ export function startApp() {
       }
     }
     const mouseForServer = toPlayerRelativeScreen(me, input.msx, input.msy);
+    const actionBatch = Array.isArray(input.actions) && input.actions.length ? input.actions.splice(0, input.actions.length) : [];
+    const aimWorldX = camera.x + (input.msx - view.cssW * 0.5);
+    const aimWorldY = camera.y + (input.msy - view.cssH * 0.5);
+    for (const action of actionBatch) {
+      if ((action.type === 'cast' || action.type === 'rocket') && !Number.isFinite(action.aimX)) {
+        action.aimX = aimWorldX;
+        action.aimY = aimWorldY;
+      }
+    }
     net.send({
       t: 'input',
       inputSeq: (input.inputSeq = (input.inputSeq | 0) + 1),
@@ -551,8 +562,12 @@ export function startApp() {
       selectSeq: input.selectSeq | 0,
       selectedKind: store.localPrediction?.selectedKind || store.myState?.selectedKind || '',
       selectedId: store.localPrediction?.selectedId || store.myState?.selectedId || 0,
-      aimWorldX: camera.x + (input.msx - view.cssW * 0.5),
-      aimWorldY: camera.y + (input.msy - view.cssH * 0.5),
+      attackKind: store.localPrediction?.attackKind || '',
+      attackId: store.localPrediction?.attackId || 0,
+      attackSeq: store.localPrediction?.attackSeq | 0,
+      actions: actionBatch,
+      aimWorldX,
+      aimWorldY,
       localMoveX: store.localPrediction?.moveX ?? 0,
       localMoveY: store.localPrediction?.moveY ?? 0,
       // Mode .io réactif : on laisse temporairement le client piloter sa pose.

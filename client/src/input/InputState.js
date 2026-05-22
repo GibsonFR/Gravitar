@@ -23,6 +23,8 @@ export function createInputState() {
     targetKind: '',
     targetId: 0,
     inputSeq: 0,
-    selectSeq: 0
+    selectSeq: 0,
+    actionSeq: 0,
+    actions: []
   };
 }

@@ -9,6 +9,13 @@ export class InputController {
     this.canvas = canvas;
     this.input = input;
 
+    const queueAction = (action) => {
+      if (!Array.isArray(input.actions)) input.actions = [];
+      input.actionSeq = (input.actionSeq | 0) + 1;
+      input.actions.push({ seq: input.actionSeq, time: performance.now(), ...action });
+      if (input.actions.length > 32) input.actions.splice(0, input.actions.length - 32);
+    };
+
     canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
     canvas.addEventListener('mousemove', (ev) => {
@@ -41,12 +48,14 @@ export class InputController {
         input.targetKind = handled.kind || '';
         input.targetId = handled.id || 0;
         input.selectSeq = (input.selectSeq | 0) + 1;
+        queueAction({ type: 'target', kind: input.targetKind, id: input.targetId, selectSeq: input.selectSeq });
         input.suppressRightHoldUntilUp = true;
       } else if (handled?.type === 'move') {
         input.clickQueued = false;
         input.moveWorldQueued = true;
         input.moveWorldX = handled.x;
         input.moveWorldY = handled.y;
+        queueAction({ type: 'move', x: handled.x, y: handled.y });
       } else {
         input.clickQueued = true;
       }
@@ -82,12 +91,12 @@ export class InputController {
         return;
       }
 
-      if (lower === 'a') input.a = true;
-      if (lower === 'z') input.z = true;
-      if (lower === 'e') input.e = true;
-      if (lower === 'r') input.r = true;
-      if (lower === 'd') input.interactTap = true;
-      if (lower === 'f') input.rocketTap = true;
+      if (lower === 'a') { input.a = true; queueAction({ type: 'cast', slot: 'A' }); }
+      if (lower === 'z') { input.z = true; queueAction({ type: 'cast', slot: 'Z' }); }
+      if (lower === 'e') { input.e = true; queueAction({ type: 'cast', slot: 'E' }); }
+      if (lower === 'r') { input.r = true; queueAction({ type: 'cast', slot: 'R' }); }
+      if (lower === 'd') { input.interactTap = true; queueAction({ type: 'interact' }); }
+      if (lower === 'f') { input.rocketTap = true; queueAction({ type: 'rocket' }); }
       if (lower === 'x') {
         handlers.onRocketSlotSwitch?.(0);
         ev.preventDefault();

@@ -269,8 +269,13 @@ function updateAbilityCasting(state, player, dt, timeMs) {
   }
   let usedAny = false;
   const locked = !!player.dockedStationId || (player.dockPhase && player.dockPhase !== 'none');
-  for (const slot of slots) {
-    if (!consumeAbilityEdge(player, slot)) continue;
+  const pending = Array.isArray(player.pendingAbilityCasts) ? player.pendingAbilityCasts.splice(0, player.pendingAbilityCasts.length) : [];
+  const requestedSlots = [];
+  for (const action of pending) requestedSlots.push(action.slot);
+  for (const slot of slots) if (consumeAbilityEdge(player, slot)) requestedSlots.push(slot);
+
+  for (const slot of requestedSlots) {
+    if (!slots.includes(slot)) continue;
     usedAny = true;
     if (locked) {
       setPlayerHint(player, 'Abilities indisponibles en station', 1.2);

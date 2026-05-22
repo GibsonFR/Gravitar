@@ -8,6 +8,58 @@ function finiteOr(value, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function sanitizeAction(raw, viewportW, viewportH) {
+  if (!raw || typeof raw !== 'object') return null;
+  const type = String(raw.type || '');
+  const seq = Number.isFinite(raw.seq) ? Math.max(0, raw.seq | 0) : 0;
+  if (!seq) return null;
+  if (type === 'move') {
+    return {
+      type,
+      seq,
+      x: clamp(finiteOr(raw.x, 0), -10000000, 10000000),
+      y: clamp(finiteOr(raw.y, 0), -10000000, 10000000)
+    };
+  }
+  if (type === 'target') {
+    const kind = ['player', 'mob', 'asteroid', 'station'].includes(String(raw.kind || '')) ? String(raw.kind || '') : '';
+    const id = Number.isFinite(raw.id) ? Math.max(0, raw.id | 0) : 0;
+    if (!kind || !id) return null;
+    return { type, seq, kind, id, selectSeq: Number.isFinite(raw.selectSeq) ? Math.max(0, raw.selectSeq | 0) : seq };
+  }
+  if (type === 'cast') {
+    const slot = String(raw.slot || '').toUpperCase();
+    if (!['A', 'Z', 'E', 'R'].includes(slot)) return null;
+    return {
+      type,
+      seq,
+      slot,
+      aimX: Number.isFinite(raw.aimX) ? clamp(raw.aimX, -10000000, 10000000) : null,
+      aimY: Number.isFinite(raw.aimY) ? clamp(raw.aimY, -10000000, 10000000) : null
+    };
+  }
+  if (type === 'rocket' || type === 'interact' || type === 'cancelAttack') {
+    return {
+      type,
+      seq,
+      aimX: Number.isFinite(raw.aimX) ? clamp(raw.aimX, -10000000, 10000000) : null,
+      aimY: Number.isFinite(raw.aimY) ? clamp(raw.aimY, -10000000, 10000000) : null
+    };
+  }
+  return null;
+}
+
+function sanitizeActions(rawActions, viewportW, viewportH) {
+  if (!Array.isArray(rawActions)) return [];
+  const out = [];
+  for (const raw of rawActions.slice(-16)) {
+    const action = sanitizeAction(raw, viewportW, viewportH);
+    if (action) out.push(action);
+  }
+  out.sort((a, b) => (a.seq | 0) - (b.seq | 0));
+  return out;
+}
+
 export function sanitizeInputMessage(raw) {
   if (!raw || raw.t !== 'input') return null;
 
@@ -54,6 +106,10 @@ export function sanitizeInputMessage(raw) {
     aimWorldY: Number.isFinite(raw.aimWorldY) ? clamp(raw.aimWorldY, -10000000, 10000000) : null,
     localMoveX: Number.isFinite(raw.localMoveX) ? clamp(raw.localMoveX, -10000000, 10000000) : null,
     localMoveY: Number.isFinite(raw.localMoveY) ? clamp(raw.localMoveY, -10000000, 10000000) : null,
+    attackKind: ['player', 'mob', 'asteroid', 'station', ''].includes(String(raw.attackKind || '')) ? String(raw.attackKind || '') : '',
+    attackId: Number.isFinite(raw.attackId) ? Math.max(0, raw.attackId | 0) : 0,
+    attackSeq: Number.isFinite(raw.attackSeq) ? Math.max(0, raw.attackSeq | 0) : 0,
+    actions: sanitizeActions(raw.actions, viewportW, viewportH),
     clientTime: Number.isFinite(raw.clientTime) ? raw.clientTime : 0,
     sectorSeq: Number.isFinite(raw.sectorSeq) ? Math.max(0, raw.sectorSeq | 0) : 0,
     abilitySeq: Number.isFinite(raw.abilitySeq) ? Math.max(0, raw.abilitySeq | 0) : 0

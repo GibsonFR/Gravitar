@@ -45,6 +45,14 @@ function getSelectedTarget(store) {
   return { kind, id, entity: getTarget(store, kind, id) };
 }
 
+function getAttackTarget(store) {
+  const now = performance.now();
+  const local = store.localPrediction || {};
+  const kind = now < (local.attackUntil || 0) ? (local.attackKind || '') : '';
+  const id = now < (local.attackUntil || 0) ? (local.attackId || 0) : 0;
+  return { kind, id, entity: getTarget(store, kind, id) };
+}
+
 function getCooldownMax(myState, slot) {
   const hud = myState?.abilityHud?.[slot];
   return Math.max(0.15, finite(hud?.cooldownMax, finite(hud?.tuning?.baseCooldown, 0.6)));
@@ -125,8 +133,8 @@ export class ClientPrediction {
     };
 
     if (input.rightDown && input.holdActive) {
-      this.store.setOptimisticSelection('', 0);
-      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true, preserveSelection: true });
+      this.store.cancelLocalAttack?.();
+      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true, preserveSelection: true, keepAttack: false });
     }
 
     this.updateLocalFacing(me, worldMouse, dt);
@@ -284,8 +292,10 @@ export class ClientPrediction {
 
   predictAutoAttackFx(me, dt) {
     this.localAutoCooldown = Math.max(0, this.localAutoCooldown - Math.max(0, dt));
-    const target = getSelectedTarget(this.store);
+    const target = getAttackTarget(this.store);
     if (!target.entity || target.kind === 'station') return;
+
+    if (performance.now() >= (this.store.localPrediction?.attackUntil || 0)) { this.store.cancelLocalAttack?.({ keepSeq: true }); return; }
 
     const interval = getLocalAutoInterval(this.store);
     const rateRange = finite(this.store?.myState?.derived?.autoAttackRange, 0);

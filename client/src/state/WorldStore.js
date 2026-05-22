@@ -29,6 +29,11 @@ export class WorldStore {
       selectedId: 0,
       selectedAt: 0,
       selectedUntil: 0,
+      attackKind: '',
+      attackId: 0,
+      attackAt: 0,
+      attackUntil: 0,
+      attackSeq: 0,
       moveAt: 0,
       localDamage: new Map(),
       sectorTransitionAt: 0,
@@ -515,6 +520,24 @@ export class WorldStore {
     return true;
   }
 
+  setLocalAttackTarget(kind, id, options = {}) {
+    const k = kind || '';
+    const targetId = id || 0;
+    const now = performance.now();
+    this.localPrediction.attackKind = k;
+    this.localPrediction.attackId = targetId;
+    this.localPrediction.attackAt = now;
+    this.localPrediction.attackUntil = k && targetId ? now + Math.max(1200, options.lockMs || 30000) : 0;
+    this.localPrediction.attackSeq = (this.localPrediction.attackSeq | 0) + 1;
+  }
+
+  cancelLocalAttack(options = {}) {
+    this.localPrediction.attackKind = '';
+    this.localPrediction.attackId = 0;
+    this.localPrediction.attackUntil = 0;
+    if (!options.keepSeq) this.localPrediction.attackSeq = (this.localPrediction.attackSeq | 0) + 1;
+  }
+
   setOptimisticSelection(kind, id, options = {}) {
     if (!this.myState) return;
     const k = kind || '';
@@ -540,6 +563,7 @@ export class WorldStore {
     this.localPrediction.moveY = y;
     this.localPrediction.hold = !!options.fromHold;
     this.localPrediction.moveAt = performance.now();
+    if (!options.keepAttack) this.cancelLocalAttack({ keepSeq: false });
     if (!options.preserveSelection) {
       this.localPrediction.selectedKind = '';
       this.localPrediction.selectedId = 0;
@@ -576,6 +600,7 @@ export class WorldStore {
     // automatique qui ramène ensuite le vaisseau vers l'ancien clic.
     this.localPrediction.selectedKind = '';
     this.localPrediction.selectedId = 0;
+    this.cancelLocalAttack({ keepSeq: false });
     this.localPrediction.hasMoveTarget = false;
     this.localPrediction.hold = false;
     this.localPrediction.moveX = this.localPrediction.sectorX;
