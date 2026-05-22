@@ -3,8 +3,340 @@ import { drawAreaEffect } from '../../abilities/AreaEffectRenderer.js';
 import { drawShip } from '../../entities/ship/ShipRenderer.js';
 import { drawProjectile } from '../../projectile/ProjectileRenderer.js';
 import { getShipFramePalette } from '../../entities/ship/ShipFramePalette.js';
+import { VisualFxStore } from '../../fx/VisualFxStore.js';
+import { getVanguardAbilityTuning, VANGUARD_PASSIVE } from '../../../../shared/content/frames/vanguard/VanguardFrameSpec.js';
+import { getSigilAbilityTuning, SIGIL_PASSIVE } from '../../../../shared/content/frames/sigil/SigilFrameSpec.js';
+import { getBulwarkAbilityTuning, BULWARK_PASSIVE } from '../../../../shared/content/frames/bulwark/BulwarkFrameSpec.js';
 
 const PHASE_TO_LEVEL = Object.freeze({ 1: 1, 2: 3, 3: 6, 4: 10, 5: 15 });
+
+const DEMO_FX = new VisualFxStore();
+let demoFxKey = '';
+let demoFxLastT = -1;
+let demoFxLastTime = 0;
+
+function status(id, color = null, label = '') {
+  return {
+    id,
+    label: label || id,
+    primaryColor: color || { r: 220, g: 230, b: 245 },
+    secondaryColor: color || { r: 220, g: 230, b: 245 }
+  };
+}
+
+function frameColor(frameId) {
+  if (frameId === 'sigil') return { r: 198, g: 128, b: 255 };
+  if (frameId === 'bulwark') return { r: 236, g: 196, b: 96 };
+  return { r: 125, g: 233, b: 255 };
+}
+
+function phaseToInvested(slot, phase) {
+  const p = Math.max(1, Math.min(5, phase | 0));
+  if (slot === 'R') return p;
+  return PHASE_TO_LEVEL[p] || 1;
+}
+
+function getDemoTuning(frameId, slot, phase) {
+  const invested = phaseToInvested(slot, phase);
+  if (frameId === 'sigil') return getSigilAbilityTuning(slot, invested, 0);
+  if (frameId === 'bulwark') return getBulwarkAbilityTuning(slot, invested, 22);
+  return getVanguardAbilityTuning(slot, invested, 0);
+}
+
+function pushDamageEvent(scene, id, t, at, target, amount, opts = {}) {
+  if (!scene.damageEvents) scene.damageEvents = [];
+  if (t < at || t > at + 0.14) return;
+  scene.damageEvents.push({
+    id,
+    type: 'damage',
+    targetId: target.id,
+    x: target.x,
+    y: target.y,
+    amount,
+    crit: !!opts.crit,
+    shielded: !!opts.shielded,
+    periodic: !!opts.periodic
+  });
+}
+
+function addFlightProjectile(scene, id, from, to, t, start, travel, color, slot, extra = {}) {
+  const p = (t - start) / travel;
+  if (p < 0 || p > 1) return false;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  scene.projectiles.push(projectile(id, lerp(from.x, to.x, easeOut(p)), lerp(from.y, to.y, easeOut(p)), dx / len * (extra.speed || 900), dy / len * (extra.speed || 900), extra.radius || 4.2, color, { slot, ...extra }));
+  return true;
+}
+
+function addImpactRing(scene, id, t, at, target, radius, color, extra = {}) {
+  if (t < at || t > at + 0.30) return;
+  const fade = 1 - (t - at) / 0.30;
+  scene.areas.push(area(id, target.x, target.y, radius, color, { durationLeft: 0.22 + fade * 0.6, ...extra }));
+}
+
+function autoHitTimes(duration, cadence, first = 0.42) {
+  const out = [];
+  for (let at = first; at < duration - 0.20; at += cadence) out.push(Number(at.toFixed(3)));
+  return out;
+}
+
+function applyVanguardRealScenario(scene, slot, phase, t, duration, label) {
+  const self = scene.ships[0];
+  const target = scene.ships[1];
+  const color = frameColor('vanguard');
+  const a = getDemoTuning('vanguard', 'A', phase);
+  const z = getDemoTuning('vanguard', 'Z', phase);
+  const e = getDemoTuning('vanguard', 'E', phase);
+  const r = getDemoTuning('vanguard', 'R', phase);
+  const wantsP10 = /P\(10\)|10/.test(label || '') || (slot === 'P' && t > 1.1);
+  const wantsP6 = /P\(6\)|6/.test(label || '') || slot === 'R';
+  const hits = autoHitTimes(duration, slot === 'R' ? 0.46 : 0.72, 0.36).filter((at) => t >= at).length;
+  let heat = Math.min(VANGUARD_PASSIVE.maxStacks, hits + (slot === 'P' ? Math.floor(t / 0.34) : 0));
+  if (wantsP6) heat = Math.max(6, heat);
+  if (wantsP10) heat = 10;
+  let empoweredCharges = slot === 'A' && t > 0.82 ? Math.max(0, a.empowerCharges - 1) : a.empowerCharges;
+  let comboLeft = 0;
+  let phaseLeft = 0;
+  let ultLeft = 0;
+
+  const autoTimes = autoHitTimes(duration, slot === 'R' ? 0.44 : 0.72, 0.38);
+  for (let i = 0; i < autoTimes.length; i += 1) {
+    const start = autoTimes[i];
+    const from = { x: self.x + Math.cos(self.rot) * 22, y: self.y + Math.sin(self.rot) * 22 };
+    addFlightProjectile(scene, 21000 + i, from, target, t, start, 0.26, color, 'AA', { speed: 930, radius: slot === 'R' || heat >= 6 ? 4.8 : 3.8, empoweredAutoUsed: heat >= 6 || slot === 'R', visualKind: '' });
+    pushDamageEvent(scene, `vg-aa-${i}`, t, start + 0.26, target, heat >= 6 ? 18 : 13, { crit: heat >= 10 && i % 3 === 0 });
+  }
+
+  if (slot === 'A' || /A1/.test(label || '')) {
+    const start = /Z1/.test(label || '') ? 1.12 : 0.42;
+    const combo = /Z1|combo/i.test(label || '');
+    addFlightProjectile(scene, 21101, { x: self.x + Math.cos(self.rot) * 24, y: self.y + Math.sin(self.rot) * 24 }, target, t, start, combo ? 0.28 : 0.38, color, 'A', { speed: a.projectileSpeed * (combo ? 1 + a.comboProjectileSpeedPct : 1), radius: Math.max(4.5, a.projectileWidth * 0.18), visualKind: 'ability' });
+    const impact = start + (combo ? 0.28 : 0.38);
+    addImpactRing(scene, 21102, t, impact, target, Math.max(32, a.projectileWidth * 1.7), color, { label: a.damageAmpPct > 0 ? 'Marque A' : 'Impact A' });
+    pushDamageEvent(scene, 'vg-a', t, impact, target, Math.round(a.damageFlat + 13 * a.damagePct + (combo ? 13 * a.comboDamagePct : 0)), { crit: combo });
+    if (t >= impact && t < impact + a.damageAmpDuration) target.statuses = [...(target.statuses || []), status('damage_amp', color, 'A')];
+    if (phase >= 5 && slot === 'A' && t >= impact && t < impact + a.disarmDuration) target.statuses = [...(target.statuses || []), status('disarm', color, 'A')];
+    if (t > impact) heat = Math.min(10, heat + 1);
+  }
+
+  if (slot === 'Z' || /Z1/.test(label || '')) {
+    const start = 0.28;
+    const dashP = clamp01((t - start) / 0.28);
+    if (dashP > 0 && dashP < 1) {
+      const dist = z.dashDistance;
+      self.x = -160 + easeOut(dashP) * dist;
+      self.vx = 760;
+      self._localThrust = 1;
+    }
+    if (t >= start && t < start + z.moveBoostDuration) {
+      self.statuses = [...(self.statuses || []), status('haste', color, 'Z')];
+      comboLeft = Math.max(0, z.comboWindowDuration - (t - start));
+    }
+    if (z.trailSlowPct > 0 && t >= start && t < start + 1.2) scene.areas.push(area(21120, lerp(-160, self.x, 0.45), self.y, 52, color, { durationLeft: 1.0, label: 'Traînée Z', statusId: 'slow' }));
+    if (wantsP10 && t >= start && t < start + VANGUARD_PASSIVE.overheatTenacityDuration) self.statuses = [...(self.statuses || []), status('tenacity', color, 'Surchauffe')];
+  }
+
+  if (slot === 'E' || /E1/.test(label || '')) {
+    const start = 0.34;
+    if (t >= start && t < start + e.phaseDuration) {
+      phaseLeft = Math.max(0, e.phaseDuration - (t - start));
+      self.statuses = [...(self.statuses || []), status('spell_shield', color, 'Phase')];
+      scene.areas.push(area(21130, self.x, self.y, 70, { r: 124, g: 154, b: 255 }, { durationLeft: phaseLeft, label: 'Phase' }));
+    }
+    const exit = start + e.phaseDuration;
+    if (e.exitRadius > 0) {
+      addImpactRing(scene, 21131, t, exit, self, e.exitRadius, color, { label: 'Grounded', statusId: 'grounded' });
+      if (t >= exit && t < exit + e.groundedDuration) target.statuses = [...(target.statuses || []), status('grounded', color, 'E')];
+    }
+    if (wantsP10 && t >= start && t < start + VANGUARD_PASSIVE.overheatTenacityDuration) self.statuses = [...(self.statuses || []), status('tenacity', color, 'Surchauffe')];
+    if (phase >= 5 && wantsP10 && t > exit) empoweredCharges = Math.min(a.empowerCharges, empoweredCharges + 1);
+  }
+
+  if (slot === 'R' || /R1/.test(label || '')) {
+    const start = 0.24;
+    if (t >= start && t < start + r.ultDuration) {
+      ultLeft = Math.max(0, r.ultDuration - (t - start));
+      self.statuses = [...(self.statuses || []), status('haste', { r: 255, g: 116, b: 238 }, 'R')];
+      if (phase >= 2 && t > 1.0) target.statuses = [...(target.statuses || []), status('burn', { r: 255, g: 142, b: 72 }, 'R')];
+      if (phase >= 5 && /A1/.test(label || '') && t > 1.5 && t < 1.95) target.statuses = [...(target.statuses || []), status('stun', color, 'R+A')];
+    }
+  }
+
+  target.vitals.hp = Math.max(18, target.vitals.hp - Math.min(70, hits * (slot === 'R' ? 7 : 4)));
+  self.frameState = { kind: 'vanguard', passiveName: 'Surchauffe', passiveStacks: heat, passiveMaxStacks: VANGUARD_PASSIVE.maxStacks, passiveDecayLeft: heat > 0 ? Math.max(0, VANGUARD_PASSIVE.stackDuration - (t % VANGUARD_PASSIVE.stackDuration)) : 0, empoweredCharges, empoweredMaxCharges: a.empowerCharges, comboWindowLeft: comboLeft, moveBoostLeft: slot === 'Z' ? z.moveBoostDuration : 0, phaseLeft, ultLeft };
+}
+
+function applySigilRealScenario(scene, slot, phase, t, duration, label) {
+  const self = scene.ships[0];
+  const target = scene.ships[1];
+  const color = frameColor('sigil');
+  const a = getDemoTuning('sigil', 'A', phase);
+  const z = getDemoTuning('sigil', 'Z', phase);
+  const e = getDemoTuning('sigil', 'E', phase);
+  const r = getDemoTuning('sigil', 'R', phase);
+  const wants3 = /P\(3\)|x3|A1 x3/.test(label || '');
+  const wants5 = /P\(5\)|x5|détonation/i.test(label || '');
+  const aStarts = wants5 ? [0.34, 0.96, 1.58, 2.20, 2.82] : wants3 ? [0.34, 0.98, 1.62] : [0.46];
+  let runes = 0;
+
+  if (slot === 'Z' || /Z1/.test(label || '')) {
+    scene.areas.push(area(22100, target.x - 12, target.y, z.zZoneRadius, color, { durationLeft: z.zZoneDuration, kind: 'test_effect_zone', phase: 'active', statusId: 'slow', label: 'Zone Z' }));
+    if (t > 0.55) target.statuses = [...(target.statuses || []), status('slow', color, 'Z')];
+    pushDamageEvent(scene, 'sigil-z-dot', t, Math.floor(Math.max(0, t - 0.8) / 0.5) * 0.5 + 0.8, target, Math.round(z.zZoneDamageFlatPerSecond * 0.5), { periodic: true });
+  }
+  if (slot === 'E' || /E1/.test(label || '')) {
+    const start = 0.28;
+    const dashP = clamp01((t - start) / 0.28);
+    if (dashP > 0 && dashP < 1) {
+      self.x = -150 + easeOut(dashP) * e.eDashDistance;
+      self.y = -24 * Math.sin(dashP * Math.PI);
+      self.vx = 620;
+    }
+    if (t >= start && t < start + e.eCamouflageDuration) self.statuses = [...(self.statuses || []), status('camouflage', color, 'E')];
+    if (phase >= 5 && t > start + e.eCamouflageDuration && t < start + e.eCamouflageDuration + 0.5) self.statuses = [...(self.statuses || []), status('spell_shield', color, 'E')];
+    if (/A1/.test(label || '') && t > 0.78) target.statuses = [...(target.statuses || []), status('mark', color, 'Rune')];
+  }
+  if (slot === 'R' || /R1/.test(label || '')) {
+    const start = 0.20;
+    if (t >= start && t < start + r.ultDuration) {
+      self.statuses = [...(self.statuses || []), status('lifesteal', color, 'R')];
+      scene.areas.push(area(22120, self.x, self.y, 96, color, { durationLeft: r.ultDuration, label: 'Convergence' }));
+    }
+  }
+  if (slot === 'A' || /A1/.test(label || '') || slot === 'P') {
+    for (let i = 0; i < aStarts.length; i += 1) {
+      const start = aStarts[i];
+      const from = { x: self.x + Math.cos(self.rot) * 24, y: self.y + Math.sin(self.rot) * 24 };
+      addFlightProjectile(scene, 22200 + i, from, target, t, start, 0.33, color, 'A', { speed: a.aProjectileSpeed, radius: Math.max(4.2, a.aProjectileWidth * 0.17), visualKind: 'ability' });
+      const impact = start + 0.33;
+      if (t >= impact) runes = Math.min(SIGIL_PASSIVE.maxRunes, runes + 1);
+      pushDamageEvent(scene, `sigil-a-${i}`, t, impact, target, Math.round(a.aImpactDamageFlat + 13 * a.aImpactDamagePct), { crit: i === 4 });
+      addImpactRing(scene, 22280 + i, t, impact, target, 24 + i * 2, color, { label: 'Rune' });
+    }
+  }
+  if (wants3 || runes >= SIGIL_PASSIVE.slowThreshold) target.statuses = [...(target.statuses || []), status('slow', color, '3 runes')];
+  if (wants5 || runes >= SIGIL_PASSIVE.detonationThreshold) {
+    target.statuses = [...(target.statuses || []), status(phase >= 5 ? 'stun' : 'mark', color, 'Détonation')];
+    addImpactRing(scene, 22300, t, 3.18, target, 72, color, { label: 'Détonation', statusId: phase >= 5 ? 'stun' : 'mark' });
+    pushDamageEvent(scene, 'sigil-detonate', t, 3.18, target, Math.round(SIGIL_PASSIVE.detonationDamageFlat + 13 * SIGIL_PASSIVE.detonationDamageWeaponPct), { crit: true });
+  }
+  const count = wants5 ? 5 : wants3 ? 3 : runes;
+  for (let i = 0; i < count; i += 1) {
+    const ang = i * Math.PI * 2 / Math.max(1, count) + t * 2.1;
+    scene.areas.push(area(22350 + i, target.x + Math.cos(ang) * 30, target.y + Math.sin(ang) * 30, 10, color, { durationLeft: 1.0, label: i === 0 ? `${count} rune${count > 1 ? 's' : ''}` : '' }));
+  }
+  target.vitals.hp = Math.max(16, target.vitals.hp - count * 9 - (wants5 ? 32 : 0));
+  self.frameState = { kind: 'sigil', passiveName: 'Runes', passiveStacks: 0, passiveMaxStacks: SIGIL_PASSIVE.maxRunes, detonationCooldownLeft: wants5 && t > 3.18 ? 3.5 : 0, zoneActive: slot === 'Z' || slot === 'R', veilLeft: slot === 'E' ? Math.max(0, e.eCamouflageDuration - (t - 0.28)) : 0, ultLeft: slot === 'R' ? Math.max(0, r.ultDuration - (t - 0.2)) : 0 };
+}
+
+function applyBulwarkRealScenario(scene, slot, phase, t, duration, label) {
+  const self = scene.ships[0];
+  const target = scene.ships[1];
+  const color = frameColor('bulwark');
+  const a = getDemoTuning('bulwark', 'A', phase);
+  const z = getDemoTuning('bulwark', 'Z', phase);
+  const e = getDemoTuning('bulwark', 'E', phase);
+  const r = getDemoTuning('bulwark', 'R', phase);
+  const full = /pleine|P\(5\)|cap/i.test(label || '');
+  let plates = full ? BULWARK_PASSIVE.maxPlates : Math.min(BULWARK_PASSIVE.maxPlates, 1 + Math.floor(t / 0.75));
+
+  if (slot === 'P') {
+    const incoming = [0.45, 1.05, 1.65, 2.25, 2.85];
+    for (let i = 0; i < incoming.length; i += 1) {
+      const start = incoming[i];
+      addFlightProjectile(scene, 23100 + i, { x: target.x, y: target.y }, self, t, start, 0.24, { r: 255, g: 120, b: 110 }, 'AA', { radius: 4.5 });
+      pushDamageEvent(scene, `bw-in-${i}`, t, start + 0.24, self, 18, { shielded: i < 2 });
+    }
+    self.statuses = [...(self.statuses || []), status('armor_up', color, 'Plaques')];
+    if (full || plates >= BULWARK_PASSIVE.maxPlates) self.statuses = [...self.statuses, status('tenacity', color, 'Plaques')];
+  }
+  if (slot === 'A' || /A1/.test(label || '')) {
+    const start = 0.30;
+    if (t >= start && t < start + a.anchorDuration) {
+      self.statuses = [...(self.statuses || []), status('armor_up', color, 'A')];
+      scene.areas.push(area(23140, self.x, self.y, Math.max(74, a.anchorPulseRadius || 86), color, { durationLeft: a.anchorDuration, label: 'Ancrage' }));
+      if (phase >= 3) target.statuses = [...(target.statuses || []), status('slow', color, 'Pulse')];
+    }
+    if (/provocation/i.test(label || '') || phase >= 4) target.statuses = [...(target.statuses || []), status('taunt', color, 'A')];
+  }
+  if (slot === 'Z' || /Z1/.test(label || '')) {
+    const start = 0.36;
+    addFlightProjectile(scene, 23160, { x: self.x + 20, y: self.y }, target, t, start, 0.36, color, 'Z', { speed: z.harpoonProjectileSpeed, radius: 6.2, visualKind: 'ability' });
+    const impact = start + 0.36;
+    pushDamageEvent(scene, 'bw-z', t, impact, target, Math.round(z.harpoonDamageFlat + 13 * z.harpoonDamageWeaponPct + 22 * z.harpoonDamageArmorPct), { crit: phase >= 4 });
+    if (t >= impact) {
+      target.statuses = [...(target.statuses || []), status('taunt', color, 'Z')];
+      if (phase >= 2) target.statuses.push(status('armor_shred', color, 'Shred'));
+      if (phase >= 3) target.statuses.push(status('grounded', color, 'Grounded'));
+      const pull = clamp01((t - impact) / 0.6);
+      if (phase >= 5) target.x = lerp(target.x, self.x + 72, easeOut(pull));
+      if (phase >= 4) self.x = lerp(self.x, target.x - 82, easeOut(pull));
+    }
+  }
+  if (slot === 'E' || /E1/.test(label || '')) {
+    const start = 0.28;
+    if (t >= start && t < start + e.meditationDuration) {
+      self.statuses = [...(self.statuses || []), status('tenacity', color, 'E'), status('armor_up', color, 'E')];
+      scene.areas.push(area(23190, self.x, self.y, e.meditationPulseRadius || 82, { r: 120, g: 210, b: 255 }, { durationLeft: e.meditationDuration, label: 'Méditation' }));
+    }
+    const end = start + e.meditationDuration;
+    if (phase >= 3) {
+      addImpactRing(scene, 23191, t, end, self, e.meditationPulseRadius || 120, color, { label: phase >= 5 ? 'Grounded' : 'Pulse', statusId: phase >= 5 ? 'grounded' : 'slow' });
+      if (t >= end && t < end + 1.2) target.statuses = [...(target.statuses || []), status(phase >= 5 ? 'grounded' : 'slow', color, 'E')];
+    }
+    if (t > start) self.vitals.hp = Math.min(self.vitals.maxHp, self.vitals.hp + 18);
+  }
+  if (slot === 'R' || /R1/.test(label || '')) {
+    const start = 0.22;
+    if (t >= start && t < start + r.stormDuration) {
+      scene.areas.push(area(23220, self.x, self.y, r.stormRadius, color, { durationLeft: r.stormDuration, label: 'Tempête', statusId: 'slow' }));
+      target.statuses = [...(target.statuses || []), status('slow', color, 'R')];
+      if (/provocation/i.test(label || '') || phase >= 2) target.statuses.push(status('taunt', color, 'R'));
+      if (/stun|pression/i.test(label || '') || phase >= 5 && t > start + r.stormExposureStunThreshold) target.statuses.push(status('stun', color, 'R'));
+      if (phase >= 5) target.x = lerp(target.x, self.x + 95, 0.035);
+      const tick = Math.floor((t - start) / 0.5) * 0.5 + start + 0.5;
+      pushDamageEvent(scene, 'bw-r-dot', t, tick, target, Math.round(r.stormBaseDpsFlat * 0.5), { periodic: true });
+    }
+  }
+  target.vitals.hp = Math.max(18, target.vitals.hp - (slot === 'R' ? Math.floor(t * 9) : slot === 'Z' && t > 0.72 ? 46 : 0));
+  self.frameState = { kind: 'bulwark', passiveName: 'Plaques', passiveStacks: plates, passiveMaxStacks: BULWARK_PASSIVE.maxPlates, anchorLeft: slot === 'A' ? Math.max(0, a.anchorDuration - (t - 0.3)) : 0, meditationLeft: slot === 'E' ? Math.max(0, e.meditationDuration - (t - 0.28)) : 0, stormLeft: slot === 'R' ? Math.max(0, r.stormDuration - (t - 0.22)) : 0, stormArmorStolen: slot === 'R' ? Math.min(r.stormStealCap, Math.floor(t * r.stormArmorStealPerSecond)) : 0, stormShieldGained: slot === 'R' && phase >= 4 ? 18 : 0 };
+}
+
+function applyRealScenario(scene, frameId, slot, phase, t, duration, scenarioLabel) {
+  scene.damageEvents = [];
+  if (frameId === 'sigil') applySigilRealScenario(scene, slot, phase, t, duration, scenarioLabel);
+  else if (frameId === 'bulwark') applyBulwarkRealScenario(scene, slot, phase, t, duration, scenarioLabel);
+  else applyVanguardRealScenario(scene, slot, phase, t, duration, scenarioLabel);
+}
+
+function syncDemoFx(scene, key, localT, absoluteTime) {
+  const looped = demoFxKey !== key || localT + 0.08 < demoFxLastT || absoluteTime < demoFxLastTime;
+  if (looped) {
+    DEMO_FX.trails.clear();
+    DEMO_FX.impacts = [];
+    DEMO_FX.rings = [];
+    DEMO_FX.damageNumbers = [];
+    DEMO_FX.castBursts = [];
+    DEMO_FX.lastProjectiles.clear();
+    DEMO_FX.lastAreas.clear();
+    DEMO_FX.lastStatuses.clear();
+  }
+  demoFxKey = key;
+  demoFxLastT = localT;
+  demoFxLastTime = absoluteTime;
+  const mock = {
+    projectiles: new Map((scene.projectiles || []).map((p) => [p.id, p])),
+    areaEffects: new Map((scene.areas || []).map((a) => [a.id, a])),
+    players: new Map((scene.ships || []).map((p) => [p.id, p])),
+    mobs: new Map(),
+    asteroids: new Map(),
+    getMe: () => scene.ships?.[0] || null,
+    consumePendingCombatFx: () => scene.damageEvents || []
+  };
+  DEMO_FX.sync(mock, absoluteTime);
+}
+
 
 function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -415,13 +747,21 @@ export function drawSessionRealAbilityDemo(ctx, canvas, card, abilityIndex, phas
   const u = clock.u;
   const t = clock.t;
   const scene = buildScene(card.id, slot, phase, u, t, scenarioIndex);
+  const scenarios = typeof ability?.getScenarios === 'function' ? ability.getScenarios(phase) : [];
+  const scenarioLabel = scenarios?.[scenarioIndex]?.label || '';
+  applyRealScenario(scene, card.id, slot, phase, t, clock.duration, scenarioLabel);
+  const fxKey = `${card.id}:${slot}:${phase}:${scenarioIndex}`;
+  syncDemoFx(scene, fxKey, t, time);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid(ctx, view, scene.camX, scene.camY);
 
   for (const effect of scene.areas) drawAreaEffect(ctx, view, effect, scene.camX, scene.camY, time);
+  DEMO_FX.drawTrails(ctx, view, scene.camX, scene.camY, time);
   for (const p of scene.projectiles) drawProjectile(ctx, view, p, scene.camX, scene.camY);
   for (const ship of scene.ships) drawShip(ctx, view, ship, scene.camX, scene.camY, time, null, scene.ships, []);
+  DEMO_FX.drawImpacts(ctx, view, scene.camX, scene.camY, time);
+  DEMO_FX.drawDamageNumbers(ctx, view, scene.camX, scene.camY, time);
 
   const screen = (world) => ({ x: (world.x - scene.camX) + view.cssW * 0.5, y: (world.y - scene.camY) + view.cssH * 0.5 });
   const self = screen(scene.ships[0]);
@@ -430,7 +770,5 @@ export function drawSessionRealAbilityDemo(ctx, canvas, card, abilityIndex, phas
   if (dist(self.x, self.y, target.x, target.y) < 170) {
     drawDemoLabel(ctx, view, slot === 'Z' && card.id === 'bulwark' ? 'PULL' : slot === 'R' ? 'BURST' : 'HIT', target.x, target.y - 72, rgba(palette.outline.r, palette.outline.g, palette.outline.b, 0.94));
   }
-  const scenarios = typeof ability?.getScenarios === 'function' ? ability.getScenarios(phase) : [];
-  const scenarioLabel = scenarios?.[scenarioIndex]?.label || '';
   drawDemoHud(ctx, view, card, slot, phase, time, u, scenarioLabel);
 }
