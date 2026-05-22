@@ -1,5 +1,6 @@
 import { getSessionFrameCards } from './SessionSetupCatalog.js';
-import { drawSessionAbilityPreview, drawSessionShipGlyph } from './SessionShipVisuals.js';
+import { drawSessionShipGlyph } from './SessionShipVisuals.js';
+import { drawSessionRealAbilityDemo } from './SessionAbilityDemoRenderer.js';
 
 const STORAGE_KEY = 'spacefrontier.session.setup';
 const STEPS = ['auth', 'mode', 'ship', 'waiting'];
@@ -143,7 +144,7 @@ export class SessionSetupOverlay {
                 <div class="session-setup__eyebrow">Vaisseaux</div>
                 <h1 class="session-setup__title session-setup__title--compact">Sélection</h1>
               </div>
-              <div class="session-setup__ship-help"></div>
+              
             </div>
             <div class="session-setup__ship-list"></div>
           </section>
@@ -486,13 +487,7 @@ export class SessionSetupOverlay {
       this.selectionSummaryEl.textContent = label;
     }
     if (this.currentPseudoEl) this.currentPseudoEl.textContent = this.getActiveAccountName();
-    if (this.shipHelpEl) {
-      this.shipHelpEl.textContent = this.selectedMode === 'endless'
-        ? 'En Endless, un compte permettra plus tard de gérer plusieurs profils de vaisseau sauvegardés.'
-        : (this.selectedMode === 'battle_next'
-          ? 'Tu resteras en attente hors-jeu jusqu’à l’ouverture automatique du prochain serveur.'
-          : 'Tu rejoindras le serveur Battle sélectionné, dans son hub de préparation.');
-    }
+
   }
 
   selectMode(mode, battleSessionId = '') {
@@ -562,7 +557,7 @@ export class SessionSetupOverlay {
       drawSessionShipGlyph(ctx, dpr, w * 0.5, h * 0.5, Math.min(w, h) * 0.18, card.id, -0.48 + Math.sin(time * 1.2) * 0.06, time, { thrust: 0.54, emphasize: true });
     }
     if (this.previewCtx && this.previewEl) {
-      drawSessionAbilityPreview(this.previewCtx, this.previewEl, card, this.selectedAbilityIndex, this.selectedPreviewPhase, time);
+      drawSessionRealAbilityDemo(this.previewCtx, this.previewEl, card, this.selectedAbilityIndex, this.selectedPreviewPhase, time);
     }
   }
 
