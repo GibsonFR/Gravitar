@@ -26,6 +26,22 @@ import { getBastionDefenseMultiplier } from '../bastion/BastionBuffs.js';
 import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { GAME_MODES, WORLD_IDS, clearPlayerBattleResidue, leaveBattleSession, recordBattleDeath, recordBattleKill } from '../modes/GameModes.js';
+import { triggerEquipmentHitProcs, triggerEquipmentTakeHitProcs } from '../equipment/EquipmentProcSystem.js';
+
+
+function triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs) {
+  if (options.isPeriodic || options.ignoreItemProcs) return;
+  const ctx = {
+    timeMs,
+    damage: finalAmount,
+    crit: !!options.crit,
+    shielded,
+    sourceSlot: options.sourceSlot || '',
+    visualKind: options.visualKind || ''
+  };
+  if (sourcePlayer?.kind === 'player') triggerEquipmentHitProcs(state, sourcePlayer, target, ctx);
+  if (target?.kind === 'player') triggerEquipmentTakeHitProcs(state, target, sourcePlayer, ctx);
+}
 
 function setHint(player, text, duration = 2.2) {
   player.uiHint = text;
@@ -258,11 +274,11 @@ function resetPlayerRunAfterDeath(state, player, timeMs) {
   setHint(player, 'Vaisseau détruit — choisis un nouveau départ', 3.5);
 }
 
-function grantLifesteal(sourcePlayer, dealtAmount, bonusRatio = 0) {
+function grantLifesteal(sourcePlayer, dealtAmount) {
   if (!sourcePlayer?.stats || dealtAmount <= 0) return;
   const ratio = Math.max(
     getOutgoingLifestealRatio(sourcePlayer),
-    Math.max(0, sourcePlayer?.progressionBonuses?.lifestealRatio ?? 0) + Math.max(0, bonusRatio || 0)
+    Math.max(0, sourcePlayer?.progressionBonuses?.lifestealRatio ?? 0)
   );
   if (ratio <= 0) return;
   const healMult = getIncomingHealMultiplier(sourcePlayer) * Math.max(0, sourcePlayer?.progressionBonuses?.healMult ?? 1);
@@ -312,8 +328,11 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     if (!options.ignoreBreakOnHit) breakStatusesOnExternalHit(target, timeMs);
     const died = applyDamageWithShieldPen(target, finalAmount, sourcePlayer, bypassShield);
     onDamageTakenByFrame(state, target, finalAmount, sourcePlayer, timeMs, options);
-    grantLifesteal(sourcePlayer, finalAmount, options.bonusLifestealRatio || 0);
-    if (!died) return;
+    grantLifesteal(sourcePlayer, finalAmount);
+    if (!died) {
+      triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs);
+      return;
+    }
 
     target.deaths += 1;
     if (sourcePlayer && sourcePlayer.kind === 'player' && sourcePlayer.id !== target.id) {
@@ -331,8 +350,11 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   if (target.kind === 'mob') {
     if (target.stats.hp <= 0) return;
     const died = applyHullDamage(target.stats, finalAmount);
-    grantLifesteal(sourcePlayer, finalAmount, options.bonusLifestealRatio || 0);
-    if (!died) return;
+    grantLifesteal(sourcePlayer, finalAmount);
+    if (!died) {
+      triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs);
+      return;
+    }
 
     target.diedAt = timeMs;
     target.killedById = sourcePlayer?.id ?? 0;
@@ -349,7 +371,8 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   if (target.kind === 'asteroid') {
     if (target.stats.hp <= 0) return;
     const died = applyHullDamage(target.stats, finalAmount);
-    grantLifesteal(sourcePlayer, finalAmount, options.bonusLifestealRatio || 0);
+    grantLifesteal(sourcePlayer, finalAmount);
+    if (!died) triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs);
     if (target.demoDummy) {
       target.stats.hp = target.stats.maxHp;
       target.stats.shield = target.stats.maxShield ?? 0;

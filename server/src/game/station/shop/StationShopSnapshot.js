@@ -60,6 +60,8 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
         priceCredits: getEffectivePurchasePriceCredits(player, offer.priceCredits || def.priceCredits || 0),
         basePriceCredits: def.priceCredits || 0,
         description: def.description || '',
+        passives: Array.isArray(def.passives) ? def.passives.map((entry) => typeof entry === 'string' ? entry : { ...entry }) : def.passives,
+        passiveEffects: Array.isArray(def.passiveEffects) ? def.passiveEffects.map((entry) => ({ ...entry })) : [],
         bonuses: { ...(def.bonuses ?? {}) },
         tags: (def.tags ?? []).map((tag) => ({ ...tag })),
         weaponProfile: def.weaponProfile ? { ...def.weaponProfile } : null,

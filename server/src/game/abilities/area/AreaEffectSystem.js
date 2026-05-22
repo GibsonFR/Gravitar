@@ -9,7 +9,7 @@ export function updateAreaEffects(state, dt) {
     while (effect.tickLeft <= 0 && effect.durationLeft > 0) {
       const owner = state.players.get(effect.ownerId);
       if (owner) {
-        dealAreaDamage(state, owner, effect.x, effect.y, effect.radius, effect.damage);
+        dealAreaDamage(state, owner, effect.x, effect.y, effect.radius, effect.damage, { sourceSlot: effect.slot || '', visualKind: 'ability_area' });
         const hits = collectAttackablesInRadius(state, owner, effect.x, effect.y, effect.radius);
         applyStatusSpecsToTargets(state, owner, hits, effect.onTickStatuses);
       }

@@ -25,8 +25,12 @@ export function collectAttackablesInRadius(state, owner, x, y, radius) {
   return out;
 }
 
-export function dealAreaDamage(state, owner, x, y, radius, damage) {
+export function dealAreaDamage(state, owner, x, y, radius, damage, options = null) {
   const hits = collectAttackablesInRadius(state, owner, x, y, radius);
-  for (const entity of hits) applyDamage(state, entity, damage, owner);
+  for (const entity of hits) applyDamage(state, entity, damage, owner, {
+    timeMs: options?.timeMs,
+    sourceSlot: options?.sourceSlot || '',
+    visualKind: options?.visualKind || 'ability_area'
+  });
   return hits.length;
 }
