@@ -78,7 +78,7 @@ export class ConvertersPanelView {
       const slotNode = ev.target?.closest?.('[data-slot-id]');
       if (!slotNode) return;
       const slot = this.slots.find((entry) => entry.id === (slotNode.dataset.slotId || ''));
-      if (slot?.item?.itemId && this.sendCmd) this.sendCmd('toggle_converter', { itemId: slot.item.itemId });
+      if (slot?.item?.itemId && this.sendCmd) this.sendCmd('toggle_converter', { itemId: slot.item.itemId, enabled: !slot.item.converterEnabled });
     });
 
     this.el.addEventListener('click', (ev) => {
@@ -86,7 +86,10 @@ export class ConvertersPanelView {
       if (!btn || !this.sendCmd) return;
       const itemId = btn.dataset.itemId || this.getFocusedSlot()?.item?.itemId || '';
       if (!itemId) return;
-      if (btn.dataset.act === 'toggle') this.sendCmd('toggle_converter', { itemId });
+      if (btn.dataset.act === 'toggle') {
+        const item = this.getFocusedSlot()?.item || this.slots.find((slot) => slot.item?.itemId === itemId)?.item || null;
+        this.sendCmd('toggle_converter', { itemId, enabled: !(item?.converterEnabled) });
+      }
     });
   }
 

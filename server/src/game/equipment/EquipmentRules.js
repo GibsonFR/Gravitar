@@ -16,14 +16,32 @@ export function isConverterEnabled(player, itemId) {
   return table[itemId] !== false;
 }
 
+export function setConverterEnabledExplicit(player, itemId, enabled, timeMs = 0) {
+  const def = getItemDef(itemId);
+  if (!def || def.categoryId !== ITEM_CATEGORY_IDS.CONVERTER) return false;
+  if (!isItemEquipped(player, itemId)) return false;
+  setConverterEnabled(player, itemId, !!enabled);
+  const runtime = player?.equipment?.converterRuntimeById?.[itemId];
+  if (runtime) {
+    runtime.enabled = !!enabled;
+    if (enabled) {
+      runtime.blockedReason = runtime.blockedReason === 'disabled' ? '' : (runtime.blockedReason || 'running');
+      runtime.blockedLabel = runtime.blockedLabel === 'coupé' ? 'actif' : (runtime.blockedLabel || 'actif');
+    } else {
+      runtime.blockedReason = 'disabled';
+      runtime.blockedLabel = 'coupé';
+    }
+  }
+  player.equipment.lastChangedAt = timeMs | 0;
+  return true;
+}
+
 export function toggleConverterEnabled(player, itemId, timeMs = 0) {
   const def = getItemDef(itemId);
   if (!def || def.categoryId !== ITEM_CATEGORY_IDS.CONVERTER) return false;
   if (!isItemEquipped(player, itemId)) return false;
   const next = !isConverterEnabled(player, itemId);
-  setConverterEnabled(player, itemId, next);
-  player.equipment.lastChangedAt = timeMs | 0;
-  return true;
+  return setConverterEnabledExplicit(player, itemId, next, timeMs);
 }
 
 export function hasOwnedItem(player, itemId) {

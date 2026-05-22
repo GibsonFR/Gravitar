@@ -179,6 +179,9 @@ export function startApp() {
   net.connect();
 
   const sendCmd = (cmd, payload = {}, meta = {}) => {
+    if (cmd === 'toggle_converter' && payload?.itemId && (payload.enabled === true || payload.enabled === false)) {
+      store.setConverterOptimistic?.(payload.itemId, payload.enabled);
+    }
     const cmdId = store.noteCommandPending?.(cmd, payload, meta) || '';
     net.send({ t: 'cmd', cmd, cmdId, ...(payload || {}) });
     return cmdId;

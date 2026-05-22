@@ -630,6 +630,55 @@ export class WorldStore {
   }
 
 
+  _forEachConverterItem(itemId, fn) {
+    if (!itemId || typeof fn !== 'function') return;
+    const eq = this.myState?.equipment;
+    const groups = [
+      eq?.ownedItems,
+      eq?.equippedItems,
+      eq?.converters?.equipped,
+      eq?.converters?.inventory,
+      eq?.activeConverters
+    ];
+    for (const arr of groups) {
+      if (!Array.isArray(arr)) continue;
+      for (const item of arr) {
+        if (item?.itemId === itemId) fn(item);
+      }
+    }
+  }
+
+  setConverterOptimistic(itemId, enabled) {
+    const id = String(itemId || '');
+    if (!id || !this.myState?.equipment) return;
+    const next = !!enabled;
+    this._forEachConverterItem(id, (item) => {
+      item.converterEnabled = next;
+      item.enabled = next;
+      if (item.converterRuntime) {
+        item.converterRuntime.enabled = next;
+        item.converterRuntime.blockedReason = next ? '' : 'disabled';
+        item.converterRuntime.blockedLabel = next ? 'actif' : 'coupé';
+      }
+      if (next && item.blockedLabel === 'coupé') item.blockedLabel = 'actif';
+      if (!next) item.blockedLabel = 'coupé';
+    });
+    const conv = this.myState.equipment.converters;
+    if (conv?.summary) {
+      const equipped = Array.isArray(conv.equipped) ? conv.equipped : [];
+      conv.summary.enabledCount = equipped.filter((item) => item?.converterEnabled).length;
+    }
+    const active = conv?.active;
+    if (Array.isArray(active)) {
+      for (const entry of active) {
+        if (entry?.itemId !== id) continue;
+        entry.enabled = next;
+        entry.blockedReason = next ? '' : 'disabled';
+        entry.blockedLabel = next ? 'actif' : 'coupé';
+      }
+    }
+  }
+
   noteCommandPending(cmd, payload = {}, meta = {}) {
     const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const now = performance.now();

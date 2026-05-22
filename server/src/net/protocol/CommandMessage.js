@@ -54,6 +54,12 @@ export function sanitizeCommandMessage(raw) {
     const index = Number.isFinite(raw.index) ? Math.floor(raw.index) : Math.floor(Number(raw.index) || 0);
     msg.index = Math.max(0, Math.min(16, index));
   }
+  if (cmd === 'toggle_converter') {
+    if (raw.enabled === true || raw.enabled === false) msg.enabled = !!raw.enabled;
+    else if (raw.enabled === 'true' || raw.enabled === '1' || raw.enabled === 1) msg.enabled = true;
+    else if (raw.enabled === 'false' || raw.enabled === '0' || raw.enabled === 0) msg.enabled = false;
+  }
+
   if (cmd === 'assign_rocket_ammo' || cmd === 'unassign_rocket_ammo' || cmd === 'switch_rocket_slot') {
     const slot = Number.isFinite(raw.slot) ? Math.floor(raw.slot) : Math.floor(Number(raw.slot) || 0);
     msg.slot = Math.max(0, Math.min(1, slot));

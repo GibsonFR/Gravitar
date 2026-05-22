@@ -2,6 +2,9 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+const MOB_AGGRO_RANGE_MULT = 2.55;
+const MOB_LEASH_RANGE_MULT = 2.35;
+
 function scaledColor(color, factor) {
   return {
     r: clamp(Math.round(color.r * factor), 0, 255),
@@ -35,8 +38,14 @@ export function buildScaledMobProps(def, mapLevel = 1, elite = false, mutated = 
     onHit: def.onHit ?? null,
     maxHp: Math.round(def.maxHp * scale * eliteBoost),
     moveSpeed: def.moveSpeed * (elite ? 1.04 : 1) * (mutated ? 1.03 : 1),
-    aggroRange: def.aggroRange + levelDelta * 12 + (elite ? 26 : 0) + (mutated ? 18 : 0),
-    leashRange: def.leashRange + levelDelta * 16 + (elite ? 30 : 0) + (mutated ? 22 : 0),
+    // V93: les mobs doivent réagir avant que le joueur puisse les grignoter gratuitement.
+    // On garde les valeurs de base comme identité de mob, mais on élargit fortement
+    // la zone d'aggro et de poursuite côté serveur.
+    aggroRange: Math.round((def.aggroRange + levelDelta * 12 + (elite ? 26 : 0) + (mutated ? 18 : 0)) * MOB_AGGRO_RANGE_MULT),
+    leashRange: Math.round(Math.max(
+      (def.leashRange + levelDelta * 16 + (elite ? 30 : 0) + (mutated ? 22 : 0)) * MOB_LEASH_RANGE_MULT,
+      (def.aggroRange + levelDelta * 12 + (elite ? 26 : 0) + (mutated ? 18 : 0)) * MOB_AGGRO_RANGE_MULT + 260
+    )),
     attackRange: def.attackRange + (elite ? 10 : 0) + (mutated ? 4 : 0),
     preferredRange: (def.preferredRange ?? def.attackRange) + (elite ? 12 : 0) + (mutated ? 4 : 0),
     retreatRange: (def.retreatRange ?? Math.max(36, def.attackRange * 0.45)) + (elite ? 6 : 0),

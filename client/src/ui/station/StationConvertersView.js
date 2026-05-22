@@ -85,10 +85,6 @@ export class StationConvertersView {
       if (nextInside) return;
       this.hoverItemId = '';
       this.hoverSlotId = '';
-    this.pointerDrag = null;
-    this.dragGhostEl = null;
-    this.dropSlotId = '';
-    this.suppressClickUntil = 0;
       this.renderDetails();
     });
     this.el.addEventListener('pointerdown', (ev) => {
@@ -163,7 +159,10 @@ export class StationConvertersView {
     if (!itemId) return;
     if (act === 'equip') this.cmdQueue.send('equip_item', { itemId });
     if (act === 'unequip') this.cmdQueue.send('unequip_item', { itemId });
-    if (act === 'toggle') this.cmdQueue.send('toggle_converter', { itemId });
+    if (act === 'toggle') {
+      const item = this.getItemById(itemId);
+      this.cmdQueue.send('toggle_converter', { itemId, enabled: !(item?.converterEnabled) }, { station: true });
+    }
     if (act === 'sell') this.cmdQueue.send('sell_item', { itemId });
   }
 
