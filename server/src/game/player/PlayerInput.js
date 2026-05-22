@@ -18,6 +18,41 @@ function setMoveTarget(player, x, y) {
   clearAutoAttack(player);
 }
 
+function acceptClientPose(player, msg, timeMs, abilityFresh) {
+  if (player.sessionSetupPending || timeMs < (player.ignoreClientPoseUntil ?? 0)) return;
+  if (!Number.isFinite(msg.cx) || !Number.isFinite(msg.cy)) return;
+
+  const lastAt = Number.isFinite(player.lastClientPoseAt) ? player.lastClientPoseAt : timeMs - 16;
+  const dt = Math.max(0.004, Math.min(0.25, (timeMs - lastAt) / 1000));
+  const dx = msg.cx - player.x;
+  const dy = msg.cy - player.y;
+  const d = Math.hypot(dx, dy);
+  const speed = Math.max(160, Math.abs(player.engine || 260));
+  const grace = abilityFresh ? 620 : 190;
+  const coherent = d <= speed * dt * 5.5 + grace;
+
+  // Mode .io réactif : si le mouvement client est cohérent, le serveur l'accepte.
+  // S'il est incohérent, on ignore seulement cette pose au lieu de créer un rollback brutal.
+  if (coherent) {
+    const seq = msg.sectorSeq | 0;
+    const lastSeq = player.lastClientSectorSeq | 0;
+    if (seq >= lastSeq) {
+      player.lastClientSectorSeq = seq;
+      player.x = msg.cx;
+      player.y = msg.cy;
+      if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
+      if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
+    }
+    player.lastClientPoseAt = timeMs;
+  }
+
+  if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
+  if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
+  if (Number.isFinite(msg.crot)) player.rot = msg.crot;
+  if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
+  player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 720 : 320);
+}
+
 function applyActionPacket(state, player, action, timeMs) {
   if (!action || (action.seq | 0) <= (player.lastActionSeq | 0)) return;
   player.lastActionSeq = action.seq | 0;
@@ -84,27 +119,9 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
   if (Number.isFinite(msg.msx)) player.mouseSx = msg.msx;
   if (Number.isFinite(msg.msy)) player.mouseSy = msg.msy;
 
-  if (!player.sessionSetupPending && timeMs >= (player.ignoreClientPoseUntil ?? 0) && Number.isFinite(msg.cx) && Number.isFinite(msg.cy)) {
-    // Prototype .io : pose client autoritaire. Les paquets de secteur plus anciens
-    // sont ignorés pour éviter les allers-retours à la frontière.
-    const seq = msg.sectorSeq | 0;
-    const lastSeq = player.lastClientSectorSeq | 0;
-    const acceptSectorPose = seq >= lastSeq;
-    if (acceptSectorPose) {
-      player.lastClientSectorSeq = seq;
-      player.x = msg.cx;
-      player.y = msg.cy;
-      if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
-      if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
-    }
-    if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
-    if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
-    if (Number.isFinite(msg.crot)) player.rot = msg.crot;
-    if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
-    const abilityFresh = (msg.abilitySeq | 0) > (player.lastClientAbilitySeq | 0);
-    if (abilityFresh) player.lastClientAbilitySeq = msg.abilitySeq | 0;
-    player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 720 : 260);
-  }
+  const abilityFresh = (msg.abilitySeq | 0) > (player.lastClientAbilitySeq | 0);
+  if (abilityFresh) player.lastClientAbilitySeq = msg.abilitySeq | 0;
+  acceptClientPose(player, msg, timeMs, abilityFresh);
 
   if (!player.sessionSetupPending && Number.isFinite(msg.aimWorldX) && Number.isFinite(msg.aimWorldY)) {
     player.mouseSx = msg.aimWorldX - player.x + player.viewportW * 0.5;
@@ -139,17 +156,24 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     return true;
   }
 
-  if (Array.isArray(msg.actions)) {
+  const hasActionPackets = Array.isArray(msg.actions) && msg.actions.length > 0;
+  if (hasActionPackets) {
     for (const action of msg.actions) applyActionPacket(state, player, action, timeMs);
+    // Les actions modernes sont événementielles. On ne relit pas en plus les anciens
+    // booléens maintenus sur plusieurs frames, sinon cast/rocket/interact peuvent être
+    // rejoués ou entrer en conflit avec l'état local.
+    player.abilityA = false;
+    player.abilityZ = false;
+    player.abilityE = false;
+    player.abilityR = false;
+  } else {
+    player.abilityA = !!msg.a;
+    player.abilityZ = !!msg.z;
+    player.abilityE = !!msg.e;
+    player.abilityR = !!msg.r;
+    if (msg.interactTap) player.interactTap = true;
+    if (msg.rocketTap) player.rocketTap = true;
   }
-
-  player.abilityA = !!msg.a;
-  player.abilityZ = !!msg.z;
-  player.abilityE = !!msg.e;
-  player.abilityR = !!msg.r;
-
-  if (msg.interactTap) player.interactTap = true;
-  if (msg.rocketTap) player.rocketTap = true;
 
   if (msg.moveWorld && Number.isFinite(msg.moveWorldX) && Number.isFinite(msg.moveWorldY)) {
     // Move-click = ordre explicite de mouvement et annulation de l'auto-attaque.

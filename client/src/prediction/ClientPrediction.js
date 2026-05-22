@@ -180,10 +180,11 @@ export class ClientPrediction {
     const down = !!input.rocketTap;
     if (down && !this.lastKeys.F) {
       if (finite(me.rocketCooldownLeft, 0) <= 0 && finite(me.vitals?.energy, 999) > 1) {
+        // V82: le client garde seulement le feedback HUD immédiat.
+        // Les projectiles/dégâts roquette viennent du serveur pour éviter les tirs fantômes
+        // quand le serveur refuse finalement l'action.
         me.rocketCooldownLeft = Math.max(0.25, finite(this.store.myState?.equipment?.launcher?.cooldown, 0.75));
-        const target = getSelectedTarget(this.store);
-        this.spawnLocalProjectile(me, target.entity || worldMouse, { rocket: true, targetKind: target.kind, targetId: target.id, impactDamage: localDamageFor('', true) });
-        if (target.entity && target.kind !== 'station') this.store.applyLocalDamage(target.kind, target.id, localDamageFor('', true), target.entity.x, target.entity.y);
+        me._localActionFlashUntil = performance.now() + 160;
       }
     }
     this.lastKeys.F = down;
@@ -208,9 +209,11 @@ export class ClientPrediction {
     const aim = target.entity || worldMouse;
     const dash = shouldDash(myState, slot);
     if (dash > 0) this.applyDash(me, worldMouse, dash);
-    if (shouldProjectile(slot)) this.spawnLocalProjectile(me, aim, { slot, targetKind: target.kind, targetId: target.id, impactDamage: localDamageFor(slot) });
-    if (target.entity && target.kind !== 'station') this.store.applyLocalDamage(target.kind, target.id, localDamageFor(slot), target.entity.x, target.entity.y);
+    // V82: on ne prédit plus les projectiles/dégâts côté client.
+    // Le mouvement/dash reste local-authority, mais les impacts combat restent serveur-authority.
+    // Ça supprime les divergences du type "mon client tire encore alors que le serveur a annulé".
     this.spawnLocalCastArea(me, aim, slot);
+    me._localActionFlashUntil = performance.now() + 180;
 
     const label = hud?.label || slot;
     myState.hint = label;
@@ -291,37 +294,12 @@ export class ClientPrediction {
   }
 
   predictAutoAttackFx(me, dt) {
-    this.localAutoCooldown = Math.max(0, this.localAutoCooldown - Math.max(0, dt));
-    const target = getAttackTarget(this.store);
-    if (!target.entity || target.kind === 'station') return;
-
-    if (performance.now() >= (this.store.localPrediction?.attackUntil || 0)) { this.store.cancelLocalAttack?.({ keepSeq: true }); return; }
-
-    const interval = getLocalAutoInterval(this.store);
-    const rateRange = finite(this.store?.myState?.derived?.autoAttackRange, 0);
-    const range = rateRange > 0 ? rateRange + finite(target.entity.radius, 18) : 420;
-    const dx = target.entity.x - me.x;
-    const dy = target.entity.y - me.y;
-    if (dx * dx + dy * dy > range * range) return;
-
-    const currentTarget = { kind: target.kind, id: target.id | 0 };
-    if (!sameLocalTarget(this.lastLocalAutoTarget, currentTarget)) {
-      // Changement de cible = feedback immédiat, mais pas une mitraillette infinie.
-      this.localAutoCooldown = Math.min(this.localAutoCooldown, 0.02);
-      this.lastLocalAutoTarget = currentTarget;
-    }
-
-    if (this.localAutoCooldown > 0) return;
-    this.localAutoCooldown = interval;
-    this.lastAttackFxAt = performance.now();
-    this.spawnLocalProjectile(me, target.entity, {
-      auto: true,
-      targetKind: target.kind,
-      targetId: target.id,
-      impactDamage: Math.max(1, finite(this.store?.myState?.derived?.autoAttackDamage, 7)),
-      visualOnly: true,
-      expectedServerEchoWindow: Math.max(0.18, interval * 0.55)
-    });
+    // V82: plus de boucle locale de tirs automatiques.
+    // Le client garde le lock/feedback de sélection, mais les projectiles d'auto-attaque
+    // viennent uniquement des snapshots serveur. Sinon, dès que le serveur annule
+    // l'attaque, le client peut continuer à afficher des tirs fantômes pendant plusieurs secondes.
+    this.localAutoCooldown = 0;
+    this.lastLocalAutoTarget = null;
   }
 
   predictMovement(me, dt) {
