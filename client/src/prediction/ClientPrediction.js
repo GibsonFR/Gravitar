@@ -244,7 +244,11 @@ export class ClientPrediction {
     const target = getSelectedTarget(this.store);
     const aim = target.entity || worldMouse;
     const dash = getLocalDashDistance(myState, slot);
+    const dashFromX = me.x;
+    const dashFromY = me.y;
     const appliedDash = dash > 0 && this.applyDash(me, worldMouse, dash);
+    const dashToX = me.x;
+    const dashToY = me.y;
     const boost = getLocalMoveBoost(myState, slot);
     if (boost.pct > 0 && boost.duration > 0) {
       const local = this.store.localPrediction || {};
@@ -252,6 +256,7 @@ export class ClientPrediction {
       local.localMoveBoostUntil = Math.max(local.localMoveBoostUntil || 0, performance.now() + boost.duration * 1000);
       me._localMoveBoostUntil = local.localMoveBoostUntil;
       me._localMoveBoostMult = local.localMoveBoostMult;
+      me._localAbilityBoostUntil = local.localMoveBoostUntil;
     }
     // V92: seuls le mouvement/dash/HUD sont locaux. Les projectiles/dégâts restent serveur-authority.
     this.spawnLocalCastArea(me, aim, slot);
@@ -260,9 +265,14 @@ export class ClientPrediction {
     this.queueNetAction({
       type: 'cast',
       slot,
+      abilityCastId: this.store.localPrediction?.abilitySeq | 0,
       aimX: aim.x,
       aimY: aim.y,
       clientAppliedDash: !!appliedDash,
+      dashFromX,
+      dashFromY,
+      dashToX,
+      dashToY,
       castLocalX: me.x,
       castLocalY: me.y,
       castLocalSx: me.sx | 0,
@@ -306,11 +316,13 @@ export class ClientPrediction {
     me.vy = d.y * dashSpeed;
     me.rot = Math.atan2(d.y, d.x);
     me._localThrust = 1;
-    me._clientDashGrace = 0.42;
+    me._clientDashGrace = 0.62;
     me._localDashFromX = beforeX;
     me._localDashFromY = beforeY;
-    me._localDashUntil = performance.now() + 420;
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 1700);
+    me._localDashToX = me.x;
+    me._localDashToY = me.y;
+    me._localDashUntil = performance.now() + 620;
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 2400);
     this.requestServerSectorWrapIfNeeded(me);
     return true;
   }
@@ -420,7 +432,9 @@ export class ClientPrediction {
 
     let speed = finite(this.store.myState?.derived?.moveSpeed, finite(me.engine, 250));
     const predLocal = this.store.localPrediction || {};
-    if (performance.now() < finite(predLocal.localMoveBoostUntil, 0)) speed *= Math.max(1, finite(predLocal.localMoveBoostMult, 1));
+    const nowMs = performance.now();
+    if (nowMs < finite(predLocal.localMoveBoostUntil, 0)) speed *= Math.max(1, finite(predLocal.localMoveBoostMult, 1));
+    if (nowMs < finite(me._localAbilityBoostUntil, 0)) speed *= Math.max(1, finite(me._localMoveBoostMult, 1));
     const step = Math.min(d, speed * dt);
     me.x += (dx / d) * step;
     me.y += (dy / d) * step;

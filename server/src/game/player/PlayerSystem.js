@@ -299,8 +299,13 @@ function updateAbilityCasting(state, player, dt, timeMs) {
       clientPoseApplied: !!action.clientPoseApplied,
       clientAppliedDash: !!action.clientAppliedDash,
       seq: action.seq | 0,
+      abilityCastId: action.abilityCastId | 0,
       aimX: action.aimX,
-      aimY: action.aimY
+      aimY: action.aimY,
+      dashFromX: action.dashFromX,
+      dashFromY: action.dashFromY,
+      dashToX: action.dashToX,
+      dashToY: action.dashToY
     });
   }
   for (const slot of slots) if (consumeAbilityEdge(player, slot)) requested.push({ slot, clientPoseApplied: false, clientAppliedDash: false, seq: 0 });
@@ -322,8 +327,13 @@ function updateAbilityCasting(state, player, dt, timeMs) {
         slot,
         seq: req.seq | 0,
         until: timeMs + 900,
-        dashAlreadyApplied: !!req.clientAppliedDash
+        dashAlreadyApplied: !!req.clientAppliedDash,
+        dashFromX: req.dashFromX,
+        dashFromY: req.dashFromY,
+        dashToX: req.dashToX,
+        dashToY: req.dashToY
       };
+      player.clientAppliedAbilityPose = player._activeClientAppliedAbility;
     }
     const ok = tryCastAbility(state, player, slot, timeMs);
     if (ok) {

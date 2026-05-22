@@ -959,9 +959,25 @@ function castVanguardA(state, player, timeMs) {
   return true;
 }
 
-function clientAlreadyAppliedDash(player, slot, timeMs) {
+function getClientAppliedAbility(player, slot, timeMs) {
   const a = player?._activeClientAppliedAbility || player?.clientAppliedAbilityPose || null;
-  return !!a && a.slot === slot && !!a.dashAlreadyApplied && timeMs <= (a.until || 0);
+  if (!a || a.slot !== slot || timeMs > (a.until || 0)) return null;
+  return a;
+}
+
+function clientAlreadyAppliedDash(player, slot, timeMs) {
+  const a = getClientAppliedAbility(player, slot, timeMs);
+  return !!a && !!a.dashAlreadyApplied;
+}
+
+function clientDashLine(player, slot, timeMs, fallbackFromX, fallbackFromY, fallbackToX, fallbackToY) {
+  const a = getClientAppliedAbility(player, slot, timeMs);
+  if (a?.dashAlreadyApplied
+    && Number.isFinite(a.dashFromX) && Number.isFinite(a.dashFromY)
+    && Number.isFinite(a.dashToX) && Number.isFinite(a.dashToY)) {
+    return { fromX: a.dashFromX, fromY: a.dashFromY, toX: a.dashToX, toY: a.dashToY };
+  }
+  return { fromX: fallbackFromX, fromY: fallbackFromY, toX: fallbackToX, toY: fallbackToY };
 }
 
 function castVanguardZ(state, player, timeMs) {
@@ -978,6 +994,7 @@ function castVanguardZ(state, player, timeMs) {
   const toX = player.x + dir.x * z.dashDistance;
   const toY = player.y + dir.y * z.dashDistance;
   const clientDash = clientAlreadyAppliedDash(player, 'Z', timeMs);
+  const dashLine = clientDashLine(player, 'Z', timeMs, fromX, fromY, toX, toY);
   if (!clientDash) applyDashMove(player, toX, toY, 0.10, z.dashDistance / 0.10);
 
   const fs = getVanguardState(player);
@@ -991,7 +1008,7 @@ function castVanguardZ(state, player, timeMs) {
     let hits = 0;
     forEachHostileEntityInSector(state, player, (target) => {
       const rr = 20 + (target.radius ?? 0);
-      if (linePointDistance(target.x, target.y, player.x, player.y, toX, toY) > rr) return;
+      if (linePointDistance(target.x, target.y, dashLine.fromX, dashLine.fromY, dashLine.toX, dashLine.toY) > rr) return;
       applyStatus(target, I.SLOW, z.trailSlowDuration, {
         sourceId: player.id,
         hostile: true,
@@ -1003,10 +1020,10 @@ function castVanguardZ(state, player, timeMs) {
     });
     if (hits > 0) addVanguardHeat(player, hits, timeMs);
     fs.trailLeft = z.trailSlowDuration;
-    fs.trailStartX = fromX;
-    fs.trailStartY = fromY;
-    fs.trailEndX = clientDash ? player.x : toX;
-    fs.trailEndY = clientDash ? player.y : toY;
+    fs.trailStartX = dashLine.fromX;
+    fs.trailStartY = dashLine.fromY;
+    fs.trailEndX = dashLine.toX;
+    fs.trailEndY = dashLine.toY;
     fs.trailSlowPct = z.trailSlowPct;
     fs.trailSlowDuration = z.trailSlowDuration;
   }
@@ -1160,6 +1177,7 @@ function castSigilE(state, player, timeMs) {
   const toX = player.x + dir.x * e.eDashDistance;
   const toY = player.y + dir.y * e.eDashDistance;
   const clientDash = clientAlreadyAppliedDash(player, 'E', timeMs);
+  const dashLine = clientDashLine(player, 'E', timeMs, fromX, fromY, toX, toY);
   if (!clientDash) applyDashMove(player, toX, toY, 0.10, e.eDashDistance / 0.10);
   applyStatus(player, I.CAMOUFLAGE, e.eCamouflageDuration, {
     sourceId: player.id,
@@ -1170,10 +1188,10 @@ function castSigilE(state, player, timeMs) {
   const fs = getSigilState(player);
   fs.veilLeft = Math.max(fs.veilLeft, e.eCamouflageDuration);
   fs.trailLeft = e.eTrailDuration;
-  fs.trailStartX = fromX;
-  fs.trailStartY = fromY;
-  fs.trailEndX = clientDash ? player.x : toX;
-  fs.trailEndY = clientDash ? player.y : toY;
+  fs.trailStartX = dashLine.fromX;
+  fs.trailStartY = dashLine.fromY;
+  fs.trailEndX = dashLine.toX;
+  fs.trailEndY = dashLine.toY;
   fs.trailSlowPct = e.eTrailSlowPct;
   fs.trailSlowDuration = e.eTrailSlowDuration;
   if (e.eGroundedDurationOnMaxRunes > 0) {

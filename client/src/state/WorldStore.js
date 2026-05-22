@@ -496,7 +496,10 @@ export class WorldStore {
     if (!['A', 'Z', 'E', 'R'].includes(s)) return;
     const now = performance.now();
     this.localPrediction.abilitySeq = (this.localPrediction.abilitySeq | 0) + 1;
-    this.localPrediction.localCooldownLocks[s] = now + 900;
+    // Les snapshots serveur arrivent souvent en retard par rapport au cast local.
+    // On protège le cooldown/HUD local assez longtemps pour ne pas donner l'impression
+    // que l'ability a été annulée puis rejouée quand le serveur confirme.
+    this.localPrediction.localCooldownLocks[s] = now + 2200;
     if (!this.myState.cooldowns) this.myState.cooldowns = {};
     if (Number.isFinite(cooldownLeft)) this.myState.cooldowns[s] = Math.max(0, cooldownLeft);
     if (this.myState.abilityHud?.[s] && Number.isFinite(cooldownLeft)) {

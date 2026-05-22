@@ -79,7 +79,7 @@ function applyClientPoseFromAction(player, action, timeMs) {
   if (Number.isFinite(action.crot)) player.rot = action.crot;
   if (Number.isFinite(action.cthrust)) player.localThrust = action.cthrust;
   player.lastClientPoseAt = timeMs;
-  player.clientAuthoritativeUntil = timeMs + 1200;
+  player.clientAuthoritativeUntil = timeMs + 1800;
 }
 
 
@@ -147,10 +147,25 @@ function applyActionPacket(state, player, action, timeMs) {
       timeMs,
       clientPoseApplied: true,
       clientAppliedDash: !!action.clientAppliedDash,
+      abilityCastId: action.abilityCastId | 0,
       aimX: action.aimX,
-      aimY: action.aimY
+      aimY: action.aimY,
+      dashFromX: action.dashFromX,
+      dashFromY: action.dashFromY,
+      dashToX: action.dashToX,
+      dashToY: action.dashToY
     });
-    player.clientAppliedAbilityPose = { slot: action.slot, seq: action.seq | 0, until: timeMs + 900 };
+    player.clientAppliedAbilityPose = {
+      slot: action.slot,
+      seq: action.seq | 0,
+      abilityCastId: action.abilityCastId | 0,
+      until: timeMs + 1800,
+      dashAlreadyApplied: !!action.clientAppliedDash,
+      dashFromX: action.dashFromX,
+      dashFromY: action.dashFromY,
+      dashToX: action.dashToX,
+      dashToY: action.dashToY
+    };
     if (player.pendingAbilityCasts.length > 8) player.pendingAbilityCasts.splice(0, player.pendingAbilityCasts.length - 8);
     return;
   }
