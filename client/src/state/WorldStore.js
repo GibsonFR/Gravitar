@@ -366,8 +366,22 @@ export class WorldStore {
     this.chatUnread = 0;
   }
 
-  applyHello(id) {
-    this.myId = id;
+  applyHello(id, sessionToken = '', resumed = false) {
+    const nextId = id | 0;
+    if (this.myId && this.myId !== nextId) {
+      this.players.clear();
+      this.mobs.clear();
+      this.asteroids.clear();
+      this.stations.clear();
+      this.portals.clear();
+      this.projectiles.clear();
+      this.areaEffects.clear();
+      this.loots.clear();
+      this.myState = null;
+    }
+    this.myId = nextId;
+    this.sessionToken = String(sessionToken || '');
+    this.connectionResumed = !!resumed;
   }
 
   applySnapshot(msg) {

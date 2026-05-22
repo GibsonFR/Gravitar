@@ -3,54 +3,55 @@ export class NetClient {
     this.store = store;
     this.onStatus = onStatus;
     this.ws = null;
-    this.reconnectDelayMs = 500;
     this.reconnectTimer = 0;
-    this.sessionToken = this.getOrCreateSessionToken();
+    this.sessionTokenKey = 'gravitar.sessionToken.v1';
+    this.manualClose = false;
   }
 
-  getOrCreateSessionToken() {
-    const key = 'gravitar_ws_session_token_v1';
+  getSessionToken() {
+    try { return localStorage.getItem(this.sessionTokenKey) || ''; } catch { return ''; }
+  }
+
+  setSessionToken(token) {
+    const clean = String(token || '').trim();
     try {
-      let token = String(localStorage.getItem(key) || '').trim();
-      if (!/^[a-zA-Z0-9_-]{24,96}$/.test(token)) {
-        const bytes = new Uint8Array(24);
-        crypto.getRandomValues(bytes);
-        token = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-        localStorage.setItem(key, token);
-      }
-      return token;
-    } catch {
-      return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
-    }
+      if (clean) localStorage.setItem(this.sessionTokenKey, clean);
+      else localStorage.removeItem(this.sessionTokenKey);
+    } catch {}
   }
 
   connect() {
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = 0;
+    }
+
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const token = encodeURIComponent(this.sessionToken || '');
-    this.ws = new WebSocket(`${proto}://${location.host}?sid=${token}`);
+    const token = this.getSessionToken();
+    const qs = token ? `?resume=${encodeURIComponent(token)}` : '';
+    this.ws = new WebSocket(`${proto}://${location.host}${qs}`);
 
     this.ws.onopen = () => {
-      this.reconnectDelayMs = 500;
-      this.onStatus?.('Connecté.');
+      this.onStatus?.(token ? 'Reconnecté.' : 'Connecté.');
     };
 
     this.ws.onmessage = (ev) => {
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
-      if (msg.t === 'hello') this.store.applyHello(msg.id);
+      if (msg.t === 'hello') {
+        if (msg.sessionToken) this.setSessionToken(msg.sessionToken);
+        this.store.applyHello(msg.id, msg.sessionToken || '', !!msg.resumed);
+      }
       if (msg.t === 'snap') this.store.applySnapshot(msg);
       if (msg.t === 'chat') this.store.applyChatMessage(msg);
       if (msg.t === 'cmd_ack') this.store.applyCommandAck?.(msg);
     };
 
     this.ws.onclose = () => {
-      this.ws = null;
-      this.onStatus?.('Reconnexion…');
-      clearTimeout(this.reconnectTimer);
-      const delay = this.reconnectDelayMs;
-      this.reconnectDelayMs = Math.min(5000, Math.round(this.reconnectDelayMs * 1.6));
-      this.reconnectTimer = setTimeout(() => this.connect(), delay);
+      if (this.manualClose) return;
+      this.onStatus?.('Déconnecté. Reconnexion…');
+      if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = setTimeout(() => this.connect(), 500);
     };
   }
 
