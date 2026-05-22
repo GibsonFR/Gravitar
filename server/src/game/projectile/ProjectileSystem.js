@@ -88,6 +88,7 @@ export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, spee
     visualAmmoEffect: extras?.visualAmmoEffect ?? '',
     visualAmmoId: extras?.visualAmmoId ?? '',
     crit: !!extras?.crit,
+    bonusLifestealRatio: Math.max(0, extras?.bonusLifestealRatio || 0),
     empoweredAutoUsed: !!extras?.empoweredAutoUsed,
     ultAutoUsed: !!extras?.ultAutoUsed,
     pierceLeft: extras?.pierceLeft ?? 0,
@@ -164,7 +165,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
 
       const sourcePlayer = state.players.get(proj.sourceId) ?? null;
       const sourceEntity = sourcePlayer ?? sourceEntityForCollision ?? null;
-      applyDamage(state, hit, proj.damage, sourcePlayer, { timeMs, crit: !!proj.crit, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '' });
+      applyDamage(state, hit, proj.damage, sourcePlayer, { timeMs, crit: !!proj.crit, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
       const hitStillExists = hit.kind !== 'mob' || state.mobs.has(hit.id);
       if (hitStillExists) {
         applyStatusSpecs(state, sourceEntity, hit, proj.onHitStatuses);
@@ -182,7 +183,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
           if (isUntargetable(p)) continue;
           const d2 = distSq(proj.x, proj.y, p.x, p.y);
           if (d2 <= splashSq) {
-            applyDamage(state, p, proj.damage * (0.55 + 0.45 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '' });
+            applyDamage(state, p, proj.damage * (0.55 + 0.45 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
             applyStatusSpecs(state, sourceEntity, p, proj.onSplashStatuses);
           }
         }
@@ -194,7 +195,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
             if ((mob.sx | 0) !== (proj.sx | 0) || (mob.sy | 0) !== (proj.sy | 0)) continue;
             const d2 = distSq(proj.x, proj.y, mob.x, mob.y);
             if (d2 <= splashSq) {
-              applyDamage(state, mob, proj.damage * (0.65 + 0.35 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '' });
+              applyDamage(state, mob, proj.damage * (0.65 + 0.35 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
               if (state.mobs.has(mob.id)) applyStatusSpecs(state, sourceEntity, mob, proj.onSplashStatuses);
             }
           }
@@ -205,7 +206,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
           if ((a.sx | 0) !== (proj.sx | 0) || (a.sy | 0) !== (proj.sy | 0)) continue;
           const d2 = distSq(proj.x, proj.y, a.x, a.y);
           if (d2 <= splashSq) {
-            applyDamage(state, a, proj.damage * (0.65 + 0.35 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '' });
+            applyDamage(state, a, proj.damage * (0.65 + 0.35 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
             applyStatusSpecs(state, sourceEntity, a, proj.onSplashStatuses);
           }
         }

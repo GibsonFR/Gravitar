@@ -258,11 +258,11 @@ function resetPlayerRunAfterDeath(state, player, timeMs) {
   setHint(player, 'Vaisseau détruit — choisis un nouveau départ', 3.5);
 }
 
-function grantLifesteal(sourcePlayer, dealtAmount) {
+function grantLifesteal(sourcePlayer, dealtAmount, bonusRatio = 0) {
   if (!sourcePlayer?.stats || dealtAmount <= 0) return;
   const ratio = Math.max(
     getOutgoingLifestealRatio(sourcePlayer),
-    Math.max(0, sourcePlayer?.progressionBonuses?.lifestealRatio ?? 0)
+    Math.max(0, sourcePlayer?.progressionBonuses?.lifestealRatio ?? 0) + Math.max(0, bonusRatio || 0)
   );
   if (ratio <= 0) return;
   const healMult = getIncomingHealMultiplier(sourcePlayer) * Math.max(0, sourcePlayer?.progressionBonuses?.healMult ?? 1);
@@ -312,7 +312,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     if (!options.ignoreBreakOnHit) breakStatusesOnExternalHit(target, timeMs);
     const died = applyDamageWithShieldPen(target, finalAmount, sourcePlayer, bypassShield);
     onDamageTakenByFrame(state, target, finalAmount, sourcePlayer, timeMs, options);
-    grantLifesteal(sourcePlayer, finalAmount);
+    grantLifesteal(sourcePlayer, finalAmount, options.bonusLifestealRatio || 0);
     if (!died) return;
 
     target.deaths += 1;
@@ -331,7 +331,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   if (target.kind === 'mob') {
     if (target.stats.hp <= 0) return;
     const died = applyHullDamage(target.stats, finalAmount);
-    grantLifesteal(sourcePlayer, finalAmount);
+    grantLifesteal(sourcePlayer, finalAmount, options.bonusLifestealRatio || 0);
     if (!died) return;
 
     target.diedAt = timeMs;
@@ -349,7 +349,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   if (target.kind === 'asteroid') {
     if (target.stats.hp <= 0) return;
     const died = applyHullDamage(target.stats, finalAmount);
-    grantLifesteal(sourcePlayer, finalAmount);
+    grantLifesteal(sourcePlayer, finalAmount, options.bonusLifestealRatio || 0);
     if (target.demoDummy) {
       target.stats.hp = target.stats.maxHp;
       target.stats.shield = target.stats.maxShield ?? 0;

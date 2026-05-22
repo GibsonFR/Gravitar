@@ -38,6 +38,18 @@ function emptyRuntimeBonuses() {
     overhealShieldRatio: 0,
     autoBurnDuration: 0,
     autoBurnDps: 0,
+    autoBurnEvery: 0,
+    autoSlowEvery: 0,
+    autoSlowPct: 0,
+    autoSlowDuration: 0,
+    autoLifestealEvery: 0,
+    autoLifestealPct: 0,
+    autoBleedEvery: 0,
+    autoBleedDuration: 0,
+    autoBleedDps: 0,
+    autoAmpEvery: 0,
+    autoAmpPct: 0,
+    autoAmpDuration: 0,
     rocketDamagePct: 0,
     autoRangePct: 0,
     armorFlat: 0,
@@ -50,7 +62,8 @@ function addTo(out, patch) {
   if (!patch) return out;
   for (const [key, value] of Object.entries(patch)) {
     if (!Number.isFinite(value)) continue;
-    if (key === 'autoBurnDuration' || key === 'autoBurnDps') out[key] = Math.max(out[key] || 0, value);
+    if (key === 'autoBurnDuration' || key === 'autoBurnDps' || key.endsWith('Duration') || key.endsWith('Pct') || key.endsWith('Dps')) out[key] = Math.max(out[key] || 0, value);
+    else if (key.endsWith('Every')) out[key] = out[key] || value;
     else out[key] = (out[key] || 0) + value;
   }
   return out;
@@ -197,6 +210,9 @@ export function resolveEquipmentRuntimeBonuses(player) {
   out.lifestealPct = clamp(out.lifestealPct, 0, 0.6);
   out.healPowerPct = clamp(out.healPowerPct, 0, 2);
   out.overhealShieldRatio = clamp(out.overhealShieldRatio, 0, 1);
+  out.autoSlowPct = clamp(out.autoSlowPct, 0, 0.65);
+  out.autoLifestealPct = clamp(out.autoLifestealPct, 0, 0.65);
+  out.autoAmpPct = clamp(out.autoAmpPct, 0, 0.40);
   out.shieldPenPct = clamp(out.shieldPenPct, 0, 0.80);
   out.armorPenFlat = clamp(out.armorPenFlat, 0, 250);
   return out;
@@ -227,5 +243,9 @@ export function buildEquipmentEffectLines(player) {
   if (runtime.shieldPenPct) lines.push(`+${pct(runtime.shieldPenPct)} pénétration bouclier`);
   if (runtime.armorPenFlat) lines.push(`+${Math.round(runtime.armorPenFlat)} pénétration armure`);
   if (runtime.autoBurnDuration > 0 && runtime.autoBurnDps > 0) lines.push(`Autos : brûlure ${runtime.autoBurnDps.toFixed(0)}/s ${runtime.autoBurnDuration.toFixed(0)}s`);
+  if (runtime.autoSlowEvery > 0 && runtime.autoSlowPct > 0) lines.push(`Toutes les ${runtime.autoSlowEvery} autos : slow ${pct(runtime.autoSlowPct)}`);
+  if (runtime.autoLifestealEvery > 0 && runtime.autoLifestealPct > 0) lines.push(`Toutes les ${runtime.autoLifestealEvery} autos : vol de vie ${pct(runtime.autoLifestealPct)}`);
+  if (runtime.autoBleedEvery > 0 && runtime.autoBleedDps > 0) lines.push(`Toutes les ${runtime.autoBleedEvery} autos : saignement ${runtime.autoBleedDps.toFixed(0)}/s`);
+  if (runtime.autoAmpEvery > 0 && runtime.autoAmpPct > 0) lines.push(`Toutes les ${runtime.autoAmpEvery} autos : marque +${pct(runtime.autoAmpPct)} dégâts reçus`);
   return lines;
 }

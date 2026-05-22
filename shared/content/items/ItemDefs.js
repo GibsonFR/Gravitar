@@ -410,8 +410,147 @@ export const ITEM_DEFS = Object.freeze({
   }
 });
 
+
+const PROCEDURAL_AFFIXES = Object.freeze({
+  frost_edge: {
+    id: 'frost_edge',
+    prefix: 'Cryo',
+    tagId: ITEM_TAG_IDS.VERGE,
+    bonusBase: { autoSlowEvery: 4, autoSlowPct: 0.28, autoSlowDuration: 1.45 },
+    line: (v) => `Toutes les ${v.autoSlowEvery} autos : ralentit la cible de ${Math.round(v.autoSlowPct * 100)}% pendant ${v.autoSlowDuration.toFixed(1)}s.`
+  },
+  siphon_cycle: {
+    id: 'siphon_cycle',
+    prefix: 'Siphon',
+    tagId: ITEM_TAG_IDS.SIPHON,
+    bonusBase: { autoLifestealEvery: 3, autoLifestealPct: 0.22 },
+    line: (v) => `Toutes les ${v.autoLifestealEvery} autos : ${Math.round(v.autoLifestealPct * 100)}% des dégâts rendus en coque.`
+  },
+  bleed_serration: {
+    id: 'bleed_serration',
+    prefix: 'Dentelé',
+    tagId: ITEM_TAG_IDS.REAVER,
+    bonusBase: { autoBleedEvery: 3, autoBleedDuration: 2.6, autoBleedDps: 4.5 },
+    line: (v) => `Toutes les ${v.autoBleedEvery} autos : saignement ${v.autoBleedDps.toFixed(1)}/s pendant ${v.autoBleedDuration.toFixed(1)}s.`
+  },
+  ion_mark: {
+    id: 'ion_mark',
+    prefix: 'Ionique',
+    tagId: ITEM_TAG_IDS.SURGE,
+    bonusBase: { autoAmpEvery: 5, autoAmpPct: 0.10, autoAmpDuration: 2.2 },
+    line: (v) => `Toutes les ${v.autoAmpEvery} autos : marque la cible, +${Math.round(v.autoAmpPct * 100)}% dégâts subis pendant ${v.autoAmpDuration.toFixed(1)}s.`
+  },
+  siege_burn: {
+    id: 'siege_burn',
+    prefix: 'Incendiaire',
+    tagId: ITEM_TAG_IDS.SIEGE,
+    bonusBase: { autoBurnEvery: 4, autoBurnDuration: 2.4, autoBurnDps: 5.2 },
+    line: (v) => `Toutes les ${v.autoBurnEvery} autos : brûlure ${v.autoBurnDps.toFixed(1)}/s pendant ${v.autoBurnDuration.toFixed(1)}s.`
+  }
+});
+
+function hashString32(text) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < String(text).length; i += 1) {
+    h ^= String(text).charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function mulberry01(seed) {
+  let t = (seed + 0x6D2B79F5) >>> 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+function clampProc(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function scaleProcBonuses(base, tier, seed) {
+  const roll = 0.90 + mulberry01(seed) * 0.22;
+  const tierScale = 1 + Math.max(0, (tier | 0) - 1) * 0.16;
+  const out = { ...base };
+  for (const key of Object.keys(out)) {
+    if (!Number.isFinite(out[key])) continue;
+    if (key.endsWith('Every')) continue;
+    if (key.endsWith('Duration')) out[key] = Math.round(out[key] * (0.94 + roll * 0.08) * 10) / 10;
+    else out[key] = Math.round(out[key] * roll * tierScale * 1000) / 1000;
+  }
+  if (out.autoSlowPct != null) out.autoSlowPct = clampProc(out.autoSlowPct, 0.08, 0.55);
+  if (out.autoLifestealPct != null) out.autoLifestealPct = clampProc(out.autoLifestealPct, 0.05, 0.45);
+  if (out.autoAmpPct != null) out.autoAmpPct = clampProc(out.autoAmpPct, 0.04, 0.22);
+  return out;
+}
+
+export function makeProceduralItemId(baseId, affixId, seed) {
+  return `proc:${String(baseId)}:${String(affixId)}:${Math.abs(seed | 0)}`;
+}
+
+function resolveProceduralItemDef(itemId) {
+  const raw = String(itemId || '');
+  if (!raw.startsWith('proc:')) return null;
+  const parts = raw.split(':');
+  if (parts.length !== 4) return null;
+  const [, baseId, affixId, seedText] = parts;
+  const base = ITEM_DEFS[baseId];
+  const affix = PROCEDURAL_AFFIXES[affixId];
+  if (!base || !affix) return null;
+
+  const seed = (Number.parseInt(seedText, 10) || hashString32(raw)) >>> 0;
+  const tier = Math.max(1, base.tier | 0);
+  const passiveBonuses = scaleProcBonuses(affix.bonusBase, tier, seed ^ hashString32(baseId));
+  const baseBonuses = { ...(base.bonuses ?? {}) };
+  const bonusPatch = { ...passiveBonuses };
+  for (const [key, value] of Object.entries(passiveBonuses)) {
+    if (!Number.isFinite(value)) continue;
+    if (key.endsWith('Every') || key.endsWith('Duration')) continue;
+    bonusPatch[key] = value;
+  }
+
+  const tags = [...(base.tags ?? [])];
+  if (affix.tagId) tags.push({ tagId: affix.tagId, points: 1 });
+
+  const suffixRoll = Math.floor(mulberry01(seed ^ 0x9e3779b9) * 900) + 100;
+  const shortBase = base.shortName || base.name || base.id;
+  const passiveLine = affix.line(passiveBonuses);
+  return {
+    ...base,
+    id: raw,
+    procedural: true,
+    baseItemId: baseId,
+    affixId,
+    name: `${affix.prefix} ${base.name}`,
+    shortName: `${affix.prefix} ${shortBase}`.slice(0, 26),
+    priceCredits: Math.max(1, Math.round((base.priceCredits || 1) * (1.10 + tier * 0.06 + mulberry01(seed ^ 17) * 0.16))),
+    tags,
+    bonuses: { ...baseBonuses, ...bonusPatch },
+    description: `${base.description || ''}\nPassif #${suffixRoll} : ${passiveLine}`.trim()
+  };
+}
+
+export function listProceduralAffixIdsForCategory(categoryId) {
+  switch (categoryId) {
+    case ITEM_CATEGORY_IDS.WEAPON:
+      return ['frost_edge', 'siphon_cycle', 'bleed_serration', 'ion_mark', 'siege_burn'];
+    case ITEM_CATEGORY_IDS.ENGINE:
+      return ['frost_edge', 'ion_mark', 'siphon_cycle'];
+    case ITEM_CATEGORY_IDS.MODULE:
+      return ['siphon_cycle', 'bleed_serration', 'ion_mark', 'siege_burn', 'frost_edge'];
+    case ITEM_CATEGORY_IDS.DEFENSE:
+      return ['siphon_cycle', 'frost_edge', 'ion_mark'];
+    case ITEM_CATEGORY_IDS.LAUNCHER:
+      return ['siege_burn', 'ion_mark', 'frost_edge'];
+    default:
+      return [];
+  }
+}
+
 export function getItemDef(itemId) {
-  return ITEM_DEFS[itemId] ?? null;
+  const key = String(itemId || '');
+  return ITEM_DEFS[key] ?? resolveProceduralItemDef(key) ?? null;
 }
 
 export function listItemDefs(options = null) {

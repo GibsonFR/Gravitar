@@ -1,4 +1,4 @@
-import { WORLD, SNAP_VIEW_RADIUS, SNAP_VIEW_RADIUS_STATIC } from '../constants.js';
+import { WORLD } from '../constants.js';
 import { peekWorldSfx } from '../audio/WorldSfxState.js';
 import { peekCombatFx } from '../combat/CombatFxState.js';
 import { getSimulationTick } from '../util/Time.js';
@@ -25,25 +25,20 @@ function sameWorld(entity, worldId) {
   return String(entity.worldId || 'endless') === String(worldId);
 }
 
-function nearPlayer(entity, me, radius) {
-  if (!me || !Number.isFinite(entity?.x) || !Number.isFinite(entity?.y)) return true;
-  const dx = (entity.x ?? 0) - (me.x ?? 0);
-  const dy = (entity.y ?? 0) - (me.y ?? 0);
-  const extra = Math.max(0, entity.radius ?? entity.w ?? entity.h ?? 0);
-  const r = radius + extra;
-  return dx * dx + dy * dy <= r * r;
-}
-
 function buildVisibilityPredicates(me) {
   const sx = me ? (me.sx | 0) : 0;
   const sy = me ? (me.sy | 0) : 0;
   const worldId = me?.worldId || 'endless';
   const inMySector = (entity) => sameSector(entity, sx, sy);
   const inMyWorldAndSector = (entity) => inMySector(entity) && sameWorld(entity, worldId);
-  const nearDynamic = (entity) => inMySector(entity) && nearPlayer(entity, me, SNAP_VIEW_RADIUS);
-  const nearStatic = (entity) => inMySector(entity) && nearPlayer(entity, me, SNAP_VIEW_RADIUS_STATIC);
-  const playerInMyWorldAndSector = (entity) => inMyWorldAndSector(entity) && nearPlayer(entity, me, SNAP_VIEW_RADIUS);
-  return { inMySector, nearDynamic, nearStatic, playerInMyWorldAndSector };
+
+  // Vaisseau sélectionné/déployé : on envoie maintenant tout le secteur courant,
+  // pas seulement une bulle autour du joueur. Le contenu procédural du secteur est
+  // déjà créé par ensureSectorLoaded(); le problème visible venait surtout du
+  // culling snapshot qui masquait les astéroïdes/mobs/stations lointains.
+  const sectorEntity = (entity) => inMySector(entity);
+  const playerInMyWorldAndSector = (entity) => inMyWorldAndSector(entity);
+  return { inMySector, nearDynamic: sectorEntity, nearStatic: sectorEntity, playerInMyWorldAndSector };
 }
 
 export function buildSnapshot(state, playerId, timeMs, options = {}) {

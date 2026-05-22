@@ -147,6 +147,61 @@ function getLauncherProfile(player) {
   return getLauncherDef(player)?.launcherProfile || null;
 }
 
+
+function getAutoProcPayload(player) {
+  const b = player?.progressionBonuses ?? {};
+  const seq = ((player.autoAttackSeq | 0) + 1) | 0;
+  player.autoAttackSeq = seq;
+  const statuses = [];
+  let bonusLifestealRatio = 0;
+
+  const fires = (every) => (every | 0) > 0 && seq % Math.max(1, every | 0) === 0;
+
+  if (fires(b.autoSlowEvery) && b.autoSlowPct > 0) {
+    statuses.push({
+      effectId: STATUS_EFFECT_IDS.SLOW,
+      duration: Math.max(0.2, b.autoSlowDuration || 1.2),
+      value: Math.max(0.01, Math.min(0.85, b.autoSlowPct || 0)),
+      hostile: true,
+      label: 'Item'
+    });
+  }
+  if (fires(b.autoBleedEvery) && b.autoBleedDps > 0) {
+    statuses.push({
+      effectId: STATUS_EFFECT_IDS.BLEED,
+      duration: Math.max(0.4, b.autoBleedDuration || 2.2),
+      periodicDamage: Math.max(0.1, b.autoBleedDps || 0),
+      tickEvery: 1,
+      hostile: true,
+      label: 'Item'
+    });
+  }
+  if (fires(b.autoBurnEvery) && b.autoBurnDps > 0) {
+    statuses.push({
+      effectId: STATUS_EFFECT_IDS.BURN,
+      duration: Math.max(0.4, b.autoBurnDuration || 2.2),
+      periodicDamage: Math.max(0.1, b.autoBurnDps || 0),
+      tickEvery: 1,
+      hostile: true,
+      label: 'Item'
+    });
+  }
+  if (fires(b.autoAmpEvery) && b.autoAmpPct > 0) {
+    statuses.push({
+      effectId: STATUS_EFFECT_IDS.DAMAGE_AMP,
+      duration: Math.max(0.3, b.autoAmpDuration || 2),
+      value: Math.max(0.01, Math.min(0.6, b.autoAmpPct || 0)),
+      hostile: true,
+      label: 'Item'
+    });
+  }
+  if (fires(b.autoLifestealEvery) && b.autoLifestealPct > 0) {
+    bonusLifestealRatio = Math.max(0, Math.min(0.75, b.autoLifestealPct || 0));
+  }
+
+  return { statuses, bonusLifestealRatio };
+}
+
 function fireAutoAttack(state, p, target, timeMs) {
   const weapon = getWeaponProfile(p);
   if (!weapon) {
@@ -173,7 +228,8 @@ function fireAutoAttack(state, p, target, timeMs) {
   const damage = baseDamage * (p.progressionBonuses?.damageMult ?? 1) * getBastionDamageMultiplier(p) * (crit ? critDamageMult : 1);
   const burnDuration = Math.max(0, p.progressionBonuses?.autoBurnDuration ?? 0);
   const burnDps = Math.max(0, p.progressionBonuses?.autoBurnDps ?? 0);
-  const onHitStatuses = [];
+  const proc = getAutoProcPayload(p);
+  const onHitStatuses = [...proc.statuses];
   if (Array.isArray(frameAuto.extras?.onHitStatuses)) onHitStatuses.push(...frameAuto.extras.onHitStatuses);
   else if (frameAuto.extras?.onHitStatuses) onHitStatuses.push(frameAuto.extras.onHitStatuses);
   if (burnDuration > 0 && burnDps > 0) {
@@ -202,6 +258,7 @@ function fireAutoAttack(state, p, target, timeMs) {
     {
       ...(frameAuto.extras ?? {}),
       onHitStatuses,
+      bonusLifestealRatio: proc.bonusLifestealRatio,
       crit,
       visualKind: 'auto'
     }
