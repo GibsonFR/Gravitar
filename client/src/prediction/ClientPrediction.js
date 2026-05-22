@@ -133,8 +133,8 @@ export class ClientPrediction {
     };
 
     if (input.rightDown && input.holdActive) {
-      this.store.cancelLocalAttack?.();
-      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true, preserveSelection: true, keepAttack: false });
+      this.store.clearLocalTargeting?.();
+      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true, preserveSelection: false, keepAttack: false });
     }
 
     this.updateLocalFacing(me, worldMouse, dt);
@@ -155,12 +155,12 @@ export class ClientPrediction {
 
   updateLocalFacing(me, worldMouse, dt) {
     if (!me) return;
-    const target = getSelectedTarget(this.store);
+    const attackTarget = getAttackTarget(this.store);
     let tx = null;
     let ty = null;
-    if (target.entity && (target.entity.sx | 0) === (me.sx | 0) && (target.entity.sy | 0) === (me.sy | 0)) {
-      tx = target.entity.x;
-      ty = target.entity.y;
+    if (attackTarget.entity && (attackTarget.entity.sx | 0) === (me.sx | 0) && (attackTarget.entity.sy | 0) === (me.sy | 0)) {
+      tx = attackTarget.entity.x;
+      ty = attackTarget.entity.y;
     } else if (this.store.localPrediction?.hasMoveTarget) {
       tx = this.store.localPrediction.moveX;
       ty = this.store.localPrediction.moveY;
@@ -209,9 +209,10 @@ export class ClientPrediction {
     const aim = target.entity || worldMouse;
     const dash = shouldDash(myState, slot);
     if (dash > 0) this.applyDash(me, worldMouse, dash);
-    // V84: combat server-visual only. Le client garde uniquement le feedback HUD,
-    // rotation et dash local. Aucun projectile/dégât/zone locale n'est créé ici,
-    // sinon on mélange deux vérités et on obtient des tirs fantômes.
+    // V82: on ne prédit plus les projectiles/dégâts côté client.
+    // Le mouvement/dash reste local-authority, mais les impacts combat restent serveur-authority.
+    // Ça supprime les divergences du type "mon client tire encore alors que le serveur a annulé".
+    this.spawnLocalCastArea(me, aim, slot);
     me._localActionFlashUntil = performance.now() + 180;
 
     const label = hud?.label || slot;
@@ -220,7 +221,22 @@ export class ClientPrediction {
   }
 
   spawnLocalCastArea(me, worldMouse, slot) {
-    // V84: no-op volontaire. Les zones visuelles/dégâts viennent du serveur.
+    if (!this.store.areaEffects) return;
+    if (slot !== 'E' && slot !== 'R') return;
+    const id = this.localId--;
+    this.store.areaEffects.set(id, {
+      id,
+      localOnly: true,
+      ownerId: me.id,
+      sx: me.sx | 0,
+      sy: me.sy | 0,
+      x: finite(worldMouse.x, me.x),
+      y: finite(worldMouse.y, me.y),
+      radius: slot === 'R' ? 92 : 58,
+      durationLeft: slot === 'R' ? 0.34 : 0.22,
+      ttl: slot === 'R' ? 0.34 : 0.22,
+      color: slot === 'R' ? { r: 255, g: 205, b: 96 } : { r: 92, g: 255, b: 190 }
+    });
   }
 
   applyDash(me, worldMouse, distPx) {
@@ -239,7 +255,42 @@ export class ClientPrediction {
   }
 
   spawnLocalProjectile(me, targetOrPoint, opts = {}) {
-    // V84: no-op volontaire. Tous les projectiles affichés viennent des snapshots serveur.
+    if (!this.store.projectiles) return;
+    const tx = finite(targetOrPoint?.x, me.x + 500);
+    const ty = finite(targetOrPoint?.y, me.y);
+    const d = norm(tx - me.x, ty - me.y);
+    const speed = opts.rocket ? 820 : (opts.slot === 'R' ? 980 : 1250);
+    const id = this.localId--;
+    const targetKind = opts.targetKind || targetOrPoint?.kind || '';
+    const targetId = opts.targetId || targetOrPoint?.id || 0;
+    const distToTarget = Math.max(20, Math.hypot(tx - me.x, ty - me.y));
+    this.store.projectiles.set(id, {
+      id,
+      localOnly: true,
+      ownerId: me.id,
+      sx: me.sx | 0,
+      sy: me.sy | 0,
+      x: me.x + d.x * 24,
+      y: me.y + d.y * 24,
+      vx: d.x * speed,
+      vy: d.y * speed,
+      radius: opts.rocket ? 6 : 4,
+      color: opts.rocket ? { r: 255, g: 188, b: 92 } : { r: 130, g: 225, b: 255 },
+      tint: opts.rocket ? { r: 255, g: 188, b: 92 } : { r: 130, g: 225, b: 255 },
+      visualKind: opts.rocket ? 'rocket' : 'auto',
+      sourceAbilitySlot: opts.slot || '',
+      ttl: Math.max(opts.rocket ? 0.24 : 0.12, Math.min(opts.rocket ? 0.75 : 0.42, distToTarget / Math.max(1, speed) + 0.05)),
+      _tx: tx,
+      _ty: ty,
+      _targetKind: targetKind,
+      _targetId: targetId,
+      _impactDamage: finite(opts.impactDamage, 0),
+      _visualOnly: !!opts.visualOnly,
+      _bornClientAt: performance.now(),
+      _expectedServerEchoWindow: finite(opts.expectedServerEchoWindow, 0),
+      _impactApplied: false,
+      _impactRadius: opts.rocket ? 34 : 24
+    });
   }
 
   predictAutoAttackFx(me, dt) {

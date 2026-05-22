@@ -5,6 +5,8 @@ import { canAcceptInput, sanitizeInputMessage } from '../../net/protocol/InputMe
 function clearAutoAttack(player) {
   player.autoTargetKind = '';
   player.autoTargetId = 0;
+  player.autoTargetSx = 0;
+  player.autoTargetSy = 0;
 }
 
 function setMoveTarget(player, x, y) {
@@ -16,6 +18,8 @@ function setMoveTarget(player, x, y) {
   player.groundMarkerY = y;
   player.groundMarkerTimer = 0.85;
   clearAutoAttack(player);
+  player.selectedKind = '';
+  player.selectedId = 0;
 }
 
 function acceptClientPose(player, msg, timeMs, abilityFresh) {
@@ -83,6 +87,8 @@ function applyActionPacket(state, player, action, timeMs) {
     } else {
       player.autoTargetKind = action.kind;
       player.autoTargetId = action.id;
+      player.autoTargetSx = Number.isFinite(action.targetSx) ? action.targetSx | 0 : player.sx | 0;
+      player.autoTargetSy = Number.isFinite(action.targetSy) ? action.targetSy | 0 : player.sy | 0;
       player.nextShotAt = Math.min(player.nextShotAt || timeMs, timeMs + 35);
     }
     player.holdMoveAllowed = false;
@@ -145,6 +151,8 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
       player.selectedId = msg.targetClickId;
       player.autoTargetKind = msg.targetClickKind;
       player.autoTargetId = msg.targetClickId;
+      player.autoTargetSx = player.sx | 0;
+      player.autoTargetSy = player.sy | 0;
       player.nextShotAt = Math.min(player.nextShotAt || timeMs, timeMs + 35);
       player.holdMoveAllowed = false;
       player.groundMarkerTimer = 0;

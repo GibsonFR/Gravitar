@@ -60,7 +60,7 @@ function beginSectorTransition(player, sx, sy, timeMs) {
   // Pendant un passage de frontière, les derniers inputs client de l'ancien secteur
   // ne doivent pas pouvoir remettre le joueur de l'autre côté. On garde un gel très
   // court, masqué par l'écran de transition, puis on rend la main au client.
-  player.ignoreClientPoseUntil = Math.max(player.ignoreClientPoseUntil ?? 0, timeMs + 430);
+  player.ignoreClientPoseUntil = Math.max(player.ignoreClientPoseUntil ?? 0, timeMs + 160);
   player.clientAuthoritativeUntil = 0;
 }
 
@@ -101,7 +101,7 @@ function applyWrapToPlayer(state, p, timeMs) {
     // Le wrap garde exactement l'overshoot : traverser la ligne x=2000 place le
     // joueur à x=-2000+overshoot dans le secteur suivant, et inversement. Aucun
     // recentrage, aucun preload voisin. On masque juste le chargement de contenu.
-    p.sectorLockUntil = timeMs + 220;
+    p.sectorLockUntil = timeMs + 140;
     p.sectorLockDirX = dirX;
     p.sectorLockDirY = dirY;
     beginSectorTransition(p, w.sx | 0, w.sy | 0, timeMs);
@@ -124,6 +124,8 @@ function applyWrapToPlayer(state, p, timeMs) {
   p.selectedId = 0;
   p.autoTargetKind = '';
   p.autoTargetId = 0;
+  p.autoTargetSx = 0;
+  p.autoTargetSy = 0;
 
   // Cancel docking state across sectors.
   p.dockPhase = 'none';

@@ -46,7 +46,9 @@ function sanitizeAction(raw, viewportW, viewportH) {
       selectSeq: Number.isFinite(raw.selectSeq) ? Math.max(0, raw.selectSeq | 0) : seq,
       attack: raw.attack !== false,
       targetX: Number.isFinite(raw.targetX) ? clamp(raw.targetX, -10000000, 10000000) : null,
-      targetY: Number.isFinite(raw.targetY) ? clamp(raw.targetY, -10000000, 10000000) : null
+      targetY: Number.isFinite(raw.targetY) ? clamp(raw.targetY, -10000000, 10000000) : null,
+      targetSx: Number.isFinite(raw.targetSx) ? clamp(raw.targetSx | 0, -100000, 100000) : null,
+      targetSy: Number.isFinite(raw.targetSy) ? clamp(raw.targetSy | 0, -100000, 100000) : null
     });
   }
   if (type === 'cast') {

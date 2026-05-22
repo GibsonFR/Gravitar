@@ -452,7 +452,8 @@ export function startApp() {
       store.setLocalAttackTarget?.(target.kind, target.id, { lockMs: 30000 });
       return { type: 'target', kind: target.kind, id: target.id };
     }
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true, keepAttack: false });
+    store.clearLocalTargeting?.();
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: false, keepAttack: false });
     return { type: 'move', x: mouseWorld.x, y: mouseWorld.y };
   }
 
@@ -474,7 +475,8 @@ export function startApp() {
       input.moveWorldQueued = false;
       return;
     }
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true, keepAttack: false });
+    store.clearLocalTargeting?.();
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: false, keepAttack: false });
   }
 
 
@@ -555,6 +557,8 @@ export function startApp() {
         if (target) {
           action.targetX = target.x;
           action.targetY = target.y;
+          action.targetSx = target.sx | 0;
+          action.targetSy = target.sy | 0;
         }
       }
     }

@@ -1,7 +1,7 @@
 import { WEAPON_PULSE_MK1, ROCKET_BASIC } from '../constants.js';
 import { dist, distSq, norm, screenToWorld } from '../util/Math.js';
 import { getSimulationTimeMs } from '../util/Time.js';
-import { getTargetForPlayer, isPlayerAttackable, blindAllowsPoint } from '../targeting/Targeting.js';
+import { getTarget, getTargetForPlayer, isPlayerAttackable, blindAllowsPoint } from '../targeting/Targeting.js';
 import { spawnProjectile } from '../projectile/ProjectileSystem.js';
 import { queueWorldSfx } from '../audio/WorldSfxState.js';
 import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
@@ -125,12 +125,38 @@ function getLauncherProfile(player) {
   return getLauncherDef(player)?.launcherProfile || null;
 }
 
+
+function clearAutoTarget(p) {
+  p.autoTargetKind = '';
+  p.autoTargetId = 0;
+  p.autoTargetSx = 0;
+  p.autoTargetSy = 0;
+}
+
+function getAutoAttackTarget(state, p) {
+  if (!p.autoTargetId || !p.autoTargetKind) return null;
+  const target = getTarget(state, p.autoTargetKind, p.autoTargetId);
+  if (!target) return null;
+  const samePlayerSector = (target.sx | 0) === (p.sx | 0) && (target.sy | 0) === (p.sy | 0);
+  const sameDeclaredSector = Number.isFinite(p.autoTargetSx) && Number.isFinite(p.autoTargetSy)
+    && (target.sx | 0) === (p.autoTargetSx | 0) && (target.sy | 0) === (p.autoTargetSy | 0);
+  if (!samePlayerSector && !sameDeclaredSector) return null;
+  // Si le client vient de sélectionner une cible dans un secteur fraîchement chargé,
+  // sa pose client est la référence. On recale le secteur serveur si nécessaire pour
+  // éviter que l'auto-attaque marche uniquement dans [0,0].
+  if (!samePlayerSector && sameDeclaredSector) {
+    p.sx = target.sx | 0;
+    p.sy = target.sy | 0;
+  }
+  if (!blindAllowsPoint(p, target.x, target.y)) return null;
+  return target;
+}
+
 function fireAutoAttack(state, p, target, timeMs) {
   const weapon = getWeaponProfile(p);
   if (!weapon) {
     setPlayerHint(p, 'Aucune arme équipée');
-    p.autoTargetKind = '';
-    p.autoTargetId = 0;
+    clearAutoTarget(p);
     return;
   }
   if (!consumeEnergy(p.stats, weapon.energyCost ?? WEAPON_PULSE_MK1.energyCost)) return;
@@ -302,8 +328,7 @@ export function updatePlayer(state, p, dt, timeMs = null) {
     p.vx = 0;
     p.vy = 0;
     p.hasMoveTarget = false;
-    p.autoTargetKind = '';
-    p.autoTargetId = 0;
+    clearAutoTarget(p);
     p.selectedKind = '';
     p.selectedId = 0;
     p.abilityA = false;
@@ -342,15 +367,13 @@ export function updatePlayer(state, p, dt, timeMs = null) {
   }
 
   if (p.autoTargetId) {
-    const t = getTargetForPlayer(state, p, p.autoTargetKind, p.autoTargetId);
+    const t = getAutoAttackTarget(state, p);
     if (!isPlayerAttackable(p, t)) {
-      p.autoTargetKind = '';
-      p.autoTargetId = 0;
+      clearAutoTarget(p);
     } else {
       const weapon = getWeaponProfile(p);
       if (!weapon) {
-        p.autoTargetKind = '';
-        p.autoTargetId = 0;
+        clearAutoTarget(p);
       } else {
         const aaRange = (weapon.range ?? WEAPON_PULSE_MK1.range) * Math.max(0.5, p.progressionBonuses?.autoRangeMult ?? 1);
         const targetRadius = Math.max(0, t.radius ?? 0);

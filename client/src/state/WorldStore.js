@@ -74,43 +74,27 @@ export class WorldStore {
         return this._applyLocalDamageToEntity(merged);
       }
       if (sectorChanged || previous._forceServerPose) {
-        const now = performance.now();
-        const forceServerPose = !!previous._forceServerPose;
-        const recentLocalSector = !forceServerPose && now - (this.localPrediction.sectorTransitionAt || 0) < 1500;
-        const expectedSx = this.localPrediction.sectorSx | 0;
-        const expectedSy = this.localPrediction.sectorSy | 0;
-        const serverIsOldSector = recentLocalSector && ((next.sx | 0) !== expectedSx || (next.sy | 0) !== expectedSy);
-        if (serverIsOldSector && !previous._forceServerPose) {
-          // Le client vient de franchir une bordure. Les snapshots précédents peuvent encore
-          // contenir l'ancien secteur ; on les ignore pour éviter le ping-pong de secteur.
-          merged.x = previous.x;
-          merged.y = previous.y;
-          merged.sx = previous.sx;
-          merged.sy = previous.sy;
-          merged.vx = previous.vx;
-          merged.vy = previous.vy;
-          merged._serverX = next.x;
-          merged._serverY = next.y;
-          merged._tx = previous.x;
-          merged._ty = previous.y;
-          return this._applyLocalDamageToEntity(merged);
-        }
+        // Passage de secteur : le serveur envoie la pose de spawn exacte. On l'accepte
+        // immédiatement au lieu de garder une pose locale périmée. Les anciennes versions
+        // ignoraient les snapshots pendant ~1.5 s, ce qui donnait des spawns au centre ou
+        // des glissades automatiques vers l'ancien point de mouvement.
         if (Number.isFinite(next.x) && Number.isFinite(next.y)) {
-          merged.x = recentLocalSector ? previous.x : next.x;
-          merged.y = recentLocalSector ? previous.y : next.y;
-          merged.sx = recentLocalSector ? previous.sx : next.sx;
-          merged.sy = recentLocalSector ? previous.sy : next.sy;
-          merged.vx = recentLocalSector ? previous.vx : (Number.isFinite(next.vx) ? next.vx : 0);
-          merged.vy = recentLocalSector ? previous.vy : (Number.isFinite(next.vy) ? next.vy : 0);
-          merged._tx = merged.x;
-          merged._ty = merged.y;
-          if (forceServerPose) {
-            this.localPrediction.hasMoveTarget = false;
-            this.localPrediction.selectedKind = '';
-            this.localPrediction.selectedId = 0;
-          }
+          merged.x = next.x;
+          merged.y = next.y;
+          merged.sx = next.sx;
+          merged.sy = next.sy;
+          merged.vx = Number.isFinite(next.vx) ? next.vx : 0;
+          merged.vy = Number.isFinite(next.vy) ? next.vy : 0;
+          merged._tx = next.x;
+          merged._ty = next.y;
+          this.localPrediction.hasMoveTarget = false;
+          this.localPrediction.hold = false;
+          this.localPrediction.moveX = next.x;
+          this.localPrediction.moveY = next.y;
+          this.clearLocalTargeting?.();
         }
         merged._forceServerPose = false;
+        merged._keepLocalPoseUntil = 0;
         return this._applyLocalDamageToEntity(merged);
       }
       // Pour le joueur local, les snapshots sont forcément en retard réseau.
@@ -173,24 +157,54 @@ export class WorldStore {
   }
 
   _applyLocalDamageToEntity(entity) {
-    // V84: plus de dégâts prédits localement.
-    // Les HP visibles viennent uniquement du serveur pour éviter les divergences.
+    if (!entity?.vitals) return entity;
+    const now = performance.now();
+    const candidates = [
+      `${entity.kind || ''}:${entity.id}`,
+      `mob:${entity.id}`,
+      `asteroid:${entity.id}`,
+      `player:${entity.id}`
+    ];
+    let best = null;
+    for (const key of candidates) {
+      const entry = this.localPrediction.localDamage.get(key);
+      if (!entry) continue;
+      if (now > entry.until) {
+        this.localPrediction.localDamage.delete(key);
+        continue;
+      }
+      if (!best || entry.hp < best.hp) best = entry;
+    }
+    if (!best) return entity;
+    entity.vitals = { ...entity.vitals, hp: Math.min(entity.vitals.hp ?? best.hp, best.hp) };
     return entity;
   }
 
   applyLocalDamage(kind, id, amount, x = null, y = null) {
-    // V84: no-op. Les dégâts et nombres de dégâts viennent de combatFx serveur.
+    if (!kind || !id || !Number.isFinite(amount) || amount <= 0) return;
+    let map = null;
+    if (kind === 'mob') map = this.mobs;
+    else if (kind === 'asteroid') map = this.asteroids;
+    else if (kind === 'player') map = this.players;
+    if (!map) return;
+    const entity = map.get(id);
+    if (!entity?.vitals) return;
+    const hp = Math.max(0, (entity.vitals.hp ?? 0) - amount);
+    entity.vitals = { ...entity.vitals, hp };
+    this.localPrediction.localDamage.set(`${kind}:${id}`, { hp, until: performance.now() + 650 });
+    this.pendingCombatFx.push({
+      type: 'damage',
+      amount: Math.max(1, Math.round(amount)),
+      x: Number.isFinite(x) ? x : entity.x,
+      y: Number.isFinite(y) ? y : entity.y,
+      targetId: id,
+      crit: false,
+      shielded: false,
+      periodic: false
+    });
   }
 
   _syncMap(map, arr, options = {}) {
-    // V84: on purge immédiatement les anciens visuels locaux de combat.
-    // Si on les garde jusqu'à leur TTL, ils survivent aux annulations serveur et créent
-    // exactement les "tirs fantômes" observés.
-    if (map === this.projectiles || map === this.areaEffects) {
-      for (const [id, item] of map) {
-        if (item?.localOnly) map.delete(id);
-      }
-    }
     const seen = new Set();
     for (const item of arr) {
       seen.add(item.id);
@@ -382,8 +396,10 @@ export class WorldStore {
       if (d2 <= r * r) {
         projectile.x = target.x;
         projectile.y = target.y;
-        // V84: impact visuel local seulement pour les anciens projectiles legacy.
-        // Aucun dégât local n'est appliqué.
+        if (!projectile._impactApplied && !projectile._visualOnly && projectile._impactDamage > 0 && projectile._targetKind !== 'station') {
+          this.applyLocalDamage(projectile._targetKind, projectile._targetId, projectile._impactDamage, target.x, target.y);
+          projectile._impactApplied = true;
+        }
         this._spawnLocalImpact(projectile, target);
         return false;
       }
@@ -410,8 +426,15 @@ export class WorldStore {
   _smoothMap(map, alpha, dt = 0) {
     for (const entity of [...map.values()]) {
       if (entity.localOnly) {
-        // V84: aucun projectile/zone local persistant. Les visuels combat viennent du serveur.
-        map.delete(entity.id);
+        const keep = entity.kind === 'projectile' || map === this.projectiles
+          ? this._updateLocalProjectile(entity, dt)
+          : (() => {
+              entity.x += (entity.vx || 0) * dt;
+              entity.y += (entity.vy || 0) * dt;
+              entity.ttl = Math.max(0, (entity.ttl ?? 0) - dt);
+              return entity.ttl > 0;
+            })();
+        if (!keep) { map.delete(entity.id); continue; }
         continue;
       }
       if (Number.isFinite(entity.vx) && Number.isFinite(entity.vy) && entity.id !== this.myId) {
@@ -481,6 +504,18 @@ export class WorldStore {
     return true;
   }
 
+
+  clearLocalTargeting(options = {}) {
+    this.localPrediction.selectedKind = '';
+    this.localPrediction.selectedId = 0;
+    this.localPrediction.selectedUntil = 0;
+    this.cancelLocalAttack({ keepSeq: !!options.keepSeq });
+    if (this.myState) {
+      this.myState.selectedKind = '';
+      this.myState.selectedId = 0;
+    }
+  }
+
   setLocalAttackTarget(kind, id, options = {}) {
     const k = kind || '';
     const targetId = id || 0;
@@ -525,15 +560,7 @@ export class WorldStore {
     this.localPrediction.hold = !!options.fromHold;
     this.localPrediction.moveAt = performance.now();
     if (!options.keepAttack) this.cancelLocalAttack({ keepSeq: false });
-    if (!options.preserveSelection) {
-      this.localPrediction.selectedKind = '';
-      this.localPrediction.selectedId = 0;
-      this.localPrediction.selectedUntil = 0;
-      if (this.myState) {
-        this.myState.selectedKind = '';
-        this.myState.selectedId = 0;
-      }
-    }
+    if (!options.preserveSelection) this.clearLocalTargeting({ keepSeq: true });
     me.groundMarkerX = x;
     me.groundMarkerY = y;
     me.groundMarkerTimer = 0.85;
