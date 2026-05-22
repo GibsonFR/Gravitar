@@ -2,10 +2,9 @@ import { DotNetRandom } from '../../util/DotNetRandom.js';
 import { hash2D_Mix } from '../../util/HashUtil.js';
 import { ITEM_CATEGORY_IDS, ITEM_CATEGORY_ORDER } from '../../../../../shared/content/items/ItemCategoryIds.js';
 import { ITEM_TAG_IDS } from '../../../../../shared/content/items/ItemTagIds.js';
-import { getItemDef, listItemDefs, listProceduralAffixIdsForCategory, makeProceduralItemId } from '../../../../../shared/content/items/ItemDefs.js';
+import { listItemDefs } from '../../../../../shared/content/items/ItemDefs.js';
 import { generateOfferResourceCosts } from './StationOfferCosts.js';
 import { buildStationLocalResourcePool, getStationTierGateFromLocalPool } from './StationLocalResourcePool.js';
-import { NORMAL_STATION_BASE_COUNTS, TECH_STATION_BASE_COUNTS } from './StationShopTuning.js';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -35,43 +34,6 @@ function compareStockItems(a, b) {
   return String(a?.name || a?.id || '').localeCompare(String(b?.name || b?.id || ''));
 }
 
-
-function pickBaseForCategory(rng, items, categoryId, tierGate, index) {
-  const candidates = items
-    .filter((item) => item.categoryId === categoryId)
-    .filter((item) => (item.tier | 0) <= tierGate)
-    .filter((item) => item.shopOffer !== false);
-  if (!candidates.length) return null;
-  return candidates[(rng.nextMax(candidates.length) + index) % candidates.length];
-}
-
-function createProceduralOffers(rng, stationSeed, sx, sy, tech, pirate, tierGate, staticItems) {
-  const counts = tech ? TECH_STATION_BASE_COUNTS : NORMAL_STATION_BASE_COUNTS;
-  const categories = ITEM_CATEGORY_ORDER.filter((categoryId) => categoryId !== ITEM_CATEGORY_IDS.AMMO && categoryId !== ITEM_CATEGORY_IDS.CONVERTER);
-  const out = [];
-  for (const categoryId of categories) {
-    const affixes = listProceduralAffixIdsForCategory(categoryId);
-    if (!affixes.length) continue;
-    const targetCount = Math.max(0, (counts[categoryId] | 0) + (tech ? 2 : 1));
-    for (let i = 0; i < targetCount; i += 1) {
-      const base = pickBaseForCategory(rng, staticItems, categoryId, tierGate, i);
-      if (!base) continue;
-      if (pirate && !isPirateOffer(base)) continue;
-      const affixId = affixes[Math.abs((stationSeed ^ (i * 1103515245) ^ (categoryId.length * 2654435761)) | 0) % affixes.length];
-      const itemId = makeProceduralItemId(base.id, affixId, stationSeed ^ ((sx | 0) * 73856093) ^ ((sy | 0) * 19349663) ^ (i * 83492791) ^ hashCategory(categoryId));
-      const def = getItemDef(itemId);
-      if (def) out.push(def);
-    }
-  }
-  return out;
-}
-
-function hashCategory(categoryId) {
-  let h = 0x45d9f3b;
-  for (let i = 0; i < String(categoryId).length; i += 1) h = Math.imul(h ^ String(categoryId).charCodeAt(i), 16777619);
-  return h | 0;
-}
-
 export function createStationStock(seed, tech = false, sx = 0, sy = 0, options = null) {
   const stationSeed = hash2D_Mix((seed | 0) ^ (tech ? 0x51f3 : 0x0f2d), sx | 0, sy | 0);
   const rng = new DotNetRandom(stationSeed);
@@ -79,11 +41,10 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
   const localResourcePool = buildStationLocalResourcePool(worldSeed, sx, sy);
   const tierGate = getStationTierGateFromLocalPool(tech, localResourcePool);
   const pirate = options?.specialtyId === 'pirate';
-  const staticItems = listItemDefs({ shopOnly: true })
+  const all = listItemDefs({ shopOnly: true })
     .filter((item) => (item?.tier | 0) <= tierGate)
-    .filter((item) => !pirate || isPirateOffer(item));
-  const proceduralItems = createProceduralOffers(rng, stationSeed, sx, sy, tech, pirate, tierGate, listItemDefs({ shopOnly: true }));
-  const all = [...staticItems, ...proceduralItems].sort(compareStockItems);
+    .filter((item) => !pirate || isPirateOffer(item))
+    .sort(compareStockItems);
 
   const offers = all.map((item, index) => {
     const variance = priceVarianceForItem(rng, tech, item);

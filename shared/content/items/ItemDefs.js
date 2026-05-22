@@ -424,3 +424,14 @@ export function listItemDefs(options = null) {
     return true;
   });
 }
+
+// Backward-compatible exports for older StationStockFactory builds.
+// The current procedural system materializes generated items directly in PROCEDURAL_ITEM_DEFS,
+// so station stock can simply consume listItemDefs({ shopOnly: true }).
+export function listProceduralAffixIdsForCategory(_categoryId) {
+  return [];
+}
+
+export function makeProceduralItemId(_baseId, _affixId, _seed) {
+  return '';
+}
