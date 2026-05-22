@@ -221,15 +221,46 @@ function normalizeStat(key, value) {
   return (value - scale.min) / (scale.max - scale.min);
 }
 
+
+const SCENARIOS = Object.freeze({
+  vanguard: {
+    A: { 1: ['A1', 'A1 + auto'], 2: ['A1', 'A1 + auto'], 3: ['A1', 'A1 + auto'], 4: ['A1', 'A1 + auto'], 5: ['A1', 'A1 + auto'] },
+    Z: { 1: ['Z1'], 2: ['Z1'], 3: ['Z1', 'A1 + Z1'], 4: ['Z1', 'A1 + Z1', 'Z1 purge'], 5: ['Z1', 'A1 + Z1', 'Z1 purge', 'A1 impact + Z1'] },
+    E: { 1: ['E1'], 2: ['E1', 'E1 bouclier anti-sort'], 3: ['E1', 'E1 bouclier anti-sort', 'E1 grounded'], 4: ['E1', 'E1 bouclier anti-sort', 'E1 grounded', 'E1 bouclier final'], 5: ['E1', 'E1 bouclier anti-sort', 'E1 grounded', 'E1 bouclier final', 'E1 + auto'] },
+    R: { 1: ['R1 vs auto'], 2: ['R1 vs auto', 'R1 contact'], 3: ['R1 vs auto', 'R1 contact', 'A1 + R1'], 4: ['R1 vs auto', 'R1 contact', 'A1 + R1', 'Z1 + R1'], 5: ['R1 vs auto', 'R1 contact', 'A1 + R1', 'Z1 + R1', 'R1 kill x2'] },
+    P: { 1: ['P(6)', 'P(10) + Z1', 'P(10) + E1'], 2: ['P(6)', 'P(10) + Z1', 'P(10) + E1'], 3: ['P(6)', 'P(10) + Z1', 'P(10) + E1'], 4: ['P(6)', 'P(10) + Z1', 'P(10) + E1'], 5: ['P(6)', 'P(10) + Z1', 'P(10) + E1'] }
+  },
+  sigil: {
+    A: { 1: ['A1', 'A1 x3', 'A1 x5'], 2: ['A1', 'A1 x3', 'A1 x5'], 3: ['A1', 'A1 x3', 'A1 x5'], 4: ['A1', 'A1 x3', 'A1 x5'], 5: ['A1', 'A1 x3', 'A1 x5'] },
+    Z: { 1: ['Z1'], 2: ['Z1 + A1'], 3: ['Z1 + A1'], 4: ['Z1 + A1', 'Z1 fermeture'], 5: ['Z1 + A1', 'Z1 fermeture'] },
+    E: { 1: ['E1'], 2: ['E1'], 3: ['E1 + A1'], 4: ['E1 + A1'], 5: ['E1 + A1', 'E1 bouclier anti-sort'] },
+    R: { 1: ['R1 + A1'], 2: ['R1 + A1'], 3: ['R1 + A1 x3'], 4: ['R1 + A1 x3'], 5: ['R1 + détonation'] },
+    P: { 1: ['P(3)', 'P(5)'], 2: ['P(3)', 'P(5)'], 3: ['P(3)', 'P(5)'], 4: ['P(3)', 'P(5)'], 5: ['P(3)', 'P(5)'] }
+  },
+  bulwark: {
+    A: { 1: ['A1'], 2: ['A1'], 3: ['A1 pulse'], 4: ['A1 provocation'], 5: ['A1 cap gros hit'] },
+    Z: { 1: ['Z1'], 2: ['Z1 shred'], 3: ['Z1 grounded'], 4: ['Z1 dash'], 5: ['Z1 pull'] },
+    E: { 1: ['E1'], 2: ['E1 unstoppable'], 3: ['E1 pulse'], 4: ['E1 cleanse'], 5: ['E1 grounded'] },
+    R: { 1: ['R1'], 2: ['R1 provocation'], 3: ['R1 stun'], 4: ['R1 pull'], 5: ['R1 pression'] },
+    P: { 1: ['P plaques', 'P pleine charge'], 2: ['P plaques', 'P pleine charge'], 3: ['P plaques', 'P pleine charge'], 4: ['P plaques', 'P pleine charge'], 5: ['P plaques', 'P pleine charge'] }
+  }
+});
+
+function scenarioList(frameId, slot, phase) {
+  const names = SCENARIOS[frameId]?.[slot]?.[Math.max(1, Math.min(5, phase | 0))] || ['Base'];
+  return names.map((label, index) => ({ id: `${slot}-${index}`, label }));
+}
+
 function buildAbilityList(def) {
   const entries = Object.values(def.abilities || {}).map((entry) => ({
     key: entry.key,
     label: entry.label,
     name: entry.label,
-    getLines: (phase) => abilityLines(def.id, entry.key, phase)
+    getLines: (phase) => abilityLines(def.id, entry.key, phase),
+    getScenarios: (phase) => scenarioList(def.id, entry.key, phase)
   }));
   const passive = passiveEntry(def.id);
-  entries.push({ ...passive, getLines: () => passive.lines });
+  entries.push({ ...passive, getLines: () => passive.lines, getScenarios: (phase) => scenarioList(def.id, 'P', phase) });
   return entries;
 }
 

@@ -3890,3 +3890,100 @@ button.station-item-icon[draggable="true"]:active,
   opacity: .72;
   cursor: wait;
 }
+
+/* V79 ship selection guide tab + local preview performance */
+.session-setup__page--ship.is-active {
+  max-height: calc(100vh - 72px);
+}
+.session-setup__right--ship {
+  overflow: hidden;
+}
+.session-setup__hero--compact {
+  min-height: 70px;
+}
+.session-setup__hero--compact .session-setup__glyph {
+  width: 72px;
+  height: 72px;
+}
+.session-setup__hero--compact .session-setup__ship-name {
+  font-size: 30px;
+}
+.session-setup__ship-main {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 0;
+}
+.session-setup__preview-wrap {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+}
+.session-setup__preview {
+  min-height: 260px;
+}
+.session-setup__scenario-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 28px;
+  align-content: start;
+}
+.session-setup__scenario-button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(126,162,214,.22);
+  background: rgba(12, 18, 28, .92);
+  color: rgba(220,232,248,.88);
+  font: 850 11px/1 var(--ui-font);
+  cursor: pointer;
+}
+.session-setup__scenario-button.is-selected {
+  border-color: color-mix(in srgb, var(--session-accent) 78%, rgba(255,255,255,.14));
+  background: color-mix(in srgb, var(--session-accent) 16%, rgba(10,14,22,.95));
+  color: rgba(245,249,255,.98);
+}
+.session-setup__info-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.session-setup__info-tab {
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(126,162,214,.20);
+  background: rgba(11, 16, 25, .88);
+  color: rgba(200, 218, 240, .84);
+  font: 900 12px/1 var(--ui-font);
+  cursor: pointer;
+}
+.session-setup__info-tab.is-selected {
+  border-color: color-mix(in srgb, var(--session-accent) 74%, rgba(255,255,255,.14));
+  background: color-mix(in srgb, var(--session-accent) 13%, rgba(9,14,22,.94));
+  color: rgba(242,248,255,.96);
+}
+.session-setup__info-panel {
+  display: none;
+  min-height: 0;
+}
+.session-setup__info-panel.is-active {
+  display: block;
+}
+.session-setup__side-panel {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+}
+.session-setup__ship-guide {
+  max-height: 318px;
+  overflow-y: auto;
+}
+.session-setup__ability-detail {
+  min-height: 0;
+  max-height: 318px;
+  overflow-y: auto;
+}
+.session-setup__right--ship .session-setup__footer {
+  flex: 0 0 auto;
+}

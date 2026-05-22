@@ -49,7 +49,7 @@ function buildVisibilityPredicates(me) {
 export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const me = state.players.get(playerId) ?? null;
   const { inMySector, nearDynamic, nearStatic, playerInMyWorldAndSector } = buildVisibilityPredicates(me);
-  const fullUi = options.fullUi !== false || !!me?.sessionSetupPending;
+  const fullUi = options.fullUi !== false;
   // Important: being docked must NOT force a full station snapshot every network tick.
   // Full station/UI data is heavy (inventory, equipment, shop, map). GameServer decides
   // when to send it: periodically, and immediately after a station command. Sending it

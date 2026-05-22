@@ -43,6 +43,8 @@ export class SessionSetupOverlay {
     this.selectedBattleSessionId = stored.battleSessionId || '';
     this.selectedAbilityIndex = 0;
     this.selectedPreviewPhase = 1;
+    this.selectedInfoTab = 'ability';
+    this.selectedScenarioIndex = 0;
     this.previewRaf = 0;
     this.previewErrorLogged = false;
     this.previewSuspended = true;
@@ -162,19 +164,28 @@ export class SessionSetupOverlay {
             <div class="session-setup__ship-main">
               <div class="session-setup__preview-wrap">
                 <canvas class="session-setup__preview" width="760" height="330"></canvas>
+                <div class="session-setup__scenario-buttons"></div>
               </div>
               <aside class="session-setup__side-panel">
                 <div class="session-setup__stats"></div>
-                <div class="session-setup__ability-detail">
-                  <div class="session-setup__ability-detail-key"></div>
-                  <div>
-                    <div class="session-setup__ability-detail-title"></div>
-                    <div class="session-setup__ability-detail-text"></div>
+                <div class="session-setup__info-tabs">
+                  <button type="button" class="session-setup__info-tab is-selected" data-info-tab="ability">Compétence</button>
+                  <button type="button" class="session-setup__info-tab" data-info-tab="guide">Guide</button>
+                </div>
+                <div class="session-setup__info-panel is-active" data-info-panel="ability">
+                  <div class="session-setup__ability-detail">
+                    <div class="session-setup__ability-detail-key"></div>
+                    <div>
+                      <div class="session-setup__ability-detail-title"></div>
+                      <div class="session-setup__ability-detail-text"></div>
+                    </div>
                   </div>
                 </div>
-                <div class="session-setup__ship-guide">
-                  <div class="session-setup__guide-title">Guide</div>
-                  <div class="session-setup__guide-lines"></div>
+                <div class="session-setup__info-panel" data-info-panel="guide">
+                  <div class="session-setup__ship-guide">
+                    <div class="session-setup__guide-title">Guide</div>
+                    <div class="session-setup__guide-lines"></div>
+                  </div>
                 </div>
               </aside>
             </div>
@@ -240,6 +251,9 @@ export class SessionSetupOverlay {
     this.abilityDetailTitleEl = this.el.querySelector('.session-setup__ability-detail-title');
     this.abilityDetailTextEl = this.el.querySelector('.session-setup__ability-detail-text');
     this.guideLinesEl = this.el.querySelector('.session-setup__guide-lines');
+    this.infoTabs = [...this.el.querySelectorAll('[data-info-tab]')];
+    this.infoPanels = [...this.el.querySelectorAll('[data-info-panel]')];
+    this.scenarioButtonsEl = this.el.querySelector('.session-setup__scenario-buttons');
     this.launchBtn = this.el.querySelector('.session-setup__launch');
     this.shipHelpEl = this.el.querySelector('.session-setup__ship-help');
 
@@ -261,6 +275,10 @@ export class SessionSetupOverlay {
       this.renderModeList();
     });
     this.launchBtn.addEventListener('click', () => this.commit());
+    this.infoTabs.forEach((btn) => btn.addEventListener('click', () => {
+      this.selectedInfoTab = btn.dataset.infoTab || 'ability';
+      this.renderDetails();
+    }));
     this.startPreviewLoop();
     for (const btn of this.modeButtons) btn.addEventListener('click', () => this.selectMode(btn.dataset.mode, btn.dataset.serverId || ''));
 
@@ -401,6 +419,7 @@ export class SessionSetupOverlay {
       `;
       button.addEventListener('click', () => {
         this.selectedAbilityIndex = index;
+        this.selectedScenarioIndex = 0;
         this.renderDetails();
       });
       this.abilitiesEl.appendChild(button);
@@ -415,6 +434,7 @@ export class SessionSetupOverlay {
       button.textContent = `Phase ${i}`;
       button.addEventListener('click', () => {
         this.selectedPreviewPhase = i;
+        this.selectedScenarioIndex = 0;
         this.renderDetails();
       });
       this.phaseButtonsEl.appendChild(button);
@@ -510,10 +530,37 @@ export class SessionSetupOverlay {
   selectFrame(frameId) {
     if (!this.cards.some((card) => card.id === frameId)) return;
     this.selectedFrameId = frameId;
+    this.selectedScenarioIndex = 0;
     this.saveStored();
     this.renderShipList();
     this.renderModeList();
     this.renderDetails();
+  }
+
+  renderScenarioControls(card, ability) {
+    if (!this.scenarioButtonsEl) return;
+    const scenarios = typeof ability?.getScenarios === 'function' ? ability.getScenarios(this.selectedPreviewPhase) : [];
+    const list = Array.isArray(scenarios) && scenarios.length ? scenarios : [{ id: 'base', label: 'Base' }];
+    if (this.selectedScenarioIndex >= list.length) this.selectedScenarioIndex = 0;
+    this.scenarioButtonsEl.innerHTML = '';
+    for (let i = 0; i < list.length; i += 1) {
+      const sc = list[i];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'session-setup__scenario-button';
+      if (i === this.selectedScenarioIndex) btn.classList.add('is-selected');
+      btn.textContent = sc.label || sc.id || `Scénario ${i + 1}`;
+      btn.addEventListener('click', () => {
+        this.selectedScenarioIndex = i;
+        this.renderDetails();
+      });
+      this.scenarioButtonsEl.appendChild(btn);
+    }
+  }
+
+  updateInfoTabs() {
+    for (const btn of this.infoTabs || []) btn.classList.toggle('is-selected', (btn.dataset.infoTab || '') === this.selectedInfoTab);
+    for (const panel of this.infoPanels || []) panel.classList.toggle('is-active', (panel.dataset.infoPanel || '') === this.selectedInfoTab);
   }
 
   renderDetails() {
@@ -532,6 +579,8 @@ export class SessionSetupOverlay {
     `).join('');
     this.renderAbilityControls(card);
     const ability = card.abilities[this.selectedAbilityIndex] || card.abilities[0];
+    this.renderScenarioControls(card, ability);
+    this.updateInfoTabs();
     if (this.abilityDetailKeyEl) this.abilityDetailKeyEl.textContent = ability?.key || '';
     if (this.abilityDetailTitleEl) this.abilityDetailTitleEl.textContent = ability?.name || ability?.label || '';
     if (this.abilityDetailTextEl) {
@@ -603,7 +652,7 @@ export class SessionSetupOverlay {
       drawSessionShipGlyph(ctx, dpr, w * 0.5, h * 0.5, Math.min(w, h) * 0.18, card.id, -0.48 + Math.sin(time * 1.2) * 0.06, time, { thrust: 0.54, emphasize: true });
     }
     if (this.previewCtx && this.previewEl) {
-      drawSessionRealAbilityDemo(this.previewCtx, this.previewEl, card, this.selectedAbilityIndex, this.selectedPreviewPhase, time);
+      drawSessionRealAbilityDemo(this.previewCtx, this.previewEl, card, this.selectedAbilityIndex, this.selectedPreviewPhase, time, this.selectedScenarioIndex);
     }
   }
 
@@ -637,6 +686,10 @@ export class SessionSetupOverlay {
     this.inputDirty = false;
     this.waitingAck = true;
     this.previewSuspended = true;
+    if (this.previewRaf) {
+      cancelAnimationFrame(this.previewRaf);
+      this.previewRaf = 0;
+    }
     this.launchBtn.disabled = true;
     this.launchBtn.textContent = payload.mode === 'battle_next' ? 'Mise en attente…' : 'Déploiement…';
     this.onCommit?.(payload);
@@ -684,6 +737,7 @@ export class SessionSetupOverlay {
     } else if (this.step === 'ship' && !this.waitingAck) {
       this.previewSuspended = false;
       this.launchBtn.disabled = false;
+      if (!this.previewRaf) this.startPreviewLoop();
     }
     this.renderModeList();
     this.applyVisibility(queuedNext);

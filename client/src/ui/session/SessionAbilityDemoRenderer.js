@@ -157,14 +157,47 @@ function area(id, x, y, radius, color, extra = {}) {
 
 function phaseLevel(phase) { return PHASE_TO_LEVEL[phase] || 1; }
 
-function buildVanguard(slot, phase, u) {
+function loopDuration(frameId, slot, scenarioIndex) {
+  if (slot === 'R') return scenarioIndex >= 4 ? 7.2 : 4.8;
+  if (slot === 'P') return 4.8;
+  if (slot === 'A') return scenarioIndex === 1 ? 6.2 : 3.0;
+  if (slot === 'Z') return scenarioIndex >= 1 ? 4.4 : 3.6;
+  if (slot === 'E') return scenarioIndex >= 4 ? 5.4 : 4.2;
+  return 4.8;
+}
+
+function crossedPulse(t, at, dur = 0.22) {
+  const p = (t - at) / dur;
+  return p >= 0 && p <= 1 ? easeOut(p) : null;
+}
+
+function after(t, at, dur = 0.6) {
+  return clamp01((t - at) / dur);
+}
+
+function addAutoProjectiles(projectiles, from, to, t, color, startTimes, empowered = false) {
+  for (let i = 0; i < startTimes.length; i += 1) {
+    const p = crossedPulse(t, startTimes[i], 0.42);
+    if (p == null) continue;
+    projectiles.push(projectile(600 + i, lerp(from.x + Math.cos(from.rot) * 22, to.x, p), lerp(from.y + Math.sin(from.rot) * 22, to.y, p), 950, 0, empowered ? 5.4 : 4.2, color, { slot: 'AA', empoweredAutoUsed: empowered }));
+  }
+}
+
+function demoClock(time, frameId, slot, scenarioIndex) {
+  const duration = loopDuration(frameId, slot, scenarioIndex);
+  return { duration, t: time % duration, u: (time % duration) / duration };
+}
+
+function buildVanguard(slot, phase, u, t = u * 4.8, scenarioIndex = 0) {
   const color = { r: 125, g: 233, b: 255 };
   const enemyX = 180;
   const enemyY = -6;
-  const cast = clamp01((u - 0.15) / 0.38);
-  const dash = slot === 'Z' ? easeOut(cast) : 0;
-  const phaseMove = slot === 'E' ? easeInOut(clamp01((u - 0.12) / 0.45)) : 0;
-  const ultRush = slot === 'R' ? Math.sin(u * Math.PI * 2) * 22 : 0;
+  const cast = after(t, slot === 'A' ? 0.34 : slot === 'Z' ? 0.52 : slot === 'E' ? 0.34 : slot === 'R' ? 0.24 : 0.2, 0.42);
+  const dashPulse = slot === 'Z' ? crossedPulse(t, 0.52, 0.32) : null;
+  const dash = dashPulse == null ? (slot === 'Z' && t > 0.84 ? 1 : 0) : dashPulse;
+  const phasePulse = slot === 'E' ? crossedPulse(t, 0.34, 0.52) : null;
+  const phaseMove = phasePulse == null ? (slot === 'E' && t > 0.86 ? 1 : 0) : phasePulse;
+  const ultRush = slot === 'R' && t > 0.2 ? Math.sin(t * Math.PI * 2.8) * 22 : 0;
   const x = -160 + dash * 126 + phaseMove * 82 + ultRush;
   const y = slot === 'E' ? Math.sin(phaseMove * Math.PI) * -36 : (slot === 'R' ? Math.sin(u * Math.PI * 4) * 9 : 0);
   const rot = Math.atan2(enemyY - y, enemyX - x);
@@ -185,14 +218,23 @@ function buildVanguard(slot, phase, u) {
   ];
   const projectiles = [];
   const areas = [];
+  const selfRef = ships[0];
+  const targetRef = ships[1];
+  if (slot === 'A' && scenarioIndex === 1) addAutoProjectiles(projectiles, selfRef, targetRef, t, color, [0.82, 1.42, 2.02, 2.62, 3.22, 3.82, 4.42, 5.02], true);
+  if (slot === 'R') addAutoProjectiles(projectiles, selfRef, targetRef, t, { r: 255, g: 116, b: 238 }, scenarioIndex >= 4 ? [0.36, 0.88, 1.40, 1.92, 2.44, 2.96, 3.48, 4.00, 4.52, 5.04, 5.56, 6.08] : [0.36, 1.02, 1.68, 2.34, 3.00, 3.66], true);
 
   if (slot === 'A') {
-    const p = clamp01((u - 0.10) / 0.48);
+    const p = after(t, 0.34, 0.46);
     projectiles.push(projectile(101, lerp(x + 26, enemyX, p), lerp(y, enemyY, p), 1050, -20, 4.5 + phase * 0.7, color, { slot: 'A' }));
     if (p > 0.78) areas.push(area(102, enemyX, enemyY, 34 + phase * 4, color, { durationLeft: 0.8 }));
   } else if (slot === 'Z') {
+    if (scenarioIndex === 1 || scenarioIndex === 3) {
+      const ap = after(t, 0.88, 0.46);
+      projectiles.push(projectile(108, lerp(x + 22, enemyX, ap), lerp(y, enemyY, ap), 1120, 0, 5.2, color, { slot: 'A' }));
+    }
     areas.push(area(103, -160 + dash * 63, -6, 28 + phase * 5, color, { durationLeft: 1.0 }));
   } else if (slot === 'E') {
+    if (scenarioIndex >= 4) addAutoProjectiles(projectiles, selfRef, targetRef, t, color, [1.72, 2.24, 2.76], true);
     areas.push(area(104, x, y, 58 + phase * 10, { r: 124, g: 154, b: 255 }, { durationLeft: 1.3 }));
   } else if (slot === 'R') {
     areas.push(area(105, x, y, 94 + phase * 12, { r: 255, g: 116, b: 238 }, { durationLeft: 4 }));
@@ -204,7 +246,7 @@ function buildVanguard(slot, phase, u) {
   return { ships, projectiles, areas, camX: 0, camY: 0 };
 }
 
-function buildSigil(slot, phase, u) {
+function buildSigil(slot, phase, u, t = u * 4.8, scenarioIndex = 0) {
   const color = { r: 198, g: 128, b: 255 };
   const enemyX = 165;
   const enemyY = -4;
@@ -228,6 +270,10 @@ function buildSigil(slot, phase, u) {
   ];
   const projectiles = [];
   const areas = [];
+  const selfRef = ships[0];
+  const targetRef = ships[1];
+  if (slot === 'A' && scenarioIndex === 1) addAutoProjectiles(projectiles, selfRef, targetRef, t, color, [0.82, 1.42, 2.02, 2.62, 3.22, 3.82, 4.42, 5.02], true);
+  if (slot === 'R') addAutoProjectiles(projectiles, selfRef, targetRef, t, { r: 255, g: 116, b: 238 }, scenarioIndex >= 4 ? [0.36, 0.88, 1.40, 1.92, 2.44, 2.96, 3.48, 4.00, 4.52, 5.04, 5.56, 6.08] : [0.36, 1.02, 1.68, 2.34, 3.00, 3.66], true);
 
   if (slot === 'A') {
     const p = clamp01((u - 0.12) / 0.52);
@@ -250,7 +296,7 @@ function buildSigil(slot, phase, u) {
   return { ships, projectiles, areas, camX: 0, camY: 0 };
 }
 
-function buildBulwark(slot, phase, u) {
+function buildBulwark(slot, phase, u, t = u * 4.8, scenarioIndex = 0) {
   const color = { r: 236, g: 196, b: 96 };
   const enemyX = 148;
   const enemyY = -2;
@@ -277,6 +323,10 @@ function buildBulwark(slot, phase, u) {
   ];
   const projectiles = [];
   const areas = [];
+  const selfRef = ships[0];
+  const targetRef = ships[1];
+  if (slot === 'A' && scenarioIndex === 1) addAutoProjectiles(projectiles, selfRef, targetRef, t, color, [0.82, 1.42, 2.02, 2.62, 3.22, 3.82, 4.42, 5.02], true);
+  if (slot === 'R') addAutoProjectiles(projectiles, selfRef, targetRef, t, { r: 255, g: 116, b: 238 }, scenarioIndex >= 4 ? [0.36, 0.88, 1.40, 1.92, 2.44, 2.96, 3.48, 4.00, 4.52, 5.04, 5.56, 6.08] : [0.36, 1.02, 1.68, 2.34, 3.00, 3.66], true);
 
   if (slot === 'A') {
     areas.push(area(301, x, y, 78 + phase * 12, color, { durationLeft: 2.5, statusId: 'armor_up' }));
@@ -294,13 +344,13 @@ function buildBulwark(slot, phase, u) {
   return { ships, projectiles, areas, camX: 0, camY: 0 };
 }
 
-function buildScene(frameId, slot, phase, u) {
-  if (frameId === 'sigil') return buildSigil(slot, phase, u);
-  if (frameId === 'bulwark') return buildBulwark(slot, phase, u);
-  return buildVanguard(slot, phase, u);
+function buildScene(frameId, slot, phase, u, t, scenarioIndex) {
+  if (frameId === 'sigil') return buildSigil(slot, phase, u, t, scenarioIndex);
+  if (frameId === 'bulwark') return buildBulwark(slot, phase, u, t, scenarioIndex);
+  return buildVanguard(slot, phase, u, t, scenarioIndex);
 }
 
-function drawDemoHud(ctx, view, card, slot, phase, time) {
+function drawDemoHud(ctx, view, card, slot, phase, time, progress01, scenarioLabel = '') {
   const dpr = view.dpr;
   const label = card.abilities?.find((a) => a.key === slot)?.name || card.abilities?.find((a) => a.key === slot)?.label || slot;
   ctx.save();
@@ -318,9 +368,9 @@ function drawDemoHud(ctx, view, card, slot, phase, time) {
   ctx.fillText(`${slot} · ${label}`, 28 * dpr, 36 * dpr);
   ctx.fillStyle = 'rgba(178, 198, 224, 0.80)';
   ctx.font = `700 ${11 * dpr}px var(--ui-font, Segoe UI)`;
-  ctx.fillText(`Démo IA · phase ${phase}`, 28 * dpr, 55 * dpr);
+  ctx.fillText(`${scenarioLabel || 'Démo IA'} · phase ${phase}`, 28 * dpr, 55 * dpr);
 
-  const pulse = (time % 4.8) / 4.8;
+  const pulse = progress01;
   ctx.fillStyle = 'rgba(126,162,214,.20)';
   ctx.fillRect(28 * dpr, 62 * dpr, 196 * dpr, 3 * dpr);
   ctx.fillStyle = 'rgba(236,196,96,.86)';
@@ -328,11 +378,14 @@ function drawDemoHud(ctx, view, card, slot, phase, time) {
   ctx.restore();
 }
 
-export function drawSessionRealAbilityDemo(ctx, canvas, card, abilityIndex, phase, time) {
+export function drawSessionRealAbilityDemo(ctx, canvas, card, abilityIndex, phase, time, scenarioIndex = 0) {
   const view = resizeCanvas(canvas);
-  const slot = card.abilities?.[abilityIndex]?.key || 'A';
-  const u = (time % 4.8) / 4.8;
-  const scene = buildScene(card.id, slot, phase, u);
+  const ability = card.abilities?.[abilityIndex] || card.abilities?.[0] || null;
+  const slot = ability?.key || 'A';
+  const clock = demoClock(time, card.id, slot, scenarioIndex);
+  const u = clock.u;
+  const t = clock.t;
+  const scene = buildScene(card.id, slot, phase, u, t, scenarioIndex);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid(ctx, view, scene.camX, scene.camY);
@@ -348,5 +401,7 @@ export function drawSessionRealAbilityDemo(ctx, canvas, card, abilityIndex, phas
   if (dist(self.x, self.y, target.x, target.y) < 170) {
     drawDemoLabel(ctx, view, slot === 'Z' && card.id === 'bulwark' ? 'PULL' : slot === 'R' ? 'BURST' : 'HIT', target.x, target.y - 72, rgba(palette.outline.r, palette.outline.g, palette.outline.b, 0.94));
   }
-  drawDemoHud(ctx, view, card, slot, phase, time);
+  const scenarios = typeof ability?.getScenarios === 'function' ? ability.getScenarios(phase) : [];
+  const scenarioLabel = scenarios?.[scenarioIndex]?.label || '';
+  drawDemoHud(ctx, view, card, slot, phase, time, u, scenarioLabel);
 }

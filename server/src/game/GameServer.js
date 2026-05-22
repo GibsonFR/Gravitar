@@ -138,7 +138,7 @@ export function createGameServer() {
         const p = state.players.get(id);
         const previousFullAt = lastFullSnapshotByPlayer.get(id) || 0;
         const forceFullUi = !!p?.forceFullUiSnapshot;
-        const fullUi = !!p?.sessionSetupPending || forceFullUi || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
+        const fullUi = forceFullUi || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
         if (fullUi) lastFullSnapshotByPlayer.set(id, timeMs);
         const snap = buildSnapshot(state, id, timeMs, { fullUi });
         if (forceFullUi) {
