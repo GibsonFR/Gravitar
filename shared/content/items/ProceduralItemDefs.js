@@ -20,6 +20,25 @@ const TAGS = [
 
 const COLORS = [CYAN, ORANGE, GREEN, VIOLET, RED, GOLD];
 
+const CONVERTER_PAIRS = Object.freeze([
+  ['scrap', 8, 'copper', 4],
+  ['ice', 7, 'plasmaGel', 2],
+  ['copper', 6, 'circuit', 2],
+  ['silicon', 5, 'nanoDust', 3],
+  ['ironVein', 7, 'alloy', 2],
+  ['basaltChunk', 8, 'flux', 2],
+  ['sulfurStone', 7, 'phosphorite', 3],
+  ['carbonMesh', 5, 'grapheneVeil', 2],
+  ['quartzBloom', 4, 'crystal', 2],
+  ['lithiumSalt', 5, 'plasmaGel', 1],
+  ['cobaltOre', 5, 'palladiumDust', 1],
+  ['titaniumOre', 4, 'hafniumPlate', 1],
+  ['argonIce', 5, 'xenonPearl', 1],
+  ['rutileShard', 4, 'galliumBloom', 1],
+  ['vanadiumGlass', 4, 'phaseQuartz', 1],
+  ['voidAmber', 3, 'darkMatter', 1]
+]);
+
 function clamp(v, a, b) {
   return v < a ? a : v > b ? b : v;
 }
@@ -49,7 +68,9 @@ function tierPrice(categoryId, tier, index) {
     [ITEM_CATEGORY_IDS.LAUNCHER]: 290,
     [ITEM_CATEGORY_IDS.DEFENSE]: 240,
     [ITEM_CATEGORY_IDS.ENGINE]: 225,
-    [ITEM_CATEGORY_IDS.MODULE]: 210
+    [ITEM_CATEGORY_IDS.MODULE]: 210,
+    [ITEM_CATEGORY_IDS.AMMO]: 110,
+    [ITEM_CATEGORY_IDS.CONVERTER]: 205
   };
   return Math.round((baseByCategory[categoryId] || 220) * (1 + (tier - 1) * 0.82) + (index % 9) * 17);
 }
@@ -57,6 +78,7 @@ function tierPrice(categoryId, tier, index) {
 function statPatchFor(categoryId, tier, index) {
   const s = 1 + (tier - 1) * 0.46;
   const variant = index % 8;
+  if (categoryId === ITEM_CATEGORY_IDS.AMMO || categoryId === ITEM_CATEGORY_IDS.CONVERTER) return {};
   if (categoryId === ITEM_CATEGORY_IDS.WEAPON) {
     return [
       { damageMultPct: 0.04 * s },
@@ -305,15 +327,47 @@ function profileFor(categoryId, tier, index, tint) {
   if (categoryId === ITEM_CATEGORY_IDS.LAUNCHER) {
     return {
       launcherProfile: {
-        cooldown: Math.round((3.8 + (index % 5) * 0.38) * 10) / 10,
-        volley: 1 + (index % 3 === 0 ? 1 : 0),
-        energyCost: Math.round((7.5 + (index % 5) * 0.9) * 10) / 10,
-        projectileSpeed: 890 + (index % 5) * 45,
-        range: 1450 + (index % 6) * 55,
-        splashRadius: 80 + (index % 5) * 8,
-        damageMult: Math.round((0.92 + tier * 0.08 + (index % 4) * 0.025) * 100) / 100,
-        dispersionDeg: index % 3 === 0 ? 7 : 0,
+        cooldown: Math.round((3.2 + (index % 7) * 0.32) * 10) / 10,
+        volley: 1 + (index % 4 === 0 ? 1 : 0) + (index % 11 === 0 ? 1 : 0),
+        energyCost: Math.round((6.8 + (index % 6) * 0.8) * 10) / 10,
+        projectileSpeed: 860 + (index % 7) * 55,
+        range: 1380 + (index % 8) * 70,
+        splashRadius: 72 + (index % 7) * 9,
+        damageMult: Math.round((0.86 + tier * 0.08 + (index % 5) * 0.03) * 100) / 100,
+        dispersionDeg: index % 5 === 0 ? 11 : (index % 3 === 0 ? 6 : 0),
         tint
+      }
+    };
+  }
+  if (categoryId === ITEM_CATEGORY_IDS.AMMO) {
+    const variant = index % 8;
+    const base = {
+      packSize: Math.max(3, 9 - tier - (index % 3)),
+      damage: Math.round((26 + tier * 5 + (index % 6) * 2.5) * 10) / 10,
+      splashRadius: 76 + (index % 6) * 8,
+      tint,
+      summary: 'standard'
+    };
+    if (variant === 1) Object.assign(base, { effectType: 'slow', effectDuration: 1.3 + tier * 0.25, effectMagnitude: 0.20 + tier * 0.035, summary: `slow ${Math.round((0.20 + tier * 0.035) * 100)}%` });
+    else if (variant === 2) Object.assign(base, { effectType: 'burn', effectDuration: 2.1 + tier * 0.35, effectMagnitude: 3.5 + tier * 1.1, summary: `feu ${(3.5 + tier * 1.1).toFixed(1)}/s` });
+    else if (variant === 3) Object.assign(base, { effectType: 'stun', effectDuration: 0.35 + tier * 0.08, effectMagnitude: 0, summary: `stun ${(0.35 + tier * 0.08).toFixed(1)}s` });
+    else if (variant === 4) Object.assign(base, { damage: Math.round(base.damage * 0.82), splashRadius: base.splashRadius + 26, summary: 'large explosion' });
+    else if (variant === 5) Object.assign(base, { damage: Math.round(base.damage * 1.18), splashRadius: Math.max(60, base.splashRadius - 16), summary: 'perforant' });
+    else if (variant === 6) Object.assign(base, { packSize: base.packSize + 3, damage: Math.round(base.damage * 0.72), summary: 'volume' });
+    else if (variant === 7) Object.assign(base, { effectType: 'slow', effectDuration: 0.9 + tier * 0.16, effectMagnitude: 0.12 + tier * 0.02, damage: Math.round(base.damage * 1.05), summary: 'impact lourd' });
+    return { ammoProfile: base };
+  }
+  if (categoryId === ITEM_CATEGORY_IDS.CONVERTER) {
+    const pair = CONVERTER_PAIRS[index % CONVERTER_PAIRS.length];
+    const speed = 6.0 + (index % 6) * 0.55 + Math.max(0, tier - 1) * 0.8;
+    return {
+      converterProfile: {
+        inputKey: pair[0],
+        inputAmount: Math.max(1, pair[1] - Math.floor(tier / 2)),
+        outputKey: pair[2],
+        outputAmount: Math.max(1, pair[3] + (tier >= 3 ? 1 : 0)),
+        seconds: Math.round(speed * 10) / 10,
+        energyPerSecond: Math.round((1.0 + tier * 0.18 + (index % 4) * 0.08) * 100) / 100
       }
     };
   }
@@ -329,8 +383,36 @@ const CATEGORY_NAMES = Object.freeze({
   [ITEM_CATEGORY_IDS.LAUNCHER]: ['Rack', 'Pod', 'Batterie roquette', 'Rampe'],
   [ITEM_CATEGORY_IDS.DEFENSE]: ['Blindage', 'Écran', 'Plaque', 'Coque'],
   [ITEM_CATEGORY_IDS.ENGINE]: ['Propulseur', 'Injecteur', 'Turbine', 'Ailette'],
-  [ITEM_CATEGORY_IDS.MODULE]: ['Relais', 'Matrice', 'Noyau', 'Circuit']
+  [ITEM_CATEGORY_IDS.MODULE]: ['Relais', 'Matrice', 'Noyau', 'Circuit'],
+  [ITEM_CATEGORY_IDS.AMMO]: ['Roquettes', 'Charge', 'Munitions', 'Ogives'],
+  [ITEM_CATEGORY_IDS.CONVERTER]: ['Convertisseur', 'Raffineur', 'Recycleur', 'Alambic']
 });
+
+function shouldAttachPassive(categoryId, index) {
+  if (categoryId === ITEM_CATEGORY_IDS.AMMO || categoryId === ITEM_CATEGORY_IDS.CONVERTER) return false;
+  return index % 5 === 0;
+}
+
+function compatibleTemplate(categoryId, index) {
+  if (categoryId === ITEM_CATEGORY_IDS.LAUNCHER) {
+    const rocket = PROC_TEMPLATES.filter((p) => p.trigger === 'rocketHit' || p.trigger === 'hitAny' || p.trigger === 'abilityCast');
+    return rocket[index % rocket.length];
+  }
+  if (categoryId === ITEM_CATEGORY_IDS.DEFENSE || categoryId === ITEM_CATEGORY_IDS.ENGINE) {
+    const defensive = PROC_TEMPLATES.filter((p) => p.trigger === 'takeHit' || p.trigger === 'abilityCast' || p.trigger === 'hitAny');
+    return defensive[index % defensive.length];
+  }
+  return PROC_TEMPLATES[index % PROC_TEMPLATES.length];
+}
+
+function descriptionFor(categoryId, profile, proc) {
+  if (proc?.text) return proc.text;
+  if (categoryId === ITEM_CATEGORY_IDS.WEAPON) return 'Arme procédurale : variantes de dégâts, cadence, portée et coût énergétique.';
+  if (categoryId === ITEM_CATEGORY_IDS.LAUNCHER) return 'Lance-roquettes procédural : variantes de salve, portée, dispersion, recharge et rayon.';
+  if (categoryId === ITEM_CATEGORY_IDS.AMMO) return profile?.ammoProfile?.summary ? `Roquettes procédurales : ${profile.ammoProfile.summary}.` : 'Roquettes procédurales sans passif d’équipement.';
+  if (categoryId === ITEM_CATEGORY_IDS.CONVERTER) return 'Convertisseur procédural : transforme une ressource locale en ressource raffinée. Aucun passif.';
+  return 'Équipement procédural : bonus de statistiques sans passif spécial.';
+}
 
 function makeItem(categoryId, index) {
   const tier = 1 + (index % 4 >= 2 ? 1 : 0) + (index % 17 === 0 ? 1 : 0);
@@ -338,12 +420,14 @@ function makeItem(categoryId, index) {
   const family = FAMILY_NAMES[index % FAMILY_NAMES.length];
   const nounList = CATEGORY_NAMES[categoryId] || CATEGORY_NAMES[ITEM_CATEGORY_IDS.MODULE];
   const noun = nounList[index % nounList.length];
-  const template = PROC_TEMPLATES[index % PROC_TEMPLATES.length];
-  const proc = materializeProc(template, safeTier, index);
   const tint = COLORS[index % COLORS.length];
+  const profile = profileFor(categoryId, safeTier, index, tint);
+  const withPassive = shouldAttachPassive(categoryId, index);
+  const template = withPassive ? compatibleTemplate(categoryId, index) : null;
+  const proc = template ? materializeProc(template, safeTier, index) : null;
   const name = `${noun} ${family} ${index + 1}`;
   const shortName = `${family} ${index + 1}`;
-  return {
+  const item = {
     id: `proc-${cleanId(categoryId)}-${cleanId(family)}-${index + 1}`,
     generated: true,
     name,
@@ -351,21 +435,24 @@ function makeItem(categoryId, index) {
     categoryId,
     tier: safeTier,
     priceCredits: tierPrice(categoryId, safeTier, index),
-    tags: tagPair(index),
+    tags: categoryId === ITEM_CATEGORY_IDS.AMMO || categoryId === ITEM_CATEGORY_IDS.CONVERTER ? [] : tagPair(index),
     bonuses: statPatchFor(categoryId, safeTier, index),
-    ...profileFor(categoryId, safeTier, index, tint),
-    passiveEffects: [proc],
-    description: proc.text
+    ...profile,
+    description: descriptionFor(categoryId, profile, proc)
   };
+  if (proc) item.passiveEffects = [proc];
+  return item;
 }
 
 function buildProceduralItemDefs() {
   const specs = [
-    [ITEM_CATEGORY_IDS.WEAPON, 30],
-    [ITEM_CATEGORY_IDS.LAUNCHER, 24],
-    [ITEM_CATEGORY_IDS.DEFENSE, 24],
-    [ITEM_CATEGORY_IDS.ENGINE, 24],
-    [ITEM_CATEGORY_IDS.MODULE, 54]
+    [ITEM_CATEGORY_IDS.WEAPON, 34],
+    [ITEM_CATEGORY_IDS.LAUNCHER, 44],
+    [ITEM_CATEGORY_IDS.AMMO, 48],
+    [ITEM_CATEGORY_IDS.DEFENSE, 28],
+    [ITEM_CATEGORY_IDS.ENGINE, 28],
+    [ITEM_CATEGORY_IDS.MODULE, 60],
+    [ITEM_CATEGORY_IDS.CONVERTER, 36]
   ];
   const out = {};
   let globalIndex = 0;

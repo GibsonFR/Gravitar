@@ -159,9 +159,9 @@ function getAmmoPassiveLines(item) {
 export function getItemPassiveLines(item) {
   const raw = item?.passives || item?.passiveEffects || item?.passive || null;
   const lines = [];
-  if (Array.isArray(raw)) lines.push(...raw.map((entry) => typeof entry === 'string' ? entry : (entry?.name || entry?.text || entry?.description || '')).filter(Boolean));
+  if (Array.isArray(raw)) lines.push(...raw.map((entry) => typeof entry === 'string' ? entry : (entry?.text || entry?.description || entry?.name || '')).filter(Boolean));
   else if (typeof raw === 'string') lines.push(raw);
-  else if (raw) lines.push(raw.name || raw.text || raw.description || 'Passif');
+  else if (raw) lines.push(raw.text || raw.description || raw.name || 'Passif');
   lines.push(...getAmmoPassiveLines(item));
   return lines.filter(Boolean);
 }
@@ -169,9 +169,9 @@ export function getItemPassiveLines(item) {
 export function getItemActiveLines(item) {
   const raw = item?.actives || item?.activeEffects || item?.active || null;
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map((entry) => typeof entry === 'string' ? entry : (entry?.name || entry?.text || entry?.description || '')).filter(Boolean);
+  if (Array.isArray(raw)) return raw.map((entry) => typeof entry === 'string' ? entry : (entry?.text || entry?.description || entry?.name || '')).filter(Boolean);
   if (typeof raw === 'string') return [raw];
-  return [raw.name || raw.text || raw.description || 'Actif'].filter(Boolean);
+  return [raw.text || raw.description || raw.name || 'Actif'].filter(Boolean);
 }
 
 export function renderStationInfoSection(title, body, opts = {}) {
