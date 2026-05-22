@@ -173,54 +173,24 @@ export class WorldStore {
   }
 
   _applyLocalDamageToEntity(entity) {
-    if (!entity?.vitals) return entity;
-    const now = performance.now();
-    const candidates = [
-      `${entity.kind || ''}:${entity.id}`,
-      `mob:${entity.id}`,
-      `asteroid:${entity.id}`,
-      `player:${entity.id}`
-    ];
-    let best = null;
-    for (const key of candidates) {
-      const entry = this.localPrediction.localDamage.get(key);
-      if (!entry) continue;
-      if (now > entry.until) {
-        this.localPrediction.localDamage.delete(key);
-        continue;
-      }
-      if (!best || entry.hp < best.hp) best = entry;
-    }
-    if (!best) return entity;
-    entity.vitals = { ...entity.vitals, hp: Math.min(entity.vitals.hp ?? best.hp, best.hp) };
+    // V84: plus de dégâts prédits localement.
+    // Les HP visibles viennent uniquement du serveur pour éviter les divergences.
     return entity;
   }
 
   applyLocalDamage(kind, id, amount, x = null, y = null) {
-    if (!kind || !id || !Number.isFinite(amount) || amount <= 0) return;
-    let map = null;
-    if (kind === 'mob') map = this.mobs;
-    else if (kind === 'asteroid') map = this.asteroids;
-    else if (kind === 'player') map = this.players;
-    if (!map) return;
-    const entity = map.get(id);
-    if (!entity?.vitals) return;
-    const hp = Math.max(0, (entity.vitals.hp ?? 0) - amount);
-    entity.vitals = { ...entity.vitals, hp };
-    this.localPrediction.localDamage.set(`${kind}:${id}`, { hp, until: performance.now() + 650 });
-    this.pendingCombatFx.push({
-      type: 'damage',
-      amount: Math.max(1, Math.round(amount)),
-      x: Number.isFinite(x) ? x : entity.x,
-      y: Number.isFinite(y) ? y : entity.y,
-      targetId: id,
-      crit: false,
-      shielded: false,
-      periodic: false
-    });
+    // V84: no-op. Les dégâts et nombres de dégâts viennent de combatFx serveur.
   }
 
   _syncMap(map, arr, options = {}) {
+    // V84: on purge immédiatement les anciens visuels locaux de combat.
+    // Si on les garde jusqu'à leur TTL, ils survivent aux annulations serveur et créent
+    // exactement les "tirs fantômes" observés.
+    if (map === this.projectiles || map === this.areaEffects) {
+      for (const [id, item] of map) {
+        if (item?.localOnly) map.delete(id);
+      }
+    }
     const seen = new Set();
     for (const item of arr) {
       seen.add(item.id);
@@ -412,10 +382,8 @@ export class WorldStore {
       if (d2 <= r * r) {
         projectile.x = target.x;
         projectile.y = target.y;
-        if (!projectile._impactApplied && !projectile._visualOnly && projectile._impactDamage > 0 && projectile._targetKind !== 'station') {
-          this.applyLocalDamage(projectile._targetKind, projectile._targetId, projectile._impactDamage, target.x, target.y);
-          projectile._impactApplied = true;
-        }
+        // V84: impact visuel local seulement pour les anciens projectiles legacy.
+        // Aucun dégât local n'est appliqué.
         this._spawnLocalImpact(projectile, target);
         return false;
       }
@@ -442,15 +410,8 @@ export class WorldStore {
   _smoothMap(map, alpha, dt = 0) {
     for (const entity of [...map.values()]) {
       if (entity.localOnly) {
-        const keep = entity.kind === 'projectile' || map === this.projectiles
-          ? this._updateLocalProjectile(entity, dt)
-          : (() => {
-              entity.x += (entity.vx || 0) * dt;
-              entity.y += (entity.vy || 0) * dt;
-              entity.ttl = Math.max(0, (entity.ttl ?? 0) - dt);
-              return entity.ttl > 0;
-            })();
-        if (!keep) { map.delete(entity.id); continue; }
+        // V84: aucun projectile/zone local persistant. Les visuels combat viennent du serveur.
+        map.delete(entity.id);
         continue;
       }
       if (Number.isFinite(entity.vx) && Number.isFinite(entity.vy) && entity.id !== this.myId) {
