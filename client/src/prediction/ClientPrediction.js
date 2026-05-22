@@ -155,12 +155,18 @@ export class ClientPrediction {
 
   updateLocalFacing(me, worldMouse, dt) {
     if (!me) return;
-    const target = getAttackTarget(this.store);
+    const attack = getAttackTarget(this.store);
+    const selected = getSelectedTarget(this.store);
     let tx = null;
     let ty = null;
-    if (target.entity && (target.entity.sx | 0) === (me.sx | 0) && (target.entity.sy | 0) === (me.sy | 0)) {
-      tx = target.entity.x;
-      ty = target.entity.y;
+    // On oriente vers une cible seulement si une attaque active existe.
+    // Une sélection visuelle simple ne doit pas bloquer la rotation du vaisseau.
+    if (attack.entity && (attack.entity.sx | 0) === (me.sx | 0) && (attack.entity.sy | 0) === (me.sy | 0)) {
+      tx = attack.entity.x;
+      ty = attack.entity.y;
+    } else if (selected.kind === 'station' && selected.entity && (selected.entity.sx | 0) === (me.sx | 0) && (selected.entity.sy | 0) === (me.sy | 0)) {
+      tx = selected.entity.x;
+      ty = selected.entity.y;
     } else if (this.store.localPrediction?.hasMoveTarget) {
       tx = this.store.localPrediction.moveX;
       ty = this.store.localPrediction.moveY;
@@ -251,7 +257,7 @@ export class ClientPrediction {
     me._localThrust = 1;
     me._clientDashGrace = 0.22;
     me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 900);
-    this.applyLocalSectorWrap(me);
+    this.requestServerSectorWrapIfNeeded(me);
   }
 
   spawnLocalProjectile(me, targetOrPoint, opts = {}) {
@@ -307,34 +313,53 @@ export class ClientPrediction {
     const local = this.store.localPrediction || {};
     let tx = null;
     let ty = null;
-
-    const target = getTarget(this.store, local.selectedKind || this.store.myState?.selectedKind, local.selectedId || this.store.myState?.selectedId);
-    if (target && (target.kind === 'station' || local.selectedKind === 'station')) {
-      // Station/interactions : on peut se rapprocher.
-      tx = target.x;
-      ty = target.y;
-    }
-    // Combat target : sélection purement locale. On NE convertit plus une sélection
-    // en ordre de déplacement automatique ; sinon le clic cible ressemble à un move-click.
+    let stopDistance = 10;
 
     if (local.hasMoveTarget) {
       tx = local.moveX;
       ty = local.moveY;
+      stopDistance = 10;
+    } else {
+      const attack = getAttackTarget(this.store);
+      if (attack.entity && (attack.entity.sx | 0) === (me.sx | 0) && (attack.entity.sy | 0) === (me.sy | 0)) {
+        const range = Math.max(120, finite(this.store.myState?.derived?.autoAttackRange, 620));
+        const targetRadius = Math.max(0, finite(attack.entity.radius, 0));
+        const dx = attack.entity.x - me.x;
+        const dy = attack.entity.y - me.y;
+        const d = Math.hypot(dx, dy);
+        if (d > range + targetRadius * 0.25) {
+          // Target-click hors portée = auto-approche jusqu'à portée, comme un MOBA.
+          const desired = Math.max(60, range * 0.82 + targetRadius * 0.20);
+          const n = norm(dx, dy);
+          tx = attack.entity.x - n.x * desired;
+          ty = attack.entity.y - n.y * desired;
+          stopDistance = 22;
+        }
+      } else {
+        const selected = getSelectedTarget(this.store);
+        if (selected.kind === 'station' && selected.entity && (selected.entity.sx | 0) === (me.sx | 0) && (selected.entity.sy | 0) === (me.sy | 0)) {
+          tx = selected.entity.x;
+          ty = selected.entity.y;
+          stopDistance = Math.max(70, finite(selected.entity.radius, 46) + 70);
+        }
+      }
     }
 
     if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
-      me._localThrust = Math.max(0, finite(me._localThrust, 0) - dt * 5);
+      me.vx = Math.abs(me.vx || 0) < 1 ? 0 : (me.vx || 0) * Math.max(0, 1 - dt * 18);
+      me.vy = Math.abs(me.vy || 0) < 1 ? 0 : (me.vy || 0) * Math.max(0, 1 - dt * 18);
+      me._localThrust = Math.max(0, finite(me._localThrust, 0) - dt * 8);
       return;
     }
 
     const dx = tx - me.x;
     const dy = ty - me.y;
     const d = Math.hypot(dx, dy);
-    if (d <= 10) {
+    if (d <= stopDistance) {
       if (local.hasMoveTarget && !local.hold) local.hasMoveTarget = false;
       me.vx = 0;
       me.vy = 0;
-      me._localThrust = Math.max(0, finite(me._localThrust, 0) - dt * 6);
+      me._localThrust = Math.max(0, finite(me._localThrust, 0) - dt * 10);
       return;
     }
 
@@ -346,41 +371,37 @@ export class ClientPrediction {
     me.vy = (dy / d) * speed;
     me.rot = angleLerp(me.rot, Math.atan2(dy, dx), Math.min(1, Math.max(0.22, dt * 30)));
     me._localThrust = Math.min(1, Math.max(finite(me._localThrust, 0), Math.min(1, d / 180)));
-    this.applyLocalSectorWrap(me);
+    this.requestServerSectorWrapIfNeeded(me);
   }
 
-  applyLocalSectorWrap(me) {
-    // V86: do NOT locally change sx/sy at sector borders anymore.
-    // Let the server perform the exact wrap from the client pose, then accept
-    // the forced server pose. The previous local-wrap + server-wrap hybrid was
-    // the cause of wrong spawns, center-ish teleports and ping-pong at borders.
-    if (!me) return;
-    const outside = me.x < -2000 || me.x > 2000 || me.y < -2000 || me.y > 2000;
-    if (!outside) return;
+  requestServerSectorWrapIfNeeded(me) {
+    const now = performance.now();
+    if (now < finite(me._sectorLockUntil, 0)) return;
+    const over = 18;
+    const crossed = me.x < -2000 - over || me.x > 2000 + over || me.y < -2000 - over || me.y > 2000 + over;
+    if (!crossed) return;
 
+    // V87: le client ne wrapppe plus lui-même les secteurs. Il laisse volontairement
+    // sa pose dépasser la frontière et envoie cette pose au serveur. Le serveur fait
+    // le wrap exact avec l'overshoot réel puis renvoie un forceServerPose.
+    // Ça évite le double-wrap local/serveur responsable des spawns trop loin/au centre.
     const local = this.store.localPrediction || {};
     local.hasMoveTarget = false;
     local.hold = false;
     local.moveX = me.x;
     local.moveY = me.y;
-    this.store.setOptimisticSelection?.('', 0);
+    this.store.setOptimisticSelection('', 0);
     this.store.cancelLocalAttack?.({ keepSeq: false });
-
     me.hasMoveTarget = false;
     me.vx = 0;
     me.vy = 0;
     me._localThrust = 0;
-    me.groundMarkerTimer = 0;
+    me._sectorLockUntil = now + 900;
     me._keepLocalPoseUntil = 0;
-
-    const w = wrapIntoSector({ x: me.x, y: me.y }, me.sx | 0, me.sy | 0);
-    const now = performance.now();
-    if (now - (this.lastSectorWrapAt || 0) > 180) {
-      this.lastSectorWrapAt = now;
-      local.sectorSeq = (local.sectorSeq | 0) + 1;
-      this.store.beginPortalLoading?.(`Secteur [${w.sx | 0},${w.sy | 0}]`, 320, local.sectorSeq | 0);
-    }
+    local.sectorSeq = (local.sectorSeq | 0) + 1;
+    this.store.beginPortalLoading?.('Chargement du secteur…', 520, local.sectorSeq | 0);
   }
+
 
   reconcileSoftly(me, dt, isMoving = false) {
     return;

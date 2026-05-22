@@ -959,6 +959,11 @@ function castVanguardA(state, player, timeMs) {
   return true;
 }
 
+function clientAlreadyAppliedDash(player, slot, timeMs) {
+  const a = player?._activeClientAppliedAbility || player?.clientAppliedAbilityPose || null;
+  return !!a && a.slot === slot && timeMs <= (a.until || 0);
+}
+
 function castVanguardZ(state, player, timeMs) {
   if (getAbilityInvestedLevel(player, 'Z') <= 0) return false;
   const z = getZ(player);
@@ -968,9 +973,12 @@ function castVanguardZ(state, player, timeMs) {
 
   const world = getAbilityMouseWorld(player);
   const dir = norm(world.x - player.x, world.y - player.y);
+  const fromX = player.x;
+  const fromY = player.y;
   const toX = player.x + dir.x * z.dashDistance;
   const toY = player.y + dir.y * z.dashDistance;
-  applyDashMove(player, toX, toY, 0.10, z.dashDistance / 0.10);
+  const clientDash = clientAlreadyAppliedDash(player, 'Z', timeMs);
+  if (!clientDash) applyDashMove(player, toX, toY, 0.10, z.dashDistance / 0.10);
 
   const fs = getVanguardState(player);
   fs.moveBoostLeft = Math.max(fs.moveBoostLeft, z.moveBoostDuration);
@@ -995,10 +1003,10 @@ function castVanguardZ(state, player, timeMs) {
     });
     if (hits > 0) addVanguardHeat(player, hits, timeMs);
     fs.trailLeft = z.trailSlowDuration;
-    fs.trailStartX = player.x;
-    fs.trailStartY = player.y;
-    fs.trailEndX = toX;
-    fs.trailEndY = toY;
+    fs.trailStartX = fromX;
+    fs.trailStartY = fromY;
+    fs.trailEndX = clientDash ? player.x : toX;
+    fs.trailEndY = clientDash ? player.y : toY;
     fs.trailSlowPct = z.trailSlowPct;
     fs.trailSlowDuration = z.trailSlowDuration;
   }
@@ -1147,9 +1155,12 @@ function castSigilE(state, player, timeMs) {
 
   const world = getAbilityMouseWorld(player);
   const dir = norm(world.x - player.x, world.y - player.y);
+  const fromX = player.x;
+  const fromY = player.y;
   const toX = player.x + dir.x * e.eDashDistance;
   const toY = player.y + dir.y * e.eDashDistance;
-  applyDashMove(player, toX, toY, 0.10, e.eDashDistance / 0.10);
+  const clientDash = clientAlreadyAppliedDash(player, 'E', timeMs);
+  if (!clientDash) applyDashMove(player, toX, toY, 0.10, e.eDashDistance / 0.10);
   applyStatus(player, I.CAMOUFLAGE, e.eCamouflageDuration, {
     sourceId: player.id,
     hostile: false,
@@ -1159,10 +1170,10 @@ function castSigilE(state, player, timeMs) {
   const fs = getSigilState(player);
   fs.veilLeft = Math.max(fs.veilLeft, e.eCamouflageDuration);
   fs.trailLeft = e.eTrailDuration;
-  fs.trailStartX = player.x;
-  fs.trailStartY = player.y;
-  fs.trailEndX = toX;
-  fs.trailEndY = toY;
+  fs.trailStartX = fromX;
+  fs.trailStartY = fromY;
+  fs.trailEndX = clientDash ? player.x : toX;
+  fs.trailEndY = clientDash ? player.y : toY;
   fs.trailSlowPct = e.eTrailSlowPct;
   fs.trailSlowDuration = e.eTrailSlowDuration;
   if (e.eGroundedDurationOnMaxRunes > 0) {

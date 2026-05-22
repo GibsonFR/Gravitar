@@ -1,26 +1,36 @@
-import { clamp, screenToWorld } from '../util/Math.js';
+import { clamp, distSq, screenToWorld } from '../util/Math.js';
 import { applyPrimaryClick } from './PrimaryClick.js';
+import { getTargetForPlayer, isPlayerAttackable } from '../targeting/Targeting.js';
 import { canAcceptInput, sanitizeInputMessage } from '../../net/protocol/InputMessage.js';
 
-function clearAutoAttack(player) {
+function clearAutoAttack(player, options = {}) {
   player.autoTargetKind = '';
   player.autoTargetId = 0;
-}
-
-function armAutoAttack(player, kind, id, timeMs) {
-  const changed = player.autoTargetKind !== kind || (player.autoTargetId | 0) !== (id | 0);
-  player.autoTargetKind = kind;
-  player.autoTargetId = id | 0;
-
-  // Re-clicking the same target must not reset the weapon cooldown.
-  // Older versions used Math.min(nextShotAt, now + 35), allowing click-spam
-  // to fire faster than the real auto-attack cadence.
-  if (!Number.isFinite(player.nextShotAt) || player.nextShotAt <= timeMs || changed) {
-    player.nextShotAt = Math.max(timeMs + 35, Number.isFinite(player.nextShotAt) ? player.nextShotAt : 0);
+  if (options.clearSelection) {
+    player.selectedKind = '';
+    player.selectedId = 0;
   }
 }
 
-function setMoveTarget(player, x, y) {
+function setApproachTarget(player, target, desiredRange) {
+  if (!target) return false;
+  const dx = target.x - player.x;
+  const dy = target.y - player.y;
+  const d = Math.hypot(dx, dy);
+  if (d <= Math.max(48, desiredRange)) return false;
+  const nX = dx / Math.max(0.001, d);
+  const nY = dy / Math.max(0.001, d);
+  player.moveTx = target.x - nX * Math.max(60, desiredRange * 0.82);
+  player.moveTy = target.y - nY * Math.max(60, desiredRange * 0.82);
+  player.hasMoveTarget = true;
+  player.holdMoveAllowed = false;
+  player.groundMarkerX = player.moveTx;
+  player.groundMarkerY = player.moveTy;
+  player.groundMarkerTimer = 0.65;
+  return true;
+}
+
+function setMoveTarget(player, x, y, options = {}) {
   player.moveTx = x;
   player.moveTy = y;
   player.hasMoveTarget = true;
@@ -28,7 +38,7 @@ function setMoveTarget(player, x, y) {
   player.groundMarkerX = x;
   player.groundMarkerY = y;
   player.groundMarkerTimer = 0.85;
-  clearAutoAttack(player);
+  clearAutoAttack(player, { clearSelection: options.clearSelection !== false });
 }
 
 function acceptClientPose(player, msg, timeMs, abilityFresh) {
@@ -79,26 +89,43 @@ function applyActionPacket(state, player, action, timeMs) {
   player.lastActionSeq = action.seq | 0;
 
   if (action.type === 'move') {
-    setMoveTarget(player, action.x, action.y);
+    setMoveTarget(player, action.x, action.y, { clearSelection: true });
     return;
   }
 
   if (action.type === 'cancelAttack') {
-    clearAutoAttack(player);
+    clearAutoAttack(player, { clearSelection: !!action.clearSelection });
     return;
   }
 
   if (action.type === 'target') {
     player.selectedKind = action.kind;
     player.selectedId = action.id;
-    if (action.kind === 'station' || action.attack === false) {
-      clearAutoAttack(player);
-    } else {
-      armAutoAttack(player, action.kind, action.id, timeMs);
-    }
+    player.lastClientSelectSeq = Math.max(player.lastClientSelectSeq | 0, action.selectSeq | 0);
     player.holdMoveAllowed = false;
     player.groundMarkerTimer = 0;
-    player.lastClientSelectSeq = Math.max(player.lastClientSelectSeq | 0, action.selectSeq | 0);
+
+    const target = getTargetForPlayer(state, player, action.kind, action.id);
+    if (action.kind === 'station' || action.attack === false) {
+      clearAutoAttack(player);
+      player.stationIntentId = action.kind === 'station' ? action.id : 0;
+      if (target) setApproachTarget(player, target, Math.max(110, (target.radius || 46) + 95));
+      return;
+    }
+
+    if (!isPlayerAttackable(player, target)) {
+      clearAutoAttack(player);
+      return;
+    }
+
+    const sameTarget = player.autoTargetKind === action.kind && (player.autoTargetId | 0) === (action.id | 0);
+    player.autoTargetKind = action.kind;
+    player.autoTargetId = action.id;
+    player.hasMoveTarget = false;
+
+    // Un spam-clic sur la cible ne reset plus le cooldown d'auto-attaque.
+    // Le premier clic arme vite le tir, les suivants gardent la cadence serveur.
+    if (!sameTarget || !Number.isFinite(player.nextShotAt)) player.nextShotAt = Math.min(player.nextShotAt || timeMs, timeMs + 35);
     return;
   }
 
@@ -108,7 +135,8 @@ function applyActionPacket(state, player, action, timeMs) {
       player.mouseSy = action.aimY - player.y + player.viewportH * 0.5;
     }
     if (!Array.isArray(player.pendingAbilityCasts)) player.pendingAbilityCasts = [];
-    player.pendingAbilityCasts.push({ slot: action.slot, seq: action.seq | 0, timeMs });
+    player.pendingAbilityCasts.push({ slot: action.slot, seq: action.seq | 0, timeMs, clientPoseApplied: true });
+    player.clientAppliedAbilityPose = { slot: action.slot, seq: action.seq | 0, until: timeMs + 420 };
     if (player.pendingAbilityCasts.length > 8) player.pendingAbilityCasts.splice(0, player.pendingAbilityCasts.length - 8);
     return;
   }
@@ -148,15 +176,21 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     player.mouseSy = msg.aimWorldY - player.y + player.viewportH * 0.5;
   }
 
-  const hasActionPackets = Array.isArray(msg.actions) && msg.actions.length > 0;
-
-  if (!hasActionPackets && !player.sessionSetupPending && msg.targetClick && msg.targetClickKind && msg.targetClickId) {
+  if (!player.sessionSetupPending && msg.targetClick && msg.targetClickKind && msg.targetClickId) {
     const seq = msg.selectSeq | 0;
     if (seq >= (player.lastClientSelectSeq | 0)) {
       player.lastClientSelectSeq = seq;
       player.selectedKind = msg.targetClickKind;
       player.selectedId = msg.targetClickId;
-      armAutoAttack(player, msg.targetClickKind, msg.targetClickId, timeMs);
+      const target = getTargetForPlayer(state, player, msg.targetClickKind, msg.targetClickId);
+      if (msg.targetClickKind !== 'station' && isPlayerAttackable(player, target)) {
+        const sameTarget = player.autoTargetKind === msg.targetClickKind && (player.autoTargetId | 0) === (msg.targetClickId | 0);
+        player.autoTargetKind = msg.targetClickKind;
+        player.autoTargetId = msg.targetClickId;
+        if (!sameTarget || !Number.isFinite(player.nextShotAt)) player.nextShotAt = Math.min(player.nextShotAt || timeMs, timeMs + 35);
+      } else {
+        clearAutoAttack(player);
+      }
       player.holdMoveAllowed = false;
       player.groundMarkerTimer = 0;
     }
@@ -177,6 +211,7 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     return true;
   }
 
+  const hasActionPackets = Array.isArray(msg.actions) && msg.actions.length > 0;
   if (hasActionPackets) {
     for (const action of msg.actions) applyActionPacket(state, player, action, timeMs);
     // Les actions modernes sont événementielles. On ne relit pas en plus les anciens
@@ -198,14 +233,14 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
   if (msg.moveWorld && Number.isFinite(msg.moveWorldX) && Number.isFinite(msg.moveWorldY)) {
     // Move-click = ordre explicite de mouvement et annulation de l'auto-attaque.
     // La sélection visuelle peut rester, mais l'arme arrête de tirer.
-    setMoveTarget(player, msg.moveWorldX, msg.moveWorldY);
+    setMoveTarget(player, msg.moveWorldX, msg.moveWorldY, { clearSelection: true });
   } else if (!msg.selectedKind && !msg.targetClick && msg.primaryClick && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
     applyPrimaryClick(state, player, msg.px, msg.py);
   }
 
   if (msg.primaryHold && player.holdMoveAllowed && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
     const world = screenToWorld(player, msg.px, msg.py);
-    setMoveTarget(player, world.x, world.y);
+    setMoveTarget(player, world.x, world.y, { clearSelection: true });
   }
 
   return true;

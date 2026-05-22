@@ -32,6 +32,24 @@ function setHint(player, text, duration = 2.2) {
   player.uiHintTimer = duration;
 }
 
+function forceClientPoseTransition(player, label, timeMs, durationMs = 520) {
+  const id = ((player.portalTransitionId | 0) + 1) | 0;
+  player.portalTransitionId = id;
+  player.portalTransition = {
+    id,
+    type: 'respawn',
+    label: label || 'Retour hub…',
+    targetSx: player.sx | 0,
+    targetSy: player.sy | 0,
+    startedAt: timeMs,
+    until: timeMs + durationMs,
+    forceServerPose: true
+  };
+  player.ignoreClientPoseUntil = Math.max(player.ignoreClientPoseUntil ?? 0, timeMs + durationMs + 260);
+  player.clientAuthoritativeUntil = 0;
+  player.lastClientSectorSeq = 0;
+}
+
 function getEffectiveArmor(target, sourcePlayer) {
   if (target?.kind !== 'player') return 0;
   const rawArmor = Math.max(0, (target.baseArmor ?? 0) + (target.frameBonuses?.armorFlat ?? 0));
@@ -136,6 +154,7 @@ function respawnPlayerAtHubKeepProgress(state, player, timeMs, hint) {
   player.bastionBuffs = [];
   syncPlayerFrameStats(player, { restoreVitals: true, preserveRatios: false });
   restoreStatBlockFull(player.stats);
+  forceClientPoseTransition(player, 'Retour hub [0,0]…', timeMs, 620);
   setHint(player, hint || 'Vaisseau détruit — retour hub', 3.5);
 }
 
@@ -180,6 +199,7 @@ function resetBattleAfterDeath(state, player, timeMs) {
   player.bastionBuffs = [];
   syncPlayerFrameStats(player, { restoreVitals: true, preserveRatios: false });
   restoreStatBlockFull(player.stats);
+  forceClientPoseTransition(player, 'Éliminé — retour sélection…', timeMs, 620);
   setHint(player, 'Éliminé du Battle Royale — choisis un serveur', 3.5);
 }
 

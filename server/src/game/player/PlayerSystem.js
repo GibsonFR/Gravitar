@@ -1,7 +1,7 @@
 import { WEAPON_PULSE_MK1, ROCKET_BASIC } from '../constants.js';
 import { dist, distSq, norm, screenToWorld } from '../util/Math.js';
 import { getSimulationTimeMs } from '../util/Time.js';
-import { getTarget, getTargetForPlayer, isPlayerAttackable, blindAllowsPoint } from '../targeting/Targeting.js';
+import { getTargetForPlayer, isPlayerAttackable, blindAllowsPoint } from '../targeting/Targeting.js';
 import { spawnProjectile } from '../projectile/ProjectileSystem.js';
 import { queueWorldSfx } from '../audio/WorldSfxState.js';
 import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
@@ -37,6 +37,28 @@ function getLauncherDef(player) {
 function getWeaponProfile(player) {
   return getWeaponDef(player)?.weaponProfile || null;
 }
+function getAutoAttackRange(player, weapon) {
+  return (weapon?.range ?? WEAPON_PULSE_MK1.range) * Math.max(0.5, player.progressionBonuses?.autoRangeMult ?? 1);
+}
+
+function setMoveNearEntity(player, target, desiredRange) {
+  if (!target) return false;
+  const dx = target.x - player.x;
+  const dy = target.y - player.y;
+  const d = Math.hypot(dx, dy);
+  if (d <= Math.max(48, desiredRange)) return false;
+  const nx = dx / Math.max(0.001, d);
+  const ny = dy / Math.max(0.001, d);
+  player.moveTx = target.x - nx * Math.max(60, desiredRange * 0.82);
+  player.moveTy = target.y - ny * Math.max(60, desiredRange * 0.82);
+  player.hasMoveTarget = true;
+  player.holdMoveAllowed = false;
+  player.groundMarkerX = player.moveTx;
+  player.groundMarkerY = player.moveTy;
+  player.groundMarkerTimer = 0.65;
+  return true;
+}
+
 
 function pushPlayerOutOfRect(player, wall) {
   const w = wall.w || wall.radius * 2;
@@ -125,38 +147,12 @@ function getLauncherProfile(player) {
   return getLauncherDef(player)?.launcherProfile || null;
 }
 
-
-function clearAutoTarget(p) {
-  p.autoTargetKind = '';
-  p.autoTargetId = 0;
-  p.autoTargetSx = 0;
-  p.autoTargetSy = 0;
-}
-
-function getAutoAttackTarget(state, p) {
-  if (!p.autoTargetId || !p.autoTargetKind) return null;
-  const target = getTarget(state, p.autoTargetKind, p.autoTargetId);
-  if (!target) return null;
-  const samePlayerSector = (target.sx | 0) === (p.sx | 0) && (target.sy | 0) === (p.sy | 0);
-  const sameDeclaredSector = Number.isFinite(p.autoTargetSx) && Number.isFinite(p.autoTargetSy)
-    && (target.sx | 0) === (p.autoTargetSx | 0) && (target.sy | 0) === (p.autoTargetSy | 0);
-  if (!samePlayerSector && !sameDeclaredSector) return null;
-  // Si le client vient de sélectionner une cible dans un secteur fraîchement chargé,
-  // sa pose client est la référence. On recale le secteur serveur si nécessaire pour
-  // éviter que l'auto-attaque marche uniquement dans [0,0].
-  if (!samePlayerSector && sameDeclaredSector) {
-    p.sx = target.sx | 0;
-    p.sy = target.sy | 0;
-  }
-  if (!blindAllowsPoint(p, target.x, target.y)) return null;
-  return target;
-}
-
 function fireAutoAttack(state, p, target, timeMs) {
   const weapon = getWeaponProfile(p);
   if (!weapon) {
     setPlayerHint(p, 'Aucune arme équipée');
-    clearAutoTarget(p);
+    p.autoTargetKind = '';
+    p.autoTargetId = 0;
     return;
   }
   if (!consumeEnergy(p.stats, weapon.energyCost ?? WEAPON_PULSE_MK1.energyCost)) return;
@@ -296,20 +292,23 @@ function updateAbilityCasting(state, player, dt, timeMs) {
   let usedAny = false;
   const locked = !!player.dockedStationId || (player.dockPhase && player.dockPhase !== 'none');
   const pending = Array.isArray(player.pendingAbilityCasts) ? player.pendingAbilityCasts.splice(0, player.pendingAbilityCasts.length) : [];
-  const requestedSlots = [];
-  for (const action of pending) requestedSlots.push(action.slot);
-  for (const slot of slots) if (consumeAbilityEdge(player, slot)) requestedSlots.push(slot);
+  const requested = [];
+  for (const action of pending) requested.push({ slot: action.slot, clientPoseApplied: !!action.clientPoseApplied, seq: action.seq | 0 });
+  for (const slot of slots) if (consumeAbilityEdge(player, slot)) requested.push({ slot, clientPoseApplied: false, seq: 0 });
 
-  for (const slot of requestedSlots) {
+  for (const req of requested) {
+    const slot = req.slot;
     if (!slots.includes(slot)) continue;
     usedAny = true;
     if (locked) {
       setPlayerHint(player, 'Abilities indisponibles en station', 1.2);
       continue;
     }
+    if (req.clientPoseApplied) player._activeClientAppliedAbility = { slot, seq: req.seq | 0, until: timeMs + 320 };
     if (tryCastAbility(state, player, slot, timeMs)) {
       queueWorldSfx(state, SFX_EVENT_TYPES[`ABILITY_${slot}`] || SFX_EVENT_TYPES.AUTO_ATTACK, player.sx, player.sy, player.x, player.y, 0);
     }
+    player._activeClientAppliedAbility = null;
   }
   return usedAny;
 }
@@ -328,7 +327,8 @@ export function updatePlayer(state, p, dt, timeMs = null) {
     p.vx = 0;
     p.vy = 0;
     p.hasMoveTarget = false;
-    clearAutoTarget(p);
+    p.autoTargetKind = '';
+    p.autoTargetId = 0;
     p.selectedKind = '';
     p.selectedId = 0;
     p.abilityA = false;
@@ -353,11 +353,34 @@ export function updatePlayer(state, p, dt, timeMs = null) {
       } else if (requestDockAtNearestStation(state, p)) {
         setPlayerHint(p, 'Amarrage…', 1.3);
       } else {
-        setPlayerHint(p, 'Trop loin pour interagir');
+        // V87: D loin d'une station sélectionnée = approche automatique, puis dock
+        // dès que la portée est atteinte. L'ancien comportement disait juste "trop loin",
+        // ce qui rendait l'usage des stations très sec en ligne.
+        const selectedStation = p.selectedKind === 'station' ? getTargetForPlayer(state, p, 'station', p.selectedId) : null;
+        if (selectedStation && (selectedStation.sx | 0) === (p.sx | 0) && (selectedStation.sy | 0) === (p.sy | 0)) {
+          p.stationIntentId = selectedStation.id | 0;
+          setMoveNearEntity(p, selectedStation, Math.max(115, (selectedStation.radius || 46) + 98));
+          setPlayerHint(p, 'Approche station…', 1.0);
+        } else {
+          setPlayerHint(p, 'Trop loin pour interagir');
+        }
       }
     }
   }
   p.interactTap = false;
+
+  if (!isDockLocked(p) && (p.stationIntentId | 0)) {
+    const st = state.stations.get(p.stationIntentId | 0);
+    if (!st || (st.sx | 0) !== (p.sx | 0) || (st.sy | 0) !== (p.sy | 0)) {
+      p.stationIntentId = 0;
+    } else {
+      const dockingRange = Math.max(130, (st.radius || 46) + 105);
+      if (distSq(p.x, p.y, st.x, st.y) <= dockingRange * dockingRange) {
+        p.stationIntentId = 0;
+        requestDockAtNearestStation(state, p);
+      }
+    }
+  }
 
   if (tickDocking(state, p, dt)) {
     updatePlayerFacing(state, p);
@@ -367,24 +390,27 @@ export function updatePlayer(state, p, dt, timeMs = null) {
   }
 
   if (p.autoTargetId) {
-    const t = getAutoAttackTarget(state, p);
+    const t = getTargetForPlayer(state, p, p.autoTargetKind, p.autoTargetId);
     if (!isPlayerAttackable(p, t)) {
-      clearAutoTarget(p);
+      p.autoTargetKind = '';
+      p.autoTargetId = 0;
     } else {
       const weapon = getWeaponProfile(p);
       if (!weapon) {
-        clearAutoTarget(p);
+        p.autoTargetKind = '';
+        p.autoTargetId = 0;
       } else {
-        const aaRange = (weapon.range ?? WEAPON_PULSE_MK1.range) * Math.max(0.5, p.progressionBonuses?.autoRangeMult ?? 1);
+        const aaRange = getAutoAttackRange(p, weapon);
         const targetRadius = Math.max(0, t.radius ?? 0);
         const d2 = distSq(p.x, p.y, t.x, t.y);
         const fireRange = aaRange + targetRadius * 0.35;
         if (d2 <= fireRange * fireRange) {
+          p.hasMoveTarget = false;
           if (!blocksAttacks(p) && timeMs >= p.nextShotAt) fireAutoAttack(state, p, t, timeMs);
         } else {
-          // Combat target = cible de tir uniquement. Le serveur ne force plus
-          // un auto-chase vers la cible, sinon le ciblage donne l'impression
-          // d'un ordre de déplacement imposé et clunky.
+          // Target-click hors portée = approche jusqu'à portée, pas tir magique à distance.
+          // Un move-click explicite annule l'autoTarget avant d'arriver ici.
+          setMoveNearEntity(p, t, Math.max(80, aaRange * 0.82 + targetRadius * 0.20));
         }
       }
     }

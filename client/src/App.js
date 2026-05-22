@@ -393,7 +393,7 @@ export function startApp() {
       const d2 = dx * dx + dy * dy;
       if (d2 <= r * r && d2 < bestD2) {
         bestD2 = d2;
-        best = { kind, id: e.id || 0, x: e.x || 0, y: e.y || 0 };
+        best = { kind, id: e.id || 0, x: e.x || 0, y: e.y || 0, sx: e.sx | 0, sy: e.sy | 0 };
       }
     };
 
@@ -429,7 +429,7 @@ export function startApp() {
       const d2 = dx * dx + dy * dy;
       if (d2 <= r * r && d2 < bestD2) {
         bestD2 = d2;
-        best = { kind, id: e.id || 0, x: e.x || 0, y: e.y || 0 };
+        best = { kind, id: e.id || 0, x: e.x || 0, y: e.y || 0, sx: e.sx | 0, sy: e.sy | 0 };
       }
     };
     for (const p of store.players.values()) tryPick('player', p, 46);
@@ -449,10 +449,11 @@ export function startApp() {
     const target = pickLocalPrimaryTargetScreen(screenX, screenY) || pickLocalPrimaryTarget(mouseWorld.x, mouseWorld.y);
     if (target) {
       store.setOptimisticSelection(target.kind, target.id, { lockMs: 30000 });
-      store.setLocalAttackTarget?.(target.kind, target.id, { lockMs: 30000 });
-      return { type: 'target', kind: target.kind, id: target.id };
+      if (target.kind === 'station') store.cancelLocalAttack?.();
+      else store.setLocalAttackTarget?.(target.kind, target.id, { lockMs: 30000 });
+      return { type: 'target', kind: target.kind, id: target.id, x: target.x, y: target.y, sx: target.sx, sy: target.sy };
     }
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true, keepAttack: false });
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: false, keepAttack: false });
     return { type: 'move', x: mouseWorld.x, y: mouseWorld.y };
   }
 
@@ -465,7 +466,8 @@ export function startApp() {
     const target = pickLocalPrimaryTarget(mouseWorld.x, mouseWorld.y);
     if (target) {
       store.setOptimisticSelection(target.kind, target.id);
-      store.setLocalAttackTarget?.(target.kind, target.id);
+      if (target.kind === 'station') store.cancelLocalAttack?.();
+      else store.setLocalAttackTarget?.(target.kind, target.id);
       // Sélection = action combat locale, pas ordre de déplacement.
       // Sans ce verrou, un léger mouvement de souris après clic droit transformait
       // la sélection en hold-move et le vaisseau partait vers le point cliqué.
@@ -474,7 +476,7 @@ export function startApp() {
       input.moveWorldQueued = false;
       return;
     }
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true, keepAttack: false });
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: false, keepAttack: false });
   }
 
 
@@ -583,12 +585,9 @@ export function startApp() {
       moveWorld: input.moveWorldQueued,
       moveWorldX: input.moveWorldX,
       moveWorldY: input.moveWorldY,
-      // V86: target clicks are explicit action packets. Do not send the legacy
-      // top-level targetClick in parallel, otherwise the server arms auto-attack
-      // twice and repeated clicks can desync cooldown timing.
-      targetClick: false,
-      targetClickKind: '',
-      targetClickId: 0,
+      targetClick: !!input.targetClickQueued,
+      targetClickKind: input.targetKind || '',
+      targetClickId: input.targetId || 0,
       selectSeq: input.selectSeq | 0,
       selectedKind: store.localPrediction?.selectedKind || store.myState?.selectedKind || '',
       selectedId: store.localPrediction?.selectedId || store.myState?.selectedId || 0,

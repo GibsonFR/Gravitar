@@ -60,7 +60,7 @@ function beginSectorTransition(player, sx, sy, timeMs) {
   // Pendant un passage de frontière, les derniers inputs client de l'ancien secteur
   // ne doivent pas pouvoir remettre le joueur de l'autre côté. On garde un gel très
   // court, masqué par l'écran de transition, puis on rend la main au client.
-  player.ignoreClientPoseUntil = Math.max(player.ignoreClientPoseUntil ?? 0, timeMs + 160);
+  player.ignoreClientPoseUntil = Math.max(player.ignoreClientPoseUntil ?? 0, timeMs + 430);
   player.clientAuthoritativeUntil = 0;
 }
 
@@ -72,19 +72,11 @@ function applyWrapToPlayer(state, p, timeMs) {
     return;
   }
 
-  // Anti ping-pong de frontière : après un changement de secteur, on empêche
-  // pendant quelques frames un retour immédiat dans le secteur précédent causé
-  // par une pose client/snapshot légèrement en retard. Sans ça, les coins de
-  // secteurs peuvent déclencher des allers-retours violents.
-  const lockUntil = Number.isFinite(p.sectorLockUntil) ? p.sectorLockUntil : 0;
-  if (timeMs < lockUntil) {
-    const pad = Math.max(28, (p.radius ?? 18) + 12);
-    if ((p.sectorLockDirX | 0) > 0 && p.x < -SECTOR.half) p.x = -SECTOR.half + pad;
-    if ((p.sectorLockDirX | 0) < 0 && p.x > SECTOR.half) p.x = SECTOR.half - pad;
-    if ((p.sectorLockDirY | 0) > 0 && p.y < -SECTOR.half) p.y = -SECTOR.half + pad;
-    if ((p.sectorLockDirY | 0) < 0 && p.y > SECTOR.half) p.y = SECTOR.half - pad;
-  }
-
+  // V87: ne jamais modifier p.x/p.y avant wrapIntoSector.
+  // Le bug des spawns trop loin/vers le centre venait de corrections anti-ping-pong
+  // qui clampaient la position avant le calcul d'overshoot. Maintenant on garde
+  // l'overshoot exact, puis on bloque seulement les vieilles poses client via
+  // ignoreClientPoseUntil.
   const beforeX = p.x;
   const beforeY = p.y;
 
@@ -101,9 +93,10 @@ function applyWrapToPlayer(state, p, timeMs) {
     // Le wrap garde exactement l'overshoot : traverser la ligne x=2000 place le
     // joueur à x=-2000+overshoot dans le secteur suivant, et inversement. Aucun
     // recentrage, aucun preload voisin. On masque juste le chargement de contenu.
-    p.sectorLockUntil = timeMs + 140;
+    p.sectorLockUntil = timeMs + 220;
     p.sectorLockDirX = dirX;
     p.sectorLockDirY = dirY;
+    ensureSectorLoaded(state, w.sx | 0, w.sy | 0, timeMs);
     beginSectorTransition(p, w.sx | 0, w.sy | 0, timeMs);
   }
   if (!changed) return;
@@ -124,8 +117,6 @@ function applyWrapToPlayer(state, p, timeMs) {
   p.selectedId = 0;
   p.autoTargetKind = '';
   p.autoTargetId = 0;
-  p.autoTargetSx = 0;
-  p.autoTargetSy = 0;
 
   // Cancel docking state across sectors.
   p.dockPhase = 'none';

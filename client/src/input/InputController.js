@@ -48,14 +48,24 @@ export class InputController {
         input.targetKind = handled.kind || '';
         input.targetId = handled.id || 0;
         input.selectSeq = (input.selectSeq | 0) + 1;
-        queueAction({ type: 'target', kind: input.targetKind, id: input.targetId, selectSeq: input.selectSeq, attack: true });
+        queueAction({
+          type: 'target',
+          kind: input.targetKind,
+          id: input.targetId,
+          selectSeq: input.selectSeq,
+          attack: handled.kind !== 'station',
+          targetX: handled.x,
+          targetY: handled.y,
+          targetSx: handled.sx,
+          targetSy: handled.sy
+        });
         input.suppressRightHoldUntilUp = true;
       } else if (handled?.type === 'move') {
         input.clickQueued = false;
         input.moveWorldQueued = true;
         input.moveWorldX = handled.x;
         input.moveWorldY = handled.y;
-        queueAction({ type: 'cancelAttack' });
+        queueAction({ type: 'cancelAttack', clearSelection: true });
         queueAction({ type: 'move', x: handled.x, y: handled.y });
       } else {
         input.clickQueued = true;

@@ -66,6 +66,7 @@ function sanitizeAction(raw, viewportW, viewportH) {
     return sanitizePoseFields(raw, {
       type,
       seq,
+      clearSelection: !!raw.clearSelection,
       aimX: Number.isFinite(raw.aimX) ? clamp(raw.aimX, -10000000, 10000000) : null,
       aimY: Number.isFinite(raw.aimY) ? clamp(raw.aimY, -10000000, 10000000) : null
     });

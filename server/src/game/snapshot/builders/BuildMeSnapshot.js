@@ -40,6 +40,7 @@ function buildDerivedSnapshot(player) {
     moveSpeed: (player.engine ?? 0) * getMoveSpeedMultiplier(player) * getFrameMoveMultiplier(player) * getBastionMoveSpeedMultiplier(player),
     autoAttackDamage: weaponProfile ? ((weaponProfile.damage ?? auto.damage ?? 0) * (player.progressionBonuses?.damageMult ?? 1) * getBastionDamageMultiplier(player)) : 0,
     autoAttackRate: weaponProfile && baseCooldown > 0.001 ? 1 / Math.max(0.05, (auto.cooldownMult ?? 1) * baseCooldown) : 0,
+    autoAttackRange: weaponProfile ? ((weaponProfile.range ?? 620) * Math.max(0.5, player.progressionBonuses?.autoRangeMult ?? 1)) : 0,
     energyRegen: player.stats?.energyRegen ?? 0,
     hullRegen: player.stats?.hullRegen ?? 0,
     shieldRegen: player.stats?.shieldRegenPerSec ?? 0,

@@ -57,14 +57,22 @@ export class ReactorLoop {
   update(ctx, me, input) {
     if (!ctx || ctx.state !== 'running') return;
     this.ensure(ctx);
+
+    // V87: le bruit moteur ne dépend plus du clic souris. Il suit uniquement
+    // la vitesse réelle/local-authority du vaisseau, plus une petite inertie
+    // de thrust locale. Avant, un clic maintenu ou un ordre réseau obsolète
+    // pouvait garder le réacteur audible alors que le vaisseau était immobile.
     const speed = Math.hypot(me?.vx || 0, me?.vy || 0);
-    const inputMoving = !!(input?.rightDown || input?.moveWorldQueued || speed > 8);
-    const target = inputMoving ? Math.min(1, Math.max(speed / 420, 0.18)) : 0;
-    this.lastIntensity += (target - this.lastIntensity) * 0.06;
+    const thrust = Math.max(0, Math.min(1, Number(me?._localThrust) || 0));
+    const target = speed > 14 ? Math.min(1, Math.max(speed / 420, thrust * 0.72)) : 0;
+    const smoothing = target > this.lastIntensity ? 0.13 : 0.18;
+    this.lastIntensity += (target - this.lastIntensity) * smoothing;
+    if (this.lastIntensity < 0.012 && target <= 0) this.lastIntensity = 0;
+
     const now = ctx.currentTime;
     const amp = 0.0001 + this.lastIntensity * 0.046 * this.volume;
-    this.master.gain.setTargetAtTime(amp, now, 0.08);
-    this.osc.frequency.setTargetAtTime(48 + this.lastIntensity * 58, now, 0.12);
-    this.filter.frequency.setTargetAtTime(180 + this.lastIntensity * 620, now, 0.14);
+    this.master.gain.setTargetAtTime(amp, now, 0.045);
+    this.osc.frequency.setTargetAtTime(48 + this.lastIntensity * 58, now, 0.08);
+    this.filter.frequency.setTargetAtTime(180 + this.lastIntensity * 620, now, 0.10);
   }
 }
