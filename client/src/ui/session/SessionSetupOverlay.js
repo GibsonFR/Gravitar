@@ -1,4 +1,5 @@
 import { getSessionFrameCards } from './SessionSetupCatalog.js';
+import { drawSessionAbilityPreview, drawSessionShipGlyph } from './SessionShipVisuals.js';
 
 const STORAGE_KEY = 'spacefrontier.session.setup';
 const STEPS = ['auth', 'mode', 'ship', 'waiting'];
@@ -39,6 +40,9 @@ export class SessionSetupOverlay {
     this.selectedFrameId = this.cards.some((card) => card.id === stored.frameId) ? stored.frameId : this.cards[0]?.id || 'vanguard';
     this.selectedMode = ['endless', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
     this.selectedBattleSessionId = stored.battleSessionId || '';
+    this.selectedAbilityIndex = 0;
+    this.selectedPreviewPhase = 1;
+    this.previewRaf = 0;
     this.accountAction = 'guest';
     this.step = 'auth';
     this.modes = null;
@@ -133,31 +137,44 @@ export class SessionSetupOverlay {
         </section>
 
         <section class="session-setup__page session-setup__page--ship" data-step="ship">
-          <section class="session-setup__left">
-            <div class="session-setup__eyebrow">Vaisseau</div>
-            <h1 class="session-setup__title session-setup__title--compact">Choix du vaisseau</h1>
-            <p class="session-setup__subtitle session-setup__ship-help"></p>
-            <div class="session-setup__profile-box">
+          <section class="session-setup__left session-setup__left--ship">
+            <div class="session-setup__ship-head">
               <div>
-                <b>Profil de vaisseau</b>
-                <span class="session-setup__profile-note">Nouveau profil</span>
+                <div class="session-setup__eyebrow">Vaisseaux</div>
+                <h1 class="session-setup__title session-setup__title--compact">Sélection</h1>
               </div>
-              <button type="button" class="session-setup__secondary session-setup__secondary--small" disabled>Supprimer</button>
+              <div class="session-setup__ship-help"></div>
             </div>
             <div class="session-setup__ship-list"></div>
           </section>
-          <section class="session-setup__right">
-            <div class="session-setup__hero">
-              <div class="session-setup__glyph"></div>
+          <section class="session-setup__right session-setup__right--ship">
+            <div class="session-setup__hero session-setup__hero--compact">
+              <canvas class="session-setup__glyph" width="128" height="128"></canvas>
               <div>
                 <div class="session-setup__ship-name"></div>
                 <div class="session-setup__ship-meta"></div>
                 <div class="session-setup__tagline"></div>
               </div>
             </div>
-            <p class="session-setup__summary"></p>
-            <div class="session-setup__stats"></div>
-            <div class="session-setup__abilities"></div>
+            <div class="session-setup__ship-main">
+              <div class="session-setup__preview-wrap">
+                <canvas class="session-setup__preview" width="760" height="330"></canvas>
+              </div>
+              <aside class="session-setup__side-panel">
+                <div class="session-setup__stats"></div>
+                <div class="session-setup__ability-detail">
+                  <div class="session-setup__ability-detail-key"></div>
+                  <div>
+                    <div class="session-setup__ability-detail-title"></div>
+                    <div class="session-setup__ability-detail-text"></div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+            <div class="session-setup__ability-controls">
+              <div class="session-setup__abilities"></div>
+              <div class="session-setup__phase-buttons"></div>
+            </div>
             <div class="session-setup__footer">
               <button type="button" class="session-setup__secondary" data-step-back>Retour</button>
               <button type="button" class="session-setup__launch">Déployer</button>
@@ -203,12 +220,18 @@ export class SessionSetupOverlay {
     this.battleServerListEl?.addEventListener('click', selectBattleFromEvent);
     this.battleServerListEl?.addEventListener('pointerdown', selectBattleFromEvent);
     this.glyphEl = this.el.querySelector('.session-setup__glyph');
+    this.previewEl = this.el.querySelector('.session-setup__preview');
+    this.previewCtx = this.previewEl?.getContext('2d') || null;
     this.nameEl = this.el.querySelector('.session-setup__ship-name');
     this.metaEl = this.el.querySelector('.session-setup__ship-meta');
     this.taglineEl = this.el.querySelector('.session-setup__tagline');
-    this.summaryEl = this.el.querySelector('.session-setup__summary');
+    this.summaryEl = null;
     this.statsEl = this.el.querySelector('.session-setup__stats');
     this.abilitiesEl = this.el.querySelector('.session-setup__abilities');
+    this.phaseButtonsEl = this.el.querySelector('.session-setup__phase-buttons');
+    this.abilityDetailKeyEl = this.el.querySelector('.session-setup__ability-detail-key');
+    this.abilityDetailTitleEl = this.el.querySelector('.session-setup__ability-detail-title');
+    this.abilityDetailTextEl = this.el.querySelector('.session-setup__ability-detail-text');
     this.launchBtn = this.el.querySelector('.session-setup__launch');
     this.shipHelpEl = this.el.querySelector('.session-setup__ship-help');
 
@@ -230,6 +253,7 @@ export class SessionSetupOverlay {
       this.renderModeList();
     });
     this.launchBtn.addEventListener('click', () => this.commit());
+    this.startPreviewLoop();
     for (const btn of this.modeButtons) btn.addEventListener('click', () => this.selectMode(btn.dataset.mode, btn.dataset.serverId || ''));
 
     const syncPseudo = (from, to) => {
@@ -341,14 +365,51 @@ export class SessionSetupOverlay {
       if (card.id === this.selectedFrameId) button.classList.add('is-selected');
       button.style.setProperty('--ship-accent', card.accent);
       button.innerHTML = `
-        <div class="session-setup__ship-card-top">
-          <span class="session-setup__ship-card-glyph">${card.shortName}</span>
+        <canvas class="session-setup__ship-card-glyph" width="72" height="72"></canvas>
+        <span class="session-setup__ship-card-copy">
           <span class="session-setup__ship-card-name">${card.name}</span>
-        </div>
-        <div class="session-setup__ship-card-meta">${card.role} · ${card.difficulty}</div>
+          <span class="session-setup__ship-card-meta">${card.role}</span>
+        </span>
       `;
       button.addEventListener('click', () => this.selectFrame(card.id));
       this.shipListEl.appendChild(button);
+      const canvas = button.querySelector('canvas');
+      const ctx = canvas?.getContext('2d');
+      if (ctx) drawSessionShipGlyph(ctx, 1, 36, 36, 13, card.id, -0.46, performance.now() / 1000, { thrust: 0.35, emphasize: card.id === this.selectedFrameId });
+    }
+  }
+
+  renderAbilityControls(card) {
+    if (!this.abilitiesEl || !this.phaseButtonsEl) return;
+    this.abilitiesEl.innerHTML = '';
+    card.abilities.forEach((ability, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'session-setup__ability';
+      if (index === this.selectedAbilityIndex) button.classList.add('is-selected');
+      button.innerHTML = `
+        <span class="session-setup__ability-key">${ability.key}</span>
+        <span class="session-setup__ability-label">${ability.label}</span>
+      `;
+      button.addEventListener('click', () => {
+        this.selectedAbilityIndex = index;
+        this.renderDetails();
+      });
+      this.abilitiesEl.appendChild(button);
+    });
+
+    this.phaseButtonsEl.innerHTML = '';
+    for (let i = 1; i <= 5; i += 1) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'session-setup__phase-button';
+      if (i === this.selectedPreviewPhase) button.classList.add('is-selected');
+      button.textContent = `Phase ${i}`;
+      button.addEventListener('click', () => {
+        this.selectedPreviewPhase = i;
+        this.renderDetails();
+      });
+      this.phaseButtonsEl.appendChild(button);
     }
   }
 
@@ -456,24 +517,53 @@ export class SessionSetupOverlay {
   renderDetails() {
     const card = this.getSelectedCard();
     if (!card) return;
+    if (this.selectedAbilityIndex >= card.abilities.length) this.selectedAbilityIndex = 0;
     this.el.style.setProperty('--session-accent', card.accent);
-    this.glyphEl.textContent = card.shortName;
     this.nameEl.textContent = card.name;
     this.metaEl.textContent = `${card.role} · ${card.difficulty}`;
     this.taglineEl.textContent = card.tagline;
-    this.summaryEl.textContent = card.summary;
     this.statsEl.innerHTML = card.stats.map((stat) => `
       <div class="session-setup__stat-row">
         <div class="session-setup__stat-top"><span>${stat.label}</span><span>${stat.value}</span></div>
         <div class="session-setup__stat-bar"><div class="session-setup__stat-fill" style="width:${Math.round(28 + stat.fill01 * 72)}%"></div></div>
       </div>
     `).join('');
-    this.abilitiesEl.innerHTML = card.abilities.map((ability) => `
-      <div class="session-setup__ability">
-        <span class="session-setup__ability-key">${ability.key}</span>
-        <span class="session-setup__ability-label">${ability.label}</span>
-      </div>
-    `).join('');
+    this.renderAbilityControls(card);
+    const ability = card.abilities[this.selectedAbilityIndex] || card.abilities[0];
+    if (this.abilityDetailKeyEl) this.abilityDetailKeyEl.textContent = ability?.key || '';
+    if (this.abilityDetailTitleEl) this.abilityDetailTitleEl.textContent = ability?.name || ability?.label || '';
+    if (this.abilityDetailTextEl) this.abilityDetailTextEl.textContent = ability?.text || '';
+    this.drawPreview(performance.now() / 1000);
+  }
+
+  startPreviewLoop() {
+    const tick = (now) => {
+      this.previewRaf = requestAnimationFrame(tick);
+      if (this.step !== 'ship' || this.el.classList.contains('is-hidden')) return;
+      this.drawPreview(now / 1000);
+    };
+    this.previewRaf = requestAnimationFrame(tick);
+  }
+
+  drawPreview(time) {
+    const card = this.getSelectedCard();
+    if (!card) return;
+    if (this.glyphEl instanceof HTMLCanvasElement) {
+      const rect = this.glyphEl.getBoundingClientRect();
+      const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+      const w = Math.max(1, Math.floor(rect.width || 92));
+      const h = Math.max(1, Math.floor(rect.height || 92));
+      if (this.glyphEl.width !== Math.floor(w * dpr) || this.glyphEl.height !== Math.floor(h * dpr)) {
+        this.glyphEl.width = Math.floor(w * dpr);
+        this.glyphEl.height = Math.floor(h * dpr);
+      }
+      const ctx = this.glyphEl.getContext('2d');
+      ctx.clearRect(0, 0, this.glyphEl.width, this.glyphEl.height);
+      drawSessionShipGlyph(ctx, dpr, w * 0.5, h * 0.5, Math.min(w, h) * 0.18, card.id, -0.48 + Math.sin(time * 1.2) * 0.06, time, { thrust: 0.54, emphasize: true });
+    }
+    if (this.previewCtx && this.previewEl) {
+      drawSessionAbilityPreview(this.previewCtx, this.previewEl, card, this.selectedAbilityIndex, this.selectedPreviewPhase, time);
+    }
   }
 
   getActiveAccountName() {

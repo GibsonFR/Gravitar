@@ -3,6 +3,7 @@ import { COLORS } from '../../core/Colors.js';
 import { drawWorldHealthBars } from '../../ui/worldbars/WorldHealthBarRenderer.js';
 import { SHIP_WORLD_BAR_STYLE } from './ShipWorldBarStyle.js';
 import { getShipFramePalette } from './ShipFramePalette.js';
+import { getSessionShipPoints, getSessionShipMotionProfile } from '../../ui/session/SessionShipVisuals.js';
 
 
 
@@ -574,11 +575,13 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
   if (thrustIntent > 0.03) {
     const thrust = clamp(thrustIntent, 0.12, 1);
     const pulse = 0.82 + 0.22 * Math.sin(t * 18);
-    const spread = 0.62;
-    const length = p.radius * 1.38 * (0.72 + thrust * 0.62) * pulse;
+    const shipProfile = getSessionShipMotionProfile(p.frameId);
+    const spread = shipProfile.spread ?? 0.62;
+    const length = p.radius * (shipProfile.thrust ?? 1.38) * (0.72 + thrust * 0.62) * pulse;
     const startRadius = p.radius * 0.62;
     const aBase = (Number.isFinite(p.rot) ? p.rot : (speed > 1 ? Math.atan2(p.vy || 0, p.vx || 0) : 0)) + Math.PI;
-    for (const i of [-1, 1]) {
+    const thrusters = shipProfile.centerThruster ? [-1, 0, 1] : [-1, 1];
+    for (const i of thrusters) {
       const a = aBase + i * spread;
       const p0 = polar(sx, sy, startRadius, a);
       const p1 = polar(sx, sy, length, a);
@@ -598,14 +601,7 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
     }
   }
 
-  const pts = [
-    polar(sx, sy, p.radius + 7, ang),
-    polar(sx, sy, p.radius + 2, ang + 0.55),
-    polar(sx, sy, p.radius - 2, ang + 2.28),
-    polar(sx, sy, p.radius - 7, ang + Math.PI),
-    polar(sx, sy, p.radius - 2, ang - 2.28),
-    polar(sx, sy, p.radius + 2, ang - 0.55)
-  ];
+  const pts = getSessionShipPoints(p.frameId, sx, sy, p.radius, ang);
 
   ctx.fillStyle = rgba(palette.hull.r, palette.hull.g, palette.hull.b, 1);
   ctx.beginPath();
@@ -618,8 +614,10 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
   ctx.stroke();
 
   ctx.fillStyle = rgba(palette.core.r, palette.core.g, palette.core.b, 0.86);
+  const shipProfile = getSessionShipMotionProfile(p.frameId);
+  const coreScale = shipProfile.core ?? 0.46;
   ctx.beginPath();
-  ctx.ellipse(sx * view.dpr, sy * view.dpr, p.radius * 0.24 * view.dpr, p.radius * 0.24 * view.dpr, 0, 0, Math.PI * 2);
+  ctx.ellipse(sx * view.dpr, sy * view.dpr, p.radius * coreScale * 0.5 * view.dpr, p.radius * coreScale * 0.5 * view.dpr, 0, 0, Math.PI * 2);
   ctx.fill();
 
   drawWorldHealthBars(ctx, view, p, camX, camY, SHIP_WORLD_BAR_STYLE);
