@@ -366,22 +366,8 @@ export class WorldStore {
     this.chatUnread = 0;
   }
 
-  applyHello(id, sessionToken = '', resumed = false) {
-    const nextId = id | 0;
-    if (this.myId && this.myId !== nextId) {
-      this.players.clear();
-      this.mobs.clear();
-      this.asteroids.clear();
-      this.stations.clear();
-      this.portals.clear();
-      this.projectiles.clear();
-      this.areaEffects.clear();
-      this.loots.clear();
-      this.myState = null;
-    }
-    this.myId = nextId;
-    this.sessionToken = String(sessionToken || '');
-    this.connectionResumed = !!resumed;
+  applyHello(id) {
+    this.myId = id;
   }
 
   applySnapshot(msg) {
@@ -406,14 +392,17 @@ export class WorldStore {
     if (msg.worldSfx?.length) this.pendingSfx.push(...msg.worldSfx);
     if (msg.combatFx?.length) this.pendingCombatFx.push(...msg.combatFx);
     if (msg.me?.sfx?.length) this.pendingSfx.push(...msg.me.sfx);
-    this._syncMap(this.players, msg.players ?? [], { snapOwnPlayer: false, preserveOwnPlayerPosition: true });
-    this._syncMap(this.mobs, msg.mobs ?? []);
-    this._syncMap(this.asteroids, msg.asteroids ?? []);
-    this._syncMap(this.stations, msg.stations ?? []);
-    this._syncMap(this.portals, msg.portals ?? []);
-    this._syncMap(this.projectiles, msg.projectiles ?? []);
-    this._syncMap(this.areaEffects, msg.areaEffects ?? []);
-    this._syncMap(this.loots, msg.loots ?? []);
+    if (Array.isArray(msg.players)) this._syncMap(this.players, msg.players, { snapOwnPlayer: false, preserveOwnPlayerPosition: true });
+    if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs);
+    // Les entités statiques du secteur sont volontairement envoyées moins souvent.
+    // Quand le serveur omet ces tableaux, on garde la dernière version locale au lieu
+    // de vider la map, ce qui évite de retransmettre 20-40 astéroïdes à chaque frame.
+    if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids);
+    if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
+    if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
+    if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles);
+    if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);
+    if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots);
   }
 
 

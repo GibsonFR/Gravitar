@@ -45,6 +45,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const me = state.players.get(playerId) ?? null;
   const { inMySector, nearDynamic, nearStatic, playerInMyWorldAndSector } = buildVisibilityPredicates(me);
   const fullUi = options.fullUi !== false;
+  const staticWorld = options.staticWorld !== false;
   // Important: being docked must NOT force a full station snapshot every network tick.
   // Full station/UI data is heavy (inventory, equipment, shop, map). GameServer decides
   // when to send it: periodically, and immediately after a station command. Sending it
@@ -68,10 +69,11 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     me: fullUi ? buildMeSnapshot(me, timeMs, state) : buildMeLiteSnapshot(me, timeMs, state),
     players: buildPlayerSnapshots(state.players, playerInMyWorldAndSector, timeMs),
     playerDirectory: buildPlayerDirectorySnapshot(state, me),
-    mobs: buildMobSnapshots(state.mobs, nearDynamic),
-    asteroids: buildAsteroidSnapshots(state.asteroids, nearStatic),
-    stations: buildStationSnapshots(state.stations, nearStatic),
-    portals: buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs),
+    mobs: buildMobSnapshots(state.mobs, nearDynamic, { compact: !staticWorld }),
+    asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : undefined,
+    stations: staticWorld ? buildStationSnapshots(state.stations, nearStatic) : undefined,
+    portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
+    staticWorld,
     projectiles: buildProjectileSnapshots(state.projectiles, nearDynamic),
     areaEffects: [
       ...buildAreaEffectSnapshots(state.areaEffects, nearDynamic),

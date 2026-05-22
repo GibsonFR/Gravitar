@@ -18,13 +18,12 @@ function loadStoredSetup() {
     return {
       pseudo: normalizePseudo(parsed.pseudo || 'Pilote'),
       frameId: String(parsed.frameId || 'vanguard'),
-      framesByMode: parsed.framesByMode && typeof parsed.framesByMode === 'object' ? parsed.framesByMode : {},
       mode: String(parsed.mode || 'endless'),
       battleSessionId: String(parsed.battleSessionId || ''),
       accountName: normalizePseudo(parsed.accountName || parsed.pseudo || 'Pilote')
     };
   } catch {
-    return { pseudo: 'Pilote', frameId: 'vanguard', framesByMode: {}, mode: 'endless', battleSessionId: '', accountName: 'Pilote' };
+    return { pseudo: 'Pilote', frameId: 'vanguard', mode: 'endless', battleSessionId: '', accountName: 'Pilote' };
   }
 }
 
@@ -39,10 +38,8 @@ export class SessionSetupOverlay {
     this.onAuth = typeof onAuth === 'function' ? onAuth : null;
     this.cards = getSessionFrameCards();
     const stored = loadStoredSetup();
-    this.framesByMode = stored.framesByMode && typeof stored.framesByMode === 'object' ? { ...stored.framesByMode } : {};
-    this.selectedMode = ['endless', 'test_server', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
-    const storedFrameForMode = String(this.framesByMode[this.selectedMode] || stored.frameId || 'vanguard');
-    this.selectedFrameId = this.cards.some((card) => card.id === storedFrameForMode) ? storedFrameForMode : this.cards[0]?.id || 'vanguard';
+    this.selectedFrameId = this.cards.some((card) => card.id === stored.frameId) ? stored.frameId : this.cards[0]?.id || 'vanguard';
+    this.selectedMode = ['endless', 'test_server', 'stress_server', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
     this.selectedBattleSessionId = stored.battleSessionId || '';
     this.selectedAbilityIndex = 0;
     this.selectedPreviewPhase = 1;
@@ -131,6 +128,16 @@ export class SessionSetupOverlay {
               <div class="session-setup__server-meta">
                 <span class="session-setup__test-count">0 joueur</span>
                 <span>1 000 000 crédits · portails démo</span>
+              </div>
+            </button>
+            <button type="button" data-mode="stress_server" class="session-setup__server-card session-setup__server-card--test">
+              <div class="session-setup__server-main">
+                <b>Stress</b>
+                <span>Test limite réseau / CPU</span>
+              </div>
+              <div class="session-setup__server-meta">
+                <span>local</span>
+                <span>Mobs denses · projectiles · statuts</span>
               </div>
             </button>
             <div class="session-setup__server-section-title">Serveurs Battle Royale ouverts</div>
@@ -322,12 +329,9 @@ export class SessionSetupOverlay {
   }
 
   saveStored() {
-    this.framesByMode = this.framesByMode && typeof this.framesByMode === 'object' ? this.framesByMode : {};
-    this.framesByMode[this.selectedMode || 'endless'] = this.selectedFrameId;
     storeSetup({
       pseudo: normalizePseudo(this.inputEl.value),
       frameId: this.selectedFrameId,
-      framesByMode: { ...this.framesByMode },
       mode: this.selectedMode,
       battleSessionId: this.selectedBattleSessionId || '',
       accountName: normalizePseudo(this.loginNameEl?.value || this.registerNameEl?.value || this.inputEl.value)
@@ -531,9 +535,11 @@ export class SessionSetupOverlay {
         ? 'Serveur sélectionné : Endless'
         : (this.selectedMode === 'test_server'
           ? 'Serveur sélectionné : Test — niveau 50, crédits de test, portails de démonstration'
-          : (this.selectedMode === 'battle_next'
-          ? 'Action sélectionnée : attente du prochain serveur Battle, sans gameplay avant ouverture'
-          : `Serveur sélectionné : ${this.selectedBattleSessionId || 'Battle non sélectionné'}`));
+          : (this.selectedMode === 'stress_server'
+            ? 'Serveur sélectionné : Stress — mobs denses pour tester les limites réseau/CPU'
+            : (this.selectedMode === 'battle_next'
+            ? 'Action sélectionnée : attente du prochain serveur Battle, sans gameplay avant ouverture'
+            : `Serveur sélectionné : ${this.selectedBattleSessionId || 'Battle non sélectionné'}`)));
       this.selectionSummaryEl.textContent = label;
     }
     if (this.currentPseudoEl) this.currentPseudoEl.textContent = this.getActiveAccountName();
@@ -541,18 +547,11 @@ export class SessionSetupOverlay {
   }
 
   selectMode(mode, battleSessionId = '') {
-    if (!['endless', 'test_server', 'battle_next', 'battle_server'].includes(mode)) return;
-    this.framesByMode = this.framesByMode && typeof this.framesByMode === 'object' ? this.framesByMode : {};
-    this.framesByMode[this.selectedMode || 'endless'] = this.selectedFrameId;
+    if (!['endless', 'test_server', 'stress_server', 'battle_next', 'battle_server'].includes(mode)) return;
     this.selectedMode = mode;
-    const modeFrame = String(this.framesByMode[mode] || this.selectedFrameId || 'vanguard');
-    if (this.cards.some((card) => card.id === modeFrame)) this.selectedFrameId = modeFrame;
     this.selectedBattleSessionId = mode === 'battle_server' ? String(battleSessionId || '') : '';
-    this.selectedScenarioIndex = 0;
     this.saveStored();
     this.renderModeList();
-    this.renderShipList();
-    this.renderDetails();
   }
 
   getSelectedCard() { return this.cards.find((card) => card.id === this.selectedFrameId) || this.cards[0]; }

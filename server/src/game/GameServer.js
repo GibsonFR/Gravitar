@@ -1,6 +1,6 @@
 import { createGameState, newPlayerId } from './state/GameState.js';
 import { seedWorld } from './seed/SeedWorld.js';
-import { TICK, SNAP_RATE, SNAP_FULL_UI_RATE_MS, SERVER_LOOP_INTERVAL_MS } from './constants.js';
+import { TICK, SNAP_RATE, SNAP_FULL_UI_RATE_MS, SNAP_STATIC_WORLD_RATE_MS, SNAP_STATIC_WORLD_RATE_MS_COMBAT, SERVER_LOOP_INTERVAL_MS } from './constants.js';
 import { advanceSimulationTick, getSimulationTimeMs, nowMs, setSimulationTime } from './util/Time.js';
 import { updateAsteroids } from './asteroid/AsteroidSystem.js';
 import { updateStations } from './station/StationSystem.js';
@@ -35,6 +35,9 @@ export function createGameServer() {
   let running = false;
   let loopHandle = null;
   const lastFullSnapshotByPlayer = new Map();
+  const lastStaticWorldByPlayer = new Map();
+  const lastSectorKeyByPlayer = new Map();
+  const lastNetStatsAtByPlayer = new Map();
 
   function allocatePlayerId() {
     return newPlayerId(state);
@@ -53,12 +56,15 @@ export function createGameServer() {
     const p = state.players.get(id);
     if (p) clearPlayerBattleResidue(state, p, getSimulationTimeMs(state, nowMs()), { checkWinner: true });
     if (p?.accountKey && state.accounts) {
-      if (p.gameMode === GAME_MODES.ENDLESS) state.accounts.saveEndless(p.accountKey, buildEndlessSave(p));
+      if (![GAME_MODES.TEST, GAME_MODES.STRESS].includes(p.gameMode)) state.accounts.saveEndless(p.accountKey, buildEndlessSave(p));
       const battleStats = state.modes?.battleStats?.get?.(p.accountKey);
       if (battleStats) state.accounts.saveBattleStats(p.accountKey, battleStats);
     }
     state.modes?.battleQueueNext?.delete?.(id | 0);
     lastFullSnapshotByPlayer.delete(id);
+    lastStaticWorldByPlayer.delete(id);
+    lastSectorKeyByPlayer.delete(id);
+    lastNetStatsAtByPlayer.delete(id);
     state.players.delete(id);
   }
 
@@ -136,16 +142,32 @@ export function createGameServer() {
       for (const id of ids) {
         if (!state.players.has(id)) continue;
         const p = state.players.get(id);
+        const sectorKey = `${p.worldId || 'endless'}:${p.sx | 0}:${p.sy | 0}`;
         const previousFullAt = lastFullSnapshotByPlayer.get(id) || 0;
+        const previousStaticAt = lastStaticWorldByPlayer.get(id) || 0;
+        const previousSectorKey = lastSectorKeyByPlayer.get(id) || '';
+        const sectorChanged = previousSectorKey !== sectorKey;
         const forceFullUi = !!p?.forceFullUiSnapshot;
-        const fullUi = forceFullUi || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
+        const fullUi = forceFullUi || sectorChanged || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
+        const combatPressure = (p.autoTargetId | 0) > 0 || !!p.selectedId || (p.cooldownALeft || 0) > 0 || (p.cooldownZLeft || 0) > 0 || (p.cooldownELeft || 0) > 0 || (p.cooldownRLeft || 0) > 0;
+        const staticRateMs = combatPressure ? SNAP_STATIC_WORLD_RATE_MS_COMBAT : SNAP_STATIC_WORLD_RATE_MS;
+        const staticWorld = fullUi || sectorChanged || (timeMs - previousStaticAt >= staticRateMs);
         if (fullUi) lastFullSnapshotByPlayer.set(id, timeMs);
-        const snap = buildSnapshot(state, id, timeMs, { fullUi });
+        if (staticWorld) lastStaticWorldByPlayer.set(id, timeMs);
+        lastSectorKeyByPlayer.set(id, sectorKey);
+        const snap = buildSnapshot(state, id, timeMs, { fullUi, staticWorld });
         if (forceFullUi) {
           p.forceFullUiSnapshot = false;
           p.forceFullUiSnapshotReason = '';
         }
-        sendSnapshot(id, snap);
+        const sent = sendSnapshot(id, snap);
+        if (sent && process.env.NET_DEBUG === '1') {
+          const prevLog = lastNetStatsAtByPlayer.get(id) || 0;
+          if (timeMs - prevLog >= 10000) {
+            lastNetStatsAtByPlayer.set(id, timeMs);
+            console.log(`[net] player=${id} sector=${sectorKey} fullUi=${fullUi ? 1 : 0} static=${staticWorld ? 1 : 0}`);
+          }
+        }
       }
       clearWorldSfx(state);
       clearCombatFx(state);

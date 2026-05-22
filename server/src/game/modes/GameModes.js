@@ -5,7 +5,7 @@ import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
 import { SPECIAL_SECTORS } from '../sector/SpecialSectors.js';
 import { PLAYER_PROGRESSION_TUNING } from '../../../../shared/content/progression/PlayerProgressionTuning.js';
 
-export const GAME_MODES = { ENDLESS: 'endless', BATTLE: 'battle', TEST: 'test' };
+export const GAME_MODES = { ENDLESS: 'endless', BATTLE: 'battle', TEST: 'test', STRESS: 'stress' };
 export const BATTLE = {
   intervalMs: 10 * 60 * 1000,
   lobbyDurationMs: 60 * 60 * 1000,
@@ -15,7 +15,7 @@ export const BATTLE = {
   arenaHalf: 4000
 };
 
-export const WORLD_IDS = { SETUP: 'setup', ENDLESS: 'endless', TEST: 'test', BATTLE_WAIT_NEXT: 'battle-wait-next' };
+export const WORLD_IDS = { SETUP: 'setup', ENDLESS: 'endless', TEST: 'test', STRESS: 'stress', BATTLE_WAIT_NEXT: 'battle-wait-next' };
 
 export function battleSectorForSeq(seq) {
   return { sx: BATTLE.arenaBaseSx + Math.abs(seq | 0) % 10000, sy: BATTLE.arenaSy };
@@ -145,7 +145,7 @@ function countPlayersByWorld(state) {
     const w = String(p.worldId || WORLD_IDS.ENDLESS);
     if (p.sessionSetupPending && w !== WORLD_IDS.BATTLE_WAIT_NEXT) continue;
     if (w === WORLD_IDS.ENDLESS) counts.endless += 1;
-    else if (w === WORLD_IDS.TEST) counts.test += 1;
+    else if (w === WORLD_IDS.TEST || w === WORLD_IDS.STRESS) counts.test += 1;
     else if (w === WORLD_IDS.SETUP) counts.setup += 1;
     else if (w === WORLD_IDS.BATTLE_WAIT_NEXT) counts.battleWaiting += 1;
   }
@@ -288,6 +288,25 @@ export function setPlayerTestServer(state, player, timeMs) {
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   player.uiHint = 'Serveur test — niveau 50, crédits illimités';
   player.uiHintTimer = 3.0;
+}
+
+export function setPlayerStressServer(state, player, timeMs) {
+  setPlayerTestServer(state, player, timeMs);
+  player.gameMode = GAME_MODES.STRESS;
+  player.worldId = WORLD_IDS.STRESS;
+  player.sx = SPECIAL_SECTORS.STRESS_ARENA.sx | 0;
+  player.sy = SPECIAL_SECTORS.STRESS_ARENA.sy | 0;
+  player.x = 0;
+  player.y = 0;
+  player.vx = 0;
+  player.vy = 0;
+  player.hasMoveTarget = false;
+  player.autoTargetKind = '';
+  player.autoTargetId = 0;
+  ensureSectorLoaded(state, player.sx | 0, player.sy | 0, timeMs);
+  visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
+  player.uiHint = 'Serveur stress — mobs denses pour tester réseau/CPU';
+  player.uiHintTimer = 4.0;
 }
 
 export function clearPlayerBattleResidue(state, player, timeMs, options = {}) {

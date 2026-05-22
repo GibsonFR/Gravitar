@@ -386,10 +386,61 @@ function generateTestArenaContent(state, sx, sy, timeMs, h) {
     spawnPortal(state, sx, sy, -1120 + col * 220, -1420 + row * 170, SPECIAL_SECTORS.MOB_FAMILY_BASE.sx + i, SPECIAL_SECTORS.MOB_FAMILY_BASE.sy, String(i + 1), { label: mobPortalLabels[i], mode: 'mob_family_showcase', radius: 38 });
   }
   spawnPortal(state, sx, sy, 260, -1250, SPECIAL_SECTORS.MOB_HYPER_LATE.sx, SPECIAL_SECTORS.MOB_HYPER_LATE.sy, 'XI', { label: 'Hyperzone', mode: 'mob_hyperlate_showcase', radius: 42 });
+  spawnPortal(state, sx, sy, 760, -1250, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', { label: 'Stress test réseau', mode: 'stress_test', radius: 46 });
   const firstBastion = state.bastions?.[0];
   if (firstBastion) spawnPortal(state, sx, sy, 520, -1250, firstBastion.sx, firstBastion.sy, '◈', { label: 'Bastion T1 proche', mode: 'bastion_locator', radius: 42 });
   spawnStation(state, sx, sy, -1600, 1500, true, h ^ 0xabc123, timeMs);
   spawnAllTestEffectZones(state, sx, sy);
+}
+
+function generateStressArenaContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1600, -1600, SPECIAL_SECTORS.TEST_ARENA.sx, SPECIAL_SECTORS.TEST_ARENA.sy, 'T', { label: 'Retour Test', radius: 52 });
+  spawnStation(state, sx, sy, -1450, 1450, true, h ^ 0x57e55, timeMs, { specialtyId: 'military' });
+
+  const defs = listMobDefs().slice().sort((a, b) => (a.typeId ?? 0) - (b.typeId ?? 0));
+  const mobIds = defs.map((d) => d.id).filter(Boolean);
+  if (!mobIds.length) return;
+
+  // Arène volontairement dense : elle sert à reproduire les pics réseau/CPU avec
+  // beaucoup de mobs, projectiles et statuts autour d'un joueur haut niveau.
+  const rings = [520, 760, 1040, 1320];
+  let index = 0;
+  for (let ringIndex = 0; ringIndex < rings.length; ringIndex += 1) {
+    const radius = rings[ringIndex];
+    const count = 6 + ringIndex * 3;
+    for (let i = 0; i < count; i += 1) {
+      const a = (Math.PI * 2 * i / count) + ringIndex * 0.29;
+      const mobId = mobIds[(index + ringIndex) % mobIds.length];
+      const elite = ringIndex >= 2 && (i % 3 === 0);
+      const mutated = !elite && ringIndex >= 1 && (i % 2 === 0);
+      const mob = spawnMob(state, sx, sy, mobId, Math.cos(a) * radius, Math.sin(a) * radius, {
+        seed: h ^ ((index + 1) * 2654435761),
+        mapLevel: 42 + ringIndex * 3,
+        elite,
+        mutated,
+        noLoot: true,
+        spawnTimeMs: timeMs
+      });
+      mob.aggroRange = 2600;
+      mob.leashRange = 3600;
+      mob.homeX = 0;
+      mob.homeY = 0;
+      index += 1;
+    }
+  }
+
+  for (let i = 0; i < 18; i += 1) {
+    const a = Math.PI * 2 * i / 18;
+    spawnAsteroidProc(state, sx, sy, {
+      x: Math.cos(a) * 1680,
+      y: Math.sin(a) * 1680,
+      radius: 24 + (i % 5) * 7,
+      resourceKey: i % 2 ? 'scrap' : 'ice',
+      yieldValue: 1,
+      seed: h ^ (i * 19937),
+      sig: `stress_${sx}_${sy}_${i}`
+    });
+  }
 }
 
 function generateBastionExteriorContent(state, sx, sy, timeMs, h, bastion) {
@@ -523,6 +574,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const hub = sx === 0 && sy === 0;
   const testArena = sx === SPECIAL_SECTORS.TEST_ARENA.sx && sy === SPECIAL_SECTORS.TEST_ARENA.sy;
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
+  const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
   const mobFamilyIndex = getMobShowcaseFamilyIndex(sx, sy);
   const hyperLateShowcase = isHyperLateShowcaseSector(sx, sy);
   const battleArena = isBattleArenaSector(sx, sy);
@@ -546,6 +598,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (mobBestiary) {
     generateMobBestiaryContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (stressArena) {
+    generateStressArenaContent(state, sx, sy, timeMs, h);
     return;
   }
   if (mobFamilyIndex >= 0) {

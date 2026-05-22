@@ -3,6 +3,7 @@ import { isBattleArenaSector } from '../modes/GameModes.js';
 
 export const SPECIAL_SECTORS = {
   TEST_ARENA: { sx: 9100, sy: -9100 },
+  STRESS_ARENA: { sx: 9102, sy: -9100 },
   MOB_BESTIARY: { sx: 9101, sy: -9100 },
   MOB_FAMILY_BASE: { sx: 9200, sy: -9100 },
   MOB_HYPER_LATE: { sx: 9210, sy: -9100 }
@@ -20,6 +21,7 @@ export function isSpecialDetachedSector(sx, sy) {
   if (sy !== SPECIAL_SECTORS.TEST_ARENA.sy) return false;
   if (sx === SPECIAL_SECTORS.TEST_ARENA.sx) return true;
   if (sx === SPECIAL_SECTORS.MOB_BESTIARY.sx) return true;
+  if (sx === SPECIAL_SECTORS.STRESS_ARENA.sx) return true;
   if (sx === SPECIAL_SECTORS.MOB_HYPER_LATE.sx) return true;
   const familyIndex = sx - SPECIAL_SECTORS.MOB_FAMILY_BASE.sx;
   return familyIndex >= 0 && familyIndex < 10;

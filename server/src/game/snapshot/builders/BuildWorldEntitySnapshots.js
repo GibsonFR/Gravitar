@@ -1,11 +1,46 @@
 import { buildStatBlockSnapshot } from '../../stats/StatBlockSnapshot.js';
 import { buildStatusSnapshot } from '../../status/StatusView.js';
 
-export function buildMobSnapshots(mobs, inSector) {
+function q(value, decimals = 1) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  const m = 10 ** decimals;
+  return Math.round(n * m) / m;
+}
+
+function qv(stats) {
+  const v = buildStatBlockSnapshot(stats);
+  if (!v) return null;
+  return { hp: q(v.hp, 0), maxHp: q(v.maxHp, 0), shield: q(v.shield, 0), maxShield: q(v.maxShield, 0), energy: q(v.energy, 0), maxEnergy: q(v.maxEnergy, 0) };
+}
+
+export function buildMobSnapshots(mobs, inSector, options = {}) {
+  const compact = !!options.compact;
   return [...mobs.values()]
     .filter((mob) => mob.stats.hp > 0)
     .filter(inSector)
-    .map((mob) => ({
+    .map((mob) => compact ? ({
+      id: mob.id,
+      sx: mob.sx | 0,
+      sy: mob.sy | 0,
+      typeId: mob.typeId ?? 0,
+      name: mob.name,
+      shortName: mob.shortName || mob.name,
+      x: q(mob.x),
+      y: q(mob.y),
+      vx: q(mob.vx || 0, 2),
+      vy: q(mob.vy || 0, 2),
+      rot: q(mob.rot ?? 0, 3),
+      radius: q(mob.radius),
+      vitals: qv(mob.stats),
+      color: mob.color,
+      threat: mob.threat ?? 1,
+      elite: !!mob.elite,
+      mutated: !!mob.mutated,
+      specialCue: mob.specialCue || '',
+      specialCueLeft: q(mob.specialCueLeft || 0, 2),
+      statuses: buildStatusSnapshot(mob, 6)
+    }) : ({
       id: mob.id,
       sx: mob.sx | 0,
       sy: mob.sy | 0,
@@ -21,13 +56,13 @@ export function buildMobSnapshots(mobs, inSector) {
       summonGeneration: mob.summonGeneration | 0,
       summonKind: mob.summonKind || '',
       summonOwnerId: mob.summonOwnerId || 0,
-      x: mob.x,
-      y: mob.y,
-      vx: mob.vx,
-      vy: mob.vy,
-      rot: mob.rot ?? 0,
-      radius: mob.radius,
-      vitals: buildStatBlockSnapshot(mob.stats),
+      x: q(mob.x),
+      y: q(mob.y),
+      vx: q(mob.vx, 2),
+      vy: q(mob.vy, 2),
+      rot: q(mob.rot ?? 0, 3),
+      radius: q(mob.radius),
+      vitals: qv(mob.stats),
       color: mob.color,
       behaviorId: mob.behaviorId,
       threat: mob.threat ?? 1,
@@ -38,7 +73,7 @@ export function buildMobSnapshots(mobs, inSector) {
       demoCageX: mob.demoCageX ?? mob.homeX ?? mob.x,
       demoCageY: mob.demoCageY ?? mob.homeY ?? mob.y,
       specialCue: mob.specialCue || '',
-      specialCueLeft: mob.specialCueLeft || 0,
+      specialCueLeft: q(mob.specialCueLeft || 0, 2),
       statuses: buildStatusSnapshot(mob, 6)
     }));
 }
@@ -51,15 +86,15 @@ export function buildAsteroidSnapshots(asteroids, inSector) {
       id: asteroid.id,
       sx: asteroid.sx | 0,
       sy: asteroid.sy | 0,
-      x: asteroid.x,
-      y: asteroid.y,
-      radius: asteroid.radius,
-      w: asteroid.w || 0,
-      h: asteroid.h || 0,
+      x: q(asteroid.x),
+      y: q(asteroid.y),
+      radius: q(asteroid.radius),
+      w: q(asteroid.w || 0),
+      h: q(asteroid.h || 0),
       bastionWall: !!asteroid.bastionWall,
       solid: !!asteroid.solid,
       borderColor: asteroid.borderColor || null,
-      vitals: buildStatBlockSnapshot(asteroid.stats),
+      vitals: qv(asteroid.stats),
       resource: asteroid.resource,
       resourceName: asteroid.resourceName,
       resourceColorHex: asteroid.resourceColorHex,
@@ -82,9 +117,9 @@ export function buildStationSnapshots(stations, inSector) {
       id: station.id,
       sx: station.sx | 0,
       sy: station.sy | 0,
-      x: station.x,
-      y: station.y,
-      radius: station.radius,
+      x: q(station.x),
+      y: q(station.y),
+      radius: q(station.radius),
       tech: station.tech,
       specialtyId: station.specialtyId || '',
       specialtyName: station.specialtyName || '',
@@ -106,9 +141,9 @@ export function buildPortalSnapshots(portals, inSector, state = null, player = n
       id: portal.id,
       sx: portal.sx | 0,
       sy: portal.sy | 0,
-      x: portal.x,
-      y: portal.y,
-      radius: portal.radius,
+      x: q(portal.x),
+      y: q(portal.y),
+      radius: q(portal.radius),
       targetSx: portal.targetSx,
       targetSy: portal.targetSy,
       glyph: portal.glyph,
@@ -131,13 +166,13 @@ export function buildProjectileSnapshots(projectiles, inSector) {
       id: projectile.id,
       sx: projectile.sx | 0,
       sy: projectile.sy | 0,
-      x: projectile.x,
-      y: projectile.y,
-      radius: projectile.radius,
+      x: q(projectile.x),
+      y: q(projectile.y),
+      radius: q(projectile.radius),
       tint: projectile.tint,
-      splashRadius: projectile.splashRadius,
-      vx: projectile.vx || 0,
-      vy: projectile.vy || 0,
+      splashRadius: q(projectile.splashRadius || 0),
+      vx: q(projectile.vx || 0, 2),
+      vy: q(projectile.vy || 0, 2),
       bornAt: projectile.bornAt || 0,
       visualKind: projectile.visualKind || 'auto',
       sourceKind: projectile.sourceKind || '',
@@ -159,10 +194,10 @@ export function buildAreaEffectSnapshots(areaEffects, inSector) {
       id: effect.id,
       sx: effect.sx | 0,
       sy: effect.sy | 0,
-      x: effect.x,
-      y: effect.y,
-      radius: effect.radius,
-      durationLeft: effect.durationLeft,
+      x: q(effect.x),
+      y: q(effect.y),
+      radius: q(effect.radius),
+      durationLeft: q(effect.durationLeft, 2),
       slot: effect.slot,
       frameId: effect.frameId,
       color: effect.color,
@@ -170,9 +205,9 @@ export function buildAreaEffectSnapshots(areaEffects, inSector) {
       label: effect.label || '',
       statusId: effect.statusId || '',
       phase: effect.phase || 'ready',
-      cooldownLeft: effect.cooldownLeft || 0,
-      activeSeconds: effect.activeSeconds || 0,
-      dormantSeconds: effect.dormantSeconds || 0
+      cooldownLeft: q(effect.cooldownLeft || 0, 2),
+      activeSeconds: q(effect.activeSeconds || 0, 2),
+      dormantSeconds: q(effect.dormantSeconds || 0, 2)
     }));
 }
 
@@ -183,9 +218,9 @@ export function buildLootSnapshots(loots, inSector) {
       id: loot.id,
       sx: loot.sx | 0,
       sy: loot.sy | 0,
-      x: loot.x,
-      y: loot.y,
-      radius: loot.radius,
+      x: q(loot.x),
+      y: q(loot.y),
+      radius: q(loot.radius),
       resource: loot.resource,
       amount: loot.amount,
       itemId: loot.itemId || '',

@@ -1,40 +1,25 @@
 import { WebSocketServer } from 'ws';
-import crypto from 'node:crypto';
-
-const RECONNECT_GRACE_MS = 45000;
-
-function makeSessionToken() {
-  try { return crypto.randomBytes(18).toString('base64url'); }
-  catch { return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`; }
-}
-
-function cleanSessionToken(value) {
-  return String(value || '').replace(/[^a-zA-Z0-9_\-.]/g, '').slice(0, 96);
-}
-
-function resetNetworkSequencers(player) {
-  if (!player) return;
-  player.net = {
-    ...(player.net || {}),
-    lastAcceptedInputAt: 0,
-    lastAcceptedCommandAt: 0,
-    droppedInputCount: 0,
-    droppedCommandCount: 0,
-    lastInputSeq: 0
-  };
-  player.lastActionSeq = 0;
-  player.lastClientSelectSeq = 0;
-  player.lastClientAbilitySeq = 0;
-  player.lastClientSectorSeq = 0;
-  player.clientAuthoritativeUntil = 0;
-  player.clientAppliedAbilityPose = null;
-}
 
 export function createWsGameServer(httpServer, game) {
   const wss = new WebSocketServer({ server: httpServer });
   const connections = new Map();
-  const sessions = new Map();
   let chatSeq = 1;
+  let netStatsAt = Date.now();
+  let netBytesOut = 0;
+  let netSnapsOut = 0;
+
+  function accountOut(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return;
+    netBytesOut += bytes;
+    const now = Date.now();
+    if (process.env.NET_DEBUG === '1' && now - netStatsAt >= 10000) {
+      const sec = Math.max(1, (now - netStatsAt) / 1000);
+      console.log(`[net] out=${Math.round(netBytesOut / sec)}B/s snaps=${Math.round(netSnapsOut / sec)}/s clients=${connections.size}`);
+      netStatsAt = now;
+      netBytesOut = 0;
+      netSnapsOut = 0;
+    }
+  }
 
   function sanitizeChatText(text) {
     return String(text || '')
@@ -57,7 +42,7 @@ export function createWsGameServer(httpServer, game) {
       time: Date.now()
     });
     for (const ws of connections.values()) {
-      if (ws.readyState === ws.OPEN) ws.send(payload);
+      if (ws.readyState === ws.OPEN) { ws.send(payload); accountOut(Buffer.byteLength(payload)); }
     }
   }
 
@@ -67,79 +52,32 @@ export function createWsGameServer(httpServer, game) {
 
   function sendSnapshot(playerId, snapshot) {
     const ws = connections.get(playerId);
-    if (!ws || ws.readyState !== ws.OPEN) return;
-    if ((ws.bufferedAmount || 0) > 768 * 1024) return;
-    ws.send(JSON.stringify(snapshot));
+    if (!ws || ws.readyState !== ws.OPEN) return false;
+    // Do not let websocket backpressure grow the Node heap. If a browser tab or
+    // network cannot keep up, skip this snapshot; the next one will replace it.
+    // 256 KB is enough for a few frames at 15 Hz; beyond that, sending more only
+    // creates a delayed burst and visible lag spikes.
+    if ((ws.bufferedAmount || 0) > 256 * 1024) return false;
+    const payload = JSON.stringify(snapshot);
+    ws.send(payload);
+    netSnapsOut += 1;
+    accountOut(Buffer.byteLength(payload));
+    return true;
   }
 
-  function getResumeTokenFromRequest(req) {
-    try {
-      const url = new URL(req.url || '/', 'ws://local');
-      return cleanSessionToken(url.searchParams.get('resume') || '');
-    } catch {
-      return '';
-    }
-  }
-
-  function bindSocketToPlayer(ws, playerId, token, resumed) {
-    const previous = connections.get(playerId);
-    if (previous && previous !== ws) {
-      try { previous.close(4000, 'session_replaced'); } catch {}
-    }
-
-    connections.set(playerId, ws);
-    ws.playerId = playerId;
-    ws.sessionToken = token;
-
-    const session = sessions.get(token) || { token, playerId, removeTimer: null };
-    session.playerId = playerId;
-    if (session.removeTimer) {
-      clearTimeout(session.removeTimer);
-      session.removeTimer = null;
-    }
-    sessions.set(token, session);
-
-    const player = game.state?.players?.get?.(playerId);
-    resetNetworkSequencers(player);
-
-    ws.send(JSON.stringify({ t: 'hello', id: playerId, sessionToken: token, resumed: !!resumed }));
-  }
-
-  function createFreshSocketSession(ws) {
+  wss.on('connection', (ws) => {
     const id = game.allocatePlayerId();
-    const token = makeSessionToken();
+    ws.playerId = id;
+    connections.set(id, ws);
+
     game.addPlayer(id);
-    bindSocketToPlayer(ws, id, token, false);
-  }
 
-  function scheduleSessionRemoval(playerId, token) {
-    const session = sessions.get(token);
-    if (!session || (session.playerId | 0) !== (playerId | 0)) return;
-    if (session.removeTimer) clearTimeout(session.removeTimer);
-    session.removeTimer = setTimeout(() => {
-      const current = sessions.get(token);
-      if (!current || (current.playerId | 0) !== (playerId | 0)) return;
-      if (connections.has(playerId)) return;
-      sessions.delete(token);
-      game.removePlayer(playerId);
-    }, RECONNECT_GRACE_MS);
-  }
-
-  wss.on('connection', (ws, req) => {
-    const requestedToken = getResumeTokenFromRequest(req);
-    const session = requestedToken ? sessions.get(requestedToken) : null;
-    const canResume = !!session && game.state?.players?.has?.(session.playerId | 0);
-
-    if (canResume) bindSocketToPlayer(ws, session.playerId | 0, requestedToken, true);
-    else createFreshSocketSession(ws);
+    ws.send(JSON.stringify({ t: 'hello', id }));
 
     ws.on('message', (buf) => {
       let msg;
       try { msg = JSON.parse(buf.toString('utf8')); } catch { return; }
       if (!msg) return;
-      const id = ws.playerId | 0;
-      if (!id || connections.get(id) !== ws) return;
-
       if (msg.t === 'input') game.handleInput(id, msg);
       if (msg.t === 'cmd') {
         let ok = false;
@@ -158,27 +96,24 @@ export function createWsGameServer(httpServer, game) {
           console.error('[ws:cmd:error]', msg?.cmd || 'unknown', err?.stack || err);
         }
         if (msg.cmdId && ws.readyState === ws.OPEN) {
-          ws.send(JSON.stringify({
+          const payload = JSON.stringify({
             t: 'cmd_ack',
             cmdId: String(msg.cmdId).slice(0, 48),
             cmd: String(msg.cmd || '').slice(0, 32),
             ok: !!ok,
             error,
             time: Date.now()
-          }));
+          });
+          ws.send(payload);
+          accountOut(Buffer.byteLength(payload));
         }
       }
       if (msg.t === 'chat') broadcastChat(id, msg.text);
     });
 
     ws.on('close', () => {
-      const id = ws.playerId | 0;
-      const token = cleanSessionToken(ws.sessionToken || '');
-      if (!id) return;
-      if (connections.get(id) !== ws) return;
       connections.delete(id);
-      if (token) scheduleSessionRemoval(id, token);
-      else game.removePlayer(id);
+      game.removePlayer(id);
     });
   });
 
