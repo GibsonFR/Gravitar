@@ -102,12 +102,6 @@ export class InputController {
         return;
       }
 
-      // Les abilities/roquettes ne sont plus mises en paquet ici.
-      // Le prédicteur client décide d'abord si l'action est localement légale
-      // (cooldown, énergie, statut bloquant), applique le feedback immédiat,
-      // puis ajoute le paquet exact à envoyer au serveur.
-      // Ça évite le conflit où le serveur castait une ability que le client
-      // avait refusée localement, ou inversement.
       if (lower === 'a') input.a = true;
       if (lower === 'z') input.z = true;
       if (lower === 'e') input.e = true;

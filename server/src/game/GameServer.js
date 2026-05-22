@@ -73,10 +73,18 @@ export function createGameServer() {
     if (!p) return false;
     const timeMs = getSimulationTimeMs(state, nowMs());
     let ok = false;
+    let error = '';
     try {
-      ok = !!applyCommand(state, p, msg, timeMs);
+      const result = applyCommand(state, p, msg, timeMs);
+      if (typeof result === 'object' && result) {
+        ok = !!result.ok;
+        error = String(result.error || '');
+      } else {
+        ok = !!result;
+      }
     } catch (err) {
       ok = false;
+      error = 'server_exception';
       console.error('[cmd:error]', msg?.cmd || 'unknown', err?.stack || err);
     }
 
@@ -85,7 +93,8 @@ export function createGameServer() {
     p.forceFullUiSnapshot = true;
     p.forceFullUiSnapshotAt = timeMs;
     p.forceFullUiSnapshotReason = String(msg?.cmd || '').slice(0, 32);
-    return ok;
+    p.lastCommandError = error;
+    return { ok, error };
   }
 
   function stepFixed(dt, timeMs) {

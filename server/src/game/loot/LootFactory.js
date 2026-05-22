@@ -2,13 +2,33 @@ import { newEntityId } from '../state/GameState.js';
 import { LOOT_DEFS } from './LootDefs.js';
 import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
 
+const LEGACY_LOOT_ALIASES = {
+  ore: 'ironVein',
+  metal: 'scrap',
+  ferrite: 'scrap',
+  crystalShard: 'crystal',
+  biomass: 'bioFiber'
+};
+
+function resolveLootKey(defKey) {
+  const key = String(defKey || '').trim();
+  if (LOOT_DEFS[key]) return key;
+  const alias = LEGACY_LOOT_ALIASES[key];
+  if (alias && LOOT_DEFS[alias]) return alias;
+  return '';
+}
+
 export function spawnLoot(state, x, y, defKey, timeMs, sourceKind = '', sourceId = 0, velocity = null) {
   return spawnLootInSector(state, 0, 0, x, y, defKey, timeMs, sourceKind, sourceId, velocity);
 }
 
 export function spawnLootInSector(state, sx, sy, x, y, defKey, timeMs, sourceKind = '', sourceId = 0, velocity = null) {
-  const def = LOOT_DEFS[defKey];
-  if (!def) throw new Error(`unknown loot def: ${defKey}`);
+  const resolvedKey = resolveLootKey(defKey);
+  const def = resolvedKey ? LOOT_DEFS[resolvedKey] : null;
+  if (!def) {
+    console.warn('[loot] ignored unknown loot def:', defKey);
+    return 0;
+  }
 
   const id = newEntityId(state);
 
@@ -24,7 +44,7 @@ export function spawnLootInSector(state, sx, sy, x, y, defKey, timeMs, sourceKin
     radius: def.radius,
     pickupPadding: def.pickupPadding,
     pickupImmunityLeft: def.pickupImmunitySec,
-    resource: def.resource,
+    resource: def.resource || resolvedKey,
     amount: def.amount,
     color: def.color,
     drag: def.drag,

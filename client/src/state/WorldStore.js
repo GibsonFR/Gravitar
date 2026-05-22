@@ -662,12 +662,13 @@ export class WorldStore {
     entry.cmd = String(msg.cmd || entry.cmd || '');
     if (!msg.ok) {
       this.myState = this.myState || {};
-      this.myState.hint = `Action refusée : ${entry.cmd}`;
-      this.myState._optimisticHintLeft = 0.9;
+      const reason = String(msg.error || 'refusée');
+      this.myState.hint = `Action station refusée : ${entry.cmd}${reason ? ` (${reason})` : ''}`;
+      this.myState._optimisticHintLeft = 1.2;
     }
-    // A command ack means the server answered. The station UI must stop showing
-    // a blocking wait immediately; the following full snapshot updates the data.
-    if (this.pendingStationCommands.has(id) && msg.ok) {
+    // A command ack means the server answered. Stop the blocking wait immediately,
+    // even on reject. Failed entries stay in pendingCommands briefly for the red badge.
+    if (this.pendingStationCommands.has(id)) {
       this.pendingStationCommands.delete(id);
     }
   }
@@ -686,8 +687,8 @@ export class WorldStore {
   getStationPendingSummary() {
     this.tickPendingCommands();
     const now = performance.now();
-    const pending = [...this.pendingStationCommands.values()].filter((entry) => entry.status === 'pending' && now - entry.at < 1500);
-    const failed = [...this.pendingStationCommands.values()].filter((entry) => (entry.status === 'failed' || now - entry.at >= 1500) && now - (entry.ackedAt || entry.at) < 1100);
+    const pending = [...this.pendingStationCommands.values()].filter((entry) => entry.status === 'pending' && now - entry.at < 900);
+    const failed = [...this.pendingCommands.values()].filter((entry) => entry?.meta?.station && (entry.status === 'failed' || now - entry.at >= 1200) && now - (entry.ackedAt || entry.at) < 1100);
     return {
       count: pending.length,
       failedCount: failed.length,

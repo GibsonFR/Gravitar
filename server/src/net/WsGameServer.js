@@ -61,7 +61,13 @@ export function createWsGameServer(httpServer, game) {
         let ok = false;
         let error = '';
         try {
-          ok = game.handleCommand(id, msg);
+          const result = game.handleCommand(id, msg);
+          if (typeof result === 'object' && result) {
+            ok = !!result.ok;
+            error = String(result.error || '');
+          } else {
+            ok = !!result;
+          }
         } catch (err) {
           ok = false;
           error = 'server_exception';

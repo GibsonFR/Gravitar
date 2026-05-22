@@ -45,15 +45,16 @@ const HANDLERS = {
 
 export function applyCommand(state, player, rawMsg, timeMs) {
   const msg = sanitizeCommandMessage(rawMsg);
-  if (!msg) return false;
-  if (!canAcceptCommand(player, timeMs)) return false;
+  if (!msg) return { ok: false, error: 'invalid_command' };
+  if (!canAcceptCommand(player, timeMs)) return { ok: false, error: 'rate_limited' };
 
   const fn = HANDLERS[msg.cmd] ?? null;
-  if (!fn) return false;
+  if (!fn) return { ok: false, error: 'unknown_command' };
   try {
-    return !!fn(state, player, msg, timeMs);
+    const ok = !!fn(state, player, msg, timeMs);
+    return { ok, error: ok ? '' : 'rejected' };
   } catch (err) {
     console.error('[command-router:error]', msg.cmd, err?.stack || err);
-    return false;
+    return { ok: false, error: 'server_exception' };
   }
 }

@@ -162,6 +162,7 @@ export function startApp() {
   const store = new WorldStore();
   const predictor = new ClientPrediction(store);
   const input = createInputState();
+  store.inputRef = input;
   const audio = new AudioSystem();
   let graphicsOptions = { starDensity: 1, showGrid: true, showFx: true, renderScale: 1 };
   const fxStore = new VisualFxStore();

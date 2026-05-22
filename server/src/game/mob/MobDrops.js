@@ -7,7 +7,7 @@ export function dropMobLoot(state, mob, timeMs) {
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 35 + Math.random() * 55;
-    spawnLootInSector(
+    const id = spawnLootInSector(
       state,
       mob.sx | 0,
       mob.sy | 0,
@@ -19,7 +19,7 @@ export function dropMobLoot(state, mob, timeMs) {
       mob.id,
       { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed }
     );
-    spawned += 1;
+    if (id) spawned += 1;
   }
   return spawned;
 }
