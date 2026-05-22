@@ -108,6 +108,17 @@ export class ClientPrediction {
     const me = this.store.getMe();
     if (!me || (this.store.myState?.sessionSetup?.pending ?? true)) return;
 
+    const loading = this.store.getLoadingState?.();
+    if (loading?.active) {
+      // Pendant un changement de secteur/portail, on fige l'intention locale.
+      // Sinon le vaisseau continue vers l'ancien point cliqué pendant le chargement
+      // puis semble glisser 3 secondes vers la frontière après le spawn.
+      me.vx = 0;
+      me.vy = 0;
+      me._localThrust = 0;
+      return;
+    }
+
     const worldMouse = {
       x: camera.x + (input.msx - view.cssW * 0.5),
       y: camera.y + (input.msy - view.cssH * 0.5)
@@ -311,18 +322,12 @@ export class ClientPrediction {
 
     const target = getTarget(this.store, local.selectedKind || this.store.myState?.selectedKind, local.selectedId || this.store.myState?.selectedId);
     if (target && (target.kind === 'station' || local.selectedKind === 'station')) {
+      // Station/interactions : on peut se rapprocher.
       tx = target.x;
       ty = target.y;
-    } else if (target && (local.selectedKind || this.store.myState?.selectedKind) !== 'station') {
-      const aaRange = 330;
-      const d = Math.max(0.001, len(me.x - target.x, me.y - target.y));
-      if (d > aaRange) {
-        const nx = (me.x - target.x) / d;
-        const ny = (me.y - target.y) / d;
-        tx = target.x + nx * (aaRange * 0.82);
-        ty = target.y + ny * (aaRange * 0.82);
-      }
     }
+    // Combat target : sélection purement locale. On NE convertit plus une sélection
+    // en ordre de déplacement automatique ; sinon le clic cible ressemble à un move-click.
 
     if (local.hasMoveTarget) {
       tx = local.moveX;
@@ -386,31 +391,32 @@ export class ClientPrediction {
     me.x = clamp(me.x, -2000, 2000);
     me.y = clamp(me.y, -2000, 2000);
 
-    const dx = me.x - beforeX;
-    const dy = me.y - beforeY;
     const local = this.store.localPrediction || {};
-    if (local.hasMoveTarget) {
-      local.moveX += dx;
-      local.moveY += dy;
-    }
-    if (Number.isFinite(me.groundMarkerX)) me.groundMarkerX += dx;
-    if (Number.isFinite(me.groundMarkerY)) me.groundMarkerY += dy;
 
-    // On ne supprime plus le point de déplacement au changement de secteur : c'était
-    // la cause des allers-retours/arrêts brutaux aux bordures. Seule la cible combat
-    // de l'ancien secteur est nettoyée.
+    // Traverser une bordure = mini chargement. On conserve seulement la position
+    // relative exacte de l'autre côté, puis on coupe l'ancien ordre de déplacement.
+    // Cela évite le bug où le vaisseau spawn près du centre puis repart tout seul
+    // vers l'ancien point/frontière pendant plusieurs secondes.
+    local.hasMoveTarget = false;
+    local.hold = false;
+    local.moveX = me.x;
+    local.moveY = me.y;
+    if (Number.isFinite(me.groundMarkerX)) me.groundMarkerTimer = 0;
     this.store.setOptimisticSelection('', 0);
-    me.hasMoveTarget = !!local.hasMoveTarget;
+    me.hasMoveTarget = false;
+    me.vx = 0;
+    me.vy = 0;
+    me._localThrust = 0;
     me._forceServerPose = false;
     me._localSectorChangedAt = performance.now();
-    me._sectorLockUntil = me._localSectorChangedAt + 260;
+    me._sectorLockUntil = me._localSectorChangedAt + 360;
     me._sectorLockDirX = dirX;
     me._sectorLockDirY = dirY;
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 360);
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 460);
     this.lastSectorWrapAt = me._localSectorChangedAt;
     local.sectorSeq = (local.sectorSeq | 0) + 1;
-    this.store.noteLocalSectorTransition(me.sx | 0, me.sy | 0, me.x, me.y, { keepMoveTarget: !!local.hasMoveTarget });
-    this.store.beginPortalLoading?.(`Secteur [${me.sx | 0},${me.sy | 0}]`, 230, local.sectorSeq | 0);
+    this.store.noteLocalSectorTransition(me.sx | 0, me.sy | 0, me.x, me.y, { keepMoveTarget: false });
+    this.store.beginPortalLoading?.(`Secteur [${me.sx | 0},${me.sy | 0}]`, 320, local.sectorSeq | 0);
   }
 
   reconcileSoftly(me, dt, isMoving = false) {

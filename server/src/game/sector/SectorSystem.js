@@ -60,7 +60,7 @@ function beginSectorTransition(player, sx, sy, timeMs) {
   // Pendant un passage de frontière, les derniers inputs client de l'ancien secteur
   // ne doivent pas pouvoir remettre le joueur de l'autre côté. On garde un gel très
   // court, masqué par l'écran de transition, puis on rend la main au client.
-  player.ignoreClientPoseUntil = Math.max(player.ignoreClientPoseUntil ?? 0, timeMs + 320);
+  player.ignoreClientPoseUntil = Math.max(player.ignoreClientPoseUntil ?? 0, timeMs + 430);
   player.clientAuthoritativeUntil = 0;
 }
 
@@ -108,21 +108,18 @@ function applyWrapToPlayer(state, p, timeMs) {
   }
   if (!changed) return;
 
-  const dx = p.x - beforeX;
-  const dy = p.y - beforeY;
+  // Traversée de secteur = mini chargement. On garde la position wrappée exacte,
+  // mais on stoppe l'ancien ordre de déplacement pour éviter que le joueur reparte
+  // vers la frontière/le centre après apparition dans le nouveau secteur.
+  p.hasMoveTarget = false;
+  p.holdMoveAllowed = false;
+  p.moveTx = p.x;
+  p.moveTy = p.y;
+  p.vx = 0;
+  p.vy = 0;
+  p.groundMarkerTimer = 0;
 
-  // Keep movement targets continuous across sector boundaries.
-  if (p.hasMoveTarget) {
-    p.moveTx += dx;
-    p.moveTy += dy;
-  }
-  if (p.groundMarkerTimer > 0) {
-    p.groundMarkerX += dx;
-    p.groundMarkerY += dy;
-  }
-
-  // Drop stale combat references only. Movement is deliberately preserved so a border
-  // crossing does not feel like a teleport/stop/rollback.
+  // Drop stale combat references only.
   p.selectedKind = '';
   p.selectedId = 0;
   p.autoTargetKind = '';

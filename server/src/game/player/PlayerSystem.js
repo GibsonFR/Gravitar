@@ -354,15 +354,11 @@ export function updatePlayer(state, p, dt, timeMs = null) {
         if (d2 <= fireRange * fireRange) {
           if (p.hasMoveTarget && p.autoTargetId === t.id && p.autoTargetKind === t.kind) p.hasMoveTarget = false;
           if (!blocksAttacks(p) && timeMs >= p.nextShotAt) fireAutoAttack(state, p, t, timeMs);
-        } else if (!blocksVoluntaryMove(p)) {
-          const d = Math.max(0.001, Math.sqrt(d2));
-          const desired = Math.max(80, aaRange * 0.82 - targetRadius * 0.25);
-          const nx = (p.x - t.x) / d;
-          const ny = (p.y - t.y) / d;
-          p.moveTx = t.x + nx * desired;
-          p.moveTy = t.y + ny * desired;
-          p.hasMoveTarget = true;
-          p.holdMoveAllowed = false;
+        } else {
+          // Combat target = cible de tir uniquement. Le serveur ne force plus
+          // un auto-chase vers la cible, sinon le ciblage donne l'impression
+          // d'un ordre de déplacement imposé et clunky.
+          if (p.hasMoveTarget && p.autoTargetId === t.id && p.autoTargetKind === t.kind) p.hasMoveTarget = false;
         }
       }
     }

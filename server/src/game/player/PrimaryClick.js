@@ -62,9 +62,7 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
       player.selectedId = attack.id;
       player.autoTargetKind = attack.kind;
       player.autoTargetId = attack.id;
-      player.moveTx = target.x;
-      player.moveTy = target.y;
-      player.hasMoveTarget = true;
+      player.hasMoveTarget = false;
       player.holdMoveAllowed = false;
       player.groundMarkerTimer = 0;
       return 'attack';

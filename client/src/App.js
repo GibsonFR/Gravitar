@@ -422,6 +422,12 @@ export function startApp() {
     const target = pickLocalPrimaryTarget(mouseWorld.x, mouseWorld.y);
     if (target) {
       store.setOptimisticSelection(target.kind, target.id);
+      // Sélection = action combat locale, pas ordre de déplacement.
+      // Sans ce verrou, un léger mouvement de souris après clic droit transformait
+      // la sélection en hold-move et le vaisseau partait vers le point cliqué.
+      input.holdActive = false;
+      input.suppressRightHoldUntilUp = true;
+      input.moveWorldQueued = false;
       return;
     }
     store.setOptimisticSelection('', 0);
@@ -463,6 +469,7 @@ export function startApp() {
     input.r = false;
     input.rightDown = false;
     input.holdActive = false;
+    input.suppressRightHoldUntilUp = false;
   }
 
   function sendInput(primaryHold) {
@@ -496,8 +503,8 @@ export function startApp() {
       moveWorld: input.moveWorldQueued,
       moveWorldX: input.moveWorldX,
       moveWorldY: input.moveWorldY,
-      selectedKind: store.myState?.selectedKind || store.localPrediction?.selectedKind || '',
-      selectedId: store.myState?.selectedId || store.localPrediction?.selectedId || 0,
+      selectedKind: store.localPrediction?.selectedKind || store.myState?.selectedKind || '',
+      selectedId: store.localPrediction?.selectedId || store.myState?.selectedId || 0,
       aimWorldX: camera.x + (input.msx - view.cssW * 0.5),
       aimWorldY: camera.y + (input.msy - view.cssH * 0.5),
       localMoveX: store.localPrediction?.moveX ?? 0,
@@ -564,13 +571,21 @@ export function startApp() {
     for (const mob of store.mobs.values()) drawWorldStatuses(ctx, view, mob, camX, camY, t);
     for (const a of store.asteroids.values()) drawWorldStatuses(ctx, view, a, camX, camY, t);
 
-    if (store.myState?.selectedKind && store.myState?.selectedId) {
-      let target = null;
-      if (store.myState.selectedKind === 'player') target = store.players.get(store.myState.selectedId);
-      if (store.myState.selectedKind === 'mob') target = store.mobs.get(store.myState.selectedId);
-      if (store.myState.selectedKind === 'asteroid') target = store.asteroids.get(store.myState.selectedId);
-      if (store.myState.selectedKind === 'station') target = store.stations.get(store.myState.selectedId);
-      if (target) drawSelectionRing(ctx, view, target.x, target.y, target.radius, rgba(255, 230, 140, 0.95), camX, camY);
+    {
+      const selectedKind = store.localPrediction?.selectedKind || store.myState?.selectedKind || '';
+      const selectedId = store.localPrediction?.selectedId || store.myState?.selectedId || 0;
+      if (selectedKind && selectedId) {
+        let target = null;
+        if (selectedKind === 'player') target = store.players.get(selectedId);
+        if (selectedKind === 'mob') target = store.mobs.get(selectedId);
+        if (selectedKind === 'asteroid') target = store.asteroids.get(selectedId);
+        if (selectedKind === 'station') target = store.stations.get(selectedId);
+        if (target) {
+          const age = Math.max(0, Math.min(1, (performance.now() - (store.localPrediction?.selectedAt || 0)) / 260));
+          const pulse = 1 + (1 - age) * 0.28;
+          drawSelectionRing(ctx, view, target.x, target.y, (target.radius || 18) * pulse, rgba(255, 230, 140, 0.98), camX, camY);
+        }
+      }
     }
 
     for (const p of store.players.values()) drawShip(ctx, view, p, camX, camY, t, mouseWorld, store.players, store.asteroids);
@@ -604,7 +619,7 @@ export function startApp() {
     if (now - lastSend >= 4) {
       lastSend = now;
       if (store.myState?.sessionSetup?.pending ?? true) clearQueuedInput();
-      else sendInput(input.rightDown && input.holdActive);
+      else sendInput(input.rightDown && input.holdActive && !input.suppressRightHoldUntilUp && !store.getLoadingState?.().active);
     }
 
     requestAnimationFrame(frame);

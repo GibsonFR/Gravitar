@@ -559,11 +559,15 @@ export class WorldStore {
     this.localPrediction.sectorSy = sy | 0;
     this.localPrediction.sectorX = Number.isFinite(x) ? x : 0;
     this.localPrediction.sectorY = Number.isFinite(y) ? y : 0;
-    // Les cibles de l'ancien secteur deviennent obsolètes, mais le déplacement peut
-    // continuer à travers la frontière pour éviter les arrêts/retours de secteur.
+    // Les cibles et l'ancien ordre de déplacement deviennent obsolètes.
+    // La position de spawn doit rester relative à la frontière, sans déplacement
+    // automatique qui ramène ensuite le vaisseau vers l'ancien clic.
     this.localPrediction.selectedKind = '';
     this.localPrediction.selectedId = 0;
-    if (!options.keepMoveTarget) this.localPrediction.hasMoveTarget = false;
+    this.localPrediction.hasMoveTarget = false;
+    this.localPrediction.hold = false;
+    this.localPrediction.moveX = this.localPrediction.sectorX;
+    this.localPrediction.moveY = this.localPrediction.sectorY;
   }
 
 

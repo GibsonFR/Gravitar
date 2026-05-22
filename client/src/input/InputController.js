@@ -15,7 +15,7 @@ export class InputController {
       const rect = canvas.getBoundingClientRect();
       input.msx = ev.clientX - rect.left;
       input.msy = ev.clientY - rect.top;
-      if (input.rightDown && !input.holdActive) {
+      if (input.rightDown && !input.holdActive && !input.suppressRightHoldUntilUp) {
         const dx = input.msx - input.downX;
         const dy = input.msy - input.downY;
         if (dx * dx + dy * dy >= 36) input.holdActive = true;
@@ -29,6 +29,7 @@ export class InputController {
       input.msy = ev.clientY - rect.top;
       input.rightDown = true;
       input.holdActive = false;
+      input.suppressRightHoldUntilUp = false;
       input.downX = input.msx;
       input.downY = input.msy;
       input.clickQueued = true;
@@ -40,6 +41,7 @@ export class InputController {
       if (ev.button === 2) {
         input.rightDown = false;
         input.holdActive = false;
+        input.suppressRightHoldUntilUp = false;
       }
     });
 
