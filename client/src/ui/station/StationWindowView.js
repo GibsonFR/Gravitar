@@ -102,8 +102,8 @@ export class StationWindowView {
     if (!this.pendingEl) return;
     this.pendingEl.hidden = !pending && !failed;
     if (this.pendingTextEl) {
-      if (pending) this.pendingTextEl.textContent = summary.count > 1 ? `${summary.count} actions en attente…` : 'Action station en attente…';
-      else if (failed) this.pendingTextEl.textContent = 'Action refusée ou impossible.';
+      if (pending) this.pendingTextEl.textContent = summary.count > 1 ? `${summary.count} actions station en cours…` : 'Synchro station…';
+      else if (failed) this.pendingTextEl.textContent = 'Action refusée / serveur indisponible.';
     }
   }
 

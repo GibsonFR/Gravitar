@@ -37,6 +37,9 @@ export function createWsGameServer(httpServer, game) {
   function sendSnapshot(playerId, snapshot) {
     const ws = connections.get(playerId);
     if (!ws || ws.readyState !== ws.OPEN) return;
+    // Do not let websocket backpressure grow the Node heap. If a browser tab or
+    // network cannot keep up, skip this snapshot; the next one will replace it.
+    if ((ws.bufferedAmount || 0) > 768 * 1024) return;
     ws.send(JSON.stringify(snapshot));
   }
 
@@ -55,13 +58,22 @@ export function createWsGameServer(httpServer, game) {
       if (!msg) return;
       if (msg.t === 'input') game.handleInput(id, msg);
       if (msg.t === 'cmd') {
-        const ok = game.handleCommand(id, msg);
+        let ok = false;
+        let error = '';
+        try {
+          ok = game.handleCommand(id, msg);
+        } catch (err) {
+          ok = false;
+          error = 'server_exception';
+          console.error('[ws:cmd:error]', msg?.cmd || 'unknown', err?.stack || err);
+        }
         if (msg.cmdId && ws.readyState === ws.OPEN) {
           ws.send(JSON.stringify({
             t: 'cmd_ack',
             cmdId: String(msg.cmdId).slice(0, 48),
             cmd: String(msg.cmd || '').slice(0, 32),
             ok: !!ok,
+            error,
             time: Date.now()
           }));
         }

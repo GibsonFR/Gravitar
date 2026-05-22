@@ -50,5 +50,10 @@ export function applyCommand(state, player, rawMsg, timeMs) {
 
   const fn = HANDLERS[msg.cmd] ?? null;
   if (!fn) return false;
-  return !!fn(state, player, msg, timeMs);
+  try {
+    return !!fn(state, player, msg, timeMs);
+  } catch (err) {
+    console.error('[command-router:error]', msg.cmd, err?.stack || err);
+    return false;
+  }
 }

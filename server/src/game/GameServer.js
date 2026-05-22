@@ -71,7 +71,21 @@ export function createGameServer() {
   function handleCommand(id, msg) {
     const p = state.players.get(id);
     if (!p) return false;
-    return !!applyCommand(state, p, msg, getSimulationTimeMs(state, nowMs()));
+    const timeMs = getSimulationTimeMs(state, nowMs());
+    let ok = false;
+    try {
+      ok = !!applyCommand(state, p, msg, timeMs);
+    } catch (err) {
+      ok = false;
+      console.error('[cmd:error]', msg?.cmd || 'unknown', err?.stack || err);
+    }
+
+    // Station/account/UI commands need a fresh full snapshot, but only once.
+    // This gives immediate UI refresh after ack without streaming the whole station UI at 60 Hz.
+    p.forceFullUiSnapshot = true;
+    p.forceFullUiSnapshotAt = timeMs;
+    p.forceFullUiSnapshotReason = String(msg?.cmd || '').slice(0, 32);
+    return ok;
   }
 
   function stepFixed(dt, timeMs) {
@@ -114,9 +128,14 @@ export function createGameServer() {
         if (!state.players.has(id)) continue;
         const p = state.players.get(id);
         const previousFullAt = lastFullSnapshotByPlayer.get(id) || 0;
-        const fullUi = !!p?.sessionSetupPending || !!p?.dockedStationId || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
+        const forceFullUi = !!p?.forceFullUiSnapshot;
+        const fullUi = !!p?.sessionSetupPending || forceFullUi || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
         if (fullUi) lastFullSnapshotByPlayer.set(id, timeMs);
         const snap = buildSnapshot(state, id, timeMs, { fullUi });
+        if (forceFullUi) {
+          p.forceFullUiSnapshot = false;
+          p.forceFullUiSnapshotReason = '';
+        }
         sendSnapshot(id, snap);
       }
       clearWorldSfx(state);

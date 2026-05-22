@@ -49,7 +49,11 @@ function buildVisibilityPredicates(me) {
 export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const me = state.players.get(playerId) ?? null;
   const { inMySector, nearDynamic, nearStatic, playerInMyWorldAndSector } = buildVisibilityPredicates(me);
-  const fullUi = options.fullUi !== false || !!me?.sessionSetupPending || !!me?.dockedStationId;
+  const fullUi = options.fullUi !== false || !!me?.sessionSetupPending;
+  // Important: being docked must NOT force a full station snapshot every network tick.
+  // Full station/UI data is heavy (inventory, equipment, shop, map). GameServer decides
+  // when to send it: periodically, and immediately after a station command. Sending it
+  // at 60 Hz while docked was the source of Render heap growth/OOM and clunky station UI.
 
   return {
     t: 'snap',

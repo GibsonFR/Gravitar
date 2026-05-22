@@ -6,7 +6,7 @@ export const TICK = 1 / 60;
 export const SNAP_RATE = 1 / 60;
 export const SERVER_LOOP_INTERVAL_MS = 1000 / 120;
 
-export const SNAP_FULL_UI_RATE_MS = 250;
+export const SNAP_FULL_UI_RATE_MS = 650;
 export const SNAP_VIEW_RADIUS = 1400;
 export const SNAP_VIEW_RADIUS_STATIC = 1100;
 

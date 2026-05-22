@@ -21,6 +21,7 @@ export class WorldStore {
     this.chatUnread = 0;
     this.pendingCommands = new Map();
     this.pendingStationCommands = new Map();
+    this.stationOptimistic = { version: 0, actions: new Map() };
     this.lastSnapAt = 0;
     this.localPrediction = {
       hasMoveTarget: false,
@@ -664,13 +665,18 @@ export class WorldStore {
       this.myState.hint = `Action refusée : ${entry.cmd}`;
       this.myState._optimisticHintLeft = 0.9;
     }
+    // A command ack means the server answered. The station UI must stop showing
+    // a blocking wait immediately; the following full snapshot updates the data.
+    if (this.pendingStationCommands.has(id) && msg.ok) {
+      this.pendingStationCommands.delete(id);
+    }
   }
 
   tickPendingCommands() {
     const now = performance.now();
     for (const [id, entry] of [...this.pendingCommands.entries()]) {
       const done = entry.status === 'ok' || entry.status === 'failed';
-      if ((done && now - (entry.ackedAt || entry.at) > 420) || now - entry.at > 3200) {
+      if ((done && now - (entry.ackedAt || entry.at) > 280) || now - entry.at > 1500) {
         this.pendingCommands.delete(id);
         this.pendingStationCommands.delete(id);
       }
@@ -679,8 +685,9 @@ export class WorldStore {
 
   getStationPendingSummary() {
     this.tickPendingCommands();
-    const pending = [...this.pendingStationCommands.values()].filter((entry) => entry.status === 'pending');
-    const failed = [...this.pendingStationCommands.values()].filter((entry) => entry.status === 'failed' && performance.now() - (entry.ackedAt || entry.at) < 1100);
+    const now = performance.now();
+    const pending = [...this.pendingStationCommands.values()].filter((entry) => entry.status === 'pending' && now - entry.at < 1500);
+    const failed = [...this.pendingStationCommands.values()].filter((entry) => (entry.status === 'failed' || now - entry.at >= 1500) && now - (entry.ackedAt || entry.at) < 1100);
     return {
       count: pending.length,
       failedCount: failed.length,
