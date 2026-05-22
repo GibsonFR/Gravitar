@@ -961,7 +961,7 @@ function castVanguardA(state, player, timeMs) {
 
 function clientAlreadyAppliedDash(player, slot, timeMs) {
   const a = player?._activeClientAppliedAbility || player?.clientAppliedAbilityPose || null;
-  return !!a && a.slot === slot && timeMs <= (a.until || 0);
+  return !!a && a.slot === slot && !!a.dashAlreadyApplied && timeMs <= (a.until || 0);
 }
 
 function castVanguardZ(state, player, timeMs) {

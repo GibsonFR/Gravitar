@@ -134,9 +134,23 @@ function applyActionPacket(state, player, action, timeMs) {
       player.mouseSx = action.aimX - player.x + player.viewportW * 0.5;
       player.mouseSy = action.aimY - player.y + player.viewportH * 0.5;
     }
+    if (Number.isFinite(action.castLocalX) && Number.isFinite(action.castLocalY)) {
+      player.x = action.castLocalX;
+      player.y = action.castLocalY;
+      if (Number.isFinite(action.castLocalSx)) player.sx = action.castLocalSx | 0;
+      if (Number.isFinite(action.castLocalSy)) player.sy = action.castLocalSy | 0;
+    }
     if (!Array.isArray(player.pendingAbilityCasts)) player.pendingAbilityCasts = [];
-    player.pendingAbilityCasts.push({ slot: action.slot, seq: action.seq | 0, timeMs, clientPoseApplied: true });
-    player.clientAppliedAbilityPose = { slot: action.slot, seq: action.seq | 0, until: timeMs + 420 };
+    player.pendingAbilityCasts.push({
+      slot: action.slot,
+      seq: action.seq | 0,
+      timeMs,
+      clientPoseApplied: true,
+      clientAppliedDash: !!action.clientAppliedDash,
+      aimX: action.aimX,
+      aimY: action.aimY
+    });
+    player.clientAppliedAbilityPose = { slot: action.slot, seq: action.seq | 0, until: timeMs + 900 };
     if (player.pendingAbilityCasts.length > 8) player.pendingAbilityCasts.splice(0, player.pendingAbilityCasts.length - 8);
     return;
   }

@@ -293,8 +293,17 @@ function updateAbilityCasting(state, player, dt, timeMs) {
   const locked = !!player.dockedStationId || (player.dockPhase && player.dockPhase !== 'none');
   const pending = Array.isArray(player.pendingAbilityCasts) ? player.pendingAbilityCasts.splice(0, player.pendingAbilityCasts.length) : [];
   const requested = [];
-  for (const action of pending) requested.push({ slot: action.slot, clientPoseApplied: !!action.clientPoseApplied, seq: action.seq | 0 });
-  for (const slot of slots) if (consumeAbilityEdge(player, slot)) requested.push({ slot, clientPoseApplied: false, seq: 0 });
+  for (const action of pending) {
+    requested.push({
+      slot: action.slot,
+      clientPoseApplied: !!action.clientPoseApplied,
+      clientAppliedDash: !!action.clientAppliedDash,
+      seq: action.seq | 0,
+      aimX: action.aimX,
+      aimY: action.aimY
+    });
+  }
+  for (const slot of slots) if (consumeAbilityEdge(player, slot)) requested.push({ slot, clientPoseApplied: false, clientAppliedDash: false, seq: 0 });
 
   for (const req of requested) {
     const slot = req.slot;
@@ -304,9 +313,28 @@ function updateAbilityCasting(state, player, dt, timeMs) {
       setPlayerHint(player, 'Abilities indisponibles en station', 1.2);
       continue;
     }
-    if (req.clientPoseApplied) player._activeClientAppliedAbility = { slot, seq: req.seq | 0, until: timeMs + 320 };
-    if (tryCastAbility(state, player, slot, timeMs)) {
+    if (Number.isFinite(req.aimX) && Number.isFinite(req.aimY)) {
+      player.mouseSx = req.aimX - player.x + player.viewportW * 0.5;
+      player.mouseSy = req.aimY - player.y + player.viewportH * 0.5;
+    }
+    if (req.clientPoseApplied) {
+      player._activeClientAppliedAbility = {
+        slot,
+        seq: req.seq | 0,
+        until: timeMs + 900,
+        dashAlreadyApplied: !!req.clientAppliedDash
+      };
+    }
+    const ok = tryCastAbility(state, player, slot, timeMs);
+    if (ok) {
+      player.forceFullUiSnapshot = true;
+      player.forceFullUiSnapshotReason = `ability_${slot}`;
       queueWorldSfx(state, SFX_EVENT_TYPES[`ABILITY_${slot}`] || SFX_EVENT_TYPES.AUTO_ATTACK, player.sx, player.sy, player.x, player.y, 0);
+    } else if (req.clientPoseApplied) {
+      // Même en cas de refus serveur, renvoyer vite les cooldowns/énergie réels
+      // pour que le HUD local sorte d'un état optimiste faux.
+      player.forceFullUiSnapshot = true;
+      player.forceFullUiSnapshotReason = `ability_${slot}_refused`;
     }
     player._activeClientAppliedAbility = null;
   }

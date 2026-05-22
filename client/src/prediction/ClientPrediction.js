@@ -112,6 +112,16 @@ export class ClientPrediction {
     this.lastSectorWrapAt = 0;
   }
 
+  queueInputAction(input, action) {
+    if (!input || !action) return null;
+    if (!Array.isArray(input.actions)) input.actions = [];
+    input.actionSeq = (input.actionSeq | 0) + 1;
+    const queued = { seq: input.actionSeq, time: performance.now(), ...action };
+    input.actions.push(queued);
+    if (input.actions.length > 32) input.actions.splice(0, input.actions.length - 32);
+    return queued;
+  }
+
   update(dt, input, view, camera) {
     const me = this.store.getMe();
     if (!me || (this.store.myState?.sessionSetup?.pending ?? true)) return;
@@ -147,7 +157,7 @@ export class ClientPrediction {
   handleAbilityEdges(me, input, worldMouse) {
     for (const slot of ['A', 'Z', 'E', 'R']) {
       const down = !!input[slot.toLowerCase()];
-      if (down && !this.lastKeys[slot]) this.castAbilityOptimistic(me, slot, worldMouse);
+      if (down && !this.lastKeys[slot]) this.castAbilityOptimistic(me, slot, worldMouse, input);
       this.lastKeys[slot] = down;
     }
   }
@@ -186,17 +196,20 @@ export class ClientPrediction {
     const down = !!input.rocketTap;
     if (down && !this.lastKeys.F) {
       if (finite(me.rocketCooldownLeft, 0) <= 0 && finite(me.vitals?.energy, 999) > 1) {
-        // V82: le client garde seulement le feedback HUD immédiat.
-        // Les projectiles/dégâts roquette viennent du serveur pour éviter les tirs fantômes
-        // quand le serveur refuse finalement l'action.
+        // Feedback immédiat, mais le projectile réel reste serveur-authority.
         me.rocketCooldownLeft = Math.max(0.25, finite(this.store.myState?.equipment?.launcher?.cooldown, 0.75));
         me._localActionFlashUntil = performance.now() + 160;
+        this.queueInputAction(input, {
+          type: 'rocket',
+          aimX: finite(worldMouse.x, me.x),
+          aimY: finite(worldMouse.y, me.y)
+        });
       }
     }
     this.lastKeys.F = down;
   }
 
-  castAbilityOptimistic(me, slot, worldMouse) {
+  castAbilityOptimistic(me, slot, worldMouse, input = null) {
     const myState = this.store.myState;
     const hud = myState?.abilityHud?.[slot];
     if (hud && hud.unlocked === false) return;
@@ -214,10 +227,27 @@ export class ClientPrediction {
     const target = getSelectedTarget(this.store);
     const aim = target.entity || worldMouse;
     const dash = shouldDash(myState, slot);
-    if (dash > 0) this.applyDash(me, worldMouse, dash);
-    // V82: on ne prédit plus les projectiles/dégâts côté client.
-    // Le mouvement/dash reste local-authority, mais les impacts combat restent serveur-authority.
-    // Ça supprime les divergences du type "mon client tire encore alors que le serveur a annulé".
+    if (dash > 0) {
+      // Le dash est appliqué localement AVANT d'envoyer le paquet.
+      // Le paquet part donc avec la pose post-dash, et le serveur ne doit plus
+      // refaire un second dash ni recoller le joueur à une ancienne position.
+      this.applyDash(me, worldMouse, dash);
+    }
+
+    this.queueInputAction(input, {
+      type: 'cast',
+      slot,
+      aimX: finite(worldMouse.x, me.x),
+      aimY: finite(worldMouse.y, me.y),
+      clientAppliedDash: dash > 0,
+      castLocalX: finite(me.x, 0),
+      castLocalY: finite(me.y, 0),
+      castLocalSx: me.sx | 0,
+      castLocalSy: me.sy | 0
+    });
+
+    // Pas de projectile/dégât local : seulement un feedback de cast court.
+    // Les dégâts/impacts viennent du serveur pour éviter les divergences.
     this.spawnLocalCastArea(me, aim, slot);
     me._localActionFlashUntil = performance.now() + 180;
 

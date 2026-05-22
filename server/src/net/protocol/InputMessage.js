@@ -59,7 +59,12 @@ function sanitizeAction(raw, viewportW, viewportH) {
       seq,
       slot,
       aimX: Number.isFinite(raw.aimX) ? clamp(raw.aimX, -10000000, 10000000) : null,
-      aimY: Number.isFinite(raw.aimY) ? clamp(raw.aimY, -10000000, 10000000) : null
+      aimY: Number.isFinite(raw.aimY) ? clamp(raw.aimY, -10000000, 10000000) : null,
+      clientAppliedDash: !!raw.clientAppliedDash,
+      castLocalX: Number.isFinite(raw.castLocalX) ? clamp(raw.castLocalX, -10000000, 10000000) : null,
+      castLocalY: Number.isFinite(raw.castLocalY) ? clamp(raw.castLocalY, -10000000, 10000000) : null,
+      castLocalSx: Number.isFinite(raw.castLocalSx) ? clamp(raw.castLocalSx | 0, -100000, 100000) : null,
+      castLocalSy: Number.isFinite(raw.castLocalSy) ? clamp(raw.castLocalSy | 0, -100000, 100000) : null
     });
   }
   if (type === 'rocket' || type === 'interact' || type === 'cancelAttack') {

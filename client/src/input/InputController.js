@@ -102,12 +102,18 @@ export class InputController {
         return;
       }
 
-      if (lower === 'a') { input.a = true; queueAction({ type: 'cast', slot: 'A' }); }
-      if (lower === 'z') { input.z = true; queueAction({ type: 'cast', slot: 'Z' }); }
-      if (lower === 'e') { input.e = true; queueAction({ type: 'cast', slot: 'E' }); }
-      if (lower === 'r') { input.r = true; queueAction({ type: 'cast', slot: 'R' }); }
+      // Les abilities/roquettes ne sont plus mises en paquet ici.
+      // Le prédicteur client décide d'abord si l'action est localement légale
+      // (cooldown, énergie, statut bloquant), applique le feedback immédiat,
+      // puis ajoute le paquet exact à envoyer au serveur.
+      // Ça évite le conflit où le serveur castait une ability que le client
+      // avait refusée localement, ou inversement.
+      if (lower === 'a') input.a = true;
+      if (lower === 'z') input.z = true;
+      if (lower === 'e') input.e = true;
+      if (lower === 'r') input.r = true;
       if (lower === 'd') { input.interactTap = true; queueAction({ type: 'interact' }); }
-      if (lower === 'f') { input.rocketTap = true; queueAction({ type: 'rocket' }); }
+      if (lower === 'f') input.rocketTap = true;
       if (lower === 'x') {
         handlers.onRocketSlotSwitch?.(0);
         ev.preventDefault();
