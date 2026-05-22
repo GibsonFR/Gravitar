@@ -70,11 +70,31 @@ function spendEnergyLocal(me, myState, slot) {
   me.vitals.energy = Math.max(0, finite(me.vitals.energy, 0) - cost);
 }
 
-function shouldDash(myState, slot) {
+function getLocalDashDistance(myState, slot) {
+  const hud = myState?.abilityHud?.[slot];
+  const tuning = hud?.tuning || hud || {};
   const frameId = String(myState?.frameId || '').toLowerCase();
+
+  if (Number.isFinite(tuning.dashDistance) && tuning.dashDistance > 0) return tuning.dashDistance;
+  if (Number.isFinite(tuning.eDashDistance) && tuning.eDashDistance > 0) return tuning.eDashDistance;
+
   if (frameId === 'vanguard' && slot === 'Z') return 190;
   if (frameId === 'sigil' && slot === 'E') return 175;
   return 0;
+}
+
+function getLocalMoveBoost(myState, slot) {
+  const hud = myState?.abilityHud?.[slot];
+  const tuning = hud?.tuning || hud || {};
+  const frameId = String(myState?.frameId || '').toLowerCase();
+
+  if (frameId === 'vanguard' && slot === 'Z') {
+    return {
+      pct: Number.isFinite(tuning.moveBoostPct) ? tuning.moveBoostPct : 0.22,
+      duration: Number.isFinite(tuning.moveBoostDuration) ? tuning.moveBoostDuration : 2.0
+    };
+  }
+  return { pct: 0, duration: 0 };
 }
 
 function shouldProjectile(slot) {
@@ -223,15 +243,31 @@ export class ClientPrediction {
 
     const target = getSelectedTarget(this.store);
     const aim = target.entity || worldMouse;
-    const dash = shouldDash(myState, slot);
-    if (dash > 0) this.applyDash(me, worldMouse, dash);
-    // V82: on ne prédit plus les projectiles/dégâts côté client.
-    // Le mouvement/dash reste local-authority, mais les impacts combat restent serveur-authority.
-    // Ça supprime les divergences du type "mon client tire encore alors que le serveur a annulé".
+    const dash = getLocalDashDistance(myState, slot);
+    const appliedDash = dash > 0 && this.applyDash(me, worldMouse, dash);
+    const boost = getLocalMoveBoost(myState, slot);
+    if (boost.pct > 0 && boost.duration > 0) {
+      const local = this.store.localPrediction || {};
+      local.localMoveBoostMult = Math.max(local.localMoveBoostMult || 1, 1 + boost.pct);
+      local.localMoveBoostUntil = Math.max(local.localMoveBoostUntil || 0, performance.now() + boost.duration * 1000);
+      me._localMoveBoostUntil = local.localMoveBoostUntil;
+      me._localMoveBoostMult = local.localMoveBoostMult;
+    }
+    // V92: seuls le mouvement/dash/HUD sont locaux. Les projectiles/dégâts restent serveur-authority.
     this.spawnLocalCastArea(me, aim, slot);
     me._localActionFlashUntil = performance.now() + 180;
 
-    this.queueNetAction({ type: 'cast', slot, aimX: aim.x, aimY: aim.y });
+    this.queueNetAction({
+      type: 'cast',
+      slot,
+      aimX: aim.x,
+      aimY: aim.y,
+      clientAppliedDash: !!appliedDash,
+      castLocalX: me.x,
+      castLocalY: me.y,
+      castLocalSx: me.sx | 0,
+      castLocalSy: me.sy | 0
+    });
 
     const label = hud?.label || slot;
     myState.hint = label;
@@ -258,18 +294,25 @@ export class ClientPrediction {
   }
 
   applyDash(me, worldMouse, distPx) {
-    if (hasBlockingStatus(me)) return;
+    if (hasBlockingStatus(me)) return false;
     const d = norm(worldMouse.x - me.x, worldMouse.y - me.y);
-    if (!d.x && !d.y) return;
+    if (!d.x && !d.y) return false;
+    const beforeX = me.x;
+    const beforeY = me.y;
     me.x += d.x * distPx;
     me.y += d.y * distPx;
-    me.vx = d.x * Math.max(finite(this.store.myState?.derived?.moveSpeed, me.engine || 250), distPx / 0.12);
-    me.vy = d.y * Math.max(finite(this.store.myState?.derived?.moveSpeed, me.engine || 250), distPx / 0.12);
+    const dashSpeed = Math.max(finite(this.store.myState?.derived?.moveSpeed, me.engine || 250), distPx / 0.10);
+    me.vx = d.x * dashSpeed;
+    me.vy = d.y * dashSpeed;
     me.rot = Math.atan2(d.y, d.x);
     me._localThrust = 1;
-    me._clientDashGrace = 0.34;
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 1500);
+    me._clientDashGrace = 0.42;
+    me._localDashFromX = beforeX;
+    me._localDashFromY = beforeY;
+    me._localDashUntil = performance.now() + 420;
+    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 1700);
     this.requestServerSectorWrapIfNeeded(me);
+    return true;
   }
 
   spawnLocalProjectile(me, targetOrPoint, opts = {}) {
@@ -375,7 +418,9 @@ export class ClientPrediction {
       return;
     }
 
-    const speed = finite(this.store.myState?.derived?.moveSpeed, finite(me.engine, 250));
+    let speed = finite(this.store.myState?.derived?.moveSpeed, finite(me.engine, 250));
+    const predLocal = this.store.localPrediction || {};
+    if (performance.now() < finite(predLocal.localMoveBoostUntil, 0)) speed *= Math.max(1, finite(predLocal.localMoveBoostMult, 1));
     const step = Math.min(d, speed * dt);
     me.x += (dx / d) * step;
     me.y += (dy / d) * step;

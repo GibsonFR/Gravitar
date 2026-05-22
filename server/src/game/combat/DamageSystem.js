@@ -160,13 +160,15 @@ function respawnPlayerAtHubKeepProgress(state, player, timeMs, hint) {
 
 function resetEndlessAfterDeath(state, player, timeMs) {
   clearBastionRunOnDeath(state, player);
+  dropPlayerCargo(state, player, timeMs);
   clearCargoOnly(player);
   removeHalfRunEquipment(player);
-  respawnPlayerAtHubKeepProgress(state, player, timeMs, 'Destruction — 50% équipement perdu, soute vidée');
+  respawnPlayerAtHubKeepProgress(state, player, timeMs, 'Destruction — cargo largué, 50% équipement perdu');
 }
 
 function resetBattleAfterDeath(state, player, timeMs) {
   clearBastionRunOnDeath(state, player);
+  dropPlayerCargo(state, player, timeMs);
   recordBattleDeath(state, player);
   leaveBattleSession(state, player, timeMs, true);
   clearPlayerBattleResidue(state, player, timeMs, { checkWinner: false });
@@ -219,6 +221,7 @@ function resetPlayerRunAfterDeath(state, player, timeMs) {
       if (pr.bastionRunKey === deadRunKey || ((pr.sx | 0) === (player.sx | 0) && (pr.sy | 0) === (player.sy | 0))) state.projectiles.delete(id);
     }
   }
+  dropPlayerCargo(state, player, timeMs);
   player.sessionSetupPending = true;
   player.pseudo = pseudo;
   player.sx = 0;

@@ -40,8 +40,13 @@ export function buildScaledMobProps(def, mapLevel = 1, elite = false, mutated = 
     attackRange: def.attackRange + (elite ? 10 : 0) + (mutated ? 4 : 0),
     preferredRange: (def.preferredRange ?? def.attackRange) + (elite ? 12 : 0) + (mutated ? 4 : 0),
     retreatRange: (def.retreatRange ?? Math.max(36, def.attackRange * 0.45)) + (elite ? 6 : 0),
-    attackCooldownMs: Math.max(820, Math.round(def.attackCooldownMs * (elite ? 0.95 : 1) * (mutated ? 0.97 : 1) * Math.max(0.94, 1 - levelDelta * 0.004))),
-    attackDamage: def.attackDamage * scale,
+    // V92: les mobs mêlée ne doivent pas fondre le joueur en contact.
+    // On garde les patterns dangereux, mais avec une cadence lisible.
+    attackCooldownMs: Math.max(
+      def.behaviorId === 'rusher' ? 1650 : 980,
+      Math.round(def.attackCooldownMs * (elite ? 1.04 : 1) * (mutated ? 1.02 : 1) * Math.max(0.98, 1 - levelDelta * 0.002))
+    ),
+    attackDamage: def.attackDamage * scale * (def.behaviorId === 'rusher' ? 0.72 : 0.88),
     xpReward: Math.round(def.xpReward * (elite ? 2.1 : 1) * (1 + levelDelta * 0.09)),
     contactPush: def.contactPush * (elite ? 1.08 : 1),
     projectileSpeed: Math.round((def.projectileSpeed ?? 0) * (1 + Math.min(0.12, levelDelta * 0.012))),

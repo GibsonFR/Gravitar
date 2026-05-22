@@ -11,14 +11,36 @@ function tryMeleeAttack(state, mob, target, timeMs) {
   if (distSq(mob.x, mob.y, target.x, target.y) > rr * rr) return false;
   if (timeMs < (mob.nextAttackAt | 0)) return false;
 
-  mob.nextAttackAt = timeMs + Math.max(mob.demoMob ? 1800 : 1250, Math.round((mob.attackCooldownMs | 0) * (mob.demoMob ? 2.1 : 1.45)));
-  applyDamage(state, target, mob.attackDamage, null, { timeMs, visualKind: mob.abilityProfile ? `mob_${mob.abilityProfile}` : 'mob_melee' });
+  // V92: garde-fous anti "mobs blender".
+  // Même si plusieurs rusher se superposent ou si le serveur reçoit une rafale de ticks,
+  // un joueur ne doit pas prendre 10 coups de mêlée en quelques ms.
+  if (!target._mobMeleeHitAtById) target._mobMeleeHitAtById = new Map();
+  const previousFromThisMob = target._mobMeleeHitAtById.get(mob.id) || 0;
+  if (timeMs - previousFromThisMob < 1550) {
+    mob.nextAttackAt = Math.max(mob.nextAttackAt | 0, timeMs + 520);
+    return false;
+  }
+  const previousAnyMelee = target._lastAnyMobMeleeHitAt || 0;
+  if (timeMs - previousAnyMelee < 520) {
+    mob.nextAttackAt = Math.max(mob.nextAttackAt | 0, timeMs + 620);
+    return false;
+  }
+
+  target._mobMeleeHitAtById.set(mob.id, timeMs);
+  target._lastAnyMobMeleeHitAt = timeMs;
+  if (target._mobMeleeHitAtById.size > 64) {
+    for (const [id, at] of target._mobMeleeHitAtById) if (timeMs - at > 8000) target._mobMeleeHitAtById.delete(id);
+  }
+
+  const cd = Math.max(mob.demoMob ? 2200 : 1800, Math.round((mob.attackCooldownMs | 0) * (mob.demoMob ? 2.4 : 1.65)));
+  mob.nextAttackAt = timeMs + cd;
+  applyDamage(state, target, Math.max(1, mob.attackDamage * 0.72), null, { timeMs, visualKind: mob.abilityProfile ? `mob_${mob.abilityProfile}` : 'mob_melee' });
   applyStatusSpecs(state, mob, target, getMobOnHitStatuses(mob));
 
   const away = norm(target.x - mob.x, target.y - mob.y);
   if (!target.demoDummy) {
-    target.x += away.x * (mob.contactPush * 0.08);
-    target.y += away.y * (mob.contactPush * 0.08);
+    target.x += away.x * (mob.contactPush * 0.045);
+    target.y += away.y * (mob.contactPush * 0.045);
   }
   return true;
 }
