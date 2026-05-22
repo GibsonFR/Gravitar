@@ -7,6 +7,8 @@ export function buildMobSnapshots(mobs, inSector) {
     .filter(inSector)
     .map((mob) => ({
       id: mob.id,
+      sx: mob.sx | 0,
+      sy: mob.sy | 0,
       mobId: mob.mobId,
       typeId: mob.typeId ?? 0,
       name: mob.name,
@@ -47,6 +49,8 @@ export function buildAsteroidSnapshots(asteroids, inSector) {
     .filter(inSector)
     .map((asteroid) => ({
       id: asteroid.id,
+      sx: asteroid.sx | 0,
+      sy: asteroid.sy | 0,
       x: asteroid.x,
       y: asteroid.y,
       radius: asteroid.radius,
@@ -76,6 +80,8 @@ export function buildStationSnapshots(stations, inSector) {
     .filter(inSector)
     .map((station) => ({
       id: station.id,
+      sx: station.sx | 0,
+      sy: station.sy | 0,
       x: station.x,
       y: station.y,
       radius: station.radius,
@@ -98,6 +104,8 @@ export function buildPortalSnapshots(portals, inSector, state = null, player = n
       const unlockText = bastion ? getBastionUnlockText(player, bastion, timeMs, state) : '';
       return ({
       id: portal.id,
+      sx: portal.sx | 0,
+      sy: portal.sy | 0,
       x: portal.x,
       y: portal.y,
       radius: portal.radius,
@@ -121,6 +129,8 @@ export function buildProjectileSnapshots(projectiles, inSector) {
     .filter(inSector)
     .map((projectile) => ({
       id: projectile.id,
+      sx: projectile.sx | 0,
+      sy: projectile.sy | 0,
       x: projectile.x,
       y: projectile.y,
       radius: projectile.radius,
@@ -147,6 +157,8 @@ export function buildAreaEffectSnapshots(areaEffects, inSector) {
     .filter(inSector)
     .map((effect) => ({
       id: effect.id,
+      sx: effect.sx | 0,
+      sy: effect.sy | 0,
       x: effect.x,
       y: effect.y,
       radius: effect.radius,
@@ -169,6 +181,8 @@ export function buildLootSnapshots(loots, inSector) {
     .filter(inSector)
     .map((loot) => ({
       id: loot.id,
+      sx: loot.sx | 0,
+      sy: loot.sy | 0,
       x: loot.x,
       y: loot.y,
       radius: loot.radius,

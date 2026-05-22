@@ -5,8 +5,19 @@ import { canAcceptInput, sanitizeInputMessage } from '../../net/protocol/InputMe
 function clearAutoAttack(player) {
   player.autoTargetKind = '';
   player.autoTargetId = 0;
-  player.autoTargetSx = 0;
-  player.autoTargetSy = 0;
+}
+
+function armAutoAttack(player, kind, id, timeMs) {
+  const changed = player.autoTargetKind !== kind || (player.autoTargetId | 0) !== (id | 0);
+  player.autoTargetKind = kind;
+  player.autoTargetId = id | 0;
+
+  // Re-clicking the same target must not reset the weapon cooldown.
+  // Older versions used Math.min(nextShotAt, now + 35), allowing click-spam
+  // to fire faster than the real auto-attack cadence.
+  if (!Number.isFinite(player.nextShotAt) || player.nextShotAt <= timeMs || changed) {
+    player.nextShotAt = Math.max(timeMs + 35, Number.isFinite(player.nextShotAt) ? player.nextShotAt : 0);
+  }
 }
 
 function setMoveTarget(player, x, y) {
@@ -18,8 +29,6 @@ function setMoveTarget(player, x, y) {
   player.groundMarkerY = y;
   player.groundMarkerTimer = 0.85;
   clearAutoAttack(player);
-  player.selectedKind = '';
-  player.selectedId = 0;
 }
 
 function acceptClientPose(player, msg, timeMs, abilityFresh) {
@@ -85,11 +94,7 @@ function applyActionPacket(state, player, action, timeMs) {
     if (action.kind === 'station' || action.attack === false) {
       clearAutoAttack(player);
     } else {
-      player.autoTargetKind = action.kind;
-      player.autoTargetId = action.id;
-      player.autoTargetSx = Number.isFinite(action.targetSx) ? action.targetSx | 0 : player.sx | 0;
-      player.autoTargetSy = Number.isFinite(action.targetSy) ? action.targetSy | 0 : player.sy | 0;
-      player.nextShotAt = Math.min(player.nextShotAt || timeMs, timeMs + 35);
+      armAutoAttack(player, action.kind, action.id, timeMs);
     }
     player.holdMoveAllowed = false;
     player.groundMarkerTimer = 0;
@@ -143,17 +148,15 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     player.mouseSy = msg.aimWorldY - player.y + player.viewportH * 0.5;
   }
 
-  if (!player.sessionSetupPending && msg.targetClick && msg.targetClickKind && msg.targetClickId) {
+  const hasActionPackets = Array.isArray(msg.actions) && msg.actions.length > 0;
+
+  if (!hasActionPackets && !player.sessionSetupPending && msg.targetClick && msg.targetClickKind && msg.targetClickId) {
     const seq = msg.selectSeq | 0;
     if (seq >= (player.lastClientSelectSeq | 0)) {
       player.lastClientSelectSeq = seq;
       player.selectedKind = msg.targetClickKind;
       player.selectedId = msg.targetClickId;
-      player.autoTargetKind = msg.targetClickKind;
-      player.autoTargetId = msg.targetClickId;
-      player.autoTargetSx = player.sx | 0;
-      player.autoTargetSy = player.sy | 0;
-      player.nextShotAt = Math.min(player.nextShotAt || timeMs, timeMs + 35);
+      armAutoAttack(player, msg.targetClickKind, msg.targetClickId, timeMs);
       player.holdMoveAllowed = false;
       player.groundMarkerTimer = 0;
     }
@@ -174,7 +177,6 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     return true;
   }
 
-  const hasActionPackets = Array.isArray(msg.actions) && msg.actions.length > 0;
   if (hasActionPackets) {
     for (const action of msg.actions) applyActionPacket(state, player, action, timeMs);
     // Les actions modernes sont événementielles. On ne relit pas en plus les anciens

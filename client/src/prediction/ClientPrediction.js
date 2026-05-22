@@ -133,8 +133,8 @@ export class ClientPrediction {
     };
 
     if (input.rightDown && input.holdActive) {
-      this.store.clearLocalTargeting?.();
-      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true, preserveSelection: false, keepAttack: false });
+      this.store.cancelLocalAttack?.();
+      this.store.setOptimisticMoveTarget(worldMouse.x, worldMouse.y, { fromHold: true, preserveSelection: true, keepAttack: false });
     }
 
     this.updateLocalFacing(me, worldMouse, dt);
@@ -155,12 +155,12 @@ export class ClientPrediction {
 
   updateLocalFacing(me, worldMouse, dt) {
     if (!me) return;
-    const attackTarget = getAttackTarget(this.store);
+    const target = getAttackTarget(this.store);
     let tx = null;
     let ty = null;
-    if (attackTarget.entity && (attackTarget.entity.sx | 0) === (me.sx | 0) && (attackTarget.entity.sy | 0) === (me.sy | 0)) {
-      tx = attackTarget.entity.x;
-      ty = attackTarget.entity.y;
+    if (target.entity && (target.entity.sx | 0) === (me.sx | 0) && (target.entity.sy | 0) === (me.sy | 0)) {
+      tx = target.entity.x;
+      ty = target.entity.y;
     } else if (this.store.localPrediction?.hasMoveTarget) {
       tx = this.store.localPrediction.moveX;
       ty = this.store.localPrediction.moveY;
@@ -350,61 +350,36 @@ export class ClientPrediction {
   }
 
   applyLocalSectorWrap(me) {
-    const now = performance.now();
-    if (now < finite(me._sectorLockUntil, 0)) {
-      const pad = 34;
-      if ((me._sectorLockDirX | 0) > 0 && me.x < -2000) me.x = -2000 + pad;
-      if ((me._sectorLockDirX | 0) < 0 && me.x > 2000) me.x = 2000 - pad;
-      if ((me._sectorLockDirY | 0) > 0 && me.y < -2000) me.y = -2000 + pad;
-      if ((me._sectorLockDirY | 0) < 0 && me.y > 2000) me.y = 2000 - pad;
-    }
-
-    const beforeX = me.x;
-    const beforeY = me.y;
-    const beforeSx = me.sx | 0;
-    const beforeSy = me.sy | 0;
-    const wrapped = wrapIntoSector({ x: me.x, y: me.y }, beforeSx, beforeSy);
-    if ((wrapped.sx | 0) === beforeSx && (wrapped.sy | 0) === beforeSy) return;
-
-    const dirX = (wrapped.sx | 0) - beforeSx;
-    const dirY = (wrapped.sy | 0) - beforeSy;
-    me.x = wrapped.x;
-    me.y = wrapped.y;
-    me.sx = wrapped.sx | 0;
-    me.sy = wrapped.sy | 0;
-
-    // Continuité stricte : on garde l'overshoot exact calculé par wrapIntoSector().
-    // Les anciennes versions forçaient -2000+margin / 2000-margin, ce qui donnait
-    // des spawns faux et un effet de pas/rollback en franchissant les bordures.
-    me.x = clamp(me.x, -2000, 2000);
-    me.y = clamp(me.y, -2000, 2000);
+    // V86: do NOT locally change sx/sy at sector borders anymore.
+    // Let the server perform the exact wrap from the client pose, then accept
+    // the forced server pose. The previous local-wrap + server-wrap hybrid was
+    // the cause of wrong spawns, center-ish teleports and ping-pong at borders.
+    if (!me) return;
+    const outside = me.x < -2000 || me.x > 2000 || me.y < -2000 || me.y > 2000;
+    if (!outside) return;
 
     const local = this.store.localPrediction || {};
-
-    // Traverser une bordure = mini chargement. On conserve seulement la position
-    // relative exacte de l'autre côté, puis on coupe l'ancien ordre de déplacement.
-    // Cela évite le bug où le vaisseau spawn près du centre puis repart tout seul
-    // vers l'ancien point/frontière pendant plusieurs secondes.
     local.hasMoveTarget = false;
     local.hold = false;
     local.moveX = me.x;
     local.moveY = me.y;
-    if (Number.isFinite(me.groundMarkerX)) me.groundMarkerTimer = 0;
-    this.store.setOptimisticSelection('', 0);
+    this.store.setOptimisticSelection?.('', 0);
+    this.store.cancelLocalAttack?.({ keepSeq: false });
+
     me.hasMoveTarget = false;
     me.vx = 0;
     me.vy = 0;
     me._localThrust = 0;
-    me._forceServerPose = false;
-    me._localSectorChangedAt = performance.now();
-    me._sectorLockUntil = me._localSectorChangedAt + 360;
-    me._sectorLockDirX = dirX;
-    me._sectorLockDirY = dirY;
-    me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, performance.now() + 460);
-    this.lastSectorWrapAt = me._localSectorChangedAt;
-    local.sectorSeq = (local.sectorSeq | 0) + 1;
-    this.store.noteLocalSectorTransition(me.sx | 0, me.sy | 0, me.x, me.y, { keepMoveTarget: false });
-    this.store.beginPortalLoading?.(`Secteur [${me.sx | 0},${me.sy | 0}]`, 320, local.sectorSeq | 0);
+    me.groundMarkerTimer = 0;
+    me._keepLocalPoseUntil = 0;
+
+    const w = wrapIntoSector({ x: me.x, y: me.y }, me.sx | 0, me.sy | 0);
+    const now = performance.now();
+    if (now - (this.lastSectorWrapAt || 0) > 180) {
+      this.lastSectorWrapAt = now;
+      local.sectorSeq = (local.sectorSeq | 0) + 1;
+      this.store.beginPortalLoading?.(`Secteur [${w.sx | 0},${w.sy | 0}]`, 320, local.sectorSeq | 0);
+    }
   }
 
   reconcileSoftly(me, dt, isMoving = false) {

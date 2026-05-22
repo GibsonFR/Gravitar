@@ -452,8 +452,7 @@ export function startApp() {
       store.setLocalAttackTarget?.(target.kind, target.id, { lockMs: 30000 });
       return { type: 'target', kind: target.kind, id: target.id };
     }
-    store.clearLocalTargeting?.();
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: false, keepAttack: false });
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true, keepAttack: false });
     return { type: 'move', x: mouseWorld.x, y: mouseWorld.y };
   }
 
@@ -475,8 +474,7 @@ export function startApp() {
       input.moveWorldQueued = false;
       return;
     }
-    store.clearLocalTargeting?.();
-    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: false, keepAttack: false });
+    store.setOptimisticMoveTarget(mouseWorld.x, mouseWorld.y, { preserveSelection: true, keepAttack: false });
   }
 
 
@@ -585,9 +583,12 @@ export function startApp() {
       moveWorld: input.moveWorldQueued,
       moveWorldX: input.moveWorldX,
       moveWorldY: input.moveWorldY,
-      targetClick: !!input.targetClickQueued,
-      targetClickKind: input.targetKind || '',
-      targetClickId: input.targetId || 0,
+      // V86: target clicks are explicit action packets. Do not send the legacy
+      // top-level targetClick in parallel, otherwise the server arms auto-attack
+      // twice and repeated clicks can desync cooldown timing.
+      targetClick: false,
+      targetClickKind: '',
+      targetClickId: 0,
       selectSeq: input.selectSeq | 0,
       selectedKind: store.localPrediction?.selectedKind || store.myState?.selectedKind || '',
       selectedId: store.localPrediction?.selectedId || store.myState?.selectedId || 0,
