@@ -93,7 +93,7 @@ function resolveLocalSolidWalls(store, me, oldX, oldY) {
     ...(store?.structures?.values?.() || [])
   ];
   for (const wall of blockers) {
-    if (wall?.kind === 'structure' && wall?.type !== 'wall') continue;
+    if (wall?.kind === 'structure' && wall?.type !== 'wall' && wall?.type !== 'door') continue;
     if (!wall?.solid && !wall?.bastionWall) continue;
     if ((wall.sx | 0) !== (me.sx | 0) || (wall.sy | 0) !== (me.sy | 0)) continue;
     if (Number.isFinite(oldX) && Number.isFinite(oldY) && segmentHitsExpandedRect(oldX, oldY, me.x, me.y, wall, pad)) {

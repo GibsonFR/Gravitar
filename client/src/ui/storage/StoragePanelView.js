@@ -28,10 +28,9 @@ export class StoragePanelView {
     this.el.className = 'storage-panel';
     this.el.innerHTML = '';
     this.el.addEventListener('pointerdown', (ev) => {
-      if (ev.target.closest('[data-close-storage]')) {
+      if (ev.target.closest('[data-close-storage], button[data-act]')) {
         ev.preventDefault();
         ev.stopPropagation();
-        this.closeLocal();
       }
     });
     this.el.addEventListener('click', (ev) => {

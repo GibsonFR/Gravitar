@@ -3,7 +3,8 @@ export const BASE_TILE_SIZE = 64;
 export const STRUCTURE_TYPES = {
   BASE_CORE: 'base_core',
   WALL: 'wall',
-  STORAGE: 'storage'
+  STORAGE: 'storage',
+  DOOR: 'door'
 };
 
 export const STRUCTURE_DEFS = {
@@ -42,6 +43,25 @@ export const STRUCTURE_DEFS = {
     color: '#263748',
     borderColor: '#73d4ff',
     cost: { ironOre: 12, copper: 2 }
+  },
+
+  [STRUCTURE_TYPES.DOOR]: {
+    id: STRUCTURE_TYPES.DOOR,
+    name: 'Porte renforcée',
+    description: 'Porte 3 × 1 ouvrable par le propriétaire.',
+    radius: 96,
+    tilesX: 3,
+    tilesY: 1,
+    w: BASE_TILE_SIZE * 3,
+    h: BASE_TILE_SIZE,
+    maxHp: 680,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: true,
+    openable: true,
+    color: '#334454',
+    borderColor: '#87d9ff',
+    cost: { ironOre: 10, copper: 4, aluminiumOre: 2 }
   },
   [STRUCTURE_TYPES.STORAGE]: {
     id: STRUCTURE_TYPES.STORAGE,

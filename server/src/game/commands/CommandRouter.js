@@ -22,8 +22,9 @@ import { handleBuildStructure } from './BuildStructureCommand.js';
 import { handleRemoveStructure } from './RemoveStructureCommand.js';
 import { handleRepairStructure } from './RepairStructureCommand.js';
 import { handleStorageTransfer } from './StorageTransferCommand.js';
-import { handleStorageClose } from './StorageCloseCommand.js';
 import { handleStorageOpen } from './StorageOpenCommand.js';
+import { handleStorageClose } from './StorageCloseCommand.js';
+import { handleToggleStructure } from './ToggleStructureCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -52,7 +53,8 @@ const HANDLERS = {
   repair_structure: handleRepairStructure,
   storage_transfer: handleStorageTransfer,
   storage_open: handleStorageOpen,
-  storage_close: handleStorageClose
+  storage_close: handleStorageClose,
+  toggle_structure: handleToggleStructure
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

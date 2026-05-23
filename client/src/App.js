@@ -283,14 +283,21 @@ export function startApp() {
   // et le paquet serveur quand le joueur était déjà en mouvement.
 
 
-  function findStorageAtScreen(screenX, screenY) {
+  function screenPointToWorld(px, py) {
+    return {
+      x: camera.x + (px - view.cssW * 0.5),
+      y: camera.y + (py - view.cssH * 0.5)
+    };
+  }
+
+  function findStructureAtScreen(screenX, screenY, predicate = null) {
     const me = store.getMe();
     if (!me) return null;
     let best = null;
     let bestD2 = Infinity;
     for (const st of store.structures?.values?.() || []) {
-      if (st?.type !== 'storage') continue;
       if ((st.sx | 0) !== (me.sx | 0) || (st.sy | 0) !== (me.sy | 0)) continue;
+      if (predicate && !predicate(st)) continue;
       const w = Number(st.w) || (Number(st.radius) || 0) * 2;
       const h = Number(st.h) || (Number(st.radius) || 0) * 2;
       const cx = (st.x || 0) - camera.x + view.cssW * 0.5;
@@ -299,7 +306,7 @@ export function startApp() {
       const right = cx + w * 0.5;
       const top = cy - h * 0.5;
       const bottom = cy + h * 0.5;
-      const pad = 14;
+      const pad = 12;
       if (screenX < left - pad || screenX > right + pad || screenY < top - pad || screenY > bottom + pad) continue;
       const px = Math.max(left, Math.min(screenX, right));
       const py = Math.max(top, Math.min(screenY, bottom));
@@ -311,24 +318,36 @@ export function startApp() {
     return best;
   }
 
+  function tryInteractStructureAt(px, py) {
+    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'door');
+    if (!st) return false;
+    if (st.type === 'storage') sendCmd('storage_open', { structureId: st.id | 0 });
+    else if (st.type === 'door') sendCmd('toggle_structure', { structureId: st.id | 0 });
+    return true;
+  }
+
+  canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
+
   canvas.addEventListener('mousedown', (ev) => {
-    if (ev.button !== 0) return;
+    if (ev.button !== 0 && ev.button !== 2) return;
     if (store.myState?.sessionSetup?.pending ?? true) return;
     const rect = canvas.getBoundingClientRect();
     const px = ev.clientX - rect.left;
     const py = ev.clientY - rect.top;
+    if (ev.button === 2) {
+      if (tryInteractStructureAt(px, py)) {
+        ev.preventDefault();
+        return;
+      }
+      return;
+    }
     if (basePanel.hasActivePlacement?.()) {
-      const mouseWorld = {
-        x: camera.x + (px - view.cssW * 0.5),
-        y: camera.y + (py - view.cssH * 0.5)
-      };
+      const mouseWorld = screenPointToWorld(px, py);
       basePanel.placeCurrent(store, mouseWorld);
       ev.preventDefault();
       return;
     }
-    const storage = findStorageAtScreen(px, py);
-    if (storage) {
-      sendCmd('storage_open', { structureId: storage.id | 0 });
+    if (tryInteractStructureAt(px, py)) {
       ev.preventDefault();
       return;
     }

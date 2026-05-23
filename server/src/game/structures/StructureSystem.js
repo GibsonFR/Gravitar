@@ -93,26 +93,10 @@ export function findAliveCoreForStructure(state, structure) {
   return null;
 }
 
-export function hasStructuresProtectedByCore(state, core) {
-  if (!state?.structures || !core || core.type !== STRUCTURE_TYPES.BASE_CORE) return false;
-  if (!isStructureAlive(core)) return false;
-  const claim = getStructureClaimRect(core);
-  const owner = String(core.ownerKey || '').toLowerCase();
-  for (const st of state.structures.values()) {
-    if (!st || st.id === core.id) continue;
-    if (!sameStructureWorld(core, st)) continue;
-    if ((st.sx | 0) !== (core.sx | 0) || (st.sy | 0) !== (core.sy | 0)) continue;
-    if (String(st.ownerKey || '').toLowerCase() !== owner) continue;
-    if (!isStructureAlive(st)) continue;
-    if (rectInside(rectOf(st), claim)) return true;
-  }
-  return false;
-}
-
 export function isStructureProtectedByCore(state, structure) {
   if (!isStructureAlive(structure)) return false;
   if (structure.type === STRUCTURE_TYPES.BASE_CORE) return false;
-  if (structure.type === STRUCTURE_TYPES.WALL) return false;
+  if (structure.type === STRUCTURE_TYPES.WALL || structure.type === STRUCTURE_TYPES.DOOR) return false;
   return !!findAliveCoreForStructure(state, structure);
 }
 
@@ -121,7 +105,7 @@ export function canPlayerDamageStructure(state, player, structure) {
   if (!samePlayerWorld(player, structure)) return false;
   if ((player.sx | 0) !== (structure.sx | 0) || (player.sy | 0) !== (structure.sy | 0)) return false;
   if (isStructureOwner(player, structure)) return false;
-  if (structure.type === STRUCTURE_TYPES.WALL) return true;
+  if (structure.type === STRUCTURE_TYPES.WALL || structure.type === STRUCTURE_TYPES.DOOR) return true;
   if (structure.type === STRUCTURE_TYPES.BASE_CORE) return true;
   return !isStructureProtectedByCore(state, structure);
 }

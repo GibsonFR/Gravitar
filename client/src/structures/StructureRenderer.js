@@ -126,12 +126,12 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
   const h = (s.h || s.radius * 2 || 80) * view.dpr;
   const pal = ownerPalette(s);
   const edge = pal.edge;
-  const fill = s.type === 'wall' ? (s.owned ? 'rgba(38, 55, 72, .74)' : 'rgba(72, 34, 40, .70)') : pal.fill;
+  const fill = (s.type === 'wall' || s.type === 'door') ? (s.owned ? 'rgba(38, 55, 72, .74)' : 'rgba(72, 34, 40, .70)') : pal.fill;
 
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.shadowColor = edge;
-  ctx.shadowBlur = s.type === 'wall' ? 5 * view.dpr : 8 * view.dpr;
+  ctx.shadowBlur = (s.type === 'wall' || s.type === 'door') ? 5 * view.dpr : 8 * view.dpr;
   ctx.fillStyle = fill;
   ctx.strokeStyle = edge;
   ctx.lineWidth = (s.owned ? 1.8 : 1.6) * view.dpr;
@@ -162,13 +162,29 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     ctx.beginPath();
     ctx.arc(0, 0, Math.min(w, h) * 0.08, 0, Math.PI * 2);
     ctx.fill();
-  } else if (s.type === 'wall') {
+  } else if (s.type === 'wall' || s.type === 'door') {
     const rr = Math.min(9 * view.dpr, Math.min(w, h) * 0.24);
+    ctx.globalAlpha = s.type === 'door' && s.open ? 0.46 : 1;
     ctx.beginPath();
     roundedRect(ctx, -w * 0.5, -h * 0.5, w, h, rr);
     ctx.fill();
     ctx.stroke();
     drawFootprintCells(ctx, view, w, h, (w > h ? 3 : 1), (h > w ? 3 : 1));
+    if (s.type === 'door') {
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = s.open ? 'rgba(120,255,210,.75)' : 'rgba(160,220,255,.56)';
+      ctx.lineWidth = 2 * view.dpr;
+      ctx.beginPath();
+      if (w >= h) {
+        ctx.moveTo(-w * 0.34, 0); ctx.lineTo(w * 0.34, 0);
+        ctx.moveTo(w * 0.18, -h * 0.18); ctx.lineTo(w * 0.34, 0); ctx.lineTo(w * 0.18, h * 0.18);
+      } else {
+        ctx.moveTo(0, -h * 0.34); ctx.lineTo(0, h * 0.34);
+        ctx.moveTo(-w * 0.18, h * 0.18); ctx.lineTo(0, h * 0.34); ctx.lineTo(w * 0.18, h * 0.18);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   } else {
     const rr = 14 * view.dpr;
     ctx.beginPath();

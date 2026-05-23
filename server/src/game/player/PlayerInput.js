@@ -38,7 +38,7 @@ function clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy) {
     ...(state?.structures?.values?.() || [])
   ];
   for (const wall of blockers) {
-    if (wall?.kind === 'structure' && wall?.type !== 'wall') continue;
+    if (wall?.kind === 'structure' && wall?.type !== 'wall' && wall?.type !== 'door') continue;
     if (!wall?.solid && !wall?.bastionWall) continue;
     if ((wall.sx | 0) !== (player.sx | 0) || (wall.sy | 0) !== (player.sy | 0)) continue;
     if (segmentHitsExpandedRect(oldX, oldY, player.x, player.y, wall, pad)) return true;

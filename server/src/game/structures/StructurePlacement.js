@@ -9,7 +9,7 @@ function finite(v, fallback = 0) {
 }
 
 function orientedSize(def, orientation = 'h') {
-  const vertical = def?.id === 'wall' && String(orientation).toLowerCase() === 'v';
+  const vertical = (def?.id === 'wall' || def?.id === 'door') && String(orientation).toLowerCase() === 'v';
   return {
     w: vertical ? def.h : def.w,
     h: vertical ? def.w : def.h

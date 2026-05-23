@@ -16,6 +16,7 @@ const RESOURCE_LABELS = {
 function iconSvg(kind) {
   if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7l21 12v26L32 57 11 45V19L32 7z" fill="rgba(101,215,255,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="32" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity=".85"/><path d="M32 12v8M32 44v8M14 22l7 4M43 38l7 4M14 42l7-4M43 26l7-4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="22" width="52" height="20" rx="3" fill="rgba(120,190,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 22v20M24 22v20M34 22v20M44 22v20M54 22v20" stroke="currentColor" stroke-width="2" opacity=".72"/><path d="M10 32h44" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>`;
+  if (kind === 'door') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="7" y="19" width="50" height="26" rx="4" fill="rgba(135,217,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M18 22v20M46 22v20" stroke="currentColor" stroke-width="2.4" opacity=".75"/><path d="M24 32h16M40 32l-5-5M40 32l-5 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 21l19-10 19 10v22L32 53 13 43V21z" fill="rgba(111,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M13 21l19 11 19-11M32 32v21" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".82"/><path d="M22 26l19-10M22 39l20-11" stroke="currentColor" stroke-width="2" opacity=".28"/></svg>`;
   if (kind === 'repair') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M39 12l13 13-7 7-5-5-18 18-10 3 3-10 18-18-5-5 11-3z" fill="rgba(112,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M18 49h30" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'demolish') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 16h24l-2 34H22L20 16z" fill="rgba(255,120,120,.10)" stroke="currentColor" stroke-width="3"/><path d="M17 16h30M26 16l2-5h8l2 5M27 25v17M37 25v17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
@@ -28,7 +29,7 @@ export const BUILD_STRUCTURES = [
     type: 'base_core',
     category: 'construction',
     title: 'Noyau de base',
-    subtitle: '2 × 2 tiles',
+    subtitle: '2 × 2 cases',
     icon: 'core',
     orientation: 'h',
     tilesX: 2,
@@ -37,15 +38,15 @@ export const BUILD_STRUCTURES = [
     h: 128,
     claimRadius: BASE_TILE * 8,
     hp: 1200,
-    role: 'Crée ta zone de construction personnelle.',
-    stats: ['Zone : 16 × 16 cases', '1 noyau actif par joueur'],
+    role: 'Définit ta zone de construction.',
+    stats: ['Zone : 16 × 16 cases', '1 noyau actif'],
     cost: { ironOre: 35, copper: 12, aluminiumOre: 8 }
   },
   {
     type: 'wall',
     category: 'construction',
     title: 'Mur métallique',
-    subtitle: '3 × 1 tiles',
+    subtitle: '3 × 1 cases',
     icon: 'wall',
     orientation: 'h',
     rotatable: true,
@@ -54,15 +55,33 @@ export const BUILD_STRUCTURES = [
     w: 192,
     h: 64,
     hp: 760,
-    role: 'Protège la base et bloque les projectiles ennemis.',
-    stats: ['Orientable avec O', 'Collable bord à bord'],
+    role: 'Protège la base et bloque les tirs.',
+    stats: ['Orientable'],
     cost: { ironOre: 12, copper: 2 }
+  },
+
+  {
+    type: 'door',
+    category: 'construction',
+    title: 'Porte renforcée',
+    subtitle: '3 × 1 cases',
+    icon: 'door',
+    orientation: 'h',
+    rotatable: true,
+    tilesX: 3,
+    tilesY: 1,
+    w: 192,
+    h: 64,
+    hp: 680,
+    role: 'Entrée de base ouvrable par le propriétaire.',
+    stats: ['Orientable', 'Ouvrir / fermer à portée'],
+    cost: { ironOre: 10, copper: 4, aluminiumOre: 2 }
   },
   {
     type: 'storage',
     category: 'storage',
     title: 'Coffre spatial',
-    subtitle: '2 × 2 tiles',
+    subtitle: '2 × 2 cases',
     icon: 'storage',
     orientation: 'h',
     tilesX: 2,
@@ -71,8 +90,8 @@ export const BUILD_STRUCTURES = [
     h: 128,
     hp: 0,
     storageCapacity: 420,
-    role: 'Stocke les ressources de ta base.',
-    stats: ['Clic gauche pour ouvrir', 'Pillable si le noyau est détruit'],
+    role: 'Stockage local de ressources.',
+    stats: ['Ouverture à portée', 'Pillable si le noyau est détruit'],
     cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
   }
 ];
@@ -100,7 +119,7 @@ function formatCost(cost = {}) {
 }
 
 function orientedSize(def, orientation = 'h') {
-  const vertical = def.type === 'wall' && orientation === 'v';
+  const vertical = (def.type === 'wall' || def.type === 'door') && orientation === 'v';
   return {
     w: vertical ? def.h : def.w,
     h: vertical ? def.w : def.h,
@@ -380,8 +399,8 @@ export class BasePanelView {
       <div class="base-panel__details-icon base-panel__details-icon--${escapeHtml(def.icon)}">${iconSvg(def.icon)}</div>
       <h3>${escapeHtml(def.title)}</h3>
       <p>${escapeHtml(def.role || def.subtitle || '')}</p>
-      <div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} cases</span></div>
-      ${def.type === 'storage' ? `<div class="base-panel__details-section"><strong>Capacité</strong><span>${def.storageCapacity || 0} unités</span></div>` : `<div class="base-panel__details-section"><strong>Résistance</strong><span>${def.hp ? def.hp + ' PV' : '—'}</span></div>`}
+      <div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} tiles</span></div>
+      <div class="base-panel__details-section"><strong>PV</strong><span>${def.hp ? def.hp : 'aucun — non ciblable'}</span></div>
       <div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>
       ${(def.stats || []).map((s) => `<div class="base-panel__details-line">${escapeHtml(s)}</div>`).join('')}`;
   }

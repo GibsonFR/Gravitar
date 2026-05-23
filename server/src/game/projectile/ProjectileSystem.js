@@ -51,7 +51,7 @@ function projectileCanCollideWithStructure(state, proj, structure, sourcePlayer)
   if (!structure || (structure.stats?.hp ?? 0) <= 0) return false;
   if ((structure.sx | 0) !== (proj.sx | 0) || (structure.sy | 0) !== (proj.sy | 0)) return false;
   if (sourcePlayer && String(sourcePlayer.worldId || 'endless') !== String(structure.worldId || 'endless')) return false;
-  if (structure.type === STRUCTURE_TYPES.WALL && structure.solid) return true;
+  if ((structure.type === STRUCTURE_TYPES.WALL || structure.type === STRUCTURE_TYPES.DOOR) && structure.solid) return true;
   if (!sourcePlayer) return false;
   return canPlayerDamageStructure(state, sourcePlayer, structure);
 }

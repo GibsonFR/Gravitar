@@ -123,7 +123,7 @@ function resolveSweptWallMovement(state, player, oldX, oldY) {
   if (Math.abs(player.x - oldX) + Math.abs(player.y - oldY) < 0.001) return;
   const blockers = [...state.asteroids.values(), ...(state.structures?.values?.() || [])];
   for (const wall of blockers) {
-    if (wall?.kind === 'structure' && wall?.type !== 'wall') continue;
+    if (wall?.kind === 'structure' && wall?.type !== 'wall' && wall?.type !== 'door') continue;
     if (!wall.solid && !wall.bastionWall) continue;
     if ((wall.sx | 0) !== (player.sx | 0) || (wall.sy | 0) !== (player.sy | 0)) continue;
     if (!segmentIntersectsExpandedRect(oldX, oldY, player.x, player.y, wall, player.radius + 1.5)) continue;
@@ -141,7 +141,7 @@ function resolvePlayerSolidWalls(state, player) {
     let changed = false;
     const blockers = [...state.asteroids.values(), ...(state.structures?.values?.() || [])];
     for (const wall of blockers) {
-      if (wall?.kind === 'structure' && wall?.type !== 'wall') continue;
+      if (wall?.kind === 'structure' && wall?.type !== 'wall' && wall?.type !== 'door') continue;
     if (!wall.solid && !wall.bastionWall) continue;
       if ((wall.sx | 0) !== (player.sx | 0) || (wall.sy | 0) !== (player.sy | 0)) continue;
       changed = pushPlayerOutOfRect(player, wall) || changed;

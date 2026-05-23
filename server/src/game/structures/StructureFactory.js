@@ -11,7 +11,7 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
   const def = getStructureDef(type);
   if (!def) return null;
   const orientation = String(options.orientation || 'h').toLowerCase() === 'v' ? 'v' : 'h';
-  const swap = def.id === 'wall' && orientation === 'v';
+  const swap = (def.id === 'wall' || def.id === 'door') && orientation === 'v';
   const id = Number.isFinite(options.id) ? (options.id | 0) : newEntityId(state);
   const damageable = def.damageable !== false;
   const maxHp = damageable ? Math.max(1, options.maxHp || def.maxHp || 100) : 0;
@@ -35,9 +35,11 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     orientation,
     stats: createStatBlock({ maxHp }),
     damageable,
-    solid: !!def.solid,
+    open: !!options.open,
+    openable: !!def.openable,
+    solid: !!def.solid && !options.open,
     claimRadius: def.claimRadius || 0,
-    storage: options.storage || { resources: {} },
+    storage: def.id === 'storage' ? (options.storage || { resources: {}, capacity: def.storageCapacity || 0 }) : (options.storage || { resources: {} }),
     color: def.color || '#526274',
     borderColor: def.borderColor || '#9fcfff',
     powered: false,
@@ -63,6 +65,7 @@ export function serializeStructure(structure) {
     hp: Math.max(0, Math.round(structure.stats?.hp ?? structure.stats?.maxHp ?? 0)),
     maxHp: Math.max(0, Math.round(structure.stats?.maxHp ?? 0)),
     storage: structure.storage || { resources: {} },
+    open: !!structure.open,
     createdAt: structure.createdAt || Date.now(),
     updatedAt: Date.now()
   };
@@ -80,6 +83,7 @@ export function hydrateStructure(state, saved) {
     orientation: s.orientation,
     maxHp: s.maxHp,
     storage: s.storage,
+    open: !!s.open,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt
   });
