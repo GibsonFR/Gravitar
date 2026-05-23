@@ -25,6 +25,8 @@ import { visitSectorOnPlayer } from './map/PlayerMapState.js';
 import { GAME_MODES, clearPlayerBattleResidue, updateModeSessions } from './modes/GameModes.js';
 import { buildEndlessSave } from './accounts/AccountStore.js';
 
+const ACCOUNT_AUTOSAVE_INTERVAL_MS = Number(process.env.GRAVITAR_AUTOSAVE_MS || 30000);
+
 export function createGameServer() {
   const state = createGameState();
   seedWorld(state);
@@ -38,6 +40,23 @@ export function createGameServer() {
   const lastStaticWorldByPlayer = new Map();
   const lastSectorKeyByPlayer = new Map();
   const lastNetStatsAtByPlayer = new Map();
+  let lastAccountAutosaveAt = 0;
+
+
+
+  function persistAccountPlayer(player) {
+    if (!player?.accountKey || !state.accounts) return;
+    if (![GAME_MODES.TEST, GAME_MODES.STRESS].includes(player.gameMode)) state.accounts.saveEndless(player.accountKey, buildEndlessSave(player));
+    const battleStats = state.modes?.battleStats?.get?.(player.accountKey);
+    if (battleStats) state.accounts.saveBattleStats(player.accountKey, battleStats);
+  }
+
+  function autosaveAccounts(timeMs) {
+    if (!state.accounts || ACCOUNT_AUTOSAVE_INTERVAL_MS <= 0) return;
+    if (timeMs - lastAccountAutosaveAt < ACCOUNT_AUTOSAVE_INTERVAL_MS) return;
+    lastAccountAutosaveAt = timeMs;
+    for (const player of state.players.values()) persistAccountPlayer(player);
+  }
 
   function allocatePlayerId() {
     return newPlayerId(state);
@@ -55,11 +74,7 @@ export function createGameServer() {
   function removePlayer(id) {
     const p = state.players.get(id);
     if (p) clearPlayerBattleResidue(state, p, getSimulationTimeMs(state, nowMs()), { checkWinner: true });
-    if (p?.accountKey && state.accounts) {
-      if (![GAME_MODES.TEST, GAME_MODES.STRESS].includes(p.gameMode)) state.accounts.saveEndless(p.accountKey, buildEndlessSave(p));
-      const battleStats = state.modes?.battleStats?.get?.(p.accountKey);
-      if (battleStats) state.accounts.saveBattleStats(p.accountKey, battleStats);
-    }
+    persistAccountPlayer(p);
     state.modes?.battleQueueNext?.delete?.(id | 0);
     lastFullSnapshotByPlayer.delete(id);
     lastStaticWorldByPlayer.delete(id);
@@ -169,6 +184,7 @@ export function createGameServer() {
           }
         }
       }
+      autosaveAccounts(timeMs);
       clearWorldSfx(state);
       clearCombatFx(state);
     }

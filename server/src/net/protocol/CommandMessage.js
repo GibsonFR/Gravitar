@@ -42,6 +42,7 @@ export function sanitizeCommandMessage(raw) {
     msg.pseudo = cleanPseudo(raw.pseudo ?? raw.name ?? raw.value, 18);
     msg.mode = cleanWord(raw.mode || 'endless', 32).toLowerCase();
     msg.battleSessionId = cleanWord(raw.battleSessionId || raw.serverId || '', 48).toLowerCase();
+    msg.testWorldId = cleanWord(raw.testWorldId || '', 48).toLowerCase();
     msg.accountAction = cleanWord(raw.accountAction || 'guest', 16).toLowerCase();
     msg.accountName = cleanPseudo(raw.accountName ?? raw.accountPseudo ?? raw.accountEmail ?? '', 18);
     msg.accountPassword = cleanFree(raw.accountPassword || '', 80);

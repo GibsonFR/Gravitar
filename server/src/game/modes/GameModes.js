@@ -17,6 +17,55 @@ export const BATTLE = {
 
 export const WORLD_IDS = { SETUP: 'setup', ENDLESS: 'endless', TEST: 'test', STRESS: 'stress', BATTLE_WAIT_NEXT: 'battle-wait-next' };
 
+export const TEST_WORLD_DEFS = Object.freeze([
+  {
+    id: 'u01-foundations',
+    title: 'Update 1 — Fondations',
+    subtitle: 'Bastions, portails, collisions solid, sauvegardes persistantes',
+    sx: SPECIAL_SECTORS.TEST_ARENA.sx | 0,
+    sy: SPECIAL_SECTORS.TEST_ARENA.sy | 0,
+    x: -1180,
+    y: 1050,
+    level: 50,
+    credits: 1000000,
+    hint: 'Monde de test Update 1 — fondations'
+  },
+  {
+    id: 'u02-biomes-craft',
+    title: 'Update 2 — Biomes & craft',
+    subtitle: 'Prototype ressources réalistes, raffinage, recherche',
+    sx: 32,
+    sy: -32,
+    x: 0,
+    y: 0,
+    level: 35,
+    credits: 1000000,
+    hint: 'Monde de test Update 2 — biomes et craft'
+  },
+  {
+    id: 'u03-bases-energy',
+    title: 'Update 3 — Bases & énergie',
+    subtitle: 'Prototype noyau de base, murs, solaire, carburant',
+    sx: 36,
+    sy: -36,
+    x: 0,
+    y: 0,
+    level: 35,
+    credits: 1000000,
+    hint: 'Monde de test Update 3 — bases et énergie'
+  }
+]);
+
+export function testWorldIdFor(defOrId) {
+  const id = typeof defOrId === 'string' ? defOrId : defOrId?.id;
+  return `test:${String(id || 'u01-foundations')}`;
+}
+
+export function getTestWorldDef(id) {
+  const normalized = String(id || '').toLowerCase();
+  return TEST_WORLD_DEFS.find((w) => w.id === normalized) || TEST_WORLD_DEFS[0];
+}
+
 export function battleSectorForSeq(seq) {
   return { sx: BATTLE.arenaBaseSx + Math.abs(seq | 0) % 10000, sy: BATTLE.arenaSy };
 }
@@ -139,14 +188,18 @@ export function getBattleSessionById(state, sessionId) {
 }
 
 function countPlayersByWorld(state) {
-  const counts = { endless: 0, test: 0, setup: 0, battleWaiting: 0 };
+  const counts = { endless: 0, test: 0, setup: 0, battleWaiting: 0, testWorlds: {} };
+  for (const def of TEST_WORLD_DEFS) counts.testWorlds[def.id] = 0;
   for (const p of state.players?.values?.() ?? []) {
     if (!p) continue;
     const w = String(p.worldId || WORLD_IDS.ENDLESS);
     if (p.sessionSetupPending && w !== WORLD_IDS.BATTLE_WAIT_NEXT) continue;
     if (w === WORLD_IDS.ENDLESS) counts.endless += 1;
-    else if (w === WORLD_IDS.TEST || w === WORLD_IDS.STRESS) counts.test += 1;
-    else if (w === WORLD_IDS.SETUP) counts.setup += 1;
+    else if (w === WORLD_IDS.TEST || w.startsWith('test:') || w === WORLD_IDS.STRESS) {
+      counts.test += 1;
+      const id = w.startsWith('test:') ? w.slice('test:'.length) : (p.testWorldId || 'u01-foundations');
+      if (Object.prototype.hasOwnProperty.call(counts.testWorlds, id)) counts.testWorlds[id] += 1;
+    } else if (w === WORLD_IDS.SETUP) counts.setup += 1;
     else if (w === WORLD_IDS.BATTLE_WAIT_NEXT) counts.battleWaiting += 1;
   }
   return counts;
@@ -243,19 +296,21 @@ export function setPlayerEndless(state, player, timeMs) {
 }
 
 
-export function setPlayerTestServer(state, player, timeMs) {
+export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'u01-foundations') {
   if (!player) return;
+  const def = getTestWorldDef(testWorldId);
   clearPlayerBattleResidue(state, player, timeMs, { checkWinner: true });
   player.gameMode = GAME_MODES.TEST;
+  player.testWorldId = def.id;
   player.battleSessionId = '';
   player.battleEliminated = false;
-  player.worldId = WORLD_IDS.TEST;
+  player.worldId = testWorldIdFor(def);
   player.sessionSetupPending = false;
   player.sessionSetupStep = '';
-  player.sx = SPECIAL_SECTORS.TEST_ARENA.sx | 0;
-  player.sy = SPECIAL_SECTORS.TEST_ARENA.sy | 0;
-  player.x = -1180;
-  player.y = 1050;
+  player.sx = def.sx | 0;
+  player.sy = def.sy | 0;
+  player.x = Number(def.x || 0);
+  player.y = Number(def.y || 0);
   player.vx = 0;
   player.vy = 0;
   player.hasMoveTarget = false;
@@ -268,9 +323,9 @@ export function setPlayerTestServer(state, player, timeMs) {
   player.dockStationId = 0;
   player.dockProg01 = 0;
   player.dockTimer = 0;
-  if (player.inv) player.inv.credits = 1000000;
+  if (player.inv) player.inv.credits = Math.max(player.inv.credits || 0, def.credits | 0 || 0);
   if (player.progression) {
-    player.progression.level = 50;
+    player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
     player.progression.xp = 0;
     player.progression.nextXp = 1;
     player.progression.skillPoints = 0;
@@ -286,14 +341,19 @@ export function setPlayerTestServer(state, player, timeMs) {
   ensureSectorLoaded(state, player.sx | 0, player.sy | 0, timeMs);
   ensureSectorLoaded(state, SPECIAL_SECTORS.MOB_BESTIARY.sx | 0, SPECIAL_SECTORS.MOB_BESTIARY.sy | 0, timeMs);
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
-  player.uiHint = 'Serveur test — niveau 50, crédits illimités';
+  player.uiHint = def.hint || 'Monde de test';
   player.uiHintTimer = 3.0;
+}
+
+export function setPlayerTestServer(state, player, timeMs) {
+  setPlayerTestWorld(state, player, timeMs, 'u01-foundations');
 }
 
 export function setPlayerStressServer(state, player, timeMs) {
   setPlayerTestServer(state, player, timeMs);
   player.gameMode = GAME_MODES.STRESS;
   player.worldId = WORLD_IDS.STRESS;
+  player.testWorldId = 'stress';
   player.sx = SPECIAL_SECTORS.STRESS_ARENA.sx | 0;
   player.sy = SPECIAL_SECTORS.STRESS_ARENA.sy | 0;
   player.x = 0;
@@ -474,6 +534,7 @@ export function buildModeSnapshot(state, player, timeMs) {
     battleWaitingCount: worldCounts.battleWaiting,
     endlessPlayerCount: worldCounts.endless,
     testPlayerCount: worldCounts.test,
+    testWorlds: TEST_WORLD_DEFS.map((def) => ({ ...def, playerCount: worldCounts.testWorlds?.[def.id] || 0 })),
     battleSessions: sessions,
     account: {
       guest: !player?.accountKey,

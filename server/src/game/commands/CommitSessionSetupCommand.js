@@ -2,7 +2,7 @@ import { getShipFrameDef } from '../../../../shared/content/frames/ShipFrameRegi
 import { switchPlayerFrame } from '../frames/FrameSwitchSystem.js';
 import { normalizePlayerPseudo } from '../player/PlayerSessionSetup.js';
 import { setPlayerHint } from '../player/PlayerUiHints.js';
-import { GAME_MODES, clearPlayerBattleResidue, getBattleSessionById, getNewestOpenBattleSession, joinBattleSession, queueForNextBattle, setPlayerEndless, setPlayerTestServer, setPlayerStressServer } from '../modes/GameModes.js';
+import { GAME_MODES, clearPlayerBattleResidue, getBattleSessionById, getNewestOpenBattleSession, joinBattleSession, queueForNextBattle, setPlayerEndless, setPlayerTestServer, setPlayerTestWorld, setPlayerStressServer } from '../modes/GameModes.js';
 import { applyEndlessSave } from '../accounts/AccountStore.js';
 import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
 
@@ -72,6 +72,8 @@ export function handleCommitSessionSetup(state, player, msg, timeMs) {
     else queueForNextBattle(state, player, timeMs);
   } else if (mode === 'battle_next') {
     queueForNextBattle(state, player, timeMs);
+  } else if (mode === 'test_world') {
+    setPlayerTestWorld(state, player, timeMs, msg?.testWorldId || 'u01-foundations');
   } else if (mode === 'test_server') {
     setPlayerTestServer(state, player, timeMs);
   } else if (mode === 'stress_server') {
