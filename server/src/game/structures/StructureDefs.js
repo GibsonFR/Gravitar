@@ -58,6 +58,7 @@ export const STRUCTURE_DEFS = {
     gridSize: BASE_TILE_SIZE,
     solid: false,
     storageSlots: 12,
+    storageCapacity: 420,
     color: '#30544b',
     borderColor: '#70f0c5',
     cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }

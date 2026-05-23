@@ -4,6 +4,7 @@ import { isPlayerSessionPending } from './PlayerSessionSetup.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { sameWorld } from '../modes/GameModes.js';
 import { canPlayerDamageStructure, distanceSqToStructureRect } from '../structures/StructureSystem.js';
+import { isStorageStructure, canPlayerAccessStorage } from '../structures/StructureStorage.js';
 
 function pickPrimaryTarget(state, player, worldX, worldY) {
   let bestAttack = null;
@@ -50,6 +51,16 @@ function pickPrimaryTarget(state, player, worldX, worldY) {
     if (d2 < bestAttackD2) { bestAttackD2 = d2; bestAttack = { kind: 'structure', id: st.id }; }
   }
 
+  for (const st of state.structures?.values?.() || []) {
+    if (!isStorageStructure(st)) continue;
+    if ((st.sx | 0) !== (player.sx | 0) || (st.sy | 0) !== (player.sy | 0)) continue;
+    const pickR = 28;
+    const d2 = distanceSqToStructureRect(st, worldX, worldY);
+    if (d2 > pickR * pickR) continue;
+    if (!canPlayerAccessStorage(state, player, st)) continue;
+    if (d2 < bestInteractD2) { bestInteractD2 = d2; bestInteract = { kind: 'storage', id: st.id }; }
+  }
+
   for (const s of state.stations.values()) {
     if ((s.sx | 0) !== (player.sx | 0) || (s.sy | 0) !== (player.sy | 0)) continue;
     const pickR = Math.max(48, s.radius + 34);
@@ -80,6 +91,19 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
   }
 
   if (interact) {
+    if (interact.kind === 'storage') {
+      const storage = state.structures?.get?.(interact.id | 0);
+      if (storage && canPlayerAccessStorage(state, player, storage)) {
+        player.openStorageId = storage.id | 0;
+        player.forceFullUiSnapshot = true;
+        player.selectedKind = 'structure';
+        player.selectedId = storage.id | 0;
+        player.hasMoveTarget = false;
+        player.holdMoveAllowed = false;
+        player.groundMarkerTimer = 0;
+        return 'storage';
+      }
+    }
     const target = getTargetForPlayer(state, player, interact.kind, interact.id);
     player.selectedKind = interact.kind;
     player.selectedId = interact.id;

@@ -93,6 +93,23 @@ export function findAliveCoreForStructure(state, structure) {
   return null;
 }
 
+export function hasStructuresProtectedByCore(state, core) {
+  if (!state?.structures || !core || core.type !== STRUCTURE_TYPES.BASE_CORE) return false;
+  if (!isStructureAlive(core)) return false;
+  const claim = getStructureClaimRect(core);
+  const owner = String(core.ownerKey || '').toLowerCase();
+  for (const st of state.structures.values()) {
+    if (!st || st.id === core.id) continue;
+    if (st.type === STRUCTURE_TYPES.WALL) continue;
+    if (!sameStructureWorld(core, st)) continue;
+    if ((st.sx | 0) !== (core.sx | 0) || (st.sy | 0) !== (core.sy | 0)) continue;
+    if (String(st.ownerKey || '').toLowerCase() !== owner) continue;
+    if (!isStructureAlive(st)) continue;
+    if (rectInside(rectOf(st), claim)) return true;
+  }
+  return false;
+}
+
 export function isStructureProtectedByCore(state, structure) {
   if (!isStructureAlive(structure)) return false;
   if (structure.type === STRUCTURE_TYPES.BASE_CORE) return false;
