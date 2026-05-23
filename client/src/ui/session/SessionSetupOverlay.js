@@ -108,8 +108,8 @@ export class SessionSetupOverlay {
 
         <section class="session-setup__page session-setup__page--mode" data-step="mode">
           <div class="session-setup__eyebrow">Serveurs</div>
-          <h1 class="session-setup__title">Choisir un serveur</h1>
-          <p class="session-setup__subtitle">Choisis explicitement le serveur Battle à rejoindre. La file d’attente du prochain serveur est séparée et ne lance pas de partie jouable avant son ouverture.</p>
+          <h1 class="session-setup__title">Choisir un monde</h1>
+          <p class="session-setup__subtitle">Endless est le vrai monde persistant. Le monde de test sert uniquement à vérifier la mise à jour actuelle avec une progression jetable.</p>
           <div class="session-setup__account-line">Pseudo actuel : <b class="session-setup__current-pseudo">Pilote</b></div>
           <div class="session-setup__server-list">
             <button type="button" data-mode="endless" class="session-setup__server-card session-setup__server-card--endless">
@@ -122,7 +122,7 @@ export class SessionSetupOverlay {
                 <span>Sauvegarde avec compte</span>
               </div>
             </button>
-            <div class="session-setup__server-section-title">Mondes de test par update</div>
+            <div class="session-setup__server-section-title">Monde de test de la mise à jour actuelle</div>
             <div class="session-setup__test-world-list"></div>
             <button type="button" data-mode="stress_server" class="session-setup__server-card session-setup__server-card--test">
               <div class="session-setup__server-main">
@@ -499,7 +499,7 @@ export class SessionSetupOverlay {
     if (this.waitingTimerEl) this.waitingTimerEl.textContent = nextText;
     if (this.testWorldListEl) {
       const worlds = Array.isArray(this.modes?.testWorlds) && this.modes.testWorlds.length ? this.modes.testWorlds : [
-        { id: 'u01-foundations', title: 'Update 1 — Fondations', subtitle: 'Bastions, collisions solid, sauvegardes persistantes', playerCount: this.modes?.testPlayerCount ?? 0 }
+        { id: 'u01-foundations', title: 'Update 1 — Fondations', subtitle: 'Monde isolé pour tester uniquement la mise à jour actuelle', playerCount: this.modes?.testPlayerCount ?? 0 }
       ];
       this.testWorldListEl.innerHTML = '';
       for (const world of worlds) {
@@ -514,11 +514,11 @@ export class SessionSetupOverlay {
         btn.innerHTML = `
           <div class="session-setup__server-main">
             <b>${world.title || id}</b>
-            <span>${world.subtitle || 'Monde isolé pour tester la prochaine update'}</span>
+            <span>${world.subtitle || 'Monde isolé pour tester uniquement la mise à jour actuelle'}</span>
           </div>
           <div class="session-setup__server-meta">
             <span>${n} joueur${n > 1 ? 's' : ''}</span>
-            <span>Sauvegarde permanente désactivée</span>
+            <span>Progression jetable · n’affecte pas Endless</span>
           </div>
         `;
         btn.addEventListener('click', () => this.selectMode('test_world', id));
@@ -567,7 +567,7 @@ export class SessionSetupOverlay {
       const label = this.selectedMode === 'endless'
         ? 'Serveur sélectionné : Endless'
         : (this.selectedMode === 'test_world'
-          ? `Monde de test sélectionné : ${this.selectedTestWorldId || 'Update'}`
+          ? `Monde de test sélectionné : ${(this.modes?.testWorlds || []).find((w) => w.id === this.selectedTestWorldId)?.title || 'Update 1 — Fondations'}`
           : (this.selectedMode === 'test_server'
           ? 'Serveur sélectionné : Test — niveau 50, crédits de test, portails de démonstration'
           : (this.selectedMode === 'stress_server'

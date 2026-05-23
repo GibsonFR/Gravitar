@@ -21,38 +21,14 @@ export const TEST_WORLD_DEFS = Object.freeze([
   {
     id: 'u01-foundations',
     title: 'Update 1 — Fondations',
-    subtitle: 'Bastions, portails, collisions solid, sauvegardes persistantes',
+    subtitle: 'Monde isolé pour tester uniquement la mise à jour actuelle : sauvegardes, bastions, portails et collisions solid.',
     sx: SPECIAL_SECTORS.TEST_ARENA.sx | 0,
     sy: SPECIAL_SECTORS.TEST_ARENA.sy | 0,
     x: -1180,
     y: 1050,
     level: 50,
     credits: 1000000,
-    hint: 'Monde de test Update 1 — fondations'
-  },
-  {
-    id: 'u02-biomes-craft',
-    title: 'Update 2 — Biomes & craft',
-    subtitle: 'Prototype ressources réalistes, raffinage, recherche',
-    sx: 32,
-    sy: -32,
-    x: 0,
-    y: 0,
-    level: 35,
-    credits: 1000000,
-    hint: 'Monde de test Update 2 — biomes et craft'
-  },
-  {
-    id: 'u03-bases-energy',
-    title: 'Update 3 — Bases & énergie',
-    subtitle: 'Prototype noyau de base, murs, solaire, carburant',
-    sx: 36,
-    sy: -36,
-    x: 0,
-    y: 0,
-    level: 35,
-    credits: 1000000,
-    hint: 'Monde de test Update 3 — bases et énergie'
+    hint: 'TEST UPDATE 1 — Fondations'
   }
 ]);
 
@@ -525,6 +501,8 @@ export function buildModeSnapshot(state, player, timeMs) {
   const worldCounts = countPlayersByWorld(state);
   return {
     currentMode: player?.gameMode || GAME_MODES.ENDLESS,
+    testWorldId: player?.testWorldId || '',
+    testWorldTitle: player?.gameMode === GAME_MODES.TEST ? getTestWorldDef(player?.testWorldId).title : '',
     battleSessionId: player?.battleSessionId || '',
     battleQueuedNext: !!state.modes?.battleQueueNext?.has?.(player?.id | 0),
     battleArenaHalf: BATTLE.arenaHalf,

@@ -116,6 +116,8 @@ export class PlayersPanelView {
     if (modes?.currentMode === 'battle') {
       const br = modes.battleSessions?.find?.((s) => s.id === modes.battleSessionId);
       this.timerEl.textContent = br ? `BR ${fmtTimer({ remainingMs: br.remainingMs })}` : (modes.battleQueuedNext ? `BR ${fmtTimer({ remainingMs: modes.battleNextInMs })}` : 'BR');
+    } else if (modes?.currentMode === 'test') {
+      this.timerEl.textContent = modes?.testWorldTitle ? `TEST · ${modes.testWorldTitle.replace(/^Update /, 'U')}` : 'TEST';
     } else {
       this.timerEl.textContent = 'Endless';
     }
