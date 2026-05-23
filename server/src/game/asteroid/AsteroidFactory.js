@@ -7,13 +7,15 @@ import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { DotNetRandom } from '../util/DotNetRandom.js';
 
 const MATERIAL_HARDNESS_OVERRIDES = Object.freeze({
-  scrap: 0.55,
-  waterIce: 0.24, hydrogenIce: 0.20, methaneIce: 0.28, ammoniaIce: 0.32, hydrocarbons: 0.38,
-  biomass: 0.35, organicLipids: 0.30, spores: 0.32, proteinFibers: 0.48, enzymes: 0.42, chitin: 0.95,
-  graphite: 0.58, lithiumOre: 0.62, aluminiumOre: 0.72, copper: 0.82, silicon: 0.88, ironOre: 1.0,
-  nickelOre: 1.22, cobaltOre: 1.30, quartz: 1.36, boronOre: 1.42, titaniumOre: 1.78, berylliumOre: 1.86, rareEarthOre: 1.95,
-  sulfur: 0.50, leadOre: 0.72, uraniumOre: 2.45, thoriumOre: 2.65, unstableIsotopes: 3.15,
-  unknownTechFragment: 2.55, ancientSuperconductor: 2.95, precursorNanomaterial: 3.35, containedAntimatter: 3.80, strangeMatter: 4.20
+  scrap: 0.45,
+  waterIce: 0.10, hydrogenIce: 0.08, methaneIce: 0.12, ammoniaIce: 0.14, hydrocarbons: 0.18,
+  biomass: 0.18, organicLipids: 0.14, spores: 0.16, proteinFibers: 0.32, enzymes: 0.24, chitin: 0.75,
+  sulfur: 0.28, graphite: 0.48, lithiumOre: 0.54, leadOre: 0.60, aluminiumOre: 0.70,
+  copper: 0.82, silicon: 0.94, ironOre: 1.00, nickelOre: 1.34, cobaltOre: 1.48,
+  quartz: 1.58, boronOre: 1.76, titaniumOre: 2.35, berylliumOre: 2.55, rareEarthOre: 2.75,
+  uraniumOre: 4.20, thoriumOre: 4.75, unstableIsotopes: 5.60,
+  unknownTechFragment: 4.80, ancientSuperconductor: 5.70, precursorNanomaterial: 7.25,
+  containedAntimatter: 8.40, strangeMatter: 9.50
 });
 
 function materialHardness(resourceKey, resDef) {
@@ -72,10 +74,10 @@ export function getAsteroidMaterialMaxHp(radius, resourceKey, yieldValue) {
   // deviennent de vrais objectifs de minage. Le rendement augmente aussi les PV :
   // un gros gisement riche doit prendre nettement plus longtemps qu'un petit caillou.
   const sizeHp = 42 + r * 4.8 + r * r * 0.018;
-  const yieldMult = 0.62 + Math.pow(yieldCount, 0.92) * 0.235;
-  const rarityMult = 0.78 + Math.pow(rarity, 1.12) * 0.185;
-  const hardnessMult = Math.pow(hardness, 1.16);
-  return Math.max(25, Math.round(sizeHp * hardnessMult * yieldMult * rarityMult));
+  const yieldMult = 0.50 + Math.pow(yieldCount, 0.94) * 0.255;
+  const rarityMult = 0.70 + Math.pow(rarity, 1.22) * 0.235;
+  const hardnessMult = Math.pow(hardness, 1.48);
+  return Math.max(18, Math.round(sizeHp * hardnessMult * yieldMult * rarityMult));
 }
 
 export function spawnAsteroidProc(state, sx, sy, opts) {

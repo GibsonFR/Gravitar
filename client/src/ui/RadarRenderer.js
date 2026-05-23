@@ -56,21 +56,30 @@ export function drawRadar(ctx, view, me, players, mobs, asteroids, stations, myS
   blip(me.x, me.y, rgba(120, 255, 195, 1), 2.8);
 
   const sectorTxt = `Secteur [${(myState?.sx ?? 0) | 0},${(myState?.sy ?? 0) | 0}]`;
-  const biomeName = myState?.sectorBiome?.shortName || myState?.sectorBiome?.name || '';
+  const biomeName = myState?.sectorBiome?.shortName || myState?.sectorBiome?.name || 'Biome inconnu';
   const biomeColor = myState?.sectorBiome?.colorHex || '#d0d7e4';
-  ctx.fillStyle = rgba(235, 242, 255, 0.82);
-  ctx.font = `${12 * view.dpr}px Segoe UI`;
-  ctx.textAlign = 'left';
-  ctx.fillText(sectorTxt, (x + 8) * view.dpr, (y - 19) * view.dpr);
-  if (biomeName) {
-    ctx.fillStyle = biomeColor;
-    ctx.fillText(`Biome : ${biomeName}`, (x + 8) * view.dpr, (y - 6) * view.dpr);
-  }
 
-  ctx.fillStyle = rgba(235, 242, 255, 0.9);
-  ctx.font = `${12 * view.dpr}px Segoe UI`;
+  ctx.save();
+  const headerH = 38;
+  ctx.fillStyle = rgba(5, 10, 16, 0.78);
+  ctx.fillRect(x * view.dpr, y * view.dpr, size * view.dpr, headerH * view.dpr);
+  ctx.strokeStyle = biomeColor;
+  ctx.globalAlpha = 0.62;
+  ctx.beginPath();
+  ctx.moveTo((x + 1) * view.dpr, (y + headerH) * view.dpr);
+  ctx.lineTo((x + size - 1) * view.dpr, (y + headerH) * view.dpr);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = rgba(235, 242, 255, 0.92);
+  ctx.font = `${11 * view.dpr}px Segoe UI`;
   ctx.textAlign = 'left';
-  ctx.fillText('Radar', (x + 8) * view.dpr, (y + 14) * view.dpr);
+  ctx.fillText(sectorTxt, (x + 8) * view.dpr, (y + 14) * view.dpr);
+
+  ctx.fillStyle = biomeColor;
+  ctx.font = `700 ${11 * view.dpr}px Segoe UI`;
+  ctx.fillText(`Biome : ${biomeName}`, (x + 8) * view.dpr, (y + 30) * view.dpr);
+  ctx.restore();
 
 }
 
