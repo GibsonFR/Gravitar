@@ -1,12 +1,17 @@
 import { SECTOR } from '../world/SectorDefs.js';
 
-
 export function worldToSectorCoord(v) {
   return Math.floor((v + SECTOR.half) / SECTOR.size);
 }
 
+export function worldToSectorYCoord(y) {
+  // En canvas/world space, y augmente vers le bas. Pour l'interface du jeu,
+  // on veut l'inverse : monter dans le monde doit augmenter sy.
+  return -worldToSectorCoord(y);
+}
+
 export function computeSector(x, y) {
-  return { sx: worldToSectorCoord(x), sy: worldToSectorCoord(y) };
+  return { sx: worldToSectorCoord(x), sy: worldToSectorYCoord(y) };
 }
 
 export function wrapIntoSector(pos, sx, sy) {
@@ -17,8 +22,10 @@ export function wrapIntoSector(pos, sx, sy) {
 
   while (x < -SECTOR.half) { x += SECTOR.size; nsx -= 1; }
   while (x > SECTOR.half) { x -= SECTOR.size; nsx += 1; }
-  // Convention carte: monter à l’écran augmente sy, descendre diminue sy.
-  // L’ancien comportement faisait l’inverse, ce qui rendait la lecture des coordonnées confuse.
+
+  // Convention finale :
+  // - monter à l'écran / dans le monde correspond à y < -half et augmente sy ;
+  // - descendre correspond à y > half et diminue sy.
   while (y < -SECTOR.half) { y += SECTOR.size; nsy += 1; }
   while (y > SECTOR.half) { y -= SECTOR.size; nsy -= 1; }
 

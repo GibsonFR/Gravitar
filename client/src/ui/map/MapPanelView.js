@@ -123,7 +123,10 @@ export class MapPanelView {
   }
 
   _toDisplaySy(rawSy) {
-    return -(rawSy | 0);
+    // La convention serveur est désormais la convention affichée :
+    // monter dans le monde augmente sy, descendre diminue sy.
+    // On ne retourne donc plus le signe pour la carte.
+    return rawSy | 0;
   }
 
   _bind() {

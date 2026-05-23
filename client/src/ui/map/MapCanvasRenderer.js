@@ -6,6 +6,27 @@ function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
 
+function hexToRgb(hex) {
+  const raw = String(hex || '').trim();
+  const m = raw.match(/^#?([0-9a-f]{6})$/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function rgbaFromHex(hex, alpha) {
+  const c = hexToRgb(hex);
+  if (!c) return null;
+  return `rgba(${c.r},${c.g},${c.b},${alpha})`;
+}
+
+function biomeCellFill(visited, isKnown) {
+  if (!isKnown || !visited?.biomeColorHex) return null;
+  const id = String(visited.biomeId || '').toLowerCase();
+  const alpha = id === 'hub' ? 0.30 : 0.26;
+  return rgbaFromHex(visited.biomeColorHex, alpha);
+}
+
 export function computeMapLayout(w, h, opts) {
   const {
     currentSx,
@@ -112,6 +133,8 @@ export function drawSectorMap(ctx, w, h, opts) {
       const isCurrent = sx === layout.currentSx && sy === layout.currentSy;
 
       let fill = isKnown ? 'rgba(18,28,42,0.88)' : 'rgba(8,13,20,0.66)';
+      const biomeFill = biomeCellFill(visited, isKnown);
+      if (biomeFill) fill = biomeFill;
       if (visited?.stationCount > 0) fill = 'rgba(42,76,116,0.90)';
       if (visited?.hasReturnPortal) fill = 'rgba(28,88,108,0.92)';
       if (bastion) fill = bastion.captured ? 'rgba(42,82,58,0.94)' : (bastion.unlocked ? 'rgba(82,62,34,0.96)' : 'rgba(54,43,52,0.94)');
@@ -120,7 +143,19 @@ export function drawSectorMap(ctx, w, h, opts) {
       ctx.fillStyle = fill;
       ctx.fillRect(x, y, rectW, rectH);
 
-      ctx.strokeStyle = isKnown ? 'rgba(110,180,255,0.24)' : 'rgba(72,100,132,0.10)';
+      if (biomeFill && !bastion && !isHub && layout.cell >= 13) {
+        const bc = hexToRgb(visited.biomeColorHex);
+        if (bc) {
+          ctx.fillStyle = `rgba(${bc.r},${bc.g},${bc.b},0.08)`;
+          ctx.fillRect(x + 2, y + 2, Math.max(1, rectW - 4), Math.max(1, rectH - 4));
+          if (layout.cell >= 26) {
+            ctx.fillStyle = `rgba(${bc.r},${bc.g},${bc.b},0.78)`;
+            ctx.fillRect(x + 4, y + rectH - 5, Math.max(3, rectW - 8), 2);
+          }
+        }
+      }
+
+      ctx.strokeStyle = isKnown ? (visited?.biomeColorHex ? (rgbaFromHex(visited.biomeColorHex, 0.34) || 'rgba(110,180,255,0.24)') : 'rgba(110,180,255,0.24)') : 'rgba(72,100,132,0.10)';
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 0.5, y + 0.5, Math.max(1, rectW - 1), Math.max(1, rectH - 1));
 
