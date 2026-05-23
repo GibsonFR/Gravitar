@@ -4176,3 +4176,99 @@ button.station-item-icon[draggable="true"]:active,
   font-size: 11px;
 }
 
+
+/* v95 build menu polish */
+.base-panel {
+  width: min(680px, calc(100vw - 38px));
+  padding: 16px;
+}
+.base-panel__head { margin-bottom: 14px; }
+.base-panel__title { font-size: 27px; }
+.base-panel__body {
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 16px;
+}
+.base-panel__cats { gap: 10px; }
+.base-panel__cat {
+  min-height: 84px;
+  border-radius: 18px;
+  gap: 7px;
+}
+.base-panel__cat.is-disabled {
+  opacity: .38;
+  cursor: default;
+}
+.base-panel__cat.is-disabled:hover {
+  color: rgba(206, 225, 248, .76);
+  border-color: rgba(125, 190, 255, .16);
+  background: rgba(6, 12, 19, .62);
+  box-shadow: none;
+}
+.base-panel__cat svg {
+  width: 34px;
+  height: 34px;
+}
+.base-panel__cat span { font-size: 11px; }
+.base-panel__grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.base-panel__btn {
+  min-height: 128px;
+  padding: 12px;
+  text-align: center;
+  grid-template-columns: 1fr;
+  align-content: start;
+  justify-items: center;
+  gap: 10px;
+}
+.base-panel__btn--wide { grid-column: span 2; }
+.base-panel__icon {
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+}
+.base-panel__icon svg {
+  width: 46px;
+  height: 46px;
+}
+.base-panel__icon--wall {
+  color: rgba(143, 207, 255, .92);
+  background: linear-gradient(180deg, rgba(38,54,72,.86), rgba(14,22,33,.88));
+}
+.base-panel__icon--core {
+  color: rgba(126, 232, 255, .95);
+  background: radial-gradient(circle, rgba(74, 181, 255, .22), rgba(5, 12, 20, .76));
+}
+.base-panel__icon--storage {
+  color: rgba(118, 246, 202, .95);
+  background: linear-gradient(180deg, rgba(30,72,64,.76), rgba(6, 18, 18, .84));
+}
+.base-panel__meta { align-items: center; gap: 5px; }
+.base-panel__meta strong { font-size: 14px; }
+.base-panel__meta small { font-size: 11px; }
+.base-panel__meta em { font-size: 10px; max-width: 160px; }
+.base-panel__keys { display: none !important; }
+.base-panel__status {
+  margin-top: 12px;
+  min-height: 26px;
+}
+.options-controls {
+  display: grid;
+  gap: 7px;
+}
+.options-controls div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 9px;
+  border: 1px solid rgba(125,190,255,.12);
+  border-radius: 12px;
+  background: rgba(6,12,19,.38);
+  color: rgba(202,220,242,.82);
+  font-size: 12px;
+}
+.options-controls b {
+  color: rgba(235,245,255,.94);
+  font-weight: 800;
+}

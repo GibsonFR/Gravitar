@@ -8,25 +8,33 @@ function finite(v, fallback = 0) {
   return Number.isFinite(v) ? v : fallback;
 }
 
-function snapToGrid(value, grid = 32) {
-  const g = Math.max(1, Number(grid) || 32);
-  return Math.round((Number(value) || 0) / g) * g;
+function orientedSize(def, orientation = 'h') {
+  const vertical = def?.id === 'wall' && String(orientation).toLowerCase() === 'v';
+  return {
+    w: vertical ? def.h : def.w,
+    h: vertical ? def.w : def.h
+  };
 }
 
-function snapPlacement(def, x, y) {
+function snapToFootprint(value, size, grid = 32) {
+  const g = Math.max(1, Number(grid) || 32);
+  return Math.round(((Number(value) || 0) - size * 0.5) / g) * g + size * 0.5;
+}
+
+function snapPlacement(def, x, y, orientation = 'h') {
   const grid = def?.gridSize || 32;
-  return { x: snapToGrid(x, grid), y: snapToGrid(y, grid) };
+  const size = orientedSize(def, orientation);
+  return { x: snapToFootprint(x, size.w, grid), y: snapToFootprint(y, size.h, grid) };
 }
 
 function rectFor(def, x, y, orientation = 'h') {
-  const vertical = def.id === 'wall' && String(orientation).toLowerCase() === 'v';
-  const w = vertical ? def.h : def.w;
-  const h = vertical ? def.w : def.h;
+  const { w, h } = orientedSize(def, orientation);
   return { left: x - w * 0.5, right: x + w * 0.5, top: y - h * 0.5, bottom: y + h * 0.5, w, h };
 }
 
-function rectsOverlap(a, b, pad = 16) {
-  return a.left - pad <= b.right && a.right + pad >= b.left && a.top - pad <= b.bottom && a.bottom + pad >= b.top;
+function rectsOverlap(a, b, pad = 0) {
+  const eps = 0.001;
+  return a.left + pad < b.right - eps && a.right - pad > b.left + eps && a.top + pad < b.bottom - eps && a.bottom - pad > b.top + eps;
 }
 
 function entityRect(entity) {
@@ -85,7 +93,7 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   const sy = player.sy | 0;
   const rawX = finite(x, player.x);
   const rawY = finite(y, player.y);
-  const snapped = snapPlacement(def, rawX, rawY);
+  const snapped = snapPlacement(def, rawX, rawY, orientation);
   const px = snapped.x;
   const py = snapped.y;
   if (Math.abs(px) > SECTOR.half - 120 || Math.abs(py) > SECTOR.half - 120) return { ok: false, error: 'too_close_to_sector_edge' };
@@ -112,12 +120,12 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   for (const st of state.structures.values()) {
     if (!inSameWorld(st, player)) continue;
     if ((st.sx | 0) !== sx || (st.sy | 0) !== sy) continue;
-    if (rectsOverlap(r, entityRect(st), 14)) return { ok: false, error: 'blocked_by_structure' };
+    if (rectsOverlap(r, entityRect(st), 0)) return { ok: false, error: 'blocked_by_structure' };
   }
   for (const wall of state.asteroids.values()) {
     if (!wall.solid && !wall.bastionWall) continue;
     if ((wall.sx | 0) !== sx || (wall.sy | 0) !== sy) continue;
-    if (rectsOverlap(r, entityRect(wall), 16)) return { ok: false, error: 'blocked' };
+    if (rectsOverlap(r, entityRect(wall), 0)) return { ok: false, error: 'blocked' };
   }
   for (const station of state.stations.values()) {
     if ((station.sx | 0) !== sx || (station.sy | 0) !== sy) continue;
@@ -133,7 +141,7 @@ export function placeStructure(state, player, type, x, y, orientation = 'h', tim
   if (!check.ok) return { ok: false, error: check.error };
   const def = check.def;
   if (!isTestPlayer(player)) payResources(player.inv, def.cost);
-  const snapped = snapPlacement(def, x, y);
+  const snapped = snapPlacement(def, x, y, orientation);
   const st = createStructure(state, def.id, player.sx | 0, player.sy | 0, snapped.x, snapped.y, {
     ownerId: player.id | 0,
     ownerKey: ownerKey(player),

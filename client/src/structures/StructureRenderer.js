@@ -145,7 +145,15 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(255,255,255,.16)';
     ctx.lineWidth = 1.4 * view.dpr;
-    ctx.strokeRect(-w * 0.22, -h * 0.22, w * 0.44, h * 0.44);
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(w, h) * 0.18, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.32, 0);
+    ctx.lineTo(w * 0.32, 0);
+    ctx.moveTo(0, -h * 0.32);
+    ctx.lineTo(0, h * 0.32);
+    ctx.stroke();
   } else if (s.type === 'wall') {
     const rr = Math.min(9 * view.dpr, Math.min(w, h) * 0.24);
     ctx.beginPath();
@@ -162,7 +170,15 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     drawFootprintCells(ctx, view, w, h, 2, 2);
     ctx.shadowBlur = 0;
     ctx.strokeStyle = s.owned ? 'rgba(145,255,220,.25)' : 'rgba(255,130,130,.25)';
-    ctx.strokeRect(-w * 0.25, -h * 0.25, w * 0.5, h * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.34, -h * 0.18);
+    ctx.lineTo(0, -h * 0.36);
+    ctx.lineTo(w * 0.34, -h * 0.18);
+    ctx.lineTo(w * 0.34, h * 0.22);
+    ctx.lineTo(0, h * 0.40);
+    ctx.lineTo(-w * 0.34, h * 0.22);
+    ctx.closePath();
+    ctx.stroke();
   }
   ctx.restore();
   drawStructureBar(ctx, view, s, p.x, p.y);
@@ -175,8 +191,9 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
   const w = (preview.w || preview.radius * 2 || 80) * view.dpr;
   const h = (preview.h || preview.radius * 2 || 80) * view.dpr;
   const ok = !!preview.ok;
-  const main = ok ? 'rgba(101, 241, 200, 0.22)' : 'rgba(255, 92, 92, 0.20)';
-  const edge = ok ? 'rgba(117, 255, 215, 0.92)' : 'rgba(255, 112, 112, 0.95)';
+  const demolish = preview.mode === 'demolish';
+  const main = demolish ? (ok ? 'rgba(255, 120, 120, 0.16)' : 'rgba(255, 92, 92, 0.08)') : (ok ? 'rgba(101, 241, 200, 0.22)' : 'rgba(255, 92, 92, 0.20)');
+  const edge = demolish ? 'rgba(255, 124, 124, 0.95)' : (ok ? 'rgba(117, 255, 215, 0.92)' : 'rgba(255, 112, 112, 0.95)');
   const pulse = 0.55 + 0.45 * Math.sin(t * 5.2);
 
   const claim = preview.type === 'base_core'
@@ -198,7 +215,7 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.shadowColor = edge;
-  ctx.shadowBlur = (6 + pulse * 7) * view.dpr;
+  ctx.shadowBlur = (demolish ? 4 : 6 + pulse * 7) * view.dpr;
   ctx.fillStyle = main;
   ctx.strokeStyle = edge;
   ctx.lineWidth = 2 * view.dpr;

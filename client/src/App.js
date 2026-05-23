@@ -207,8 +207,8 @@ export function startApp() {
   view.setRenderScale(optionsPanel.getSettings().renderScale);
   dock.registerPanel({ id: 'options', title: 'Options', iconMarkup: getOptionsIconSvg(), panelEl: optionsPanel.el, group: 'utility' });
 
-  const basePanel = new BasePanelView(sendCmd);
-  dock.registerPanel({ id: 'base', title: 'Base', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el, group: 'game' });
+  const basePanel = new BasePanelView(sendCmd, () => { if (dock.activeId === 'base') dock.toggle('base'); });
+  dock.registerPanel({ id: 'base', title: 'Build', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el, group: 'game' });
 
   window.addEventListener('keydown', (ev) => {
     const tag = String(ev.target?.tagName || '').toLowerCase();

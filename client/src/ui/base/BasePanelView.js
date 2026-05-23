@@ -1,19 +1,21 @@
 const BASE_TILE = 64;
-const BUILD_RANGE = 1100;
+const BUILD_RANGE = 1200;
 
 function iconSvg(kind) {
-  if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="14" y="14" width="36" height="36" rx="7" fill="rgba(99,208,255,.16)" stroke="currentColor" stroke-width="3"/><path d="M24 32h16M32 24v16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="25" y="25" width="14" height="14" rx="3" fill="currentColor" opacity=".18"/></svg>`;
-  if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="24" width="48" height="16" rx="3" fill="rgba(120,190,255,.13)" stroke="currentColor" stroke-width="3"/><path d="M18 24v16M31 24v16M44 24v16" stroke="currentColor" stroke-width="2" opacity=".7"/></svg>`;
-  if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 22l18-9 18 9v21l-18 9-18-9V22z" fill="rgba(111,240,197,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M14 22l18 9 18-9M32 31v21" fill="none" stroke="currentColor" stroke-width="2" opacity=".75"/></svg>`;
+  if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="16" y="16" width="32" height="32" rx="7" fill="rgba(101,215,255,.14)" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="3"/><path d="M32 8v9M32 47v9M8 32h9M47 32h9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
+  if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="7" y="22" width="50" height="20" rx="4" fill="rgba(120,190,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M16 22v20M26 22v20M38 22v20M48 22v20" stroke="currentColor" stroke-width="2" opacity=".72"/><path d="M10 32h44" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>`;
+  if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 24l18-10 18 10v19L32 53 14 43V24z" fill="rgba(111,240,197,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M14 24l18 10 18-10M32 34v19" fill="none" stroke="currentColor" stroke-width="2" opacity=".8"/><path d="M23 20l18 10" stroke="currentColor" stroke-width="2" opacity=".35"/></svg>`;
+  if (kind === 'demolish') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 16h24l-2 34H22L20 16z" fill="rgba(255,120,120,.10)" stroke="currentColor" stroke-width="3"/><path d="M17 16h30M26 16l2-5h8l2 5M27 25v17M37 25v17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
+  if (kind === 'power') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M35 6L16 36h14l-3 22 21-34H34l1-18z" fill="rgba(255,213,95,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
   return '';
 }
 
 export const BUILD_STRUCTURES = [
   {
     type: 'base_core',
-    category: 'core',
-    title: 'Noyau',
-    subtitle: 'Claim',
+    category: 'construction',
+    title: 'Noyau de base',
+    subtitle: 'Zone 32 × 32 tiles',
     icon: 'core',
     orientation: 'h',
     tilesX: 3,
@@ -25,9 +27,9 @@ export const BUILD_STRUCTURES = [
   },
   {
     type: 'wall',
-    category: 'walls',
-    title: 'Mur',
-    subtitle: '3 × 1',
+    category: 'construction',
+    title: 'Mur métallique',
+    subtitle: '3 × 1 tiles',
     icon: 'wall',
     orientation: 'h',
     rotatable: true,
@@ -40,8 +42,8 @@ export const BUILD_STRUCTURES = [
   {
     type: 'storage',
     category: 'storage',
-    title: 'Coffre',
-    subtitle: '2 × 2',
+    title: 'Coffre spatial',
+    subtitle: '2 × 2 tiles',
     icon: 'storage',
     orientation: 'h',
     tilesX: 2,
@@ -53,17 +55,14 @@ export const BUILD_STRUCTURES = [
 ];
 
 const BUILD_CATEGORIES = [
-  { id: 'core', label: 'Base', icon: 'core' },
-  { id: 'walls', label: 'Murs', icon: 'wall' },
-  { id: 'storage', label: 'Stockage', icon: 'storage' }
+  { id: 'construction', label: 'Construction', icon: 'core' },
+  { id: 'storage', label: 'Stockage', icon: 'storage' },
+  { id: 'power', label: 'Énergie', icon: 'power', disabled: true },
+  { id: 'demolish', label: 'Démolition', icon: 'demolish' }
 ];
 
 function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-}
-
-function snap(v, grid = BASE_TILE) {
-  return Math.round((Number(v) || 0) / grid) * grid;
 }
 
 function structureDef(type) {
@@ -80,13 +79,20 @@ function orientedSize(def, orientation = 'h') {
   };
 }
 
+function snapFootprint(rawX, rawY, size, grid = BASE_TILE) {
+  const left = Math.round(((Number(rawX) || 0) - size.w * 0.5) / grid) * grid;
+  const top = Math.round(((Number(rawY) || 0) - size.h * 0.5) / grid) * grid;
+  return { x: left + size.w * 0.5, y: top + size.h * 0.5 };
+}
+
 function rectFor(def, x, y, orientation = 'h') {
   const size = orientedSize(def, orientation);
   return { left: x - size.w * 0.5, right: x + size.w * 0.5, top: y - size.h * 0.5, bottom: y + size.h * 0.5, ...size };
 }
 
-function rectsOverlap(a, b, pad = 10) {
-  return a.left - pad <= b.right && a.right + pad >= b.left && a.top - pad <= b.bottom && a.bottom + pad >= b.top;
+function rectsOverlap(a, b, pad = 0) {
+  const eps = 0.001;
+  return a.left + pad < b.right - eps && a.right - pad > b.left + eps && a.top + pad < b.bottom - eps && a.bottom - pad > b.top + eps;
 }
 
 function entityRect(e) {
@@ -140,12 +146,12 @@ function validatePreview(store, me, def, x, y, orientation) {
   const r = rectFor(def, x, y, orientation);
   for (const st of store?.structures?.values?.() || []) {
     if (!sameSector(st, me)) continue;
-    if (rectsOverlap(r, entityRect(st), 8)) return { ok: false, reason: 'Occupé' };
+    if (rectsOverlap(r, entityRect(st), 0)) return { ok: false, reason: 'Occupé' };
   }
   for (const a of store?.asteroids?.values?.() || []) {
     if (!sameSector(a, me)) continue;
     if (!a.solid && !a.bastionWall) continue;
-    if (rectsOverlap(r, entityRect(a), 12)) return { ok: false, reason: 'Obstacle' };
+    if (rectsOverlap(r, entityRect(a), 0)) return { ok: false, reason: 'Obstacle' };
   }
   for (const station of store?.stations?.values?.() || []) {
     if (!sameSector(station, me)) continue;
@@ -155,20 +161,34 @@ function validatePreview(store, me, def, x, y, orientation) {
   return { ok: true, reason: 'OK', ownCore };
 }
 
+function findOwnedStructureAt(store, me, x, y) {
+  let best = null;
+  let bestArea = Infinity;
+  for (const st of store?.structures?.values?.() || []) {
+    if (!st?.owned || !sameSector(st, me)) continue;
+    const r = entityRect(st);
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+    const area = Math.max(1, r.w * r.h);
+    if (area < bestArea) { best = st; bestArea = area; }
+  }
+  return best;
+}
+
 export class BasePanelView {
-  constructor(sendCmd) {
+  constructor(sendCmd, onPick = null) {
     this.sendCmd = sendCmd;
+    this.onPick = typeof onPick === 'function' ? onPick : null;
     this.store = null;
     this.activeBuild = null;
     this.lastPreview = null;
-    this.category = 'core';
+    this.category = 'construction';
     this.el = document.createElement('div');
     this.el.className = 'base-panel';
     this.el.innerHTML = `
       <div class="base-panel__head">
         <div>
-          <div class="base-panel__eyebrow">Build</div>
-          <div class="base-panel__title">Base</div>
+          <div class="base-panel__eyebrow">Construction</div>
+          <div class="base-panel__title">Build</div>
         </div>
         <button class="base-panel__cancel" type="button" title="Annuler">×</button>
       </div>
@@ -176,7 +196,6 @@ export class BasePanelView {
         <div class="base-panel__cats"></div>
         <div class="base-panel__content">
           <div class="base-panel__grid"></div>
-          <div class="base-panel__keys"><span>LMB poser</span><span>O tourner</span><span>Échap annuler</span></div>
           <div class="base-panel__status"></div>
         </div>
       </div>
@@ -186,15 +205,16 @@ export class BasePanelView {
     this.status = this.el.querySelector('.base-panel__status');
     this.cancelBtn = this.el.querySelector('.base-panel__cancel');
     this.cats.innerHTML = BUILD_CATEGORIES.map((c) => `
-      <button class="base-panel__cat" data-category="${c.id}" title="${escapeHtml(c.label)}">
+      <button class="base-panel__cat ${c.disabled ? 'is-disabled' : ''}" data-category="${c.id}" title="${escapeHtml(c.disabled ? 'À venir' : c.label)}" ${c.disabled ? 'disabled' : ''}>
         ${iconSvg(c.icon)}<span>${escapeHtml(c.label)}</span>
       </button>
     `).join('');
     this.cats.addEventListener('click', (ev) => {
       const btn = ev.target.closest('button[data-category]');
-      if (!btn) return;
+      if (!btn || btn.disabled) return;
       this.category = btn.dataset.category;
-      this.refresh();
+      if (this.category === 'demolish') this.selectDemolish();
+      else this.refresh();
     });
     this.grid.addEventListener('click', (ev) => {
       const btn = ev.target.closest('button[data-type]');
@@ -210,9 +230,17 @@ export class BasePanelView {
     if (!def) return;
     const prev = this.activeBuild;
     const orientation = prev?.type === type ? prev.orientation : def.orientation;
-    this.activeBuild = { type, orientation };
+    this.activeBuild = { mode: 'build', type, orientation };
     this.refresh();
-    this.status.textContent = `${def.title} sélectionné`;
+    this.status.textContent = `${def.title} prêt`;
+    this.onPick?.();
+  }
+
+  selectDemolish() {
+    this.activeBuild = { mode: 'demolish' };
+    this.refresh();
+    this.status.textContent = 'Clique une structure à déconstruire';
+    this.onPick?.();
   }
 
   cancel() {
@@ -223,12 +251,11 @@ export class BasePanelView {
   }
 
   rotate() {
-    if (!this.activeBuild) return false;
+    if (!this.activeBuild || this.activeBuild.mode !== 'build') return false;
     const def = structureDef(this.activeBuild.type);
     if (!def?.rotatable) return false;
     this.activeBuild.orientation = this.activeBuild.orientation === 'v' ? 'h' : 'v';
     this.status.textContent = this.activeBuild.orientation === 'v' ? 'Vertical' : 'Horizontal';
-    this.refresh();
     return true;
   }
 
@@ -238,21 +265,31 @@ export class BasePanelView {
 
   refresh() {
     const activeType = this.activeBuild?.type || '';
+    const activeMode = this.activeBuild?.mode || '';
     for (const btn of this.cats.querySelectorAll('button[data-category]')) {
-      btn.classList.toggle('is-active', btn.dataset.category === this.category);
+      btn.classList.toggle('is-active', btn.dataset.category === this.category || (activeMode === 'demolish' && btn.dataset.category === 'demolish'));
     }
-    this.grid.innerHTML = BUILD_STRUCTURES
-      .filter((s) => s.category === this.category)
-      .map((s) => `
-        <button class="base-panel__btn ${s.type === activeType ? 'is-active' : ''}" data-type="${s.type}">
-          <span class="base-panel__icon">${iconSvg(s.icon)}</span>
-          <span class="base-panel__meta">
-            <strong>${escapeHtml(s.title)}</strong>
-            <small>${escapeHtml(s.subtitle)} · ${s.tilesX}×${s.tilesY}</small>
-            <em>${escapeHtml(s.cost)}</em>
-          </span>
-        </button>
-      `).join('');
+    if (this.category === 'demolish') {
+      this.grid.innerHTML = `
+        <button class="base-panel__btn base-panel__btn--wide ${activeMode === 'demolish' ? 'is-active' : ''}" data-demolish="1" type="button">
+          <span class="base-panel__icon">${iconSvg('demolish')}</span>
+          <span class="base-panel__meta"><strong>Démolir</strong><small>Retire tes structures</small><em>clic sur une structure</em></span>
+        </button>`;
+      this.grid.querySelector('[data-demolish]')?.addEventListener('click', () => this.selectDemolish());
+    } else {
+      this.grid.innerHTML = BUILD_STRUCTURES
+        .filter((s) => s.category === this.category)
+        .map((s) => `
+          <button class="base-panel__btn ${s.type === activeType ? 'is-active' : ''}" data-type="${s.type}" type="button">
+            <span class="base-panel__icon base-panel__icon--${escapeHtml(s.icon)}">${iconSvg(s.icon)}</span>
+            <span class="base-panel__meta">
+              <strong>${escapeHtml(s.title)}</strong>
+              <small>${escapeHtml(s.subtitle)}</small>
+              <em>${escapeHtml(s.cost)}</em>
+            </span>
+          </button>
+        `).join('');
+    }
     this.cancelBtn.classList.toggle('is-visible', !!this.activeBuild);
   }
 
@@ -260,18 +297,40 @@ export class BasePanelView {
     this.store = store || this.store;
     if (!this.activeBuild || !mouseWorld) return null;
     const me = this.store?.getMe?.();
+    if (this.activeBuild.mode === 'demolish') {
+      const target = findOwnedStructureAt(this.store, me, mouseWorld.x, mouseWorld.y);
+      this.lastPreview = {
+        mode: 'demolish',
+        targetId: target?.id || 0,
+        type: target?.type || 'demolish',
+        title: target ? `Démolir ${target.name || 'structure'}` : 'Démolition',
+        reason: target ? 'OK' : 'Aucune structure',
+        ok: !!target,
+        x: target?.x ?? mouseWorld.x,
+        y: target?.y ?? mouseWorld.y,
+        sx: me?.sx | 0,
+        sy: me?.sy | 0,
+        w: target?.w || BASE_TILE,
+        h: target?.h || BASE_TILE,
+        tilesX: Math.max(1, Math.round((target?.w || BASE_TILE) / BASE_TILE)),
+        tilesY: Math.max(1, Math.round((target?.h || BASE_TILE) / BASE_TILE)),
+        gridSize: BASE_TILE
+      };
+      return this.lastPreview;
+    }
     const def = structureDef(this.activeBuild.type);
     if (!def) return null;
-    const x = snap(mouseWorld.x);
-    const y = snap(mouseWorld.y);
     const orientation = this.activeBuild.orientation || 'h';
-    const rect = rectFor(def, x, y, orientation);
-    const validation = validatePreview(this.store, me, def, x, y, orientation);
+    const size = orientedSize(def, orientation);
+    const snapped = snapFootprint(mouseWorld.x, mouseWorld.y, size, BASE_TILE);
+    const rect = rectFor(def, snapped.x, snapped.y, orientation);
+    const validation = validatePreview(this.store, me, def, snapped.x, snapped.y, orientation);
     this.lastPreview = {
+      mode: 'build',
       type: def.type,
       title: def.title,
-      x,
-      y,
+      x: snapped.x,
+      y: snapped.y,
       sx: me?.sx | 0,
       sy: me?.sy | 0,
       w: rect.w,
@@ -297,6 +356,11 @@ export class BasePanelView {
       this.status.textContent = preview.reason || 'Impossible';
       return false;
     }
+    if (preview.mode === 'demolish') {
+      this.sendCmd('remove_structure', { structureId: preview.targetId });
+      this.status.textContent = 'Démolition envoyée';
+      return true;
+    }
     this.sendCmd('build_structure', { structureType: preview.type, orientation: preview.orientation, x: preview.x, y: preview.y });
     this.status.textContent = 'Placement envoyé';
     return true;
@@ -305,7 +369,7 @@ export class BasePanelView {
   update(store) {
     this.store = store;
     if (this.activeBuild && this.lastPreview) {
-      this.status.textContent = this.lastPreview.ok ? `${this.lastPreview.title} prêt` : this.lastPreview.reason;
+      this.status.textContent = this.lastPreview.ok ? this.lastPreview.title : this.lastPreview.reason;
       return;
     }
     this.status.textContent = '';

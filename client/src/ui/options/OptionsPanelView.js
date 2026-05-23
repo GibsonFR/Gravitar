@@ -48,7 +48,7 @@ export class OptionsPanelView {
     this.el.innerHTML = `
       <div class="options-panel__head">
         <h2>Options</h2>
-        <span>Audio · Graphismes</span>
+        <span>Audio · Graphismes · Contrôles</span>
       </div>
       <div class="options-panel__body">
         <section class="options-section">
@@ -64,6 +64,15 @@ export class OptionsPanelView {
           ${this.renderSlider('Échelle rendu', 'renderScale', 0.6, 1, 0.05)}
           ${this.renderToggle('Grille secteur', 'showGrid')}
           ${this.renderToggle('Effets visuels', 'showFx')}
+        </section>
+        <section class="options-section">
+          <div class="options-section__title">Contrôles</div>
+          <div class="options-controls">
+            <div><span>Construire</span><b>clic gauche</b></div>
+            <div><span>Orienter</span><b>O</b></div>
+            <div><span>Annuler</span><b>Échap</b></div>
+            <div><span>Déconstruction</span><b>menu Build</b></div>
+          </div>
         </section>
       </div>
     `;
