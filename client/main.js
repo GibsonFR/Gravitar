@@ -15,6 +15,16 @@ function showBootError(error) {
   root.appendChild(box);
 }
 
-import('./src/App.js?v=101')
-  .then((mod) => mod.startApp())
-  .catch(showBootError);
+async function boot() {
+  try {
+    const appUrl = new URL('./src/App.js', import.meta.url);
+    const check = await fetch(appUrl, { cache: 'no-store' });
+    if (!check.ok) throw new Error(`Impossible de charger ${appUrl.pathname} — HTTP ${check.status}`);
+    const mod = await import('./src/App.js');
+    mod.startApp();
+  } catch (error) {
+    showBootError(error);
+  }
+}
+
+boot();
