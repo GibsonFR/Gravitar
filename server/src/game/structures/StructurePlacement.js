@@ -68,12 +68,14 @@ function findOwnCore(state, player, sx, sy, x, y) {
     if (!inSameWorld(st, player)) continue;
     if ((st.sx | 0) !== (sx | 0) || (st.sy | 0) !== (sy | 0)) continue;
     if (String(st.ownerKey || '').toLowerCase() !== key) continue;
+    const half = Math.max(1, Number(st.claimRadius) || 1024);
+    if (Math.abs(st.x - x) > half || Math.abs(st.y - y) > half) continue;
     const dx = st.x - x;
     const dy = st.y - y;
     const d2 = dx * dx + dy * dy;
     if (d2 < bestD2) { best = st; bestD2 = d2; }
   }
-  return best && Math.sqrt(bestD2) <= (best.claimRadius || 900) ? best : null;
+  return best;
 }
 
 export function canPlaceStructure(state, player, type, x, y, orientation = 'h') {
@@ -88,7 +90,7 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   const py = snapped.y;
   if (Math.abs(px) > SECTOR.half - 120 || Math.abs(py) > SECTOR.half - 120) return { ok: false, error: 'too_close_to_sector_edge' };
   const dist = Math.hypot(px - player.x, py - player.y);
-  if (dist > (def.buildRange || 820)) return { ok: false, error: 'too_far' };
+  if (dist > (def.buildRange || 1100)) return { ok: false, error: 'too_far' };
 
   const key = ownerKey(player);
   if (def.id === 'base_core') {
@@ -96,7 +98,11 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
       if (st.type !== 'base_core') continue;
       if (!inSameWorld(st, player)) continue;
       if (String(st.ownerKey || '').toLowerCase() === key) return { ok: false, error: 'core_exists' };
-      if ((st.sx | 0) === sx && (st.sy | 0) === sy && Math.hypot(st.x - px, st.y - py) < 1100) return { ok: false, error: 'too_close_to_base' };
+      if ((st.sx | 0) === sx && (st.sy | 0) === sy) {
+        const halfA = Math.max(1, Number(st.claimRadius) || 1024);
+        const halfB = Math.max(1, Number(def.claimRadius) || 1024);
+        if (Math.abs(st.x - px) < halfA + halfB + 128 && Math.abs(st.y - py) < halfA + halfB + 128) return { ok: false, error: 'too_close_to_base' };
+      }
     }
   } else if (!findOwnCore(state, player, sx, sy, px, py)) {
     return { ok: false, error: 'need_nearby_core' };

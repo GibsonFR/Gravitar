@@ -31,9 +31,14 @@ function segmentHitsExpandedRect(x1, y1, x2, y2, wall, pad) {
 }
 
 function clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy) {
-  if (!state?.asteroids || (oldSx | 0) !== (player.sx | 0) || (oldSy | 0) !== (player.sy | 0)) return false;
+  if ((oldSx | 0) !== (player.sx | 0) || (oldSy | 0) !== (player.sy | 0)) return false;
   const pad = Math.max(12, (player.radius || 22) + 1.5);
-  for (const wall of state.asteroids.values()) {
+  const blockers = [
+    ...(state?.asteroids?.values?.() || []),
+    ...(state?.structures?.values?.() || [])
+  ];
+  for (const wall of blockers) {
+    if (wall?.kind === 'structure' && wall?.type !== 'wall') continue;
     if (!wall?.solid && !wall?.bastionWall) continue;
     if ((wall.sx | 0) !== (player.sx | 0) || (wall.sy | 0) !== (player.sy | 0)) continue;
     if (segmentHitsExpandedRect(oldX, oldY, player.x, player.y, wall, pad)) return true;

@@ -9,13 +9,23 @@ export class TopRightDock {
     this.dockEl = document.createElement('div');
     this.dockEl.className = 'ui-dock ui-dock--top-right';
 
+    this.gameDockEl = document.createElement('div');
+    this.gameDockEl.className = 'ui-dock__group ui-dock__group--game';
+    this.utilityDockEl = document.createElement('div');
+    this.utilityDockEl.className = 'ui-dock__group ui-dock__group--utility';
+    this.dockEl.append(this.gameDockEl, this.utilityDockEl);
+
     this.panelHostEl = document.createElement('div');
     this.panelHostEl.className = 'ui-panel-host ui-panel-host--top-right';
 
     this.root.append(this.dockEl, this.panelHostEl);
   }
 
-  registerToggle({ id, title, iconMarkup, onToggle, isActive }) {
+  _groupEl(group = 'game') {
+    return group === 'utility' ? this.utilityDockEl : this.gameDockEl;
+  }
+
+  registerToggle({ id, title, iconMarkup, onToggle, isActive, group = 'game' }) {
     const { button, badge } = createDockIconButton({ id, title, iconMarkup });
     button.addEventListener('click', () => {
       if (button.disabled) return;
@@ -23,13 +33,13 @@ export class TopRightDock {
       this._refresh();
     });
 
-    this.dockEl.appendChild(button);
-    this.items.set(id, { id, button, badge, type: 'toggle', isActiveFn: isActive });
+    this._groupEl(group).appendChild(button);
+    this.items.set(id, { id, button, badge, type: 'toggle', isActiveFn: isActive, group });
     this._refresh();
     return id;
   }
 
-  registerPanel({ id, title, iconMarkup, panelEl, shellClass = '' }) {
+  registerPanel({ id, title, iconMarkup, panelEl, shellClass = '', group = 'game' }) {
     const { button, badge } = createDockIconButton({ id, title, iconMarkup });
     button.addEventListener('click', () => {
       if (button.disabled) return;
@@ -40,10 +50,10 @@ export class TopRightDock {
     if (shellClass) panelEl.classList.add(shellClass);
     panelEl.hidden = true;
 
-    this.dockEl.appendChild(button);
+    this._groupEl(group).appendChild(button);
     this.panelHostEl.appendChild(panelEl);
 
-    this.items.set(id, { id, button, badge, panelEl, enabled: true, type: 'panel' });
+    this.items.set(id, { id, button, badge, panelEl, enabled: true, type: 'panel', group });
     this._refresh();
     return id;
   }
@@ -54,9 +64,7 @@ export class TopRightDock {
     item.enabled = !!enabled;
     item.button.disabled = !item.enabled;
     item.button.classList.toggle('is-disabled', !item.enabled);
-    if (!item.enabled && this.activeId === id) {
-      this.activeId = null;
-    }
+    if (!item.enabled && this.activeId === id) this.activeId = null;
     this._refresh();
   }
 
@@ -79,7 +87,6 @@ export class TopRightDock {
         item.button.classList.toggle('is-active', active);
         continue;
       }
-
       const active = item.id === this.activeId;
       item.button.classList.toggle('is-active', active);
       item.panelEl.hidden = !active;

@@ -192,10 +192,10 @@ export function startApp() {
   playersPanel.bindChat((text) => net.send({ t: 'chat', text }));
 
   const cargoPanel = new CargoPanelView(sendCmd);
-  dock.registerPanel({ id: 'cargo', title: 'Cargo', iconMarkup: getCargoIconSvg(), panelEl: cargoPanel.el });
+  dock.registerPanel({ id: 'cargo', title: 'Cargo', iconMarkup: getCargoIconSvg(), panelEl: cargoPanel.el, group: 'game' });
 
   const convertersPanel = new ConvertersPanelView(sendCmd);
-  dock.registerPanel({ id: 'converters', title: 'Convert.', iconMarkup: getConverterIconSvg(), panelEl: convertersPanel.el, shellClass: 'ui-panel-shell--converters' });
+  dock.registerPanel({ id: 'converters', title: 'Convert.', iconMarkup: getConverterIconSvg(), panelEl: convertersPanel.el, shellClass: 'ui-panel-shell--converters', group: 'game' });
 
   const optionsPanel = new OptionsPanelView((settings) => {
     audio.applySettings(settings);
@@ -205,10 +205,10 @@ export function startApp() {
   graphicsOptions = { ...graphicsOptions, ...optionsPanel.getSettings() };
   audio.applySettings(optionsPanel.getSettings());
   view.setRenderScale(optionsPanel.getSettings().renderScale);
-  dock.registerPanel({ id: 'options', title: 'Options', iconMarkup: getOptionsIconSvg(), panelEl: optionsPanel.el });
+  dock.registerPanel({ id: 'options', title: 'Options', iconMarkup: getOptionsIconSvg(), panelEl: optionsPanel.el, group: 'utility' });
 
   const basePanel = new BasePanelView(sendCmd);
-  dock.registerPanel({ id: 'base', title: 'Base', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el });
+  dock.registerPanel({ id: 'base', title: 'Base', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el, group: 'game' });
 
   window.addEventListener('keydown', (ev) => {
     const tag = String(ev.target?.tagName || '').toLowerCase();
@@ -217,7 +217,7 @@ export function startApp() {
     if (ev.key === 'Escape') {
       basePanel.cancel();
       ev.preventDefault();
-    } else if (String(ev.key || '').toLowerCase() === 'r') {
+    } else if (String(ev.key || '').toLowerCase() === 'o') {
       if (basePanel.rotate()) ev.preventDefault();
     }
   });
@@ -225,6 +225,7 @@ export function startApp() {
   dock.registerToggle({
     id: 'quit-session',
     title: 'Quitter',
+    group: 'utility',
     iconMarkup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M13 8l4 4-4 4M17 12H4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     onToggle: () => {
       if (store.myState?.sessionSetup?.pending ?? true) return;
@@ -242,6 +243,7 @@ export function startApp() {
   dock.registerToggle({
     id: 'map',
     title: 'Carte',
+    group: 'game',
     iconMarkup: getMapIconSvg(),
     onToggle: () => mapWindow.toggle(),
     isActive: () => mapWindow.isOpen
