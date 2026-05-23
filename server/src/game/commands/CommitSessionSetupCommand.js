@@ -15,6 +15,8 @@ export function handleCommitSessionSetup(state, player, msg, timeMs) {
 
   player.pseudo = normalizePlayerPseudo(msg?.pseudo);
   player.authStatus = null;
+  const mode = String(msg?.mode || 'endless');
+  const shouldLoadPersistentProfile = mode === 'endless';
   const accountAction = String(msg?.accountAction || 'guest');
   if ((accountAction === 'login' || accountAction === 'register') && state.accounts) {
     const accountName = normalizePlayerPseudo(msg?.accountName || msg?.pseudo);
@@ -31,7 +33,7 @@ export function handleCommitSessionSetup(state, player, msg, timeMs) {
     player.accountName = auth.name;
     player.pseudo = normalizePlayerPseudo(auth.name || accountName);
     player.authStatus = { ok: true, message: auth.message || (accountAction === 'register' ? 'Compte créé' : 'Connexion réussie') };
-    if (auth.endless) applyEndlessSave(player, auth.endless);
+    if (shouldLoadPersistentProfile && auth.endless) applyEndlessSave(player, auth.endless);
     const stats = auth.battleStats;
     if (stats) state.modes?.battleStats?.set?.(auth.key, { ...stats });
   } else {
@@ -52,7 +54,6 @@ export function handleCommitSessionSetup(state, player, msg, timeMs) {
   player.vx = 0;
   player.vy = 0;
 
-  const mode = String(msg?.mode || 'endless');
   if (mode === 'battle_server') {
     const selected = getBattleSessionById(state, msg?.battleSessionId || '');
     if (selected && selected.state === 'lobby') {

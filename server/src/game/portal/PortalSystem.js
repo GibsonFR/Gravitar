@@ -62,13 +62,26 @@ function prepareTestArenaPlayer(player) {
 }
 
 export function tryUsePortal(state, player, timeMs) {
-  if (!player.interactTap) return false;
+  const manualTap = !!player.interactTap;
+  if (!manualTap) {
+    // Les portails de navigation des mondes de test doivent être immédiats :
+    // ils servent à changer de zone de validation, pas à tester l'interaction station.
+    let hasAutoPortalNearby = false;
+    for (const portal of state.portals.values()) {
+      if (!portal.autoTrigger) continue;
+      if ((portal.sx | 0) !== (player.sx | 0) || (portal.sy | 0) !== (player.sy | 0)) continue;
+      const r = (player.radius + portal.radius + 16);
+      if (distSq(player.x, player.y, portal.x, portal.y) <= r * r) { hasAutoPortalNearby = true; break; }
+    }
+    if (!hasAutoPortalNearby) return false;
+  }
   if (player.dockPhase !== 'none' || (player.dockedStationId | 0) !== 0) return false;
 
   let best = null;
   let bestD2 = Infinity;
   for (const portal of state.portals.values()) {
     if ((portal.sx | 0) !== (player.sx | 0) || (portal.sy | 0) !== (player.sy | 0)) continue;
+    if (!manualTap && !portal.autoTrigger) continue;
     const d2 = distSq(player.x, player.y, portal.x, portal.y);
     const r = (player.radius + portal.radius + 16);
     if (d2 > r * r) continue;
@@ -121,9 +134,9 @@ export function tryUsePortal(state, player, timeMs) {
   player.autoTargetId = 0;
   player.selectedKind = '';
   player.selectedId = 0;
-  if (best.mode === 'test_arena' || best.mode === 'mob_bestiary') prepareTestArenaPlayer(player);
-  player.uiHint = best.mode === 'test_arena' ? 'Simulateur activé' : (best.mode === 'mob_bestiary' ? 'Bestiaire activé' : `Saut → [${player.sx},${player.sy}]`);
-  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary') ? 2.8 : 1.2;
+  if (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || String(best.mode || '').startsWith('test_biome_')) prepareTestArenaPlayer(player);
+  player.uiHint = best.mode === 'test_arena' ? 'Simulateur activé' : (best.mode === 'mob_bestiary' ? 'Bestiaire activé' : (String(best.mode || '').startsWith('test_biome_') ? 'Biome de test chargé' : `Saut → [${player.sx},${player.sy}]`));
+  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   return true;
 }

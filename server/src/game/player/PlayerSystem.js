@@ -385,6 +385,8 @@ export function updatePlayer(state, p, dt, timeMs = null) {
   updateAbilityCasting(state, p, dt, timeMs);
   updateForcedTauntTarget(state, p);
 
+  if (!p.interactTap) tryUsePortal(state, p, timeMs);
+
   if (p.interactTap) {
     if (isDockLocked(p)) {
       forceUndock(p);

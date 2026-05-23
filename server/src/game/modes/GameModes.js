@@ -4,6 +4,9 @@ import { visitSectorOnPlayer } from '../map/PlayerMapState.js';
 import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
 import { SPECIAL_SECTORS } from '../sector/SpecialSectors.js';
 import { PLAYER_PROGRESSION_TUNING } from '../../../../shared/content/progression/PlayerProgressionTuning.js';
+import { createInventoryState } from '../inventory/InventoryState.js';
+import { createEquipmentState } from '../equipment/EquipmentState.js';
+import { STARTER_ITEM_IDS, STARTER_AMMO_LOADOUT } from '../../../../shared/content/items/ItemDefs.js';
 
 export const GAME_MODES = { ENDLESS: 'endless', BATTLE: 'battle', TEST: 'test', STRESS: 'stress' };
 export const BATTLE = {
@@ -256,6 +259,22 @@ export function queueForNextBattle(state, player, timeMs) {
   player.uiHintTimer = 3.0;
 }
 
+
+function resetNonPersistentTestLoadout(player) {
+  if (!player) return;
+  player.inv = createInventoryState();
+  player.equipment = createEquipmentState();
+  player.equipment.ownedItemIds = [STARTER_ITEM_IDS.weapon, STARTER_ITEM_IDS.launcher];
+  player.equipment.equippedItemIds = [STARTER_ITEM_IDS.weapon, STARTER_ITEM_IDS.launcher];
+  player.equipment.rocketAmmoCountsById = { ...(STARTER_AMMO_LOADOUT.inventory ?? {}) };
+  player.equipment.rocketAmmoSlotItemIds = [...(STARTER_AMMO_LOADOUT.slots ?? ['', ''])];
+  player.equipment.activeRocketSlot = Math.max(0, Math.min(1, STARTER_AMMO_LOADOUT.activeSlot ?? 0));
+  player.completedBastionIds = [];
+  player.bastionBuffs = [];
+  player.bastionReturn = null;
+  player.bastionRunKey = '';
+}
+
 export function setPlayerEndless(state, player, timeMs) {
   if (!player) return;
   clearPlayerBattleResidue(state, player, timeMs, { checkWinner: true });
@@ -294,6 +313,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   player.autoTargetId = 0;
   player.selectedKind = '';
   player.selectedId = 0;
+  resetNonPersistentTestLoadout(player);
   player.dockedStationId = 0;
   player.dockPhase = 'none';
   player.dockStationId = 0;

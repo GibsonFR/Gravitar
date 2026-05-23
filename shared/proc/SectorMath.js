@@ -17,8 +17,10 @@ export function wrapIntoSector(pos, sx, sy) {
 
   while (x < -SECTOR.half) { x += SECTOR.size; nsx -= 1; }
   while (x > SECTOR.half) { x -= SECTOR.size; nsx += 1; }
-  while (y < -SECTOR.half) { y += SECTOR.size; nsy -= 1; }
-  while (y > SECTOR.half) { y -= SECTOR.size; nsy += 1; }
+  // Convention carte: monter à l’écran augmente sy, descendre diminue sy.
+  // L’ancien comportement faisait l’inverse, ce qui rendait la lecture des coordonnées confuse.
+  while (y < -SECTOR.half) { y += SECTOR.size; nsy += 1; }
+  while (y > SECTOR.half) { y -= SECTOR.size; nsy -= 1; }
 
   return { x, y, sx: nsx, sy: nsy };
 }

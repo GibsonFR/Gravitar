@@ -19,7 +19,8 @@ export function spawnPortal(state, sx, sy, x, y, targetSx, targetSy, glyph, opti
     bastionId: Number.isFinite(options.bastionId) ? options.bastionId : -1,
     bastionType: String(options.bastionType ?? ''),
     bastionTier: Number.isFinite(options.bastionTier) ? options.bastionTier : 0,
-    bastionColor: options.bastionColor ?? null
+    bastionColor: options.bastionColor ?? null,
+    autoTrigger: !!options.autoTrigger
   });
   return id;
 }

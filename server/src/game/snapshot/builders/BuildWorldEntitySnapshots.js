@@ -190,7 +190,8 @@ export function buildPortalSnapshots(portals, inSector, state = null, player = n
       bastionTier: portal.bastionTier || 0,
       bastionColor: portal.bastionColor || null,
       unlocked,
-      unlockText
+      unlockText,
+      autoTrigger: !!portal.autoTrigger
     });
     });
 }
