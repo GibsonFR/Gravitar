@@ -21,6 +21,8 @@ import { handleAuthSessionAccount } from './AuthSessionCommand.js';
 import { handleBuildStructure } from './BuildStructureCommand.js';
 import { handleRemoveStructure } from './RemoveStructureCommand.js';
 import { handleRepairStructure } from './RepairStructureCommand.js';
+import { handleStorageTransfer } from './StorageTransferCommand.js';
+import { handleStorageClose } from './StorageCloseCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -46,7 +48,9 @@ const HANDLERS = {
   auth_session_account: handleAuthSessionAccount,
   build_structure: handleBuildStructure,
   remove_structure: handleRemoveStructure,
-  repair_structure: handleRepairStructure
+  repair_structure: handleRepairStructure,
+  storage_transfer: handleStorageTransfer,
+  storage_close: handleStorageClose
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

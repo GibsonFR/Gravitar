@@ -1,3 +1,6 @@
+import { STRUCTURE_TYPES } from './StructureDefs.js';
+import { hasStorageItems } from './StructureStorage.js';
+
 function ownerKey(player) {
   return String(player.accountKey || player.accountName || player.pseudo || `guest-${player.id | 0}`).toLowerCase();
 }
@@ -21,6 +24,7 @@ export function removeStructure(state, player, structureId, _timeMs = Date.now()
     ? String(st.ownerKey || '').toLowerCase() === ownerKey(player)
     : (st.ownerId | 0) === (player.id | 0);
   if (!owned) return { ok: false, error: 'not_owner' };
+  if (st.type === STRUCTURE_TYPES.STORAGE && hasStorageItems(st)) return { ok: false, error: 'storage_not_empty' };
   const d = Math.hypot((st.x || 0) - (player.x || 0), (st.y || 0) - (player.y || 0));
   if (d > 1400) return { ok: false, error: 'too_far' };
   state.structures.delete(id);

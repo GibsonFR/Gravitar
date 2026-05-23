@@ -57,6 +57,8 @@ export function isPlayerAttackable(owner, target) {
     return canTargetEntity(owner, target) && target.stats.hp > 0;
   }
   if (target.kind === 'asteroid') return target.stats.hp > 0;
-  if (target.kind === 'structure') return (target.stats?.hp ?? 0) > 0;
+  // Les auto-attaques ne détruisent pas les bases.
+  // Les structures restent sélectionnables, mais seuls les tirs lourds / abilities / roquettes les endommagent.
+  if (target.kind === 'structure') return false;
   return false;
 }

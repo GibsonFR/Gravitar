@@ -225,6 +225,7 @@ export class WorldStore {
     if (kind === 'mob') map = this.mobs;
     else if (kind === 'asteroid') map = this.asteroids;
     else if (kind === 'player') map = this.players;
+    else if (kind === 'structure') map = this.structures;
     if (!map) return;
     const entity = map.get(id);
     if (!entity?.vitals) return;
@@ -372,6 +373,24 @@ export class WorldStore {
     this.myId = id;
   }
 
+  applyCombatFxEvents(events) {
+    if (!Array.isArray(events) || !events.length) return;
+    for (const ev of events) {
+      if (ev?.type !== 'structure_state') continue;
+      const id = ev.structureId | 0 || ev.targetId | 0;
+      if (!id) continue;
+      const st = this.structures.get(id);
+      if (ev.reason === 'destroyed') {
+        if (st?.vitals) st.vitals = { ...st.vitals, hp: 0, maxHp: ev.maxHp ?? st.vitals.maxHp ?? 0 };
+        this.structures.delete(id);
+        continue;
+      }
+      if (!st) continue;
+      st.vitals = { ...(st.vitals || {}), hp: Math.max(0, ev.hp | 0), maxHp: Math.max(0, ev.maxHp | 0) };
+      st.damageable = ev.damageable !== false;
+    }
+  }
+
   applySnapshot(msg) {
     this.lastSnapAt = performance.now();
     this.seed = msg.seed | 0;
@@ -392,7 +411,10 @@ export class WorldStore {
       this.myState.selectedId = this.localPrediction.selectedId || 0;
     }
     if (msg.worldSfx?.length) this.pendingSfx.push(...msg.worldSfx);
-    if (msg.combatFx?.length) this.pendingCombatFx.push(...msg.combatFx);
+    if (msg.combatFx?.length) {
+      this.applyCombatFxEvents(msg.combatFx);
+      this.pendingCombatFx.push(...msg.combatFx.filter((fx) => fx?.type !== 'structure_state'));
+    }
     if (msg.me?.sfx?.length) this.pendingSfx.push(...msg.me.sfx);
     if (Array.isArray(msg.players)) this._syncMap(this.players, msg.players, { snapOwnPlayer: false, preserveOwnPlayerPosition: true });
     if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs);

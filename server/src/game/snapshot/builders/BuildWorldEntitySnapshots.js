@@ -152,7 +152,7 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
   const playerOwner = String(player?.accountKey || player?.accountName || player?.pseudo || `guest-${player?.id | 0}`).toLowerCase();
   const playerWorld = String(player?.worldId || 'endless');
   return [...(structures?.values?.() || [])]
-    .filter((structure) => structure?.stats?.hp > 0)
+    .filter((structure) => structure && (structure.damageable === false || structure.stats?.hp > 0))
     .filter((structure) => String(structure.worldId || 'endless') === playerWorld)
     .filter(inSector)
     .map((structure) => ({
@@ -169,7 +169,8 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       h: q(structure.h || 0),
       orientation: structure.orientation || 'h',
       solid: !!structure.solid,
-      vitals: qv(structure.stats),
+      damageable: structure.damageable !== false,
+      vitals: structure.damageable === false ? null : qv(structure.stats),
       color: structure.color || '#526274',
       borderColor: structure.borderColor || '#9fcfff',
       ownerName: structure.ownerName || '',

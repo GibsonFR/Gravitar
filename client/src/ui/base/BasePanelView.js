@@ -69,9 +69,9 @@ export const BUILD_STRUCTURES = [
     tilesY: 2,
     w: 128,
     h: 128,
-    hp: 420,
-    role: 'Stockage local de ressources. Non bloquant pour éviter de piéger les joueurs.',
-    stats: ['Non solide', 'Stockage local V1', 'Sera connecté aux machines plus tard'],
+    hp: 0,
+    role: 'Stockage local de ressources. Non bloquant et non destructible directement.',
+    stats: ['Interaction avec D', 'Accessible au propriétaire', 'Pillable si le noyau est détruit'],
     cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
   }
 ];
@@ -380,7 +380,7 @@ export class BasePanelView {
       <h3>${escapeHtml(def.title)}</h3>
       <p>${escapeHtml(def.role || def.subtitle || '')}</p>
       <div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} tiles</span></div>
-      <div class="base-panel__details-section"><strong>PV</strong><span>${def.hp || '-'}</span></div>
+      <div class="base-panel__details-section"><strong>PV</strong><span>${def.hp ? def.hp : 'aucun — non ciblable'}</span></div>
       <div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>
       ${(def.stats || []).map((s) => `<div class="base-panel__details-line">${escapeHtml(s)}</div>`).join('')}`;
   }

@@ -23,6 +23,7 @@ import { ITEM_CATEGORY_IDS } from '../../../../shared/content/items/ItemCategory
 import { buildRocketAmmoStatusSpecs, consumeRocketAmmo, getActiveRocketAmmoDef } from '../rocket/RocketAmmoRules.js';
 import { getBastionDamageMultiplier, getBastionMoveSpeedMultiplier } from '../bastion/BastionBuffs.js';
 import { distanceSqToStructureRect } from '../structures/StructureSystem.js';
+import { findAccessibleStorageNearPlayer } from '../structures/StructureStorage.js';
 
 function getEquippedDefByCategory(player, categoryId) {
   return getEquippedEquipmentDefs(player).find((def) => def?.categoryId === categoryId) || null;
@@ -398,9 +399,15 @@ export function updatePlayer(state, p, dt, timeMs = null) {
       setPlayerHint(p, 'Désamarré');
     } else {
       if (tryUsePortal(state, p, timeMs)) {
-      } else if (requestDockAtNearestStation(state, p)) {
-        setPlayerHint(p, 'Amarrage…', 1.3);
       } else {
+        const storage = findAccessibleStorageNearPlayer(state, p);
+        if (storage) {
+          p.openStorageId = storage.id | 0;
+          p.forceFullUiSnapshot = true;
+          setPlayerHint(p, 'Coffre ouvert', 1.3);
+        } else if (requestDockAtNearestStation(state, p)) {
+          setPlayerHint(p, 'Amarrage…', 1.3);
+        } else {
         // V87: D loin d'une station sélectionnée = approche automatique, puis dock
         // dès que la portée est atteinte. L'ancien comportement disait juste "trop loin",
         // ce qui rendait l'usage des stations très sec en ligne.
@@ -414,6 +421,7 @@ export function updatePlayer(state, p, dt, timeMs = null) {
         }
       }
     }
+  }
   }
   p.interactTap = false;
 

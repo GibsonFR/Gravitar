@@ -25,6 +25,7 @@ function ownerPalette(s) {
 }
 
 function drawStructureBar(ctx, view, s, sx, sy) {
+  if (!s?.damageable || !s.vitals) return;
   const hp = s.vitals?.hp ?? 0;
   const maxHp = Math.max(1, s.vitals?.maxHp ?? 1);
   const pct = Math.max(0, Math.min(1, hp / maxHp));

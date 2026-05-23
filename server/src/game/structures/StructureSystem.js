@@ -34,7 +34,13 @@ export function getPlayerOwnerKey(player) {
 }
 
 export function isStructureAlive(structure) {
-  return !!structure && (structure.stats?.hp ?? 0) > 0;
+  if (!structure) return false;
+  if (structure.damageable === false) return true;
+  return (structure.stats?.hp ?? 0) > 0;
+}
+
+export function isStructureDamageable(structure) {
+  return !!structure && structure.damageable !== false && (structure.stats?.maxHp ?? 0) > 0;
 }
 
 export function isStructureOwner(player, structure) {
@@ -95,7 +101,7 @@ export function isStructureProtectedByCore(state, structure) {
 }
 
 export function canPlayerDamageStructure(state, player, structure) {
-  if (!player || !isStructureAlive(structure)) return false;
+  if (!player || !isStructureAlive(structure) || !isStructureDamageable(structure)) return false;
   if (!samePlayerWorld(player, structure)) return false;
   if ((player.sx | 0) !== (structure.sx | 0) || (player.sy | 0) !== (structure.sy | 0)) return false;
   if (isStructureOwner(player, structure)) return false;
@@ -105,7 +111,7 @@ export function canPlayerDamageStructure(state, player, structure) {
 }
 
 export function canPlayerRepairStructure(player, structure) {
-  if (!player || !isStructureAlive(structure)) return false;
+  if (!player || !isStructureAlive(structure) || !isStructureDamageable(structure)) return false;
   if (!samePlayerWorld(player, structure)) return false;
   if ((player.sx | 0) !== (structure.sx | 0) || (player.sy | 0) !== (structure.sy | 0)) return false;
   if (!isStructureOwner(player, structure)) return false;

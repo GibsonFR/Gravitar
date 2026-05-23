@@ -1,3 +1,4 @@
+import { rejectIfAccountAlreadyConnected } from '../accounts/ActiveAccountGuard.js';
 import { normalizePlayerPseudo } from '../player/PlayerSessionSetup.js';
 
 export function handleAuthSessionAccount(state, player, msg) {
@@ -8,6 +9,7 @@ export function handleAuthSessionAccount(state, player, msg) {
 
   const accountName = normalizePlayerPseudo(msg?.accountName || msg?.pseudo);
   const auth = state.accounts.registerOrLogin(accountName, msg?.accountPassword, accountAction);
+  if (rejectIfAccountAlreadyConnected(state, player, auth)) return true;
   if (!auth.ok) {
     player.accountKey = '';
     player.accountName = '';

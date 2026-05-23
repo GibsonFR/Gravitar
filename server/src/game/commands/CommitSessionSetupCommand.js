@@ -1,5 +1,6 @@
 import { getShipFrameDef } from '../../../../shared/content/frames/ShipFrameRegistry.js';
 import { switchPlayerFrame } from '../frames/FrameSwitchSystem.js';
+import { rejectIfAccountAlreadyConnected } from '../accounts/ActiveAccountGuard.js';
 import { normalizePlayerPseudo } from '../player/PlayerSessionSetup.js';
 import { setPlayerHint } from '../player/PlayerUiHints.js';
 import { GAME_MODES, clearPlayerBattleResidue, getBattleSessionById, getNewestOpenBattleSession, joinBattleSession, queueForNextBattle, setPlayerEndless, setPlayerTestServer, setPlayerTestWorld, setPlayerStressServer } from '../modes/GameModes.js';
@@ -21,7 +22,8 @@ export function handleCommitSessionSetup(state, player, msg, timeMs) {
   if ((accountAction === 'login' || accountAction === 'register') && state.accounts) {
     const accountName = normalizePlayerPseudo(msg?.accountName || msg?.pseudo);
     const auth = state.accounts.registerOrLogin(accountName, msg?.accountPassword, accountAction);
-    if (!auth.ok) {
+    if (rejectIfAccountAlreadyConnected(state, player, auth)) return true;
+  if (!auth.ok) {
       player.accountKey = '';
       player.accountName = '';
       player.authStatus = { ok: false, message: auth.error || 'Connexion impossible' };

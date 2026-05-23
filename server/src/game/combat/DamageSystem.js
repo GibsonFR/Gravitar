@@ -16,7 +16,7 @@ import {
 import { isInvulnerable } from '../status/StatusMotion.js';
 import { adjustIncomingDamageByFrame, onDamageTakenByFrame, onEntityKilledByFrame } from '../frames/FrameGameplayHooks.js';
 import { gainPlayerXp } from '../progression/ProgressionSystem.js';
-import { queueDamageNumber } from './CombatFxState.js';
+import { queueDamageNumber, queueStructureState } from './CombatFxState.js';
 import { queueWorldSfx } from '../audio/WorldSfxState.js';
 import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
 import { getAsteroidXpReward, getMobXpReward, getPlayerKillXpReward } from '../progression/ProgressionRewards.js';
@@ -321,15 +321,17 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     ? frameAdjusted * getIncomingShieldDamageMultiplier(target)
     : frameAdjusted * getIncomingHullDamageMultiplier(target);
 
-  queueDamageNumber(state, target, finalAmount, {
-    shielded,
-    crit: !!options.crit,
-    periodic: !!options.isPeriodic,
-    sourceSlot: options.sourceSlot || '',
-    visualKind: options.visualKind || ''
-  });
-  if (!options.isPeriodic) {
-    queueWorldSfx(state, shielded ? SFX_EVENT_TYPES.DAMAGE_SHIELD : SFX_EVENT_TYPES.DAMAGE_HULL, target.sx, target.sy, target.x, target.y, options.crit ? 1 : 0);
+  if (target.kind !== 'structure') {
+    queueDamageNumber(state, target, finalAmount, {
+      shielded,
+      crit: !!options.crit,
+      periodic: !!options.isPeriodic,
+      sourceSlot: options.sourceSlot || '',
+      visualKind: options.visualKind || ''
+    });
+    if (!options.isPeriodic) {
+      queueWorldSfx(state, shielded ? SFX_EVENT_TYPES.DAMAGE_SHIELD : SFX_EVENT_TYPES.DAMAGE_HULL, target.sx, target.sy, target.x, target.y, options.crit ? 1 : 0);
+    }
   }
 
   if (target.kind === 'player') {
@@ -362,6 +364,8 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
 
 
   if (target.kind === 'structure') {
+    if (options.visualKind === 'auto') return;
+    if (target.damageable === false || (target.stats?.maxHp ?? 0) <= 0) return;
     if ((target.stats?.hp ?? 0) <= 0) return;
     if (sourcePlayer?.kind !== 'player' || !canPlayerDamageStructure(state, sourcePlayer, target)) {
       if (sourcePlayer?.kind === 'player' && isStructureProtectedByCore(state, target)) setHint(sourcePlayer, 'Détruis le noyau de base avant de piller cette structure', 1.8);
@@ -379,9 +383,11 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     const died = applyHullDamage(target.stats, structureDamage);
     target.updatedAt = timeMs;
     target.lastDamagedAt = timeMs;
+    queueStructureState(state, target, 'damage');
     if (String(target.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
     if (!died) return;
     const wasCore = target.type === 'base_core';
+    queueStructureState(state, target, 'destroyed');
     destroyStructure(state, target, timeMs);
     if (sourcePlayer?.kind === 'player') setHint(sourcePlayer, wasCore ? 'Noyau détruit — zone déclaim' : 'Structure détruite', 2.3);
     return;

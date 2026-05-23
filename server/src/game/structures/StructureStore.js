@@ -91,7 +91,7 @@ export function createStructureStore() {
       for (const saved of db.structures || []) {
         if (String(saved?.worldId || 'endless') !== 'endless') continue;
         const st = hydrateStructure(state, saved);
-        if (!st || st.stats.hp <= 0) continue;
+        if (!st || (st.damageable !== false && st.stats.hp <= 0)) continue;
         state.structures.set(st.id, st);
         maxId = Math.max(maxId, (st.id | 0) + 1);
         count += 1;
@@ -103,7 +103,7 @@ export function createStructureStore() {
       if (!state?.structures) return false;
       const structures = [...state.structures.values()]
         .filter((st) => String(st.worldId || 'endless') === 'endless')
-        .filter((st) => st.stats?.hp > 0)
+        .filter((st) => st.damageable === false || st.stats?.hp > 0)
         .map(serializeStructure)
         .filter(Boolean);
       return write({ version: STORE_VERSION, updatedAt: Date.now(), structures });

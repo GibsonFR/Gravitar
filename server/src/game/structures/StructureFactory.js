@@ -13,7 +13,8 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
   const orientation = String(options.orientation || 'h').toLowerCase() === 'v' ? 'v' : 'h';
   const swap = def.id === 'wall' && orientation === 'v';
   const id = Number.isFinite(options.id) ? (options.id | 0) : newEntityId(state);
-  const maxHp = Math.max(1, options.maxHp || def.maxHp || 100);
+  const damageable = def.damageable !== false;
+  const maxHp = damageable ? Math.max(1, options.maxHp || def.maxHp || 100) : 0;
   return {
     kind: 'structure',
     id,
@@ -33,6 +34,7 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     h: swap ? q(def.w, 190) : q(def.h, def.radius * 2),
     orientation,
     stats: createStatBlock({ maxHp }),
+    damageable,
     solid: !!def.solid,
     claimRadius: def.claimRadius || 0,
     storage: options.storage || { resources: {} },
@@ -58,8 +60,8 @@ export function serializeStructure(structure) {
     x: Math.round((structure.x || 0) * 10) / 10,
     y: Math.round((structure.y || 0) * 10) / 10,
     orientation: structure.orientation || 'h',
-    hp: Math.max(0, Math.round(structure.stats?.hp ?? structure.stats?.maxHp ?? 1)),
-    maxHp: Math.max(1, Math.round(structure.stats?.maxHp ?? 1)),
+    hp: Math.max(0, Math.round(structure.stats?.hp ?? structure.stats?.maxHp ?? 0)),
+    maxHp: Math.max(0, Math.round(structure.stats?.maxHp ?? 0)),
     storage: structure.storage || { resources: {} },
     createdAt: structure.createdAt || Date.now(),
     updatedAt: Date.now()
