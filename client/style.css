@@ -4053,3 +4053,43 @@ button.station-item-icon[draggable="true"]:active,
   font-size: 11px;
   line-height: 1.25;
 }
+
+.base-panel__cancel {
+  display: none;
+  border: 1px solid rgba(255, 130, 130, .35);
+  background: rgba(60, 18, 22, .68);
+  color: rgba(255, 220, 220, .95);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.base-panel__cancel.is-visible {
+  display: inline-flex;
+}
+.base-panel__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 10px;
+}
+.base-panel__controls span {
+  border: 1px solid rgba(125,190,255,.13);
+  background: rgba(8,16,26,.54);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 10px;
+  color: rgba(190,211,236,.78);
+}
+.base-panel__btn.is-active {
+  border-color: rgba(108, 255, 214, .78);
+  background: linear-gradient(180deg, rgba(21,55,50,.96), rgba(7,24,28,.96));
+  box-shadow: 0 0 22px rgba(72,255,205,.22), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.base-panel__btn em {
+  display: block;
+  margin-top: 7px;
+  font-style: normal;
+  font-size: 10px;
+  color: rgba(255, 219, 144, .82);
+}

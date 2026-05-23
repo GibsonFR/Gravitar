@@ -10,7 +10,7 @@ import { drawGroundMarker } from './render/GroundMarkerRenderer.js';
 import { drawSelectionRing } from './render/SelectionRenderer.js';
 
 import { drawStation } from './station/StationRenderer.js';
-import { drawStructure } from './structures/StructureRenderer.js';
+import { drawStructure, drawStructureBuildPreview } from './structures/StructureRenderer.js';
 import { drawPortals } from './portal/PortalRenderer.js';
 import { drawAsteroid } from './asteroid/AsteroidRenderer.js';
 import { drawProjectile } from './projectile/ProjectileRenderer.js';
@@ -210,6 +210,17 @@ export function startApp() {
   const basePanel = new BasePanelView(sendCmd);
   dock.registerPanel({ id: 'base', title: 'Base', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el });
 
+  window.addEventListener('keydown', (ev) => {
+    const tag = String(ev.target?.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || ev.target?.isContentEditable) return;
+    if (!basePanel.hasActivePlacement?.()) return;
+    if (ev.key === 'Escape') {
+      basePanel.cancel();
+      ev.preventDefault();
+    } else if (String(ev.key || '').toLowerCase() === 'r') {
+      if (basePanel.rotate()) ev.preventDefault();
+    }
+  });
 
   dock.registerToggle({
     id: 'quit-session',
@@ -272,6 +283,15 @@ export function startApp() {
     const rect = canvas.getBoundingClientRect();
     const px = ev.clientX - rect.left;
     const py = ev.clientY - rect.top;
+    if (basePanel.hasActivePlacement?.()) {
+      const mouseWorld = {
+        x: camera.x + (px - view.cssW * 0.5),
+        y: camera.y + (py - view.cssH * 0.5)
+      };
+      basePanel.placeCurrent(store, mouseWorld);
+      ev.preventDefault();
+      return;
+    }
     const radarMove = hitTestRadarMove(view, store.getMe(), px, py);
     if (radarMove) {
       input.moveWorldQueued = true;
@@ -662,6 +682,7 @@ export function startApp() {
 
     for (const s of store.stations.values()) drawStation(ctx, view, s, camX, camY, t);
     for (const st of store.structures.values()) drawStructure(ctx, view, st, camX, camY, t);
+    drawStructureBuildPreview(ctx, view, basePanel.getPreview(store, mouseWorld), camX, camY, t);
     drawPortals(ctx, view, store, camX, camY);
     for (const a of store.asteroids.values()) drawAsteroid(ctx, view, a, camX, camY);
     for (const mob of store.mobs.values()) drawMob(ctx, view, mob, camX, camY, t);

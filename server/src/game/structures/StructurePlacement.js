@@ -8,6 +8,16 @@ function finite(v, fallback = 0) {
   return Number.isFinite(v) ? v : fallback;
 }
 
+function snapToGrid(value, grid = 32) {
+  const g = Math.max(1, Number(grid) || 32);
+  return Math.round((Number(value) || 0) / g) * g;
+}
+
+function snapPlacement(def, x, y) {
+  const grid = def?.gridSize || 32;
+  return { x: snapToGrid(x, grid), y: snapToGrid(y, grid) };
+}
+
 function rectFor(def, x, y, orientation = 'h') {
   const vertical = def.id === 'wall' && String(orientation).toLowerCase() === 'v';
   const w = vertical ? def.h : def.w;
@@ -71,11 +81,14 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   if (!def) return { ok: false, error: 'unknown_structure' };
   const sx = player.sx | 0;
   const sy = player.sy | 0;
-  const px = finite(x, player.x);
-  const py = finite(y, player.y);
+  const rawX = finite(x, player.x);
+  const rawY = finite(y, player.y);
+  const snapped = snapPlacement(def, rawX, rawY);
+  const px = snapped.x;
+  const py = snapped.y;
   if (Math.abs(px) > SECTOR.half - 120 || Math.abs(py) > SECTOR.half - 120) return { ok: false, error: 'too_close_to_sector_edge' };
   const dist = Math.hypot(px - player.x, py - player.y);
-  if (dist > 320) return { ok: false, error: 'too_far' };
+  if (dist > (def.buildRange || 820)) return { ok: false, error: 'too_far' };
 
   const key = ownerKey(player);
   if (def.id === 'base_core') {
@@ -114,7 +127,8 @@ export function placeStructure(state, player, type, x, y, orientation = 'h', tim
   if (!check.ok) return { ok: false, error: check.error };
   const def = check.def;
   if (!isTestPlayer(player)) payResources(player.inv, def.cost);
-  const st = createStructure(state, def.id, player.sx | 0, player.sy | 0, x, y, {
+  const snapped = snapPlacement(def, x, y);
+  const st = createStructure(state, def.id, player.sx | 0, player.sy | 0, snapped.x, snapped.y, {
     ownerId: player.id | 0,
     ownerKey: ownerKey(player),
     ownerName: player.pseudo || player.accountName || 'Pilote',
