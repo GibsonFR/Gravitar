@@ -1,5 +1,5 @@
 import { SECTOR } from '../sector/SectorDefs.js';
-import { getStructureDef } from './StructureDefs.js';
+import { BASE_TILE_SIZE, getStructureDef } from './StructureDefs.js';
 import { createStructure } from './StructureFactory.js';
 import { removeResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
@@ -37,6 +37,25 @@ function rectsOverlap(a, b, pad = 0) {
   return a.left + pad < b.right - eps && a.right - pad > b.left + eps && a.top + pad < b.bottom - eps && a.bottom - pad > b.top + eps;
 }
 
+function rectInside(inner, outer) {
+  const eps = 0.001;
+  return inner.left >= outer.left - eps && inner.right <= outer.right + eps && inner.top >= outer.top - eps && inner.bottom <= outer.bottom + eps;
+}
+
+function sectorBuildRect() {
+  return {
+    left: -SECTOR.half + BASE_TILE_SIZE,
+    right: SECTOR.half - BASE_TILE_SIZE,
+    top: -SECTOR.half + BASE_TILE_SIZE,
+    bottom: SECTOR.half - BASE_TILE_SIZE
+  };
+}
+
+function claimRect(core) {
+  const half = Math.max(1, Number(core?.claimRadius) || BASE_TILE_SIZE * 8);
+  return { left: core.x - half, right: core.x + half, top: core.y - half, bottom: core.y + half };
+}
+
 function entityRect(entity) {
   const w = finite(entity.w, 0) || finite(entity.radius, 0) * 2;
   const h = finite(entity.h, 0) || finite(entity.radius, 0) * 2;
@@ -67,8 +86,10 @@ function payResources(inv, cost) {
   for (const [key, amount] of Object.entries(cost || {})) removeResource(inv, key, amount | 0);
 }
 
-function findOwnCore(state, player, sx, sy, x, y) {
+function findOwnCore(state, player, sx, sy, rect) {
   const key = ownerKey(player);
+  const cx = (rect.left + rect.right) * 0.5;
+  const cy = (rect.top + rect.bottom) * 0.5;
   let best = null;
   let bestD2 = Infinity;
   for (const st of state.structures.values()) {
@@ -76,10 +97,9 @@ function findOwnCore(state, player, sx, sy, x, y) {
     if (!inSameWorld(st, player)) continue;
     if ((st.sx | 0) !== (sx | 0) || (st.sy | 0) !== (sy | 0)) continue;
     if (String(st.ownerKey || '').toLowerCase() !== key) continue;
-    const half = Math.max(1, Number(st.claimRadius) || 1024);
-    if (Math.abs(st.x - x) > half || Math.abs(st.y - y) > half) continue;
-    const dx = st.x - x;
-    const dy = st.y - y;
+    if (!rectInside(rect, claimRect(st))) continue;
+    const dx = st.x - cx;
+    const dy = st.y - cy;
     const d2 = dx * dx + dy * dy;
     if (d2 < bestD2) { best = st; bestD2 = d2; }
   }
@@ -96,7 +116,8 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   const snapped = snapPlacement(def, rawX, rawY, orientation);
   const px = snapped.x;
   const py = snapped.y;
-  if (Math.abs(px) > SECTOR.half - 120 || Math.abs(py) > SECTOR.half - 120) return { ok: false, error: 'too_close_to_sector_edge' };
+  const r = rectFor(def, px, py, orientation);
+  if (!rectInside(r, sectorBuildRect())) return { ok: false, error: 'too_close_to_sector_edge' };
   const dist = Math.hypot(px - player.x, py - player.y);
   if (dist > (def.buildRange || 1100)) return { ok: false, error: 'too_far' };
 
@@ -107,16 +128,18 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
       if (!inSameWorld(st, player)) continue;
       if (String(st.ownerKey || '').toLowerCase() === key) return { ok: false, error: 'core_exists' };
       if ((st.sx | 0) === sx && (st.sy | 0) === sy) {
-        const halfA = Math.max(1, Number(st.claimRadius) || 1024);
-        const halfB = Math.max(1, Number(def.claimRadius) || 1024);
-        if (Math.abs(st.x - px) < halfA + halfB + 128 && Math.abs(st.y - py) < halfA + halfB + 128) return { ok: false, error: 'too_close_to_base' };
+        const halfA = Math.max(1, Number(st.claimRadius) || BASE_TILE_SIZE * 8);
+        const halfB = Math.max(1, Number(def.claimRadius) || BASE_TILE_SIZE * 8);
+        if (Math.abs(st.x - px) < halfA + halfB + BASE_TILE_SIZE * 2 && Math.abs(st.y - py) < halfA + halfB + BASE_TILE_SIZE * 2) return { ok: false, error: 'too_close_to_base' };
       }
     }
-  } else if (!findOwnCore(state, player, sx, sy, px, py)) {
+    const claim = { left: px - (def.claimRadius || 0), right: px + (def.claimRadius || 0), top: py - (def.claimRadius || 0), bottom: py + (def.claimRadius || 0) };
+    if (!rectInside(claim, sectorBuildRect())) return { ok: false, error: 'too_close_to_sector_edge' };
+  } else if (!findOwnCore(state, player, sx, sy, r)) {
     return { ok: false, error: 'need_nearby_core' };
   }
 
-  const r = rectFor(def, px, py, orientation);
+
   for (const st of state.structures.values()) {
     if (!inSameWorld(st, player)) continue;
     if ((st.sx | 0) !== sx || (st.sy | 0) !== sy) continue;

@@ -1,10 +1,22 @@
 const BASE_TILE = 64;
+const SECTOR_HALF = 2000;
 const BUILD_RANGE = 1200;
+const EDGE_RESERVE_TILES = 1;
+const EDGE_RESERVE = BASE_TILE * EDGE_RESERVE_TILES;
+
+const RESOURCE_LABELS = {
+  ironOre: 'Minerai de fer',
+  copper: 'Cuivre',
+  aluminiumOre: 'Minerai d’aluminium',
+  titaniumOre: 'Minerai de titane',
+  steelPlate: 'Acier',
+  copperWire: 'Fil de cuivre'
+};
 
 function iconSvg(kind) {
-  if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="16" y="16" width="32" height="32" rx="7" fill="rgba(101,215,255,.14)" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="3"/><path d="M32 8v9M32 47v9M8 32h9M47 32h9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
-  if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="7" y="22" width="50" height="20" rx="4" fill="rgba(120,190,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M16 22v20M26 22v20M38 22v20M48 22v20" stroke="currentColor" stroke-width="2" opacity=".72"/><path d="M10 32h44" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>`;
-  if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 24l18-10 18 10v19L32 53 14 43V24z" fill="rgba(111,240,197,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M14 24l18 10 18-10M32 34v19" fill="none" stroke="currentColor" stroke-width="2" opacity=".8"/><path d="M23 20l18 10" stroke="currentColor" stroke-width="2" opacity=".35"/></svg>`;
+  if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7l21 12v26L32 57 11 45V19L32 7z" fill="rgba(101,215,255,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="32" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity=".85"/><path d="M32 12v8M32 44v8M14 22l7 4M43 38l7 4M14 42l7-4M43 26l7-4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".75"/></svg>`;
+  if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="22" width="52" height="20" rx="3" fill="rgba(120,190,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 22v20M24 22v20M34 22v20M44 22v20M54 22v20" stroke="currentColor" stroke-width="2" opacity=".72"/><path d="M10 32h44" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>`;
+  if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 21l19-10 19 10v22L32 53 13 43V21z" fill="rgba(111,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M13 21l19 11 19-11M32 32v21" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".82"/><path d="M22 26l19-10M22 39l20-11" stroke="currentColor" stroke-width="2" opacity=".28"/></svg>`;
   if (kind === 'demolish') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 16h24l-2 34H22L20 16z" fill="rgba(255,120,120,.10)" stroke="currentColor" stroke-width="3"/><path d="M17 16h30M26 16l2-5h8l2 5M27 25v17M37 25v17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
   if (kind === 'power') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M35 6L16 36h14l-3 22 21-34H34l1-18z" fill="rgba(255,213,95,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
   return '';
@@ -15,15 +27,18 @@ export const BUILD_STRUCTURES = [
     type: 'base_core',
     category: 'construction',
     title: 'Noyau de base',
-    subtitle: 'Zone 32 × 32 tiles',
+    subtitle: '2 × 2 tiles',
     icon: 'core',
     orientation: 'h',
-    tilesX: 3,
-    tilesY: 3,
-    w: 192,
-    h: 192,
-    claimRadius: 1024,
-    cost: '40 scrap · 20 fer · 10 cuivre'
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    claimRadius: BASE_TILE * 8,
+    hp: 1200,
+    role: 'Définit une zone carrée de construction. Tier 1 compact, améliorable plus tard.',
+    stats: ['Zone : 16 × 16 tiles', 'Structure non bloquante', '1 noyau actif par joueur'],
+    cost: { ironOre: 35, copper: 12, aluminiumOre: 8 }
   },
   {
     type: 'wall',
@@ -37,7 +52,10 @@ export const BUILD_STRUCTURES = [
     tilesY: 1,
     w: 192,
     h: 64,
-    cost: '8 scrap · 10 fer'
+    hp: 760,
+    role: 'Bloque les déplacements et protège l’intérieur de la base.',
+    stats: ['Solide', 'Orientable avec O', 'Peut être collé aux autres murs'],
+    cost: { ironOre: 12, copper: 2 }
   },
   {
     type: 'storage',
@@ -50,7 +68,10 @@ export const BUILD_STRUCTURES = [
     tilesY: 2,
     w: 128,
     h: 128,
-    cost: '18 scrap · 8 fer · 4 cuivre'
+    hp: 420,
+    role: 'Stockage local de ressources. Non bloquant pour éviter de piéger les joueurs.',
+    stats: ['Non solide', 'Stockage local V1', 'Sera connecté aux machines plus tard'],
+    cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
   }
 ];
 
@@ -67,6 +88,12 @@ function escapeHtml(txt) {
 
 function structureDef(type) {
   return BUILD_STRUCTURES.find((s) => s.type === type) || null;
+}
+
+function formatCost(cost = {}) {
+  const entries = Object.entries(cost || {}).filter(([, v]) => Number(v) > 0);
+  if (!entries.length) return 'Aucun coût';
+  return entries.map(([key, amount]) => `${amount} ${RESOURCE_LABELS[key] || key}`).join(' · ');
 }
 
 function orientedSize(def, orientation = 'h') {
@@ -105,19 +132,28 @@ function sameSector(a, b) {
   return (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
 }
 
-function isInsideCoreSquare(core, x, y) {
-  const half = Math.max(1, Number(core?.claimRadius) || 1024);
-  return Math.abs((core?.x || 0) - x) <= half && Math.abs((core?.y || 0) - y) <= half;
+function claimRect(core) {
+  const half = Math.max(1, Number(core?.claimRadius) || BASE_TILE * 8);
+  return { left: (core?.x || 0) - half, right: (core?.x || 0) + half, top: (core?.y || 0) - half, bottom: (core?.y || 0) + half, w: half * 2, h: half * 2 };
 }
 
-function findOwnCore(store, me, x, y) {
+function isRectInside(a, b) {
+  const eps = 0.001;
+  return a.left >= b.left - eps && a.right <= b.right + eps && a.top >= b.top - eps && a.bottom <= b.bottom + eps;
+}
+
+function sectorBuildRect() {
+  return { left: -SECTOR_HALF + EDGE_RESERVE, right: SECTOR_HALF - EDGE_RESERVE, top: -SECTOR_HALF + EDGE_RESERVE, bottom: SECTOR_HALF - EDGE_RESERVE };
+}
+
+function findOwnCore(store, me, rect) {
   let best = null;
   let bestD2 = Infinity;
   for (const st of store?.structures?.values?.() || []) {
     if (st?.type !== 'base_core' || !st.owned || !sameSector(st, me)) continue;
-    if (!isInsideCoreSquare(st, x, y)) continue;
-    const dx = (st.x || 0) - x;
-    const dy = (st.y || 0) - y;
+    if (!isRectInside(rect, claimRect(st))) continue;
+    const dx = (st.x || 0) - (rect.left + rect.right) * 0.5;
+    const dy = (st.y || 0) - (rect.top + rect.bottom) * 0.5;
     const d2 = dx * dx + dy * dy;
     if (d2 < bestD2) { best = st; bestD2 = d2; }
   }
@@ -133,17 +169,20 @@ function hasOwnCore(store) {
 
 function validatePreview(store, me, def, x, y, orientation) {
   if (!me) return { ok: false, reason: 'Aucun vaisseau actif' };
+  const r = rectFor(def, x, y, orientation);
   const dist = Math.hypot(x - (me.x || 0), y - (me.y || 0));
   if (dist > BUILD_RANGE) return { ok: false, reason: 'Trop loin' };
-  if (Math.abs(x) > 2400 - 140 || Math.abs(y) > 2400 - 140) return { ok: false, reason: 'Bord du secteur' };
-  const ownCore = def.type === 'base_core' ? null : findOwnCore(store, me, x, y);
+  if (!isRectInside(r, sectorBuildRect())) return { ok: false, reason: 'Bord du secteur' };
+
+  const ownCore = def.type === 'base_core' ? null : findOwnCore(store, me, r);
   if (def.type === 'base_core') {
     if (hasOwnCore(store)) return { ok: false, reason: 'Noyau déjà posé' };
+    const claim = { left: x - (def.claimRadius || 0), right: x + (def.claimRadius || 0), top: y - (def.claimRadius || 0), bottom: y + (def.claimRadius || 0) };
+    if (!isRectInside(claim, sectorBuildRect())) return { ok: false, reason: 'Zone trop proche du bord' };
   } else if (!ownCore) {
-    return { ok: false, reason: 'Hors claim' };
+    return { ok: false, reason: 'Hors base' };
   }
 
-  const r = rectFor(def, x, y, orientation);
   for (const st of store?.structures?.values?.() || []) {
     if (!sameSector(st, me)) continue;
     if (rectsOverlap(r, entityRect(st), 0)) return { ok: false, reason: 'Occupé' };
@@ -182,6 +221,7 @@ export class BasePanelView {
     this.activeBuild = null;
     this.lastPreview = null;
     this.category = 'construction';
+    this.hoveredType = null;
     this.el = document.createElement('div');
     this.el.className = 'base-panel';
     this.el.innerHTML = `
@@ -198,11 +238,13 @@ export class BasePanelView {
           <div class="base-panel__grid"></div>
           <div class="base-panel__status"></div>
         </div>
+        <aside class="base-panel__details"></aside>
       </div>
     `;
     this.cats = this.el.querySelector('.base-panel__cats');
     this.grid = this.el.querySelector('.base-panel__grid');
     this.status = this.el.querySelector('.base-panel__status');
+    this.details = this.el.querySelector('.base-panel__details');
     this.cancelBtn = this.el.querySelector('.base-panel__cancel');
     this.cats.innerHTML = BUILD_CATEGORIES.map((c) => `
       <button class="base-panel__cat ${c.disabled ? 'is-disabled' : ''}" data-category="${c.id}" title="${escapeHtml(c.disabled ? 'À venir' : c.label)}" ${c.disabled ? 'disabled' : ''}>
@@ -214,12 +256,21 @@ export class BasePanelView {
       if (!btn || btn.disabled) return;
       this.category = btn.dataset.category;
       if (this.category === 'demolish') this.selectDemolish();
-      else this.refresh();
+      else {
+        this.hoveredType = null;
+        this.refresh();
+      }
     });
     this.grid.addEventListener('click', (ev) => {
       const btn = ev.target.closest('button[data-type]');
       if (!btn) return;
       this.select(btn.dataset.type);
+    });
+    this.grid.addEventListener('mouseover', (ev) => {
+      const btn = ev.target.closest('button[data-type]');
+      if (!btn) return;
+      this.hoveredType = btn.dataset.type;
+      this.renderDetails();
     });
     this.cancelBtn.addEventListener('click', () => this.cancel());
     this.refresh();
@@ -231,6 +282,7 @@ export class BasePanelView {
     const prev = this.activeBuild;
     const orientation = prev?.type === type ? prev.orientation : def.orientation;
     this.activeBuild = { mode: 'build', type, orientation };
+    this.hoveredType = type;
     this.refresh();
     this.status.textContent = `${def.title} prêt`;
     this.onPick?.();
@@ -239,7 +291,7 @@ export class BasePanelView {
   selectDemolish() {
     this.activeBuild = { mode: 'demolish' };
     this.refresh();
-    this.status.textContent = 'Clique une structure à déconstruire';
+    this.status.textContent = 'Démolition active';
     this.onPick?.();
   }
 
@@ -263,6 +315,35 @@ export class BasePanelView {
     return !!this.activeBuild;
   }
 
+  getDetailDef() {
+    if (this.category === 'demolish') return null;
+    return structureDef(this.hoveredType || this.activeBuild?.type) || BUILD_STRUCTURES.find((s) => s.category === this.category) || null;
+  }
+
+  renderDetails() {
+    if (this.category === 'demolish') {
+      this.details.innerHTML = `
+        <div class="base-panel__details-icon base-panel__details-icon--danger">${iconSvg('demolish')}</div>
+        <h3>Démolition</h3>
+        <p>Retire une structure qui t’appartient. Les retours de matériaux seront ajoutés plus tard.</p>
+        <div class="base-panel__details-section"><strong>Utilisation</strong><span>Clique une structure dans le monde.</span></div>`;
+      return;
+    }
+    const def = this.getDetailDef();
+    if (!def) {
+      this.details.innerHTML = `<h3>À venir</h3><p>Cette catégorie sera remplie dans une prochaine update.</p>`;
+      return;
+    }
+    this.details.innerHTML = `
+      <div class="base-panel__details-icon base-panel__details-icon--${escapeHtml(def.icon)}">${iconSvg(def.icon)}</div>
+      <h3>${escapeHtml(def.title)}</h3>
+      <p>${escapeHtml(def.role || def.subtitle || '')}</p>
+      <div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} tiles</span></div>
+      <div class="base-panel__details-section"><strong>PV</strong><span>${def.hp || '-'}</span></div>
+      <div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>
+      ${(def.stats || []).map((s) => `<div class="base-panel__details-line">${escapeHtml(s)}</div>`).join('')}`;
+  }
+
   refresh() {
     const activeType = this.activeBuild?.type || '';
     const activeMode = this.activeBuild?.mode || '';
@@ -273,7 +354,7 @@ export class BasePanelView {
       this.grid.innerHTML = `
         <button class="base-panel__btn base-panel__btn--wide ${activeMode === 'demolish' ? 'is-active' : ''}" data-demolish="1" type="button">
           <span class="base-panel__icon">${iconSvg('demolish')}</span>
-          <span class="base-panel__meta"><strong>Démolir</strong><small>Retire tes structures</small><em>clic sur une structure</em></span>
+          <span class="base-panel__meta"><strong>Démolir</strong><small>Retirer une structure</small></span>
         </button>`;
       this.grid.querySelector('[data-demolish]')?.addEventListener('click', () => this.selectDemolish());
     } else {
@@ -285,12 +366,12 @@ export class BasePanelView {
             <span class="base-panel__meta">
               <strong>${escapeHtml(s.title)}</strong>
               <small>${escapeHtml(s.subtitle)}</small>
-              <em>${escapeHtml(s.cost)}</em>
             </span>
           </button>
         `).join('');
     }
     this.cancelBtn.classList.toggle('is-visible', !!this.activeBuild);
+    this.renderDetails();
   }
 
   getPreview(store, mouseWorld) {
@@ -344,7 +425,7 @@ export class BasePanelView {
       claimRadius: def.claimRadius || 0,
       ok: validation.ok,
       reason: validation.reason,
-      ownCore: validation.ownCore ? { x: validation.ownCore.x, y: validation.ownCore.y, claimRadius: validation.ownCore.claimRadius || 1024 } : null
+      ownCore: validation.ownCore ? { x: validation.ownCore.x, y: validation.ownCore.y, claimRadius: validation.ownCore.claimRadius || BASE_TILE * 8 } : null
     };
     return this.lastPreview;
   }

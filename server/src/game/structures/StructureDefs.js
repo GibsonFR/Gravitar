@@ -10,21 +10,21 @@ export const STRUCTURE_DEFS = {
   [STRUCTURE_TYPES.BASE_CORE]: {
     id: STRUCTURE_TYPES.BASE_CORE,
     name: 'Noyau de base',
-    description: 'Définit une zone de construction personnelle.',
-    radius: 96,
-    tilesX: 3,
-    tilesY: 3,
-    w: BASE_TILE_SIZE * 3,
-    h: BASE_TILE_SIZE * 3,
-    maxHp: 1600,
+    description: 'Définit une zone de construction personnelle tier 1.',
+    radius: 64,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 1200,
     solid: false,
-    claimRadius: BASE_TILE_SIZE * 16,
+    claimRadius: BASE_TILE_SIZE * 8,
     maxPerOwner: 1,
     buildRange: 1100,
     gridSize: BASE_TILE_SIZE,
-    color: '#57b8ff',
-    borderColor: '#a8e7ff',
-    cost: { scrap: 40, ironOre: 20, copper: 10 }
+    color: '#244e68',
+    borderColor: '#8de7ff',
+    cost: { ironOre: 35, copper: 12, aluminiumOre: 8 }
   },
   [STRUCTURE_TYPES.WALL]: {
     id: STRUCTURE_TYPES.WALL,
@@ -41,7 +41,7 @@ export const STRUCTURE_DEFS = {
     solid: true,
     color: '#263748',
     borderColor: '#73d4ff',
-    cost: { scrap: 8, ironOre: 10 }
+    cost: { ironOre: 12, copper: 2 }
   },
   [STRUCTURE_TYPES.STORAGE]: {
     id: STRUCTURE_TYPES.STORAGE,
@@ -59,7 +59,7 @@ export const STRUCTURE_DEFS = {
     storageSlots: 12,
     color: '#30544b',
     borderColor: '#70f0c5',
-    cost: { scrap: 18, ironOre: 8, copper: 4 }
+    cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
   }
 };
 
