@@ -17,6 +17,7 @@ function iconSvg(kind) {
   if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7l21 12v26L32 57 11 45V19L32 7z" fill="rgba(101,215,255,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="32" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity=".85"/><path d="M32 12v8M32 44v8M14 22l7 4M43 38l7 4M14 42l7-4M43 26l7-4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="22" width="52" height="20" rx="3" fill="rgba(120,190,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 22v20M24 22v20M34 22v20M44 22v20M54 22v20" stroke="currentColor" stroke-width="2" opacity=".72"/><path d="M10 32h44" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>`;
   if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 21l19-10 19 10v22L32 53 13 43V21z" fill="rgba(111,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M13 21l19 11 19-11M32 32v21" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".82"/><path d="M22 26l19-10M22 39l20-11" stroke="currentColor" stroke-width="2" opacity=".28"/></svg>`;
+  if (kind === 'repair') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M39 12l13 13-7 7-5-5-18 18-10 3 3-10 18-18-5-5 11-3z" fill="rgba(112,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M18 49h30" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'demolish') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 16h24l-2 34H22L20 16z" fill="rgba(255,120,120,.10)" stroke="currentColor" stroke-width="3"/><path d="M17 16h30M26 16l2-5h8l2 5M27 25v17M37 25v17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
   if (kind === 'power') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M35 6L16 36h14l-3 22 21-34H34l1-18z" fill="rgba(255,213,95,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
   return '';
@@ -79,6 +80,7 @@ const BUILD_CATEGORIES = [
   { id: 'construction', label: 'Construction', icon: 'core' },
   { id: 'storage', label: 'Stockage', icon: 'storage' },
   { id: 'power', label: 'Énergie', icon: 'power', disabled: true },
+  { id: 'repair', label: 'Réparer', icon: 'repair' },
   { id: 'demolish', label: 'Démolition', icon: 'demolish' }
 ];
 
@@ -200,6 +202,29 @@ function validatePreview(store, me, def, x, y, orientation) {
   return { ok: true, reason: 'OK', ownCore };
 }
 
+
+function structureHealthRatio(st) {
+  const hp = Number(st?.vitals?.hp ?? st?.stats?.hp ?? 0);
+  const maxHp = Number(st?.vitals?.maxHp ?? st?.stats?.maxHp ?? 0);
+  return { hp, maxHp, damaged: maxHp > 0 && hp > 0 && hp < maxHp };
+}
+
+function findRepairableStructureAt(store, me, x, y) {
+  let best = null;
+  let bestArea = Infinity;
+  for (const st of store?.structures?.values?.() || []) {
+    if (!st?.owned || !sameSector(st, me)) continue;
+    if (st.type === 'base_core') continue;
+    const hp = structureHealthRatio(st);
+    if (!hp.damaged) continue;
+    const r = entityRect(st);
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+    const area = Math.max(1, r.w * r.h);
+    if (area < bestArea) { best = st; bestArea = area; }
+  }
+  return best;
+}
+
 function findOwnedStructureAt(store, me, x, y) {
   let best = null;
   let bestArea = Infinity;
@@ -256,6 +281,7 @@ export class BasePanelView {
       if (!btn || btn.disabled) return;
       this.category = btn.dataset.category;
       if (this.category === 'demolish') this.selectDemolish();
+      else if (this.category === 'repair') this.selectRepair();
       else {
         this.hoveredType = null;
         this.refresh();
@@ -295,6 +321,13 @@ export class BasePanelView {
     this.onPick?.();
   }
 
+  selectRepair() {
+    this.activeBuild = { mode: 'repair' };
+    this.refresh();
+    this.status.textContent = 'Réparation active';
+    this.onPick?.();
+  }
+
   cancel() {
     this.activeBuild = null;
     this.lastPreview = null;
@@ -316,11 +349,19 @@ export class BasePanelView {
   }
 
   getDetailDef() {
-    if (this.category === 'demolish') return null;
+    if (this.category === 'demolish' || this.category === 'repair') return null;
     return structureDef(this.hoveredType || this.activeBuild?.type) || BUILD_STRUCTURES.find((s) => s.category === this.category) || null;
   }
 
   renderDetails() {
+    if (this.category === 'repair') {
+      this.details.innerHTML = `
+        <div class="base-panel__details-icon base-panel__details-icon--repair">${iconSvg('repair')}</div>
+        <h3>Réparer</h3>
+        <p>Répare une structure endommagée qui t’appartient. Le coût dépend du pourcentage de PV manquants.</p>
+        <div class="base-panel__details-section"><strong>Noyau</strong><span>Non réparable : il se régénère seul.</span></div>`;
+      return;
+    }
     if (this.category === 'demolish') {
       this.details.innerHTML = `
         <div class="base-panel__details-icon base-panel__details-icon--danger">${iconSvg('demolish')}</div>
@@ -348,9 +389,16 @@ export class BasePanelView {
     const activeType = this.activeBuild?.type || '';
     const activeMode = this.activeBuild?.mode || '';
     for (const btn of this.cats.querySelectorAll('button[data-category]')) {
-      btn.classList.toggle('is-active', btn.dataset.category === this.category || (activeMode === 'demolish' && btn.dataset.category === 'demolish'));
+      btn.classList.toggle('is-active', btn.dataset.category === this.category || (activeMode === 'demolish' && btn.dataset.category === 'demolish') || (activeMode === 'repair' && btn.dataset.category === 'repair'));
     }
-    if (this.category === 'demolish') {
+    if (this.category === 'repair') {
+      this.grid.innerHTML = `
+        <button class="base-panel__btn base-panel__btn--wide ${activeMode === 'repair' ? 'is-active' : ''}" data-repair="1" type="button">
+          <span class="base-panel__icon">${iconSvg('repair')}</span>
+          <span class="base-panel__meta"><strong>Réparer</strong><small>Structure endommagée</small></span>
+        </button>`;
+      this.grid.querySelector('[data-repair]')?.addEventListener('click', () => this.selectRepair());
+    } else if (this.category === 'demolish') {
       this.grid.innerHTML = `
         <button class="base-panel__btn base-panel__btn--wide ${activeMode === 'demolish' ? 'is-active' : ''}" data-demolish="1" type="button">
           <span class="base-panel__icon">${iconSvg('demolish')}</span>
@@ -378,6 +426,28 @@ export class BasePanelView {
     this.store = store || this.store;
     if (!this.activeBuild || !mouseWorld) return null;
     const me = this.store?.getMe?.();
+    if (this.activeBuild.mode === 'repair') {
+      const target = findRepairableStructureAt(this.store, me, mouseWorld.x, mouseWorld.y);
+      const hp = structureHealthRatio(target);
+      this.lastPreview = {
+        mode: 'repair',
+        targetId: target?.id || 0,
+        type: target?.type || 'repair',
+        title: target ? `Réparer ${target.name || 'structure'}` : 'Réparation',
+        reason: target ? `${Math.ceil(hp.maxHp - hp.hp)} PV manquants` : 'Aucune structure endommagée',
+        ok: !!target,
+        x: target?.x ?? mouseWorld.x,
+        y: target?.y ?? mouseWorld.y,
+        sx: me?.sx | 0,
+        sy: me?.sy | 0,
+        w: target?.w || BASE_TILE,
+        h: target?.h || BASE_TILE,
+        tilesX: Math.max(1, Math.round((target?.w || BASE_TILE) / BASE_TILE)),
+        tilesY: Math.max(1, Math.round((target?.h || BASE_TILE) / BASE_TILE)),
+        gridSize: BASE_TILE
+      };
+      return this.lastPreview;
+    }
     if (this.activeBuild.mode === 'demolish') {
       const target = findOwnedStructureAt(this.store, me, mouseWorld.x, mouseWorld.y);
       this.lastPreview = {
@@ -436,6 +506,11 @@ export class BasePanelView {
     if (!preview.ok) {
       this.status.textContent = preview.reason || 'Impossible';
       return false;
+    }
+    if (preview.mode === 'repair') {
+      this.sendCmd('repair_structure', { structureId: preview.targetId });
+      this.status.textContent = 'Réparation envoyée';
+      return true;
     }
     if (preview.mode === 'demolish') {
       this.sendCmd('remove_structure', { structureId: preview.targetId });

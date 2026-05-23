@@ -3,6 +3,7 @@ import { getTargetForPlayer, isPlayerAttackable } from '../targeting/Targeting.j
 import { isPlayerSessionPending } from './PlayerSessionSetup.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { sameWorld } from '../modes/GameModes.js';
+import { canPlayerDamageStructure, distanceSqToStructureRect } from '../structures/StructureSystem.js';
 
 function pickPrimaryTarget(state, player, worldX, worldY) {
   let bestAttack = null;
@@ -40,6 +41,15 @@ function pickPrimaryTarget(state, player, worldX, worldY) {
     if (d2 < bestAttackD2) { bestAttackD2 = d2; bestAttack = { kind: 'asteroid', id: a.id }; }
   }
 
+  for (const st of state.structures?.values?.() || []) {
+    if (!canPlayerDamageStructure(state, player, st)) continue;
+    if ((st.sx | 0) !== (player.sx | 0) || (st.sy | 0) !== (player.sy | 0)) continue;
+    const pickR = 34;
+    const d2 = distanceSqToStructureRect(st, worldX, worldY);
+    if (d2 > pickR * pickR) continue;
+    if (d2 < bestAttackD2) { bestAttackD2 = d2; bestAttack = { kind: 'structure', id: st.id }; }
+  }
+
   for (const s of state.stations.values()) {
     if ((s.sx | 0) !== (player.sx | 0) || (s.sy | 0) !== (player.sy | 0)) continue;
     const pickR = Math.max(48, s.radius + 34);
@@ -57,7 +67,7 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
 
   if (attack) {
     const target = getTargetForPlayer(state, player, attack.kind, attack.id);
-    if (isPlayerAttackable(player, target)) {
+    if (isPlayerAttackable(state, player, target)) {
       player.selectedKind = attack.kind;
       player.selectedId = attack.id;
       player.autoTargetKind = attack.kind;

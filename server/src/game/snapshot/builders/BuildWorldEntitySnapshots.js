@@ -1,5 +1,6 @@
 import { buildStatBlockSnapshot } from '../../stats/StatBlockSnapshot.js';
 import { buildStatusSnapshot } from '../../status/StatusView.js';
+import { isStructureProtectedByCore, canPlayerDamageStructure } from '../../structures/StructureSystem.js';
 
 function q(value, decimals = 1) {
   const n = Number(value);
@@ -172,9 +173,13 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       color: structure.color || '#526274',
       borderColor: structure.borderColor || '#9fcfff',
       ownerName: structure.ownerName || '',
-      owned: String(structure.ownerKey || '').toLowerCase() === playerOwner,
+      owned: String(structure.worldId || 'endless') === 'endless'
+        ? String(structure.ownerKey || '').toLowerCase() === playerOwner
+        : (structure.ownerId | 0) === (player?.id | 0),
       claimRadius: q(structure.claimRadius || 0),
-      powered: !!structure.powered
+      powered: !!structure.powered,
+      protectedByCore: isStructureProtectedByCore({ structures }, structure),
+      attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false
     }));
 }
 

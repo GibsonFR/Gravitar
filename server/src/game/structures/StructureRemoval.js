@@ -17,7 +17,10 @@ export function removeStructure(state, player, structureId, _timeMs = Date.now()
   if (!st) return { ok: false, error: 'not_found' };
   if (!inSameWorld(st, player)) return { ok: false, error: 'wrong_world' };
   if ((st.sx | 0) !== (player.sx | 0) || (st.sy | 0) !== (player.sy | 0)) return { ok: false, error: 'wrong_sector' };
-  if (String(st.ownerKey || '').toLowerCase() !== ownerKey(player)) return { ok: false, error: 'not_owner' };
+  const owned = String(st.worldId || 'endless') === 'endless'
+    ? String(st.ownerKey || '').toLowerCase() === ownerKey(player)
+    : (st.ownerId | 0) === (player.id | 0);
+  if (!owned) return { ok: false, error: 'not_owner' };
   const d = Math.hypot((st.x || 0) - (player.x || 0), (st.y || 0) - (player.y || 0));
   if (d > 1400) return { ok: false, error: 'too_far' };
   state.structures.delete(id);

@@ -27,6 +27,7 @@ import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { GAME_MODES, WORLD_IDS, clearPlayerBattleResidue, leaveBattleSession, recordBattleDeath, recordBattleKill, setPlayerTestWorld, setPlayerStressServer } from '../modes/GameModes.js';
 import { triggerEquipmentHitProcs, triggerEquipmentTakeHitProcs } from '../equipment/EquipmentProcSystem.js';
+import { canPlayerDamageStructure, destroyStructure, isStructureProtectedByCore } from '../structures/StructureSystem.js';
 
 
 function triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs) {
@@ -356,6 +357,33 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     if (target.gameMode === GAME_MODES.BATTLE) resetBattleAfterDeath(state, target, timeMs);
     else if (target.gameMode === GAME_MODES.TEST || target.gameMode === GAME_MODES.STRESS) resetTestAfterDeath(state, target, timeMs);
     else resetEndlessAfterDeath(state, target, timeMs);
+    return;
+  }
+
+
+  if (target.kind === 'structure') {
+    if ((target.stats?.hp ?? 0) <= 0) return;
+    if (sourcePlayer?.kind !== 'player' || !canPlayerDamageStructure(state, sourcePlayer, target)) {
+      if (sourcePlayer?.kind === 'player' && isStructureProtectedByCore(state, target)) setHint(sourcePlayer, 'Détruis le noyau de base avant de piller cette structure', 1.8);
+      return;
+    }
+    const structureDamage = finalAmount * Math.max(0.15, options.structureDamageMult ?? 0.55);
+    queueDamageNumber(state, target, structureDamage, {
+      shielded: false,
+      crit: !!options.crit,
+      periodic: !!options.isPeriodic,
+      sourceSlot: options.sourceSlot || '',
+      visualKind: options.visualKind || ''
+    });
+    if (!options.isPeriodic) queueWorldSfx(state, SFX_EVENT_TYPES.DAMAGE_HULL, target.sx, target.sy, target.x, target.y, options.crit ? 1 : 0);
+    const died = applyHullDamage(target.stats, structureDamage);
+    target.updatedAt = timeMs;
+    target.lastDamagedAt = timeMs;
+    if (String(target.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+    if (!died) return;
+    const wasCore = target.type === 'base_core';
+    destroyStructure(state, target, timeMs);
+    if (sourcePlayer?.kind === 'player') setHint(sourcePlayer, wasCore ? 'Noyau détruit — zone déclaim' : 'Structure détruite', 2.3);
     return;
   }
 

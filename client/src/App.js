@@ -442,6 +442,18 @@ export function startApp() {
       if (a.bastionWall || a.unselectable) continue;
       tryPick('asteroid', a, 52);
     }
+    for (const st of store.structures?.values?.() || []) {
+      if (!st.attackable || !sameSector(st)) continue;
+      const w = Number(st.w) || (Number(st.radius) || 0) * 2;
+      const h = Number(st.h) || (Number(st.radius) || 0) * 2;
+      const px = Math.max((st.x || 0) - w * 0.5, Math.min(worldX, (st.x || 0) + w * 0.5));
+      const py = Math.max((st.y || 0) - h * 0.5, Math.min(worldY, (st.y || 0) + h * 0.5));
+      const d2 = (worldX - px) * (worldX - px) + (worldY - py) * (worldY - py);
+      if (d2 <= 38 * 38 && d2 < bestD2) {
+        bestD2 = d2;
+        best = { kind: 'structure', id: st.id || 0, x: st.x || 0, y: st.y || 0, sx: st.sx | 0, sy: st.sy | 0 };
+      }
+    }
     if (best) return best;
     for (const station of store.stations.values()) tryPick('station', station, 48);
     return best;
@@ -471,6 +483,26 @@ export function startApp() {
     for (const p of store.players.values()) tryPick('player', p, 46);
     for (const mob of store.mobs.values()) tryPick('mob', mob, 52);
     for (const a of store.asteroids.values()) tryPick('asteroid', a, 58);
+    for (const st of store.structures?.values?.() || []) {
+      if (!st.attackable || !sameSector(st)) continue;
+      const w = Number(st.w) || (Number(st.radius) || 0) * 2;
+      const h = Number(st.h) || (Number(st.radius) || 0) * 2;
+      const cx = (st.x || 0) - camera.x + view.cssW * 0.5;
+      const cy = (st.y || 0) - camera.y + view.cssH * 0.5;
+      const left = cx - w * 0.5;
+      const right = cx + w * 0.5;
+      const top = cy - h * 0.5;
+      const bottom = cy + h * 0.5;
+      const px = Math.max(left, Math.min(screenX, right));
+      const py = Math.max(top, Math.min(screenY, bottom));
+      const dx = screenX - px;
+      const dy = screenY - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= 42 * 42 && d2 < bestD2) {
+        bestD2 = d2;
+        best = { kind: 'structure', id: st.id || 0, x: st.x || 0, y: st.y || 0, sx: st.sx | 0, sy: st.sy | 0 };
+      }
+    }
     if (best) return best;
     for (const station of store.stations.values()) tryPick('station', station, 52);
     return best;
@@ -709,6 +741,7 @@ export function startApp() {
         if (selectedKind === 'mob') target = store.mobs.get(selectedId);
         if (selectedKind === 'asteroid') target = store.asteroids.get(selectedId);
         if (selectedKind === 'station') target = store.stations.get(selectedId);
+        if (selectedKind === 'structure') target = store.structures.get(selectedId);
         if (target) {
           const age = Math.max(0, Math.min(1, (performance.now() - (store.localPrediction?.selectedAt || 0)) / 260));
           const pulse = 1 + (1 - age) * 0.28;

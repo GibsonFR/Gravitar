@@ -20,6 +20,7 @@ import { handleCancelBattleQueue } from './CancelBattleQueueCommand.js';
 import { handleAuthSessionAccount } from './AuthSessionCommand.js';
 import { handleBuildStructure } from './BuildStructureCommand.js';
 import { handleRemoveStructure } from './RemoveStructureCommand.js';
+import { handleRepairStructure } from './RepairStructureCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -44,7 +45,8 @@ const HANDLERS = {
   cancel_battle_queue: handleCancelBattleQueue,
   auth_session_account: handleAuthSessionAccount,
   build_structure: handleBuildStructure,
-  remove_structure: handleRemoveStructure
+  remove_structure: handleRemoveStructure,
+  repair_structure: handleRepairStructure
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {
