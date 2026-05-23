@@ -39,6 +39,7 @@ import { PlayersPanelView } from './ui/players/PlayersPanelView.js';
 import { OptionsPanelView } from './ui/options/OptionsPanelView.js';
 import { getOptionsIconSvg } from './ui/options/OptionsIconSvg.js';
 import { BasePanelView } from './ui/base/BasePanelView.js';
+import { StoragePanelView } from './ui/storage/StoragePanelView.js';
 import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
 
@@ -209,6 +210,8 @@ export function startApp() {
 
   const basePanel = new BasePanelView(sendCmd, () => { if (dock.activeId === 'base') dock.toggle('base'); });
   dock.registerPanel({ id: 'base', title: 'Build', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el, group: 'game' });
+  const storagePanel = new StoragePanelView(sendCmd);
+  uiRoot.appendChild(storagePanel.el);
 
   window.addEventListener('keydown', (ev) => {
     const tag = String(ev.target?.tagName || '').toLowerCase();
@@ -765,6 +768,7 @@ export function startApp() {
     dock.setEnabled('converters', !!store.myState?.equipment?.converters);
 
     basePanel.update(store);
+    storagePanel.update(store);
     playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
     stationWindow.update(store.myState, store.stations);
