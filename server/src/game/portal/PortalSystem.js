@@ -5,11 +5,21 @@ import { distSq } from '../util/Math.js';
 import { enterBastion, exitBastion } from '../bastion/BastionSystem.js';
 import { getBastionAtSector, isBastionUnlockedForPlayer } from '../bastion/BastionSession.js';
 import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
+import { isSpecialDetachedSector } from '../sector/SpecialSectors.js';
 
 
 function preloadPortalDestination(state, sx, sy, timeMs) {
   const baseSx = sx | 0;
   const baseSy = sy | 0;
+
+  // Les secteurs de test/bastion/arène sont volontairement isolés.
+  // Précharger leurs voisins générait des secteurs normaux absurdes autour de
+  // coordonnées 9000+ et pouvait faire tomber le serveur au moment du portail.
+  if (isSpecialDetachedSector(baseSx, baseSy)) {
+    ensureSectorLoaded(state, baseSx, baseSy, timeMs);
+    return;
+  }
+
   for (let dx = -1; dx <= 1; dx += 1) {
     for (let dy = -1; dy <= 1; dy += 1) {
       ensureSectorLoaded(state, baseSx + dx, baseSy + dy, timeMs);

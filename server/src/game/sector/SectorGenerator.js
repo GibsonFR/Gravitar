@@ -3,7 +3,7 @@ import { sectorFrontierLevel } from './SectorMath.js';
 import { hash2D_Mix, hash2D_XorShift } from '../util/HashUtil.js';
 import { DotNetRandom } from '../util/DotNetRandom.js';
 import { rollResourceKeyForSector } from '../asteroid/AsteroidSpawnDirector.js';
-import { getResourceRarityScore } from '../inventory/ResourceDefs.js';
+import { RESOURCE_DEFS, getResourceRarityScore } from '../inventory/ResourceDefs.js';
 import { spawnAsteroidProc } from '../asteroid/AsteroidFactory.js';
 import { spawnStation } from '../station/StationFactory.js';
 import { spawnPortal } from '../portal/PortalFactory.js';
