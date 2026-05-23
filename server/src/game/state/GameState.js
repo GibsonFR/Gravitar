@@ -4,6 +4,7 @@ import { WORLD_SEED } from '../../config/ServerConfig.js';
 import { createSimulationClock } from '../util/Time.js';
 import { createModeState } from '../modes/GameModes.js';
 import { createAccountStore } from '../accounts/AccountStore.js';
+import { createStructureStore } from '../structures/StructureStore.js';
 
 export function createGameState() {
   return {
@@ -21,6 +22,7 @@ export function createGameState() {
     portals: new Map(),
     loots: new Map(),
     stations: new Map(),
+    structures: new Map(),
     projectiles: new Map(),
     areaEffects: new Map(),
     testEffectZones: new Map(),
@@ -34,7 +36,8 @@ export function createGameState() {
     asteroidCooldownUntil: new Map(),
     destroyedAsteroidSigs: new Set(),
     modes: createModeState(),
-    accounts: createAccountStore()
+    accounts: createAccountStore(),
+    structureStore: createStructureStore()
   };
 }
 

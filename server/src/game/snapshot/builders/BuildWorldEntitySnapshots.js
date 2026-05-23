@@ -146,6 +146,38 @@ export function buildAsteroidCombatSnapshots(asteroids, inSector) {
     }));
 }
 
+
+export function buildStructureSnapshots(structures, inSector, player = null) {
+  const playerOwner = String(player?.accountKey || player?.accountName || player?.pseudo || `guest-${player?.id | 0}`).toLowerCase();
+  const playerWorld = String(player?.worldId || 'endless');
+  return [...(structures?.values?.() || [])]
+    .filter((structure) => structure?.stats?.hp > 0)
+    .filter((structure) => String(structure.worldId || 'endless') === playerWorld)
+    .filter(inSector)
+    .map((structure) => ({
+      id: structure.id,
+      kind: 'structure',
+      type: structure.type,
+      name: structure.name,
+      sx: structure.sx | 0,
+      sy: structure.sy | 0,
+      x: q(structure.x),
+      y: q(structure.y),
+      radius: q(structure.radius),
+      w: q(structure.w || 0),
+      h: q(structure.h || 0),
+      orientation: structure.orientation || 'h',
+      solid: !!structure.solid,
+      vitals: qv(structure.stats),
+      color: structure.color || '#526274',
+      borderColor: structure.borderColor || '#9fcfff',
+      ownerName: structure.ownerName || '',
+      owned: String(structure.ownerKey || '').toLowerCase() === playerOwner,
+      claimRadius: q(structure.claimRadius || 0),
+      powered: !!structure.powered
+    }));
+}
+
 export function buildStationSnapshots(stations, inSector) {
   return [...stations.values()]
     .filter(inSector)

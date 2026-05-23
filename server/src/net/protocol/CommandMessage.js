@@ -1,5 +1,5 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'refine_resource']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure']);
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -48,8 +48,8 @@ export function sanitizeCommandMessage(raw) {
     msg.accountPassword = cleanFree(raw.accountPassword || '', 80);
   }
   if (cmd === 'upgrade_ability') msg.slot = cleanWord(raw.slot, 1).toUpperCase();
-  if (cmd === 'buy_item' || cmd === 'buy_and_assign_rocket_ammo' || cmd === 'equip_item' || cmd === 'unequip_item' || cmd === 'sell_item' || cmd === 'assign_rocket_ammo' || cmd === 'toggle_converter' || cmd === 'equip_item_to_slot', 'refine_resource') msg.itemId = cleanWord(raw.itemId ?? raw.id, 64).toLowerCase();
-  if (cmd === 'equip_item_to_slot', 'refine_resource') {
+  if (cmd === 'buy_item' || cmd === 'buy_and_assign_rocket_ammo' || cmd === 'equip_item' || cmd === 'unequip_item' || cmd === 'sell_item' || cmd === 'assign_rocket_ammo' || cmd === 'toggle_converter' || cmd === 'equip_item_to_slot') msg.itemId = cleanWord(raw.itemId ?? raw.id, 64).toLowerCase();
+  if (cmd === 'equip_item_to_slot') {
     msg.categoryId = cleanWord(raw.categoryId ?? raw.category ?? '', 32).toLowerCase();
     msg.slotId = cleanWord(raw.slotId ?? raw.slot ?? '', 32).toLowerCase();
     const index = Number.isFinite(raw.index) ? Math.floor(raw.index) : Math.floor(Number(raw.index) || 0);
@@ -61,15 +61,18 @@ export function sanitizeCommandMessage(raw) {
     else if (raw.enabled === 'false' || raw.enabled === '0' || raw.enabled === 0) msg.enabled = false;
   }
 
+  if (cmd === 'build_structure') {
+    msg.structureType = cleanWord(raw.structureType ?? raw.type ?? '', 32).toLowerCase();
+    msg.orientation = cleanWord(raw.orientation || 'h', 1).toLowerCase() === 'v' ? 'v' : 'h';
+    const x = Number(raw.x);
+    const y = Number(raw.y);
+    if (Number.isFinite(x)) msg.x = Math.max(-4000, Math.min(4000, x));
+    if (Number.isFinite(y)) msg.y = Math.max(-4000, Math.min(4000, y));
+  }
+
   if (cmd === 'assign_rocket_ammo' || cmd === 'unassign_rocket_ammo' || cmd === 'switch_rocket_slot') {
     const slot = Number.isFinite(raw.slot) ? Math.floor(raw.slot) : Math.floor(Number(raw.slot) || 0);
     msg.slot = Math.max(0, Math.min(1, slot));
-  }
-
-  if (cmd === 'refine_resource') {
-    msg.recipeId = cleanWord(raw.recipeId ?? raw.id ?? '', 64).toLowerCase();
-    const cycles = Number.isFinite(raw.cycles) ? Math.floor(raw.cycles) : Math.floor(Number(raw.cycles) || 1);
-    msg.cycles = Math.max(1, Math.min(25, cycles));
   }
 
   return msg;

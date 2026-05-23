@@ -11,6 +11,7 @@ export class WorldStore {
     this.mobs = new Map();
     this.asteroids = new Map();
     this.stations = new Map();
+    this.structures = new Map();
     this.portals = new Map();
     this.projectiles = new Map();
     this.areaEffects = new Map();
@@ -400,6 +401,7 @@ export class WorldStore {
     // de vider la map, ce qui évite de retransmettre 20-40 astéroïdes à chaque frame.
     if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true });
     if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
+    if (Array.isArray(msg.structures)) this._syncMap(this.structures, msg.structures);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
     if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles);
     if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);

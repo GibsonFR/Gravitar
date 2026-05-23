@@ -18,7 +18,7 @@ import { handleCommitSessionSetup } from './CommitSessionSetupCommand.js';
 import { handleQuitSession } from './QuitSessionCommand.js';
 import { handleCancelBattleQueue } from './CancelBattleQueueCommand.js';
 import { handleAuthSessionAccount } from './AuthSessionCommand.js';
-import { handleRefineResource } from './RefineResourceCommand.js';
+import { handleBuildStructure } from './BuildStructureCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -42,7 +42,7 @@ const HANDLERS = {
   quit_session: handleQuitSession,
   cancel_battle_queue: handleCancelBattleQueue,
   auth_session_account: handleAuthSessionAccount,
-  refine_resource: handleRefineResource
+  build_structure: handleBuildStructure
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

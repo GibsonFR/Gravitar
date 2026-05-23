@@ -403,9 +403,9 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
-  spawnPortal(state, sx, sy, -760, 980, SPECIAL_SECTORS.TEST_REFINERY.sx, SPECIAL_SECTORS.TEST_REFINERY.sy, '⚙', {
-    label: 'Test raffinage U3',
-    mode: 'test_refinery',
+  spawnPortal(state, sx, sy, 1140, 320, SPECIAL_SECTORS.TEST_BASES.sx, SPECIAL_SECTORS.TEST_BASES.sy, '⌂', {
+    label: 'Test bases U4',
+    mode: 'test_bases',
     radius: 56,
     autoTrigger: true
   });
@@ -445,6 +445,20 @@ function generateTestFoundationsContent(state, sx, sy, timeMs, h) {
   spawnBastionWall(state, sx, sy, { x: -180, y: -360, w: 110, h: 520 }, wallColor, borderColor, h ^ 0x15, `foundation_wall_${sx}_${sy}_mid`);
   spawnBastionWall(state, sx, sy, { x: 790, y: -650, w: 110, h: 340 }, wallColor, borderColor, h ^ 0x12, `foundation_wall_${sx}_${sy}_r_top`);
   spawnBastionWall(state, sx, sy, { x: 790, y: -70, w: 110, h: 340 }, wallColor, borderColor, h ^ 0x16, `foundation_wall_${sx}_${sy}_r_bottom`);
+}
+
+
+function generateTestBasesContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1650, -1650, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 54, autoTrigger: true });
+  spawnStation(state, sx, sy, -1500, 1450, true, h ^ 0xb45101, timeMs);
+
+  const wallColor = { r: 34, g: 50, b: 66 };
+  const borderColor = { r: 96, g: 220, b: 255 };
+  spawnBastionWall(state, sx, sy, { x: -760, y: -360, w: 420, h: 70 }, wallColor, borderColor, h ^ 0x910601, `test_base_static_wall_a_${sx}_${sy}`);
+  spawnBastionWall(state, sx, sy, { x: -760, y: -120, w: 70, h: 420 }, wallColor, borderColor, h ^ 0x910602, `test_base_static_wall_b_${sx}_${sy}`);
+
+  // Le reste du secteur est vide volontairement : ouvrir le panneau Base et poser
+  // noyau, murs et coffre pour tester placement, collision et sauvegarde sandbox.
 }
 
 function generateTestBiomesContent(state, sx, sy, timeMs, h) {
@@ -507,39 +521,6 @@ function generateBiomeShowcaseContent(state, sx, sy, timeMs, h, testBiome) {
       yieldValue: 10 + rarityScore * 2,
       seed: h ^ 0x550000 ^ (i * 1337),
       sig: `test_biome_heavy_${sx}_${sy}_${resourceKey}`
-    });
-  });
-}
-
-
-function generateTestRefineryContent(state, sx, sy, timeMs, h) {
-  spawnPortal(state, sx, sy, -1650, -1650, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 54, autoTrigger: true });
-  spawnStation(state, sx, sy, -1450, 1400, true, h ^ 0x3ef1a1, timeMs);
-
-  const samples = [
-    ['ironOre', -1050, -520, 62, 14],
-    ['copper', -650, -520, 52, 12],
-    ['silicon', -250, -520, 58, 14],
-    ['quartz', 150, -520, 58, 12],
-    ['lithiumOre', 550, -520, 54, 10],
-    ['graphite', 950, -520, 54, 10],
-    ['hydrocarbons', -840, 180, 64, 16],
-    ['methaneIce', -420, 180, 58, 14],
-    ['biomass', 0, 180, 58, 14],
-    ['organicLipids', 420, 180, 52, 10],
-    ['rareEarthOre', 840, 180, 58, 8],
-    ['uraniumOre', 1260, 180, 64, 8]
-  ];
-
-  samples.forEach(([resourceKey, x, y, radius, yieldValue], i) => {
-    spawnAsteroidProc(state, sx, sy, {
-      x,
-      y,
-      radius,
-      resourceKey,
-      yieldValue,
-      seed: h ^ 0x3ef000 ^ (i * 1777),
-      sig: `test_refinery_${sx}_${sy}_${i}_${resourceKey}`
     });
   });
 }
@@ -727,7 +708,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testEffects = sx === SPECIAL_SECTORS.TEST_EFFECTS.sx && sy === SPECIAL_SECTORS.TEST_EFFECTS.sy;
   const testFoundations = sx === SPECIAL_SECTORS.TEST_FOUNDATIONS.sx && sy === SPECIAL_SECTORS.TEST_FOUNDATIONS.sy;
   const testBiomes = sx === SPECIAL_SECTORS.TEST_BIOMES.sx && sy === SPECIAL_SECTORS.TEST_BIOMES.sy;
-  const testRefinery = sx === SPECIAL_SECTORS.TEST_REFINERY.sx && sy === SPECIAL_SECTORS.TEST_REFINERY.sy;
+  const testBases = sx === SPECIAL_SECTORS.TEST_BASES.sx && sy === SPECIAL_SECTORS.TEST_BASES.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -764,8 +745,8 @@ export function generateSectorContent(state, sx, sy, timeMs) {
     generateTestBiomesContent(state, sx, sy, timeMs, h);
     return;
   }
-  if (testRefinery) {
-    generateTestRefineryContent(state, sx, sy, timeMs, h);
+  if (testBases) {
+    generateTestBasesContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

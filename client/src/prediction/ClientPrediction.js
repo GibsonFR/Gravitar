@@ -88,7 +88,11 @@ function pushEntityOutOfWall(entity, wall, pad) {
 
 function resolveLocalSolidWalls(store, me, oldX, oldY) {
   const pad = Math.max(12, finite(me?.radius, 22) + 1.5);
-  for (const wall of store?.asteroids?.values?.() || []) {
+  const blockers = [
+    ...(store?.asteroids?.values?.() || []),
+    ...(store?.structures?.values?.() || [])
+  ];
+  for (const wall of blockers) {
     if (!wall?.solid && !wall?.bastionWall) continue;
     if ((wall.sx | 0) !== (me.sx | 0) || (wall.sy | 0) !== (me.sy | 0)) continue;
     if (Number.isFinite(oldX) && Number.isFinite(oldY) && segmentHitsExpandedRect(oldX, oldY, me.x, me.y, wall, pad)) {

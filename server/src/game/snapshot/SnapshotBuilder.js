@@ -15,7 +15,8 @@ import {
   buildLootSnapshots,
   buildPortalSnapshots,
   buildProjectileSnapshots,
-  buildStationSnapshots
+  buildStationSnapshots,
+  buildStructureSnapshots
 } from './builders/BuildWorldEntitySnapshots.js';
 
 function sameSector(entity, sx, sy) {
@@ -73,6 +74,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     mobs: buildMobSnapshots(state.mobs, nearDynamic, { compact: !staticWorld }),
     asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : buildAsteroidCombatSnapshots(state.asteroids, nearStatic),
     stations: staticWorld ? buildStationSnapshots(state.stations, nearStatic) : undefined,
+    structures: staticWorld ? buildStructureSnapshots(state.structures, nearStatic, me) : undefined,
     portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
     staticWorld,
     projectiles: buildProjectileSnapshots(state.projectiles, nearDynamic),

@@ -2,6 +2,7 @@ import { initializeSessionBastions } from '../bastion/BastionSession.js';
 
 export function seedWorld(state) {
   state.stations.clear();
+  state.structures?.clear?.();
   state.asteroids.clear();
   state.portals.clear();
   state.loots.clear();
@@ -9,4 +10,5 @@ export function seedWorld(state) {
   state.sectors.clear();
   state.asteroidCooldownUntil.clear();
   initializeSessionBastions(state);
+  state.structureStore?.loadIntoState?.(state);
 }

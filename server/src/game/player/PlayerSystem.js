@@ -119,7 +119,8 @@ function segmentIntersectsExpandedRect(x1, y1, x2, y2, wall, pad) {
 
 function resolveSweptWallMovement(state, player, oldX, oldY) {
   if (Math.abs(player.x - oldX) + Math.abs(player.y - oldY) < 0.001) return;
-  for (const wall of state.asteroids.values()) {
+  const blockers = [...state.asteroids.values(), ...(state.structures?.values?.() || [])];
+  for (const wall of blockers) {
     if (!wall.solid && !wall.bastionWall) continue;
     if ((wall.sx | 0) !== (player.sx | 0) || (wall.sy | 0) !== (player.sy | 0)) continue;
     if (!segmentIntersectsExpandedRect(oldX, oldY, player.x, player.y, wall, player.radius + 1.5)) continue;
@@ -135,7 +136,8 @@ function resolveSweptWallMovement(state, player, oldX, oldY) {
 function resolvePlayerSolidWalls(state, player) {
   for (let pass = 0; pass < 3; pass += 1) {
     let changed = false;
-    for (const wall of state.asteroids.values()) {
+    const blockers = [...state.asteroids.values(), ...(state.structures?.values?.() || [])];
+    for (const wall of blockers) {
       if (!wall.solid && !wall.bastionWall) continue;
       if ((wall.sx | 0) !== (player.sx | 0) || (wall.sy | 0) !== (player.sy | 0)) continue;
       changed = pushPlayerOutOfRect(player, wall) || changed;

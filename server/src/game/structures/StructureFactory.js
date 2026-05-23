@@ -1,0 +1,88 @@
+import { FACTIONS } from '../constants.js';
+import { createStatBlock } from '../stats/StatBlockFactory.js';
+import { newEntityId } from '../state/GameState.js';
+import { getStructureDef } from './StructureDefs.js';
+
+function q(v, fallback = 0) {
+  return Number.isFinite(v) ? v : fallback;
+}
+
+export function createStructure(state, type, sx, sy, x, y, options = {}) {
+  const def = getStructureDef(type);
+  if (!def) return null;
+  const orientation = String(options.orientation || 'h').toLowerCase() === 'v' ? 'v' : 'h';
+  const swap = def.id === 'wall' && orientation === 'v';
+  const id = Number.isFinite(options.id) ? (options.id | 0) : newEntityId(state);
+  const maxHp = Math.max(1, options.maxHp || def.maxHp || 100);
+  return {
+    kind: 'structure',
+    id,
+    type: def.id,
+    name: def.name,
+    faction: FACTIONS.NEUTRAL ?? 0,
+    ownerId: options.ownerId | 0 || 0,
+    ownerKey: String(options.ownerKey || ''),
+    ownerName: String(options.ownerName || '').slice(0, 24),
+    worldId: String(options.worldId || 'endless'),
+    sx: sx | 0,
+    sy: sy | 0,
+    x: q(x),
+    y: q(y),
+    radius: q(def.radius, 42),
+    w: swap ? q(def.h, 48) : q(def.w, def.radius * 2),
+    h: swap ? q(def.w, 190) : q(def.h, def.radius * 2),
+    orientation,
+    stats: createStatBlock({ maxHp }),
+    solid: !!def.solid,
+    claimRadius: def.claimRadius || 0,
+    storage: options.storage || { resources: {} },
+    color: def.color || '#526274',
+    borderColor: def.borderColor || '#9fcfff',
+    powered: false,
+    createdAt: options.createdAt || Date.now(),
+    updatedAt: options.updatedAt || Date.now()
+  };
+}
+
+export function serializeStructure(structure) {
+  if (!structure) return null;
+  return {
+    id: structure.id | 0,
+    type: structure.type,
+    ownerId: structure.ownerId | 0,
+    ownerKey: structure.ownerKey || '',
+    ownerName: structure.ownerName || '',
+    worldId: structure.worldId || 'endless',
+    sx: structure.sx | 0,
+    sy: structure.sy | 0,
+    x: Math.round((structure.x || 0) * 10) / 10,
+    y: Math.round((structure.y || 0) * 10) / 10,
+    orientation: structure.orientation || 'h',
+    hp: Math.max(0, Math.round(structure.stats?.hp ?? structure.stats?.maxHp ?? 1)),
+    maxHp: Math.max(1, Math.round(structure.stats?.maxHp ?? 1)),
+    storage: structure.storage || { resources: {} },
+    createdAt: structure.createdAt || Date.now(),
+    updatedAt: Date.now()
+  };
+}
+
+export function hydrateStructure(state, saved) {
+  const s = saved && typeof saved === 'object' ? saved : null;
+  if (!s) return null;
+  const st = createStructure(state, s.type, s.sx, s.sy, s.x, s.y, {
+    id: s.id,
+    ownerId: s.ownerId,
+    ownerKey: s.ownerKey,
+    ownerName: s.ownerName,
+    worldId: s.worldId || 'endless',
+    orientation: s.orientation,
+    maxHp: s.maxHp,
+    storage: s.storage,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt
+  });
+  if (!st) return null;
+  const hp = Number(s.hp);
+  if (Number.isFinite(hp)) st.stats.hp = Math.max(0, Math.min(st.stats.maxHp, hp));
+  return st;
+}

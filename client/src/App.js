@@ -10,6 +10,7 @@ import { drawGroundMarker } from './render/GroundMarkerRenderer.js';
 import { drawSelectionRing } from './render/SelectionRenderer.js';
 
 import { drawStation } from './station/StationRenderer.js';
+import { drawStructure } from './structures/StructureRenderer.js';
 import { drawPortals } from './portal/PortalRenderer.js';
 import { drawAsteroid } from './asteroid/AsteroidRenderer.js';
 import { drawProjectile } from './projectile/ProjectileRenderer.js';
@@ -37,6 +38,8 @@ import { drawWorldStatuses } from './ui/status/WorldStatusRenderer.js';
 import { PlayersPanelView } from './ui/players/PlayersPanelView.js';
 import { OptionsPanelView } from './ui/options/OptionsPanelView.js';
 import { getOptionsIconSvg } from './ui/options/OptionsIconSvg.js';
+import { BasePanelView } from './ui/base/BasePanelView.js';
+import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
 
 import { clamp, rgba } from './core/Math.js';
@@ -203,6 +206,9 @@ export function startApp() {
   audio.applySettings(optionsPanel.getSettings());
   view.setRenderScale(optionsPanel.getSettings().renderScale);
   dock.registerPanel({ id: 'options', title: 'Options', iconMarkup: getOptionsIconSvg(), panelEl: optionsPanel.el });
+
+  const basePanel = new BasePanelView(sendCmd);
+  dock.registerPanel({ id: 'base', title: 'Base', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el });
 
 
   dock.registerToggle({
@@ -655,6 +661,7 @@ export function startApp() {
     if (me) drawGroundMarker(ctx, view, me, camX, camY, t);
 
     for (const s of store.stations.values()) drawStation(ctx, view, s, camX, camY, t);
+    for (const st of store.structures.values()) drawStructure(ctx, view, st, camX, camY, t);
     drawPortals(ctx, view, store, camX, camY);
     for (const a of store.asteroids.values()) drawAsteroid(ctx, view, a, camX, camY);
     for (const mob of store.mobs.values()) drawMob(ctx, view, mob, camX, camY, t);
@@ -701,6 +708,7 @@ export function startApp() {
     dock.setBadge('converters', activeConverterCount > 0 ? `${activeConverterCount}` : '');
     dock.setEnabled('converters', !!store.myState?.equipment?.converters);
 
+    basePanel.update(store);
     playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
     stationWindow.update(store.myState, store.stations);
