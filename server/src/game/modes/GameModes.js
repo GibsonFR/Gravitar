@@ -21,14 +21,14 @@ export const TEST_WORLD_DEFS = Object.freeze([
   {
     id: 'u01-foundations',
     title: 'Update 1 — Fondations',
-    subtitle: 'Monde isolé pour tester uniquement la mise à jour actuelle : sauvegardes, bastions, portails et collisions solid.',
-    sx: SPECIAL_SECTORS.TEST_ARENA.sx | 0,
-    sy: SPECIAL_SECTORS.TEST_ARENA.sy | 0,
-    x: -1180,
-    y: 1050,
+    subtitle: 'Hub de test isolé : portails vers mobs, effets, stress test et fondations de l’update actuelle.',
+    sx: SPECIAL_SECTORS.TEST_HUB.sx | 0,
+    sy: SPECIAL_SECTORS.TEST_HUB.sy | 0,
+    x: 0,
+    y: 0,
     level: 50,
     credits: 1000000,
-    hint: 'TEST UPDATE 1 — Fondations'
+    hint: 'TEST HUB — choisis un portail de test'
   }
 ]);
 
@@ -316,6 +316,8 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'u01-fou
   restoreStatBlockFull(player.stats);
   ensureSectorLoaded(state, player.sx | 0, player.sy | 0, timeMs);
   ensureSectorLoaded(state, SPECIAL_SECTORS.MOB_BESTIARY.sx | 0, SPECIAL_SECTORS.MOB_BESTIARY.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_EFFECTS.sx | 0, SPECIAL_SECTORS.TEST_EFFECTS.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_FOUNDATIONS.sx | 0, SPECIAL_SECTORS.TEST_FOUNDATIONS.sy | 0, timeMs);
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   player.uiHint = def.hint || 'Monde de test';
   player.uiHintTimer = 3.0;

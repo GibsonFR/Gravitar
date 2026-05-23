@@ -233,8 +233,8 @@ function configureDemoMob(mob, x, y, targetId, tier, timeMs) {
 function generateMobFamilyShowcaseContent(state, sx, sy, timeMs, h, familyIndex) {
   const defs = listMobDefs();
   const def = defs[familyIndex] ?? defs[0];
-  spawnPortal(state, sx, sy, -1700, -1600, 0, 0, '⌂', { label: 'Retour hub', radius: 52 });
-  spawnPortal(state, sx, sy, -1500, -1600, 8, 0, '☠', { label: 'Bestiaire global', radius: 48 });
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52 });
+  spawnPortal(state, sx, sy, -1500, -1600, SPECIAL_SECTORS.MOB_BESTIARY.sx, SPECIAL_SECTORS.MOB_BESTIARY.sy, '☠', { label: 'Bestiaire global', mode: 'mob_bestiary', radius: 48 });
   spawnStation(state, sx, sy, 1700, 1500, true, h ^ (0x330000 + familyIndex), timeMs);
 
   const tiers = [
@@ -264,8 +264,8 @@ function generateMobFamilyShowcaseContent(state, sx, sy, timeMs, h, familyIndex)
 }
 
 function generateHyperLateShowcaseContent(state, sx, sy, timeMs, h) {
-  spawnPortal(state, sx, sy, -1700, -1600, 0, 0, '⌂', { label: 'Retour hub', radius: 52 });
-  spawnPortal(state, sx, sy, -1500, -1600, 8, 0, '☠', { label: 'Bestiaire global', radius: 48 });
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52 });
+  spawnPortal(state, sx, sy, -1500, -1600, SPECIAL_SECTORS.MOB_BESTIARY.sx, SPECIAL_SECTORS.MOB_BESTIARY.sy, '☠', { label: 'Bestiaire global', mode: 'mob_bestiary', radius: 48 });
   spawnStation(state, sx, sy, 1700, 1500, true, h ^ 0x51badc0d, timeMs);
   const defs = listMobDefs();
   const picks = [9, 7, 8, 3].map((i) => defs[i] ?? defs[0]);
@@ -323,7 +323,7 @@ function spawnDemoDummy(state, sx, sy, x, y, def, elite, seed) {
 }
 
 function generateMobBestiaryContent(state, sx, sy, timeMs, h) {
-  spawnPortal(state, sx, sy, -1700, -1600, 0, 0, '⌂', { label: 'Retour hub', radius: 52 });
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52 });
   spawnStation(state, sx, sy, 1700, 1500, true, h ^ 0x55aa66, timeMs);
 
   const defs = listMobDefs();
@@ -376,8 +376,40 @@ function generateMobBestiaryContent(state, sx, sy, timeMs, h) {
   });
 }
 
-function generateTestArenaContent(state, sx, sy, timeMs, h) {
-  spawnPortal(state, sx, sy, -1600, -1600, 0, 0, '⌂', { label: 'Retour hub', radius: 52 });
+function generateTestHubContent(state, sx, sy, timeMs, h) {
+  spawnStation(state, sx, sy, -1650, 1450, true, h ^ 0xabc123, timeMs);
+  spawnPortal(state, sx, sy, -760, -520, SPECIAL_SECTORS.MOB_BESTIARY.sx, SPECIAL_SECTORS.MOB_BESTIARY.sy, '☠', {
+    label: 'Test mobs / bestiaire',
+    mode: 'mob_bestiary',
+    radius: 56
+  });
+  spawnPortal(state, sx, sy, 0, -520, SPECIAL_SECTORS.TEST_EFFECTS.sx, SPECIAL_SECTORS.TEST_EFFECTS.sy, '✦', {
+    label: 'Test effets / abilities',
+    mode: 'test_arena',
+    radius: 56
+  });
+  spawnPortal(state, sx, sy, 760, -520, SPECIAL_SECTORS.TEST_FOUNDATIONS.sx, SPECIAL_SECTORS.TEST_FOUNDATIONS.sy, '▣', {
+    label: 'Test fondations U1',
+    mode: 'test_foundations',
+    radius: 56
+  });
+  spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
+    label: 'Stress test réseau',
+    mode: 'stress_test',
+    radius: 50
+  });
+  const firstBastion = state.bastions?.[0];
+  if (firstBastion) {
+    spawnPortal(state, sx, sy, 380, 320, firstBastion.sx, firstBastion.sy, '◈', {
+      label: 'Bastion réel proche',
+      mode: 'bastion_locator',
+      radius: 50
+    });
+  }
+}
+
+function generateTestEffectsContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1600, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52 });
   spawnPortal(state, sx, sy, -1320, -1600, SPECIAL_SECTORS.MOB_BESTIARY.sx, SPECIAL_SECTORS.MOB_BESTIARY.sy, '☠', { label: 'Bestiaire', mode: 'mob_bestiary', radius: 48 });
   const mobPortalLabels = ['Mite', 'Sapeur', 'Dard', 'Lancier', 'Nodule', 'Broyeur', 'Gardien', 'Spectre', 'Hydre', 'Apex'];
   for (let i = 0; i < MOB_SHOWCASE_FAMILY_COUNT; i++) {
@@ -393,8 +425,36 @@ function generateTestArenaContent(state, sx, sy, timeMs, h) {
   spawnAllTestEffectZones(state, sx, sy);
 }
 
+function generateTestFoundationsContent(state, sx, sy, timeMs, h) {
+  const wallColor = { r: 28, g: 34, b: 46 };
+  const borderColor = { r: 118, g: 216, b: 255 };
+  spawnPortal(state, sx, sy, -1650, -1650, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 54 });
+  spawnStation(state, sx, sy, -1500, 1450, true, h ^ 0xf00101, timeMs);
+
+  // Mini couloir de collision : mêmes flags que les murs de bastion/base futurs.
+  spawnBastionWall(state, sx, sy, { x: -900, y: -420, w: 110, h: 840 }, wallColor, borderColor, h ^ 0x11, `foundation_wall_${sx}_${sy}_l`);
+  spawnBastionWall(state, sx, sy, { x: 790, y: -420, w: 110, h: 840 }, wallColor, borderColor, h ^ 0x12, `foundation_wall_${sx}_${sy}_r`);
+  spawnBastionWall(state, sx, sy, { x: -900, y: -420, w: 1800, h: 110 }, wallColor, borderColor, h ^ 0x13, `foundation_wall_${sx}_${sy}_t`);
+  spawnBastionWall(state, sx, sy, { x: -900, y: 310, w: 1800, h: 110 }, wallColor, borderColor, h ^ 0x14, `foundation_wall_${sx}_${sy}_b`);
+  spawnBastionWall(state, sx, sy, { x: -180, y: -420, w: 110, h: 520 }, wallColor, borderColor, h ^ 0x15, `foundation_wall_${sx}_${sy}_mid`);
+
+  const firstBastion = state.bastions?.[0];
+  if (firstBastion) {
+    spawnPortal(state, sx, sy, 1220, -260, firstBastion.sx, firstBastion.sy, '◈', {
+      label: 'Tester portail / murs de bastion',
+      mode: 'bastion_locator',
+      radius: 54
+    });
+  }
+  spawnPortal(state, sx, sy, 1220, 260, SPECIAL_SECTORS.TEST_EFFECTS.sx, SPECIAL_SECTORS.TEST_EFFECTS.sy, '✦', {
+    label: 'Aller au test effets',
+    mode: 'test_arena',
+    radius: 48
+  });
+}
+
 function generateStressArenaContent(state, sx, sy, timeMs, h) {
-  spawnPortal(state, sx, sy, -1600, -1600, SPECIAL_SECTORS.TEST_ARENA.sx, SPECIAL_SECTORS.TEST_ARENA.sy, 'T', { label: 'Retour Test', radius: 52 });
+  spawnPortal(state, sx, sy, -1600, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52 });
   spawnStation(state, sx, sy, -1450, 1450, true, h ^ 0x57e55, timeMs, { specialtyId: 'military' });
 
   const defs = listMobDefs().slice().sort((a, b) => (a.typeId ?? 0) - (b.typeId ?? 0));
@@ -572,7 +632,9 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const rng = new DotNetRandom(h);
 
   const hub = sx === 0 && sy === 0;
-  const testArena = sx === SPECIAL_SECTORS.TEST_ARENA.sx && sy === SPECIAL_SECTORS.TEST_ARENA.sy;
+  const testHub = sx === SPECIAL_SECTORS.TEST_HUB.sx && sy === SPECIAL_SECTORS.TEST_HUB.sy;
+  const testEffects = sx === SPECIAL_SECTORS.TEST_EFFECTS.sx && sy === SPECIAL_SECTORS.TEST_EFFECTS.sy;
+  const testFoundations = sx === SPECIAL_SECTORS.TEST_FOUNDATIONS.sx && sy === SPECIAL_SECTORS.TEST_FOUNDATIONS.sy;
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
   const mobFamilyIndex = getMobShowcaseFamilyIndex(sx, sy);
@@ -592,8 +654,16 @@ export function generateSectorContent(state, sx, sy, timeMs) {
     return;
   }
 
-  if (testArena) {
-    generateTestArenaContent(state, sx, sy, timeMs, h);
+  if (testHub) {
+    generateTestHubContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testEffects) {
+    generateTestEffectsContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testFoundations) {
+    generateTestFoundationsContent(state, sx, sy, timeMs, h);
     return;
   }
   if (mobBestiary) {
