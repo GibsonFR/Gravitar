@@ -5,6 +5,7 @@ import { isBlinded } from '../status/StatusRack.js';
 import { isPlayerSessionPending } from '../player/PlayerSessionSetup.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { sameWorld } from '../modes/GameModes.js';
+import { canPlayerDamageStructure } from '../structures/StructureSystem.js';
 
 export const BLIND_TARGET_ACQUIRE_RADIUS = 135;
 
@@ -14,6 +15,7 @@ export function getTarget(state, kind, id) {
   if (kind === 'asteroid') return state.asteroids.get(id) ?? null;
   if (kind === 'station') return state.stations.get(id) ?? null;
   if (kind === 'portal') return state.portals.get(id) ?? null;
+  if (kind === 'structure') return state.structures?.get?.(id) ?? null;
   return null;
 }
 
@@ -35,6 +37,7 @@ export function getTargetForPlayer(state, player, kind, id) {
   if (!blindAllowsTarget(player, t)) return null;
   if (t.kind === 'player' && !sameWorld(player, t)) return null;
   if (t.kind === 'player' && isPlayerSessionPending(t)) return null;
+  if (t.kind === 'structure' && !canPlayerDamageStructure(state, player, t)) return null;
   return t;
 }
 
@@ -54,5 +57,6 @@ export function isPlayerAttackable(owner, target) {
     return canTargetEntity(owner, target) && target.stats.hp > 0;
   }
   if (target.kind === 'asteroid') return target.stats.hp > 0;
+  if (target.kind === 'structure') return (target.stats?.hp ?? 0) > 0;
   return false;
 }

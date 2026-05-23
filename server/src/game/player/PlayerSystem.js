@@ -22,6 +22,7 @@ import { getEquippedEquipmentDefs } from '../equipment/EquipmentBonuses.js';
 import { ITEM_CATEGORY_IDS } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { buildRocketAmmoStatusSpecs, consumeRocketAmmo, getActiveRocketAmmoDef } from '../rocket/RocketAmmoRules.js';
 import { getBastionDamageMultiplier, getBastionMoveSpeedMultiplier } from '../bastion/BastionBuffs.js';
+import { distanceSqToStructureRect } from '../structures/StructureSystem.js';
 
 function getEquippedDefByCategory(player, categoryId) {
   return getEquippedEquipmentDefs(player).find((def) => def?.categoryId === categoryId) || null;
@@ -449,7 +450,7 @@ export function updatePlayer(state, p, dt, timeMs = null) {
       } else {
         const aaRange = getAutoAttackRange(p, weapon);
         const targetRadius = Math.max(0, t.radius ?? 0);
-        const d2 = distSq(p.x, p.y, t.x, t.y);
+        const d2 = t.kind === 'structure' ? distanceSqToStructureRect(t, p.x, p.y) : distSq(p.x, p.y, t.x, t.y);
         const fireRange = aaRange + targetRadius * 0.35;
         if (d2 <= fireRange * fireRange) {
           p.hasMoveTarget = false;

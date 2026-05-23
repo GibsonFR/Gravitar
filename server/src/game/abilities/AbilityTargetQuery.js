@@ -3,6 +3,7 @@ import { applyDamage } from '../combat/DamageSystem.js';
 import { isPlayerSessionPending } from '../player/PlayerSessionSetup.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { sameWorld } from '../modes/GameModes.js';
+import { canPlayerDamageStructure, distanceSqToStructureRect } from '../structures/StructureSystem.js';
 
 function pushIfInside(list, owner, entity, x, y, radiusSq) {
   if (!entity) return;
@@ -22,6 +23,10 @@ export function collectAttackablesInRadius(state, owner, x, y, radius) {
   for (const p of state.players.values()) pushIfInside(out, owner, p, x, y, radiusSq);
   for (const m of state.mobs.values()) if ((m.stats?.hp ?? 0) > 0) pushIfInside(out, owner, m, x, y, radiusSq);
   for (const a of state.asteroids.values()) pushIfInside(out, owner, a, x, y, radiusSq);
+  for (const st of state.structures?.values?.() || []) {
+    if (!canPlayerDamageStructure(state, owner, st)) continue;
+    if (distanceSqToStructureRect(st, x, y) <= radiusSq) out.push(st);
+  }
   return out;
 }
 

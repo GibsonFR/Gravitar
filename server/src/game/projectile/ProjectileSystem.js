@@ -8,6 +8,8 @@ import { onProjectileImpactForFrame } from '../frames/FrameGameplayHooks.js';
 import { getSimulationTimeMs } from '../util/Time.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { sameWorld } from '../modes/GameModes.js';
+import { canPlayerDamageStructure, distanceSqToStructureRect } from '../structures/StructureSystem.js';
+import { STRUCTURE_TYPES } from '../structures/StructureDefs.js';
 
 function circleHitsRect(cx, cy, radius, wall) {
   const w = wall.w || wall.radius * 2;
@@ -42,6 +44,20 @@ function pointInsideExpandedRect(x, y, wall, pad) {
   const w = wall.w || wall.radius * 2;
   const h = wall.h || wall.radius * 2;
   return x >= wall.x - w * 0.5 - pad && x <= wall.x + w * 0.5 + pad && y >= wall.y - h * 0.5 - pad && y <= wall.y + h * 0.5 + pad;
+}
+
+
+function projectileCanCollideWithStructure(state, proj, structure, sourcePlayer) {
+  if (!structure || (structure.stats?.hp ?? 0) <= 0) return false;
+  if ((structure.sx | 0) !== (proj.sx | 0) || (structure.sy | 0) !== (proj.sy | 0)) return false;
+  if (sourcePlayer && String(sourcePlayer.worldId || 'endless') !== String(structure.worldId || 'endless')) return false;
+  if (structure.type === STRUCTURE_TYPES.WALL && structure.solid) return true;
+  if (!sourcePlayer) return false;
+  return canPlayerDamageStructure(state, sourcePlayer, structure);
+}
+
+function segmentHitsStructureRect(x1, y1, x2, y2, structure, pad = 0) {
+  return segmentHitsExpandedRect(x1, y1, x2, y2, structure, Math.max(0, pad));
 }
 
 function segmentHitsExpandedRect(x1, y1, x2, y2, wall, pad) {
@@ -115,7 +131,18 @@ export function updateProjectiles(state, dt, timeMs = null) {
     const hostileToPlayers = proj.sourceKind === 'mob' && !demoProjectile;
     const sourcePlayerForPvp = state.players.get(proj.sourceId) ?? null;
 
-    for (const p of state.players.values()) {
+    // Les murs de base doivent bloquer tous les tirs/projectiles.
+    // Le noyau et les autres structures ne sont touchés que s'ils sont effectivement attaquables.
+    for (const st of state.structures?.values?.() || []) {
+      if (!projectileCanCollideWithStructure(state, proj, st, sourcePlayerForPvp)) continue;
+      const collides = segmentHitsStructureRect(oldX, oldY, proj.x, proj.y, st, proj.radius + 1.5)
+        || circleHitsRect(proj.x, proj.y, proj.radius, st);
+      if (!collides) continue;
+      hit = st;
+      break;
+    }
+
+    if (!hit) for (const p of state.players.values()) {
       if (demoProjectile) continue;
       if (!hostileToPlayers && p.id === proj.sourceId) continue;
       if (sourcePlayerForPvp && !sameWorld(sourcePlayerForPvp, p)) continue;
@@ -167,7 +194,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
       const sourceEntity = sourcePlayer ?? sourceEntityForCollision ?? null;
       applyDamage(state, hit, proj.damage, sourcePlayer, { timeMs, crit: !!proj.crit, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
       const hitStillExists = hit.kind !== 'mob' || state.mobs.has(hit.id);
-      if (hitStillExists) {
+      if (hitStillExists && hit.kind !== 'structure') {
         applyStatusSpecs(state, sourceEntity, hit, proj.onHitStatuses);
         if (sourcePlayer) onProjectileImpactForFrame(state, sourcePlayer, hit, proj, timeMs);
       }
@@ -208,6 +235,15 @@ export function updateProjectiles(state, dt, timeMs = null) {
           if (d2 <= splashSq) {
             applyDamage(state, a, proj.damage * (0.65 + 0.35 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
             applyStatusSpecs(state, sourceEntity, a, proj.onSplashStatuses);
+          }
+        }
+
+        for (const st of state.structures?.values?.() || []) {
+          if (!sourcePlayer || !canPlayerDamageStructure(state, sourcePlayer, st)) continue;
+          if ((st.sx | 0) !== (proj.sx | 0) || (st.sy | 0) !== (proj.sy | 0)) continue;
+          const d2 = distanceSqToStructureRect(st, proj.x, proj.y);
+          if (d2 <= splashSq) {
+            applyDamage(state, st, proj.damage * (0.65 + 0.35 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0, structureDamageMult: 0.7 });
           }
         }
       }
