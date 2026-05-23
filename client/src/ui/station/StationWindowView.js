@@ -4,6 +4,7 @@ import { StationShopView } from './StationShopView.js';
 import { StationEquipmentView } from './StationEquipmentView.js';
 import { StationAmmoView } from './StationAmmoView.js';
 import { StationConvertersView } from './StationConvertersView.js';
+import { StationRefineryView } from './StationRefineryView.js';
 
 export class StationWindowView {
   constructor(sendCmd, store = null) {
@@ -46,6 +47,9 @@ export class StationWindowView {
     this.tradeView = new StationTradeView(sendCmd);
     this.tradeView.el.classList.add('station-page', 'station-page--trade');
 
+    this.refineryView = new StationRefineryView(sendCmd);
+    this.refineryView.el.classList.add('station-page', 'station-page--refinery');
+
     this.shopView = new StationShopView(sendCmd);
     this.shopView.el.classList.add('station-page', 'station-page--shop');
 
@@ -60,6 +64,7 @@ export class StationWindowView {
 
     this.pages = new Map([
       ['trade', this.tradeView.el],
+      ['refinery', this.refineryView.el],
       ['shop', this.shopView.el],
       ['ammo', this.ammoView.el],
       ['equipment', this.equipmentView.el],
@@ -137,6 +142,7 @@ export class StationWindowView {
     this.updatePendingUi();
 
     this.tradeView.update(myState?.inv, docked);
+    this.refineryView.update(myState?.inv, docked);
     this.shopView.update(myState?.stationShop, myState?.inv, docked);
     this.ammoView.update(myState?.equipment, myState?.stationShop, myState?.inv, docked);
     this.equipmentView.update(myState?.equipment, myState?.inv, docked);

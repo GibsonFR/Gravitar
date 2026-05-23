@@ -403,6 +403,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, -760, 980, SPECIAL_SECTORS.TEST_REFINERY.sx, SPECIAL_SECTORS.TEST_REFINERY.sy, '⚙', {
+    label: 'Test raffinage U3',
+    mode: 'test_refinery',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -501,6 +507,39 @@ function generateBiomeShowcaseContent(state, sx, sy, timeMs, h, testBiome) {
       yieldValue: 10 + rarityScore * 2,
       seed: h ^ 0x550000 ^ (i * 1337),
       sig: `test_biome_heavy_${sx}_${sy}_${resourceKey}`
+    });
+  });
+}
+
+
+function generateTestRefineryContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1650, -1650, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 54, autoTrigger: true });
+  spawnStation(state, sx, sy, -1450, 1400, true, h ^ 0x3ef1a1, timeMs);
+
+  const samples = [
+    ['ironOre', -1050, -520, 62, 14],
+    ['copper', -650, -520, 52, 12],
+    ['silicon', -250, -520, 58, 14],
+    ['quartz', 150, -520, 58, 12],
+    ['lithiumOre', 550, -520, 54, 10],
+    ['graphite', 950, -520, 54, 10],
+    ['hydrocarbons', -840, 180, 64, 16],
+    ['methaneIce', -420, 180, 58, 14],
+    ['biomass', 0, 180, 58, 14],
+    ['organicLipids', 420, 180, 52, 10],
+    ['rareEarthOre', 840, 180, 58, 8],
+    ['uraniumOre', 1260, 180, 64, 8]
+  ];
+
+  samples.forEach(([resourceKey, x, y, radius, yieldValue], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x,
+      y,
+      radius,
+      resourceKey,
+      yieldValue,
+      seed: h ^ 0x3ef000 ^ (i * 1777),
+      sig: `test_refinery_${sx}_${sy}_${i}_${resourceKey}`
     });
   });
 }
@@ -688,6 +727,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testEffects = sx === SPECIAL_SECTORS.TEST_EFFECTS.sx && sy === SPECIAL_SECTORS.TEST_EFFECTS.sy;
   const testFoundations = sx === SPECIAL_SECTORS.TEST_FOUNDATIONS.sx && sy === SPECIAL_SECTORS.TEST_FOUNDATIONS.sy;
   const testBiomes = sx === SPECIAL_SECTORS.TEST_BIOMES.sx && sy === SPECIAL_SECTORS.TEST_BIOMES.sy;
+  const testRefinery = sx === SPECIAL_SECTORS.TEST_REFINERY.sx && sy === SPECIAL_SECTORS.TEST_REFINERY.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -722,6 +762,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testBiomes) {
     generateTestBiomesContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testRefinery) {
+    generateTestRefineryContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {
