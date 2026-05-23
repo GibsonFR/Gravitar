@@ -4404,3 +4404,45 @@ button.station-item-icon[draggable="true"]:active,
 .storage-panel__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .storage-panel__qty { text-align: right; color: #ffe59a; font-weight: 800; }
 .storage-panel__empty { color: #7f92a8; padding: 18px 4px; }
+
+.boot-error {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: radial-gradient(circle at 50% 30%, rgba(28, 54, 76, .36), rgba(1, 4, 8, .96));
+  color: #e8f4ff;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif;
+}
+.boot-error__panel {
+  width: min(860px, 94vw);
+  max-height: min(720px, 86vh);
+  overflow: auto;
+  border: 1px solid rgba(116, 206, 255, .35);
+  border-radius: 18px;
+  background: rgba(5, 11, 18, .94);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .04);
+  padding: 22px;
+}
+.boot-error__title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.boot-error__hint {
+  color: rgba(223, 239, 255, .78);
+  margin-bottom: 14px;
+}
+.boot-error pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, .32);
+  color: #ffd6d6;
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
