@@ -7,6 +7,7 @@ import { PLAYER_PROGRESSION_TUNING } from '../../../../shared/content/progressio
 import { createInventoryState } from '../inventory/InventoryState.js';
 import { createEquipmentState } from '../equipment/EquipmentState.js';
 import { STARTER_ITEM_IDS, STARTER_AMMO_LOADOUT } from '../../../../shared/content/items/ItemDefs.js';
+import { createPlayerProgressionState } from '../player/runtime/PlayerProgressionState.js';
 
 export const GAME_MODES = { ENDLESS: 'endless', BATTLE: 'battle', TEST: 'test', STRESS: 'stress' };
 export const BATTLE = {
@@ -228,6 +229,7 @@ export function joinBattleSession(state, player, session, timeMs) {
   player.autoTargetId = 0;
   player.selectedKind = '';
   player.selectedId = 0;
+  resetNonPersistentModeLoadout(player, { resetProgression: true });
   syncPlayerFrameStats(player, { restoreVitals: true, preserveRatios: false });
   restoreStatBlockFull(player.stats);
   ensureSectorLoaded(state, player.sx | 0, player.sy | 0, timeMs);
@@ -260,7 +262,7 @@ export function queueForNextBattle(state, player, timeMs) {
 }
 
 
-function resetNonPersistentTestLoadout(player) {
+function resetNonPersistentModeLoadout(player, options = {}) {
   if (!player) return;
   player.inv = createInventoryState();
   player.equipment = createEquipmentState();
@@ -273,6 +275,8 @@ function resetNonPersistentTestLoadout(player) {
   player.bastionBuffs = [];
   player.bastionReturn = null;
   player.bastionRunKey = '';
+  player.frameBonuses = {};
+  if (options.resetProgression) player.progression = createPlayerProgressionState();
 }
 
 export function setPlayerEndless(state, player, timeMs) {
@@ -313,7 +317,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   player.autoTargetId = 0;
   player.selectedKind = '';
   player.selectedId = 0;
-  resetNonPersistentTestLoadout(player);
+  resetNonPersistentModeLoadout(player, { resetProgression: false });
   player.dockedStationId = 0;
   player.dockPhase = 'none';
   player.dockStationId = 0;

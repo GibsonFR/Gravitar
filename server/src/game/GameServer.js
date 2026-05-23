@@ -46,7 +46,7 @@ export function createGameServer() {
 
   function persistAccountPlayer(player) {
     if (!player?.accountKey || !state.accounts) return;
-    if (![GAME_MODES.TEST, GAME_MODES.STRESS].includes(player.gameMode)) state.accounts.saveEndless(player.accountKey, buildEndlessSave(player));
+    if (player.gameMode === GAME_MODES.ENDLESS && String(player.worldId || 'endless') === 'endless') state.accounts.saveEndless(player.accountKey, buildEndlessSave(player));
     const battleStats = state.modes?.battleStats?.get?.(player.accountKey);
     if (battleStats) state.accounts.saveBattleStats(player.accountKey, battleStats);
   }

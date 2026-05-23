@@ -18,13 +18,14 @@ function loadStoredSetup() {
     return {
       pseudo: normalizePseudo(parsed.pseudo || 'Pilote'),
       frameId: String(parsed.frameId || 'vanguard'),
+      frameByMode: parsed.frameByMode && typeof parsed.frameByMode === 'object' ? parsed.frameByMode : {},
       mode: String(parsed.mode || 'endless'),
       battleSessionId: String(parsed.battleSessionId || ''),
       testWorldId: String(parsed.testWorldId || 'test-hub'),
       accountName: normalizePseudo(parsed.accountName || parsed.pseudo || 'Pilote')
     };
   } catch {
-    return { pseudo: 'Pilote', frameId: 'vanguard', mode: 'endless', battleSessionId: '', testWorldId: 'test-hub', accountName: 'Pilote' };
+    return { pseudo: 'Pilote', frameId: 'vanguard', frameByMode: {}, mode: 'endless', battleSessionId: '', testWorldId: 'test-hub', accountName: 'Pilote' };
   }
 }
 
@@ -39,8 +40,10 @@ export class SessionSetupOverlay {
     this.onAuth = typeof onAuth === 'function' ? onAuth : null;
     this.cards = getSessionFrameCards();
     const stored = loadStoredSetup();
-    this.selectedFrameId = this.cards.some((card) => card.id === stored.frameId) ? stored.frameId : this.cards[0]?.id || 'vanguard';
+    this.frameByMode = stored.frameByMode && typeof stored.frameByMode === 'object' ? { ...stored.frameByMode } : {};
     this.selectedMode = ['endless', 'test_server', 'test_world', 'stress_server', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
+    const initialFrameId = this.frameByMode[this.getModeProfileKey(this.selectedMode)] || stored.frameId || 'vanguard';
+    this.selectedFrameId = this.cards.some((card) => card.id === initialFrameId) ? initialFrameId : this.cards[0]?.id || 'vanguard';
     this.selectedBattleSessionId = stored.battleSessionId || '';
     this.selectedTestWorldId = stored.testWorldId || 'test-hub';
     this.selectedAbilityIndex = 0;
@@ -332,10 +335,18 @@ export class SessionSetupOverlay {
     this.applyVisibility();
   }
 
+  getModeProfileKey(mode = this.selectedMode) {
+    const m = String(mode || 'endless');
+    if (m === 'battle_next' || m === 'battle_server') return 'battle';
+    if (m === 'test_server' || m === 'test_world' || m === 'stress_server') return 'test';
+    return 'endless';
+  }
+
   saveStored() {
     storeSetup({
       pseudo: normalizePseudo(this.inputEl.value),
       frameId: this.selectedFrameId,
+      frameByMode: { ...this.frameByMode, [this.getModeProfileKey()]: this.selectedFrameId },
       mode: this.selectedMode,
       battleSessionId: this.selectedBattleSessionId || '',
       testWorldId: this.selectedTestWorldId || 'test-hub',
@@ -583,11 +594,16 @@ export class SessionSetupOverlay {
 
   selectMode(mode, battleSessionId = '') {
     if (!['endless', 'test_server', 'test_world', 'stress_server', 'battle_next', 'battle_server'].includes(mode)) return;
+    this.frameByMode[this.getModeProfileKey(this.selectedMode)] = this.selectedFrameId;
     this.selectedMode = mode;
     this.selectedBattleSessionId = mode === 'battle_server' ? String(battleSessionId || '') : '';
     if (mode === 'test_world') this.selectedTestWorldId = String(battleSessionId || 'test-hub');
+    const savedFrame = this.frameByMode[this.getModeProfileKey(mode)];
+    if (savedFrame && this.cards.some((card) => card.id === savedFrame)) this.selectedFrameId = savedFrame;
     this.saveStored();
+    this.renderShipList();
     this.renderModeList();
+    this.renderDetails();
   }
 
   getSelectedCard() { return this.cards.find((card) => card.id === this.selectedFrameId) || this.cards[0]; }
@@ -595,6 +611,7 @@ export class SessionSetupOverlay {
   selectFrame(frameId) {
     if (!this.cards.some((card) => card.id === frameId)) return;
     this.selectedFrameId = frameId;
+    this.frameByMode[this.getModeProfileKey()] = frameId;
     this.selectedScenarioIndex = 0;
     this.saveStored();
     this.renderShipList();
@@ -738,6 +755,7 @@ export class SessionSetupOverlay {
     const payload = {
       pseudo,
       frameId: this.selectedFrameId,
+      frameByMode: { ...this.frameByMode, [this.getModeProfileKey()]: this.selectedFrameId },
       mode: this.selectedMode,
       battleSessionId: this.selectedBattleSessionId || '',
       testWorldId: this.selectedTestWorldId || 'test-hub',

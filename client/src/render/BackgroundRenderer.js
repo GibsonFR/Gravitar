@@ -2,13 +2,13 @@ import { rgba } from '../core/Math.js';
 import { worldToScreen } from '../core/Math.js';
 
 const BIOME_BACKDROPS = {
-  hub: { tint: { r: 55, g: 92, b: 124 }, haze: 0.07, dust: 0.55, line: { r: 74, g: 122, b: 156 } },
-  metallic: { tint: { r: 96, g: 110, b: 124 }, haze: 0.09, dust: 0.42, line: { r: 120, g: 138, b: 150 } },
-  silicate: { tint: { r: 128, g: 111, b: 82 }, haze: 0.10, dust: 0.50, line: { r: 177, g: 154, b: 110 } },
-  organic: { tint: { r: 54, g: 112, b: 77 }, haze: 0.13, dust: 0.66, line: { r: 86, g: 174, b: 106 } },
-  volatile: { tint: { r: 42, g: 112, b: 152 }, haze: 0.12, dust: 0.60, line: { r: 80, g: 174, b: 224 } },
-  nuclear: { tint: { r: 118, g: 160, b: 58 }, haze: 0.13, dust: 0.48, line: { r: 172, g: 226, b: 88 } },
-  anomaly: { tint: { r: 112, g: 72, b: 154 }, haze: 0.16, dust: 0.76, line: { r: 178, g: 122, b: 234 } }
+  hub: { tint: { r: 55, g: 92, b: 124 }, haze: 0.16, dust: 0.55, line: { r: 74, g: 122, b: 156 }, star: { r: 210, g: 228, b: 245 } },
+  metallic: { tint: { r: 104, g: 118, b: 128 }, haze: 0.20, dust: 0.42, line: { r: 150, g: 162, b: 170 }, star: { r: 235, g: 240, b: 245 } },
+  silicate: { tint: { r: 150, g: 116, b: 66 }, haze: 0.24, dust: 0.58, line: { r: 210, g: 158, b: 90 }, star: { r: 255, g: 230, b: 190 } },
+  organic: { tint: { r: 36, g: 128, b: 72 }, haze: 0.26, dust: 0.76, line: { r: 76, g: 220, b: 124 }, star: { r: 202, g: 255, b: 210 } },
+  volatile: { tint: { r: 38, g: 132, b: 190 }, haze: 0.28, dust: 0.70, line: { r: 100, g: 210, b: 255 }, star: { r: 190, g: 240, b: 255 } },
+  nuclear: { tint: { r: 126, g: 176, b: 42 }, haze: 0.30, dust: 0.58, line: { r: 190, g: 255, b: 84 }, star: { r: 220, g: 255, b: 170 } },
+  anomaly: { tint: { r: 138, g: 72, b: 190 }, haze: 0.34, dust: 0.88, line: { r: 210, g: 120, b: 255 }, star: { r: 238, g: 210, b: 255 } }
 };
 
 function backdropFor(biome) {
@@ -32,6 +32,9 @@ export function drawStars(ctx, view, camX, camY, density = 1, biome = null) {
   g.addColorStop(0, rgba(bg.tint.r, bg.tint.g, bg.tint.b, bg.haze));
   g.addColorStop(1, rgba(bg.tint.r, bg.tint.g, bg.tint.b, 0.0));
   ctx.fillStyle = g;
+  ctx.fillRect(0, 0, view.w, view.h);
+
+  ctx.fillStyle = rgba(bg.tint.r, bg.tint.g, bg.tint.b, Math.min(0.18, bg.haze * 0.38));
   ctx.fillRect(0, 0, view.w, view.h);
 
   const cell = 240;
@@ -59,7 +62,8 @@ export function drawStars(ctx, view, camX, camY, density = 1, biome = null) {
         const sy = (cy * cell + ry * cell - camY) + cssH * 0.5;
         const size = 0.8 + rr * 1.8;
         const alpha = 0.12 + rr * 0.40;
-        ctx.fillStyle = rgba(210, 225, 240, alpha);
+        const sc = bg.star || { r: 210, g: 225, b: 240 };
+        ctx.fillStyle = rgba(sc.r, sc.g, sc.b, alpha);
         ctx.fillRect(sx * dpr, sy * dpr, size * dpr, size * dpr);
       }
     }
@@ -92,9 +96,11 @@ export function drawStars(ctx, view, camX, camY, density = 1, biome = null) {
     }
   }
 
-  if ((biome?.id || biome?.biomeId) === 'anomaly' || (biome?.id || biome?.biomeId) === 'nuclear') {
+  if (biome?.id || biome?.biomeId) {
     ctx.save();
-    ctx.strokeStyle = rgba(bg.line.r, bg.line.g, bg.line.b, (biome?.id || biome?.biomeId) === 'anomaly' ? 0.045 : 0.035);
+    const biomeId = biome?.id || biome?.biomeId;
+    const lineAlpha = biomeId === 'anomaly' ? 0.090 : (biomeId === 'nuclear' ? 0.075 : 0.045);
+    ctx.strokeStyle = rgba(bg.line.r, bg.line.g, bg.line.b, lineAlpha);
     ctx.lineWidth = 1 * dpr;
     const gap = 74;
     const offset = ((camX * 0.11 + camY * 0.06) % gap + gap) % gap;

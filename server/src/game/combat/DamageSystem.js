@@ -25,7 +25,7 @@ import { isPlayerSessionPending } from '../player/PlayerSessionSetup.js';
 import { getBastionDefenseMultiplier } from '../bastion/BastionBuffs.js';
 import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
-import { GAME_MODES, WORLD_IDS, clearPlayerBattleResidue, leaveBattleSession, recordBattleDeath, recordBattleKill } from '../modes/GameModes.js';
+import { GAME_MODES, WORLD_IDS, clearPlayerBattleResidue, leaveBattleSession, recordBattleDeath, recordBattleKill, setPlayerTestWorld, setPlayerStressServer } from '../modes/GameModes.js';
 import { triggerEquipmentHitProcs, triggerEquipmentTakeHitProcs } from '../equipment/EquipmentProcSystem.js';
 
 
@@ -180,6 +180,17 @@ function resetEndlessAfterDeath(state, player, timeMs) {
   clearCargoOnly(player);
   removeHalfRunEquipment(player);
   respawnPlayerAtHubKeepProgress(state, player, timeMs, 'Destruction — cargo largué, 50% équipement perdu');
+}
+
+
+function resetTestAfterDeath(state, player, timeMs) {
+  clearBastionRunOnDeath(state, player);
+  const mode = player.gameMode;
+  const testWorldId = player.testWorldId || 'test-hub';
+  if (mode === GAME_MODES.STRESS) setPlayerStressServer(state, player, timeMs);
+  else setPlayerTestWorld(state, player, timeMs, testWorldId);
+  forceClientPoseTransition(player, 'Respawn serveur de test…', timeMs, 620);
+  setHint(player, 'Test : vaisseau réinitialisé, aucune sauvegarde modifiée', 3.5);
 }
 
 function resetBattleAfterDeath(state, player, timeMs) {
@@ -343,6 +354,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
 
     if (sourcePlayer && sourcePlayer.kind === 'player' && sourcePlayer.id !== target.id && sourcePlayer.gameMode === GAME_MODES.BATTLE) recordBattleKill(state, sourcePlayer);
     if (target.gameMode === GAME_MODES.BATTLE) resetBattleAfterDeath(state, target, timeMs);
+    else if (target.gameMode === GAME_MODES.TEST || target.gameMode === GAME_MODES.STRESS) resetTestAfterDeath(state, target, timeMs);
     else resetEndlessAfterDeath(state, target, timeMs);
     return;
   }
