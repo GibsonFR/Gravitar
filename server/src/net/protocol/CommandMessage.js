@@ -1,5 +1,5 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_close']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close']);
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -70,7 +70,7 @@ export function sanitizeCommandMessage(raw) {
     if (Number.isFinite(y)) msg.y = Math.max(-4000, Math.min(4000, y));
   }
 
-  if (cmd === 'remove_structure' || cmd === 'repair_structure') {
+  if (cmd === 'remove_structure' || cmd === 'repair_structure' || cmd === 'storage_open') {
     const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
     msg.structureId = Math.max(0, Math.min(2147483647, structureId));
   }

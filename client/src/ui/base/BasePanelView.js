@@ -37,8 +37,8 @@ export const BUILD_STRUCTURES = [
     h: 128,
     claimRadius: BASE_TILE * 8,
     hp: 1200,
-    role: 'Définit une zone carrée de construction. Tier 1 compact, améliorable plus tard.',
-    stats: ['Zone : 16 × 16 tiles', 'Structure non bloquante', '1 noyau actif par joueur'],
+    role: 'Crée ta zone de construction personnelle.',
+    stats: ['Zone : 16 × 16 cases', '1 noyau actif par joueur'],
     cost: { ironOre: 35, copper: 12, aluminiumOre: 8 }
   },
   {
@@ -54,8 +54,8 @@ export const BUILD_STRUCTURES = [
     w: 192,
     h: 64,
     hp: 760,
-    role: 'Bloque les déplacements et protège l’intérieur de la base.',
-    stats: ['Solide', 'Orientable avec O', 'Peut être collé aux autres murs'],
+    role: 'Protège la base et bloque les projectiles ennemis.',
+    stats: ['Orientable avec O', 'Collable bord à bord'],
     cost: { ironOre: 12, copper: 2 }
   },
   {
@@ -70,14 +70,15 @@ export const BUILD_STRUCTURES = [
     w: 128,
     h: 128,
     hp: 0,
-    role: 'Stockage local de ressources. Non bloquant et non destructible directement.',
-    stats: ['Interaction avec D', 'Accessible au propriétaire', 'Pillable si le noyau est détruit'],
+    storageCapacity: 420,
+    role: 'Stocke les ressources de ta base.',
+    stats: ['Clic gauche pour ouvrir', 'Pillable si le noyau est détruit'],
     cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
   }
 ];
 
 const BUILD_CATEGORIES = [
-  { id: 'construction', label: 'Construction', icon: 'core' },
+  { id: 'construction', label: 'Construction de base', icon: 'core' },
   { id: 'storage', label: 'Stockage', icon: 'storage' },
   { id: 'power', label: 'Énergie', icon: 'power', disabled: true },
   { id: 'repair', label: 'Réparer', icon: 'repair' },
@@ -379,8 +380,8 @@ export class BasePanelView {
       <div class="base-panel__details-icon base-panel__details-icon--${escapeHtml(def.icon)}">${iconSvg(def.icon)}</div>
       <h3>${escapeHtml(def.title)}</h3>
       <p>${escapeHtml(def.role || def.subtitle || '')}</p>
-      <div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} tiles</span></div>
-      <div class="base-panel__details-section"><strong>PV</strong><span>${def.hp ? def.hp : 'aucun — non ciblable'}</span></div>
+      <div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} cases</span></div>
+      ${def.type === 'storage' ? `<div class="base-panel__details-section"><strong>Capacité</strong><span>${def.storageCapacity || 0} unités</span></div>` : `<div class="base-panel__details-section"><strong>Résistance</strong><span>${def.hp ? def.hp + ' PV' : '—'}</span></div>`}
       <div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>
       ${(def.stats || []).map((s) => `<div class="base-panel__details-line">${escapeHtml(s)}</div>`).join('')}`;
   }

@@ -46,7 +46,7 @@ export const STRUCTURE_DEFS = {
   [STRUCTURE_TYPES.STORAGE]: {
     id: STRUCTURE_TYPES.STORAGE,
     name: 'Coffre spatial',
-    description: 'Stockage local 2 × 2. Non bloquant, non destructible directement.',
+    description: 'Stockage local de ressources.',
     radius: 64,
     tilesX: 2,
     tilesY: 2,

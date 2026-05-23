@@ -282,6 +282,35 @@ export function startApp() {
   // L'ancien handler frame-delayed créait des désaccords entre le clic local, la caméra
   // et le paquet serveur quand le joueur était déjà en mouvement.
 
+
+  function findStorageAtScreen(screenX, screenY) {
+    const me = store.getMe();
+    if (!me) return null;
+    let best = null;
+    let bestD2 = Infinity;
+    for (const st of store.structures?.values?.() || []) {
+      if (st?.type !== 'storage') continue;
+      if ((st.sx | 0) !== (me.sx | 0) || (st.sy | 0) !== (me.sy | 0)) continue;
+      const w = Number(st.w) || (Number(st.radius) || 0) * 2;
+      const h = Number(st.h) || (Number(st.radius) || 0) * 2;
+      const cx = (st.x || 0) - camera.x + view.cssW * 0.5;
+      const cy = (st.y || 0) - camera.y + view.cssH * 0.5;
+      const left = cx - w * 0.5;
+      const right = cx + w * 0.5;
+      const top = cy - h * 0.5;
+      const bottom = cy + h * 0.5;
+      const pad = 14;
+      if (screenX < left - pad || screenX > right + pad || screenY < top - pad || screenY > bottom + pad) continue;
+      const px = Math.max(left, Math.min(screenX, right));
+      const py = Math.max(top, Math.min(screenY, bottom));
+      const dx = screenX - px;
+      const dy = screenY - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) { best = st; bestD2 = d2; }
+    }
+    return best;
+  }
+
   canvas.addEventListener('mousedown', (ev) => {
     if (ev.button !== 0) return;
     if (store.myState?.sessionSetup?.pending ?? true) return;
@@ -294,6 +323,12 @@ export function startApp() {
         y: camera.y + (py - view.cssH * 0.5)
       };
       basePanel.placeCurrent(store, mouseWorld);
+      ev.preventDefault();
+      return;
+    }
+    const storage = findStorageAtScreen(px, py);
+    if (storage) {
+      sendCmd('storage_open', { structureId: storage.id | 0 });
       ev.preventDefault();
       return;
     }

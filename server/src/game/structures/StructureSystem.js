@@ -100,7 +100,6 @@ export function hasStructuresProtectedByCore(state, core) {
   const owner = String(core.ownerKey || '').toLowerCase();
   for (const st of state.structures.values()) {
     if (!st || st.id === core.id) continue;
-    if (st.type === STRUCTURE_TYPES.WALL) continue;
     if (!sameStructureWorld(core, st)) continue;
     if ((st.sx | 0) !== (core.sx | 0) || (st.sy | 0) !== (core.sy | 0)) continue;
     if (String(st.ownerKey || '').toLowerCase() !== owner) continue;

@@ -23,6 +23,7 @@ import { handleRemoveStructure } from './RemoveStructureCommand.js';
 import { handleRepairStructure } from './RepairStructureCommand.js';
 import { handleStorageTransfer } from './StorageTransferCommand.js';
 import { handleStorageClose } from './StorageCloseCommand.js';
+import { handleStorageOpen } from './StorageOpenCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -50,6 +51,7 @@ const HANDLERS = {
   remove_structure: handleRemoveStructure,
   repair_structure: handleRepairStructure,
   storage_transfer: handleStorageTransfer,
+  storage_open: handleStorageOpen,
   storage_close: handleStorageClose
 };
 
