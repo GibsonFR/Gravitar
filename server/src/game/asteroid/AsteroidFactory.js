@@ -44,11 +44,27 @@ export function spawnAsteroid(state, x, y, defKey, secret = false) {
   return id;
 }
 
+export function getAsteroidMaterialMaxHp(radius, resourceKey, yieldValue) {
+  const resDef = RESOURCE_DEFS[resourceKey] ?? null;
+  const r = Math.max(8, Number(radius) || 24);
+  const yieldCount = Math.max(1, yieldValue | 0);
+  const rarity = Math.max(1, Number(resDef?.rarity) || 1);
+  const hardness = Math.max(0.55, Number(resDef?.hardnessMultiplier) || 1);
+
+  // Le minage doit raconter quelque chose : un petit astéroïde pauvre casse vite,
+  // un gisement dense ou un matériau dur/rare résiste beaucoup plus longtemps.
+  const sizeHp = 55 + r * 5.4 + r * r * 0.020;
+  const yieldMult = 0.72 + Math.pow(yieldCount, 0.78) * 0.18;
+  const rarityMult = 0.92 + Math.pow(rarity, 0.82) * 0.10;
+  return Math.max(45, Math.round(sizeHp * hardness * yieldMult * rarityMult));
+}
+
 export function spawnAsteroidProc(state, sx, sy, opts) {
   const { x, y, radius, resourceKey, yieldValue, seed, sig } = opts;
   const rng = new DotNetRandom(seed | 0);
   const resDef = RESOURCE_DEFS[resourceKey] ?? null;
   const rgb = resDef?.colorHex ? hexToRgb(resDef.colorHex) : { r: 148, g: 160, b: 168 };
+  const maxHp = getAsteroidMaterialMaxHp(radius, resourceKey, yieldValue);
 
   const id = newEntityId(state);
   state.asteroids.set(id, {
@@ -60,7 +76,7 @@ export function spawnAsteroidProc(state, sx, sy, opts) {
     x,
     y,
     radius,
-    stats: createStatBlock({ maxHp: Math.round(85 + radius * 6.2) }),
+    stats: createStatBlock({ maxHp }),
     yieldValue: yieldValue | 0,
     resource: resourceKey,
     resourceName: resDef?.name ?? resourceKey,

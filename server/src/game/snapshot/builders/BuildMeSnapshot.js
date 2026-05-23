@@ -11,7 +11,32 @@ import { getEquippedEquipmentDefs } from '../../equipment/EquipmentBonuses.js';
 import { ITEM_CATEGORY_IDS } from '../../../../../shared/content/items/ItemCategoryIds.js';
 import { getActiveRocketAmmoDef } from '../../rocket/RocketAmmoRules.js';
 import { buildBastionBuffSnapshot, getBastionCooldownRecoveryMultiplier, getBastionDamageMultiplier, getBastionMoveSpeedMultiplier } from '../../bastion/BastionBuffs.js';
+import { getSectorSummary } from '../../../../../shared/proc/SectorSummary.js';
+import { SECTOR_BIOMES } from '../../../../../shared/proc/SectorBiomes.js';
+import { getTestBiomeSector } from '../../sector/SpecialSectors.js';
 
+
+function buildCurrentSectorBiomeSnapshot(player, state = null) {
+  const sx = player?.sx | 0;
+  const sy = player?.sy | 0;
+  const testBiome = getTestBiomeSector(sx, sy);
+  const biome = testBiome ? (SECTOR_BIOMES[testBiome.biomeId] || null) : null;
+  const summary = biome ? null : getSectorSummary(state?.seed ?? 1337, sx, sy);
+  const source = biome ? {
+    biomeId: biome.id,
+    biomeName: biome.name,
+    biomeShortName: biome.shortName,
+    biomeDescription: biome.description,
+    biomeColorHex: biome.colorHex
+  } : summary;
+  return {
+    id: source?.biomeId || 'metallic',
+    name: source?.biomeName || 'Ceinture métallique',
+    shortName: source?.biomeShortName || 'Métal',
+    description: source?.biomeDescription || '',
+    colorHex: source?.biomeColorHex || '#a8b2bd'
+  };
+}
 
 function buildTransitionSnapshot(player, timeMs) {
   const t = player?.portalTransition || null;
@@ -77,6 +102,7 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     frameName: player.frameName,
     sx: player.sx | 0,
     sy: player.sy | 0,
+    sectorBiome: buildCurrentSectorBiomeSnapshot(player, state),
     selectedKind: player.selectedKind,
     selectedId: player.selectedId,
     dockedStationId: player.dockedStationId,
@@ -123,6 +149,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
     frameName: player.frameName,
     sx: player.sx | 0,
     sy: player.sy | 0,
+    sectorBiome: buildCurrentSectorBiomeSnapshot(player, state),
     selectedKind: player.selectedKind,
     selectedId: player.selectedId,
     dockedStationId: player.dockedStationId,

@@ -17,9 +17,10 @@ import { listMobDefs } from '../../../../shared/content/mobs/MobDefs.js';
 import { spawnAllTestEffectZones } from '../status/TestEffectZoneSystem.js';
 import { getBastionAtSector, getBastionByInteriorSector, interiorSxForBastion } from '../bastion/BastionSession.js';
 import { spawnBastionInteriorShell } from '../bastion/BastionSystem.js';
-import { SPECIAL_SECTORS } from './SpecialSectors.js';
+import { SPECIAL_SECTORS, TEST_BIOME_SECTORS, getTestBiomeSector } from './SpecialSectors.js';
 import { BATTLE, isBattleArenaSector } from '../modes/GameModes.js';
 import { getBastionColor, getBastionEffectSummary } from '../bastion/BastionTypes.js';
+import { SECTOR_BIOMES } from '../../../../shared/proc/SectorBiomes.js';
 
 const BASTION_EXTERIOR_GRID_W = 15;
 const BASTION_EXTERIOR_GRID_H = 15;
@@ -439,33 +440,63 @@ function generateTestBiomesContent(state, sx, sy, timeMs, h) {
   spawnPortal(state, sx, sy, -1650, -1650, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 54 });
   spawnStation(state, sx, sy, -1500, 1450, true, h ^ 0xb10202, timeMs);
 
-  const rows = [
-    { label: 'Métal', keys: ['ironOre', 'copper', 'nickelOre', 'titaniumOre'], y: -820 },
-    { label: 'Silicate', keys: ['silicon', 'quartz', 'graphite', 'rareEarthOre'], y: -360 },
-    { label: 'Organique', keys: ['biomass', 'chitin', 'enzymes', 'spores'], y: 100 },
-    { label: 'Volatile', keys: ['waterIce', 'hydrocarbons', 'methaneIce', 'sulfur'], y: 560 },
-    { label: 'Radioactif / ancien', keys: ['uraniumOre', 'thoriumOre', 'unknownTechFragment', 'ancientSuperconductor'], y: 1020 }
+  // Ce secteur est un sas : il ne mélange plus toutes les ressources.
+  // Chaque portail mène vers un vrai secteur de test dédié à un biome précis.
+  const positions = [
+    [-900, -520], [0, -520], [900, -520],
+    [-900, 260], [0, 260], [900, 260]
   ];
+  TEST_BIOME_SECTORS.forEach((target, i) => {
+    const biome = SECTOR_BIOMES[target.biomeId] || SECTOR_BIOMES.metallic;
+    const [x, y] = positions[i] || [0, 0];
+    spawnPortal(state, sx, sy, x, y, 'sx' in target ? target.sx : SPECIAL_SECTORS.TEST_HUB.sx, target.sy, '◆', {
+      label: `${target.label || biome.name}`,
+      mode: `test_biome_${biome.id}`,
+      radius: 56
+    });
+  });
+}
 
-  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
-    const row = rows[rowIndex];
-    for (let i = 0; i < row.keys.length; i += 1) {
-      const x = -1080 + i * 700;
-      const resourceKey = row.keys[i];
-      const rarityScore = getResourceRarityScore(resourceKey);
-      const radius = 52 + rarityScore * 4;
-      const yieldValue = 6 + rarityScore;
-      spawnAsteroidProc(state, sx, sy, {
-        x,
-        y: row.y,
-        radius,
-        resourceKey,
-        yieldValue,
-        seed: h ^ (rowIndex * 1009) ^ (i * 9176),
-        sig: `test_biome_${sx}_${sy}_${resourceKey}`
-      });
-    }
+function generateBiomeShowcaseContent(state, sx, sy, timeMs, h, testBiome) {
+  const biome = SECTOR_BIOMES[testBiome?.biomeId] || SECTOR_BIOMES.metallic;
+  spawnPortal(state, sx, sy, -1650, -1650, SPECIAL_SECTORS.TEST_BIOMES.sx, SPECIAL_SECTORS.TEST_BIOMES.sy, '⌂', { label: 'Retour choix biomes', radius: 54 });
+  spawnStation(state, sx, sy, -1500, 1450, true, h ^ 0xb10303, timeMs);
+
+  const keys = (biome.resources || []).filter((key) => RESOURCE_DEFS[key]);
+  const ringCount = Math.max(12, Math.min(24, keys.length * 4));
+  for (let i = 0; i < ringCount; i += 1) {
+    const resourceKey = keys[i % keys.length] || 'scrap';
+    const rarityScore = getResourceRarityScore(resourceKey);
+    const angle = (Math.PI * 2 * i / ringCount) + ((i % keys.length) * 0.17);
+    const ring = 520 + (i % 3) * 330 + rarityScore * 24;
+    const x = Math.cos(angle) * ring;
+    const y = Math.sin(angle) * ring;
+    const radius = 30 + Math.min(34, rarityScore * 4.5) + ((i * 13) % 18);
+    const yieldValue = 2 + Math.floor(radius / 18) + Math.max(0, rarityScore - 1);
+    spawnAsteroidProc(state, sx, sy, {
+      x,
+      y,
+      radius,
+      resourceKey,
+      yieldValue,
+      seed: h ^ (i * 9176) ^ (rarityScore * 101),
+      sig: `test_biome_showcase_${sx}_${sy}_${i}_${resourceKey}`
+    });
   }
+
+  // Trois gisements plus gros pour vérifier rapidement que HP = quantité + dureté.
+  keys.slice(-3).forEach((resourceKey, i) => {
+    const rarityScore = getResourceRarityScore(resourceKey);
+    spawnAsteroidProc(state, sx, sy, {
+      x: -760 + i * 760,
+      y: 1180,
+      radius: 68 + rarityScore * 5,
+      resourceKey,
+      yieldValue: 10 + rarityScore * 2,
+      seed: h ^ 0x550000 ^ (i * 1337),
+      sig: `test_biome_heavy_${sx}_${sy}_${resourceKey}`
+    });
+  });
 }
 
 function generateStressArenaContent(state, sx, sy, timeMs, h) {
@@ -651,6 +682,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testEffects = sx === SPECIAL_SECTORS.TEST_EFFECTS.sx && sy === SPECIAL_SECTORS.TEST_EFFECTS.sy;
   const testFoundations = sx === SPECIAL_SECTORS.TEST_FOUNDATIONS.sx && sy === SPECIAL_SECTORS.TEST_FOUNDATIONS.sy;
   const testBiomes = sx === SPECIAL_SECTORS.TEST_BIOMES.sx && sy === SPECIAL_SECTORS.TEST_BIOMES.sy;
+  const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
   const mobFamilyIndex = getMobShowcaseFamilyIndex(sx, sy);
@@ -684,6 +716,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testBiomes) {
     generateTestBiomesContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testBiomeSector) {
+    generateBiomeShowcaseContent(state, sx, sy, timeMs, h, testBiomeSector);
     return;
   }
   if (mobBestiary) {

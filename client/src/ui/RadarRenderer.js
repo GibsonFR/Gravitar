@@ -56,10 +56,16 @@ export function drawRadar(ctx, view, me, players, mobs, asteroids, stations, myS
   blip(me.x, me.y, rgba(120, 255, 195, 1), 2.8);
 
   const sectorTxt = `Secteur [${(myState?.sx ?? 0) | 0},${(myState?.sy ?? 0) | 0}]`;
+  const biomeName = myState?.sectorBiome?.shortName || myState?.sectorBiome?.name || '';
+  const biomeColor = myState?.sectorBiome?.colorHex || '#d0d7e4';
   ctx.fillStyle = rgba(235, 242, 255, 0.82);
   ctx.font = `${12 * view.dpr}px Segoe UI`;
   ctx.textAlign = 'left';
-  ctx.fillText(sectorTxt, (x + 8) * view.dpr, (y - 6) * view.dpr);
+  ctx.fillText(sectorTxt, (x + 8) * view.dpr, (y - 19) * view.dpr);
+  if (biomeName) {
+    ctx.fillStyle = biomeColor;
+    ctx.fillText(`Biome : ${biomeName}`, (x + 8) * view.dpr, (y - 6) * view.dpr);
+  }
 
   ctx.fillStyle = rgba(235, 242, 255, 0.9);
   ctx.font = `${12 * view.dpr}px Segoe UI`;
