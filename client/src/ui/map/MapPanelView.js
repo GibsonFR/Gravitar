@@ -247,6 +247,12 @@ export class MapPanelView {
         hasReturnPortal: !!s.hasReturnPortal,
         primaryResource: s.primaryResource || 'scrap',
         resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6),
+        resourceNames: (s.resourceNames || []).slice(0, 6),
+        biomeId: s.biomeId || 'unknown',
+        biomeName: s.biomeName || '',
+        biomeShortName: s.biomeShortName || '',
+        biomeDescription: s.biomeDescription || '',
+        biomeColorHex: s.biomeColorHex || '',
         bastion: s.bastion || null,
       };
       this.visitedInfo.set(`${sx},${sy}`, item);
@@ -362,6 +368,10 @@ export class MapPanelView {
       if (!bastion.captured && bastion.unlockText) typeRows.push(`<span class="map-panel__muted">${this._esc(bastion.unlockText)}</span>`);
       if (bastion.summary) typeRows.push(`<span class="map-panel__muted">${this._esc(bastion.summary)}</span>`);
     }
+    if (visited?.biomeName) {
+      typeRows.push(`${this._chip(visited.biomeShortName || 'Biome')} <span>${this._esc(visited.biomeName)}</span>`);
+      if (visited.biomeDescription) typeRows.push(`<span class="map-panel__muted">${this._esc(visited.biomeDescription)}</span>`);
+    }
     if (!typeRows.length) typeRows.push(`${this._chip('Secteur')} <span>zone standard</span>`);
 
     const playerRows = herePlayers.map((p) => {
@@ -370,7 +380,10 @@ export class MapPanelView {
       return `<div class="map-panel__player-row"><span class="map-panel__player-dot ${p.isMe ? 'is-me' : ''}"></span><span>${this._esc(name)}</span><span class="map-panel__muted">${this._esc(lvl)}</span></div>`;
     });
 
-    const resourceRows = (visited?.resourceKeys || []).slice(0, 6).map((key) => `<span class="map-panel__resource-pill">${this._esc(key)}</span>`);
+    const resourceRows = (visited?.resourceKeys || []).slice(0, 6).map((key, i) => {
+      const label = visited?.resourceNames?.[i] || key;
+      return `<span class="map-panel__resource-pill" title="${this._esc(key)}">${this._esc(label)}</span>`;
+    });
 
     const badge = sx === 0 && sy === 0 ? 'Hub' : bastion ? (bastion.captured ? 'Capturé' : (bastion.unlocked ? 'Ouvert' : 'Bastion')) : ((visited?.stationCount | 0) > 0 ? 'Station' : 'Normal');
     const badgeClass = sx === 0 && sy === 0 ? 'is-hub' : bastion ? 'is-bastion' : '';

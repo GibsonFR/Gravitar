@@ -40,7 +40,13 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
       hasReturnPortal: !!s.hasReturnPortal,
       bastion: state?.bastionsBySector?.get?.(`${s.sx | 0},${s.sy | 0}`) ? buildMapBastion(state.bastionsBySector.get(`${s.sx | 0},${s.sy | 0}`), player, timeMs, state) : null,
       primaryResource: s.primaryResource || 'scrap',
-      resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6)
+      resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6),
+      resourceNames: (s.resourceNames || []).slice(0, 6),
+      biomeId: s.biomeId || '',
+      biomeName: s.biomeName || '',
+      biomeShortName: s.biomeShortName || '',
+      biomeDescription: s.biomeDescription || '',
+      biomeColorHex: s.biomeColorHex || ''
     });
   }
 

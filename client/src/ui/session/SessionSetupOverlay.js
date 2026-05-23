@@ -20,11 +20,11 @@ function loadStoredSetup() {
       frameId: String(parsed.frameId || 'vanguard'),
       mode: String(parsed.mode || 'endless'),
       battleSessionId: String(parsed.battleSessionId || ''),
-      testWorldId: String(parsed.testWorldId || 'u01-foundations'),
+      testWorldId: String(parsed.testWorldId || 'test-hub'),
       accountName: normalizePseudo(parsed.accountName || parsed.pseudo || 'Pilote')
     };
   } catch {
-    return { pseudo: 'Pilote', frameId: 'vanguard', mode: 'endless', battleSessionId: '', testWorldId: 'u01-foundations', accountName: 'Pilote' };
+    return { pseudo: 'Pilote', frameId: 'vanguard', mode: 'endless', battleSessionId: '', testWorldId: 'test-hub', accountName: 'Pilote' };
   }
 }
 
@@ -42,7 +42,7 @@ export class SessionSetupOverlay {
     this.selectedFrameId = this.cards.some((card) => card.id === stored.frameId) ? stored.frameId : this.cards[0]?.id || 'vanguard';
     this.selectedMode = ['endless', 'test_server', 'test_world', 'stress_server', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
     this.selectedBattleSessionId = stored.battleSessionId || '';
-    this.selectedTestWorldId = stored.testWorldId || 'u01-foundations';
+    this.selectedTestWorldId = stored.testWorldId || 'test-hub';
     this.selectedAbilityIndex = 0;
     this.selectedPreviewPhase = 1;
     this.selectedInfoTab = 'ability';
@@ -258,7 +258,7 @@ export class SessionSetupOverlay {
       if (!btn || !this.testWorldListEl?.contains(btn)) return;
       ev.preventDefault();
       ev.stopPropagation();
-      this.selectMode('test_world', btn.dataset.testWorldId || 'u01-foundations');
+      this.selectMode('test_world', btn.dataset.testWorldId || 'test-hub');
     };
     this.testWorldListEl?.addEventListener('click', selectTestWorldFromEvent);
     this.testWorldListEl?.addEventListener('pointerdown', selectTestWorldFromEvent);
@@ -338,7 +338,7 @@ export class SessionSetupOverlay {
       frameId: this.selectedFrameId,
       mode: this.selectedMode,
       battleSessionId: this.selectedBattleSessionId || '',
-      testWorldId: this.selectedTestWorldId || 'u01-foundations',
+      testWorldId: this.selectedTestWorldId || 'test-hub',
       accountName: normalizePseudo(this.loginNameEl?.value || this.registerNameEl?.value || this.inputEl.value)
     });
   }
@@ -499,11 +499,11 @@ export class SessionSetupOverlay {
     if (this.waitingTimerEl) this.waitingTimerEl.textContent = nextText;
     if (this.testWorldListEl) {
       const worlds = Array.isArray(this.modes?.testWorlds) && this.modes.testWorlds.length ? this.modes.testWorlds : [
-        { id: 'u01-foundations', title: 'Update 1 — Fondations', subtitle: 'Monde isolé pour tester uniquement la mise à jour actuelle', playerCount: this.modes?.testPlayerCount ?? 0 }
+        { id: 'test-hub', title: 'Serveur de test unique', subtitle: 'Hub avec portails vers chaque zone de test', playerCount: this.modes?.testPlayerCount ?? 0 }
       ];
       this.testWorldListEl.innerHTML = '';
       for (const world of worlds) {
-        const id = String(world.id || 'u01-foundations');
+        const id = String(world.id || 'test-hub');
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'session-setup__server-card session-setup__server-card--test';
@@ -567,7 +567,7 @@ export class SessionSetupOverlay {
       const label = this.selectedMode === 'endless'
         ? 'Serveur sélectionné : Endless'
         : (this.selectedMode === 'test_world'
-          ? `Monde de test sélectionné : ${(this.modes?.testWorlds || []).find((w) => w.id === this.selectedTestWorldId)?.title || 'Update 1 — Fondations'}`
+          ? `Monde de test sélectionné : ${(this.modes?.testWorlds || []).find((w) => w.id === this.selectedTestWorldId)?.title || 'Serveur de test unique'}`
           : (this.selectedMode === 'test_server'
           ? 'Serveur sélectionné : Test — niveau 50, crédits de test, portails de démonstration'
           : (this.selectedMode === 'stress_server'
@@ -585,7 +585,7 @@ export class SessionSetupOverlay {
     if (!['endless', 'test_server', 'test_world', 'stress_server', 'battle_next', 'battle_server'].includes(mode)) return;
     this.selectedMode = mode;
     this.selectedBattleSessionId = mode === 'battle_server' ? String(battleSessionId || '') : '';
-    if (mode === 'test_world') this.selectedTestWorldId = String(battleSessionId || 'u01-foundations');
+    if (mode === 'test_world') this.selectedTestWorldId = String(battleSessionId || 'test-hub');
     this.saveStored();
     this.renderModeList();
   }
@@ -740,7 +740,7 @@ export class SessionSetupOverlay {
       frameId: this.selectedFrameId,
       mode: this.selectedMode,
       battleSessionId: this.selectedBattleSessionId || '',
-      testWorldId: this.selectedTestWorldId || 'u01-foundations',
+      testWorldId: this.selectedTestWorldId || 'test-hub',
       accountAction: this.accountAction === 'guest' ? 'guest' : 'login',
       accountName: this.accountAction === 'guest' ? '' : (this.authenticatedAccountName || this.getActiveAccountName()),
       accountPassword: this.accountAction === 'guest' ? '' : (this.authenticatedPassword || this.getActivePassword())

@@ -19,9 +19,9 @@ export const WORLD_IDS = { SETUP: 'setup', ENDLESS: 'endless', TEST: 'test', STR
 
 export const TEST_WORLD_DEFS = Object.freeze([
   {
-    id: 'u01-foundations',
-    title: 'Update 1 — Fondations',
-    subtitle: 'Hub de test isolé : portails vers mobs, effets, stress test et fondations de l’update actuelle.',
+    id: 'test-hub',
+    title: 'Serveur de test unique',
+    subtitle: 'Hub isolé avec portails dédiés : mobs, effets, fondations, biomes U2, stress test.',
     sx: SPECIAL_SECTORS.TEST_HUB.sx | 0,
     sy: SPECIAL_SECTORS.TEST_HUB.sy | 0,
     x: 0,
@@ -34,7 +34,7 @@ export const TEST_WORLD_DEFS = Object.freeze([
 
 export function testWorldIdFor(defOrId) {
   const id = typeof defOrId === 'string' ? defOrId : defOrId?.id;
-  return `test:${String(id || 'u01-foundations')}`;
+  return `test:${String(id || 'test-hub')}`;
 }
 
 export function getTestWorldDef(id) {
@@ -173,7 +173,7 @@ function countPlayersByWorld(state) {
     if (w === WORLD_IDS.ENDLESS) counts.endless += 1;
     else if (w === WORLD_IDS.TEST || w.startsWith('test:') || w === WORLD_IDS.STRESS) {
       counts.test += 1;
-      const id = w.startsWith('test:') ? w.slice('test:'.length) : (p.testWorldId || 'u01-foundations');
+      const id = w.startsWith('test:') ? w.slice('test:'.length) : (p.testWorldId || 'test-hub');
       if (Object.prototype.hasOwnProperty.call(counts.testWorlds, id)) counts.testWorlds[id] += 1;
     } else if (w === WORLD_IDS.SETUP) counts.setup += 1;
     else if (w === WORLD_IDS.BATTLE_WAIT_NEXT) counts.battleWaiting += 1;
@@ -272,7 +272,7 @@ export function setPlayerEndless(state, player, timeMs) {
 }
 
 
-export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'u01-foundations') {
+export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hub') {
   if (!player) return;
   const def = getTestWorldDef(testWorldId);
   clearPlayerBattleResidue(state, player, timeMs, { checkWinner: true });
@@ -324,7 +324,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'u01-fou
 }
 
 export function setPlayerTestServer(state, player, timeMs) {
-  setPlayerTestWorld(state, player, timeMs, 'u01-foundations');
+  setPlayerTestWorld(state, player, timeMs, 'test-hub');
 }
 
 export function setPlayerStressServer(state, player, timeMs) {

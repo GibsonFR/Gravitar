@@ -5,6 +5,7 @@ export const SPECIAL_SECTORS = {
   TEST_HUB: { sx: 9100, sy: -9100 },
   TEST_EFFECTS: { sx: 9103, sy: -9100 },
   TEST_FOUNDATIONS: { sx: 9104, sy: -9100 },
+  TEST_BIOMES: { sx: 9105, sy: -9100 },
   TEST_ARENA: { sx: 9103, sy: -9100 },
   STRESS_ARENA: { sx: 9102, sy: -9100 },
   MOB_BESTIARY: { sx: 9101, sy: -9100 },
@@ -25,6 +26,7 @@ export function isSpecialDetachedSector(sx, sy) {
   if (sx === SPECIAL_SECTORS.TEST_HUB.sx) return true;
   if (sx === SPECIAL_SECTORS.TEST_EFFECTS.sx) return true;
   if (sx === SPECIAL_SECTORS.TEST_FOUNDATIONS.sx) return true;
+  if (sx === SPECIAL_SECTORS.TEST_BIOMES.sx) return true;
   if (sx === SPECIAL_SECTORS.MOB_BESTIARY.sx) return true;
   if (sx === SPECIAL_SECTORS.STRESS_ARENA.sx) return true;
   if (sx === SPECIAL_SECTORS.MOB_HYPER_LATE.sx) return true;

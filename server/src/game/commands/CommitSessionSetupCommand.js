@@ -73,7 +73,7 @@ export function handleCommitSessionSetup(state, player, msg, timeMs) {
   } else if (mode === 'battle_next') {
     queueForNextBattle(state, player, timeMs);
   } else if (mode === 'test_world') {
-    setPlayerTestWorld(state, player, timeMs, msg?.testWorldId || 'u01-foundations');
+    setPlayerTestWorld(state, player, timeMs, msg?.testWorldId || 'test-hub');
   } else if (mode === 'test_server') {
     setPlayerTestServer(state, player, timeMs);
   } else if (mode === 'stress_server') {

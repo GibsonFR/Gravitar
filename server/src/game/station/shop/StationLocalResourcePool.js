@@ -40,7 +40,7 @@ export function buildStationLocalResourcePool(worldSeed = 0, sx = 0, sy = 0) {
       const rng = new DotNetRandom(hash2D_Mix((worldSeed | 0) ^ 0x61a5e7, nsx, nsy));
 
       for (let i = 0; i < sampleCount; i += 1) {
-        const key = String(rollResourceKeyForSector(rng, mapLevel, nsx, nsy) || 'scrap');
+        const key = String(rollResourceKeyForSector(rng, mapLevel, nsx, nsy, worldSeed | 0) || 'scrap');
         const def = getResourceDef(key);
         if (!def) continue;
         const prev = counts.get(key) || { count: 0, currentCount: 0, nearestDistance: 99, spawnTier: Math.max(1, def.spawnTier | 0) };

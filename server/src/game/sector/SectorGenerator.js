@@ -389,8 +389,13 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56
   });
   spawnPortal(state, sx, sy, 760, -520, SPECIAL_SECTORS.TEST_FOUNDATIONS.sx, SPECIAL_SECTORS.TEST_FOUNDATIONS.sy, '▣', {
-    label: 'Test fondations U1',
+    label: 'Test fondations',
     mode: 'test_foundations',
+    radius: 56
+  });
+  spawnPortal(state, sx, sy, 1520, -520, SPECIAL_SECTORS.TEST_BIOMES.sx, SPECIAL_SECTORS.TEST_BIOMES.sy, '◆', {
+    label: 'Test biomes U2',
+    mode: 'test_biomes',
     radius: 56
   });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
@@ -428,6 +433,39 @@ function generateTestFoundationsContent(state, sx, sy, timeMs, h) {
   spawnBastionWall(state, sx, sy, { x: -180, y: -360, w: 110, h: 520 }, wallColor, borderColor, h ^ 0x15, `foundation_wall_${sx}_${sy}_mid`);
   spawnBastionWall(state, sx, sy, { x: 790, y: -650, w: 110, h: 340 }, wallColor, borderColor, h ^ 0x12, `foundation_wall_${sx}_${sy}_r_top`);
   spawnBastionWall(state, sx, sy, { x: 790, y: -70, w: 110, h: 340 }, wallColor, borderColor, h ^ 0x16, `foundation_wall_${sx}_${sy}_r_bottom`);
+}
+
+function generateTestBiomesContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1650, -1650, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 54 });
+  spawnStation(state, sx, sy, -1500, 1450, true, h ^ 0xb10202, timeMs);
+
+  const rows = [
+    { label: 'Métal', keys: ['ironOre', 'copper', 'nickelOre', 'titaniumOre'], y: -820 },
+    { label: 'Silicate', keys: ['silicon', 'quartz', 'graphite', 'rareEarthOre'], y: -360 },
+    { label: 'Organique', keys: ['biomass', 'chitin', 'enzymes', 'spores'], y: 100 },
+    { label: 'Volatile', keys: ['waterIce', 'hydrocarbons', 'methaneIce', 'sulfur'], y: 560 },
+    { label: 'Radioactif / ancien', keys: ['uraniumOre', 'thoriumOre', 'unknownTechFragment', 'ancientSuperconductor'], y: 1020 }
+  ];
+
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    for (let i = 0; i < row.keys.length; i += 1) {
+      const x = -1080 + i * 700;
+      const resourceKey = row.keys[i];
+      const rarityScore = getResourceRarityScore(resourceKey);
+      const radius = 52 + rarityScore * 4;
+      const yieldValue = 6 + rarityScore;
+      spawnAsteroidProc(state, sx, sy, {
+        x,
+        y: row.y,
+        radius,
+        resourceKey,
+        yieldValue,
+        seed: h ^ (rowIndex * 1009) ^ (i * 9176),
+        sig: `test_biome_${sx}_${sy}_${resourceKey}`
+      });
+    }
+  }
 }
 
 function generateStressArenaContent(state, sx, sy, timeMs, h) {
@@ -612,6 +650,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testHub = sx === SPECIAL_SECTORS.TEST_HUB.sx && sy === SPECIAL_SECTORS.TEST_HUB.sy;
   const testEffects = sx === SPECIAL_SECTORS.TEST_EFFECTS.sx && sy === SPECIAL_SECTORS.TEST_EFFECTS.sy;
   const testFoundations = sx === SPECIAL_SECTORS.TEST_FOUNDATIONS.sx && sy === SPECIAL_SECTORS.TEST_FOUNDATIONS.sy;
+  const testBiomes = sx === SPECIAL_SECTORS.TEST_BIOMES.sx && sy === SPECIAL_SECTORS.TEST_BIOMES.sy;
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
   const mobFamilyIndex = getMobShowcaseFamilyIndex(sx, sy);
@@ -643,6 +682,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
     generateTestFoundationsContent(state, sx, sy, timeMs, h);
     return;
   }
+  if (testBiomes) {
+    generateTestBiomesContent(state, sx, sy, timeMs, h);
+    return;
+  }
   if (mobBestiary) {
     generateMobBestiaryContent(state, sx, sy, timeMs, h);
     return;
@@ -670,7 +713,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
     const x = rollPos(rng);
     const y = rollPos(rng);
     let radius = 14 + rng.nextDouble() * 28;
-    const resourceKey = rollResourceKeyForSector(rng, mapLevel, sx, sy);
+    const resourceKey = rollResourceKeyForSector(rng, mapLevel, sx, sy, state.seed | 0);
     const rarityScore = getResourceRarityScore(resourceKey);
     radius += Math.min(16, rarityScore * 1.35 + rng.nextDouble() * rarityScore);
     const yieldValue = 1 + rng.nextRange(1, 4) + Math.floor(radius / 18) + Math.floor(Math.max(0, rarityScore - 2) / 2);
