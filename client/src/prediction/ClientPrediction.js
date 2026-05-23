@@ -25,6 +25,88 @@ function angleLerp(a, b, t) {
   return a + d * Math.max(0, Math.min(1, t));
 }
 
+
+function solidWallBounds(wall) {
+  const w = finite(wall?.w, 0) || finite(wall?.radius, 0) * 2;
+  const h = finite(wall?.h, 0) || finite(wall?.radius, 0) * 2;
+  return {
+    left: finite(wall?.x, 0) - w * 0.5,
+    right: finite(wall?.x, 0) + w * 0.5,
+    top: finite(wall?.y, 0) - h * 0.5,
+    bottom: finite(wall?.y, 0) + h * 0.5
+  };
+}
+
+function pointInsideExpandedRect(x, y, wall, pad) {
+  const b = solidWallBounds(wall);
+  return x >= b.left - pad && x <= b.right + pad && y >= b.top - pad && y <= b.bottom + pad;
+}
+
+function segmentHitsExpandedRect(x1, y1, x2, y2, wall, pad) {
+  if (pointInsideExpandedRect(x1, y1, wall, pad) || pointInsideExpandedRect(x2, y2, wall, pad)) return true;
+  const steps = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / Math.max(8, pad * 0.45)));
+  for (let i = 1; i < steps; i += 1) {
+    const t = i / steps;
+    if (pointInsideExpandedRect(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, wall, pad)) return true;
+  }
+  return false;
+}
+
+function pushEntityOutOfWall(entity, wall, pad) {
+  const b = solidWallBounds(wall);
+  const cx = Math.max(b.left, Math.min(entity.x, b.right));
+  const cy = Math.max(b.top, Math.min(entity.y, b.bottom));
+  let dx = entity.x - cx;
+  let dy = entity.y - cy;
+  const d = Math.hypot(dx, dy);
+
+  if (d > 0.0001 && d < pad) {
+    const push = pad - d + 0.8;
+    entity.x += (dx / d) * push;
+    entity.y += (dy / d) * push;
+    if (Math.abs(dx) > Math.abs(dy)) entity.vx = 0;
+    else entity.vy = 0;
+    return true;
+  }
+
+  if (entity.x > b.left - pad && entity.x < b.right + pad && entity.y > b.top - pad && entity.y < b.bottom + pad) {
+    const pushLeft = Math.abs(entity.x - (b.left - pad));
+    const pushRight = Math.abs((b.right + pad) - entity.x);
+    const pushTop = Math.abs(entity.y - (b.top - pad));
+    const pushBottom = Math.abs((b.bottom + pad) - entity.y);
+    const minPush = Math.min(pushLeft, pushRight, pushTop, pushBottom);
+    if (minPush === pushLeft) entity.x = b.left - pad - 0.8;
+    else if (minPush === pushRight) entity.x = b.right + pad + 0.8;
+    else if (minPush === pushTop) entity.y = b.top - pad - 0.8;
+    else entity.y = b.bottom + pad + 0.8;
+    entity.vx = 0;
+    entity.vy = 0;
+    return true;
+  }
+  return false;
+}
+
+function resolveLocalSolidWalls(store, me, oldX, oldY) {
+  const pad = Math.max(12, finite(me?.radius, 22) + 1.5);
+  for (const wall of store?.asteroids?.values?.() || []) {
+    if (!wall?.solid && !wall?.bastionWall) continue;
+    if ((wall.sx | 0) !== (me.sx | 0) || (wall.sy | 0) !== (me.sy | 0)) continue;
+    if (Number.isFinite(oldX) && Number.isFinite(oldY) && segmentHitsExpandedRect(oldX, oldY, me.x, me.y, wall, pad)) {
+      me.x = oldX;
+      me.y = oldY;
+      me.vx = 0;
+      me.vy = 0;
+      if (store.localPrediction) store.localPrediction.hasMoveTarget = false;
+      return true;
+    }
+    if (pushEntityOutOfWall(me, wall, pad)) {
+      if (store.localPrediction) store.localPrediction.hasMoveTarget = false;
+      return true;
+    }
+  }
+  return false;
+}
+
 function hasBlockingStatus(me) {
   const ids = new Set((me?.statuses ?? []).map((s) => String(s.id || s.effectId || '').toLowerCase()));
   return ids.has('root') || ids.has('stun') || ids.has('suppress') || ids.has('fear') || ids.has('sleep');
@@ -536,10 +618,17 @@ export class ClientPrediction {
     const predLocal = this.store.localPrediction || {};
     if (performance.now() < finite(predLocal.localMoveBoostUntil, 0)) speed *= Math.max(1, finite(predLocal.localMoveBoostMult, 1));
     const step = Math.min(d, speed * dt);
+    const oldX = me.x;
+    const oldY = me.y;
     me.x += (dx / d) * step;
     me.y += (dy / d) * step;
     me.vx = (dx / d) * speed;
     me.vy = (dy / d) * speed;
+    if (resolveLocalSolidWalls(this.store, me, oldX, oldY)) {
+      me._localThrust = 0;
+      pinLocalEntityTarget(me);
+      return;
+    }
     me.rot = angleLerp(me.rot, Math.atan2(dy, dx), Math.min(1, Math.max(0.22, dt * 30)));
     me._localThrust = Math.min(1, Math.max(finite(me._localThrust, 0), Math.min(1, d / 180)));
     pinLocalEntityTarget(me);

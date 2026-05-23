@@ -3,6 +3,54 @@ import { applyPrimaryClick } from './PrimaryClick.js';
 import { getTargetForPlayer, isPlayerAttackable } from '../targeting/Targeting.js';
 import { canAcceptInput, sanitizeInputMessage } from '../../net/protocol/InputMessage.js';
 
+
+function solidWallBounds(wall) {
+  const w = Number.isFinite(wall?.w) && wall.w > 0 ? wall.w : (wall?.radius || 0) * 2;
+  const h = Number.isFinite(wall?.h) && wall.h > 0 ? wall.h : (wall?.radius || 0) * 2;
+  return {
+    left: (wall?.x || 0) - w * 0.5,
+    right: (wall?.x || 0) + w * 0.5,
+    top: (wall?.y || 0) - h * 0.5,
+    bottom: (wall?.y || 0) + h * 0.5
+  };
+}
+
+function pointInsideExpandedRect(x, y, wall, pad) {
+  const b = solidWallBounds(wall);
+  return x >= b.left - pad && x <= b.right + pad && y >= b.top - pad && y <= b.bottom + pad;
+}
+
+function segmentHitsExpandedRect(x1, y1, x2, y2, wall, pad) {
+  if (pointInsideExpandedRect(x1, y1, wall, pad) || pointInsideExpandedRect(x2, y2, wall, pad)) return true;
+  const steps = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / Math.max(8, pad * 0.45)));
+  for (let i = 1; i < steps; i += 1) {
+    const t = i / steps;
+    if (pointInsideExpandedRect(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, wall, pad)) return true;
+  }
+  return false;
+}
+
+function clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy) {
+  if (!state?.asteroids || (oldSx | 0) !== (player.sx | 0) || (oldSy | 0) !== (player.sy | 0)) return false;
+  const pad = Math.max(12, (player.radius || 22) + 1.5);
+  for (const wall of state.asteroids.values()) {
+    if (!wall?.solid && !wall?.bastionWall) continue;
+    if ((wall.sx | 0) !== (player.sx | 0) || (wall.sy | 0) !== (player.sy | 0)) continue;
+    if (segmentHitsExpandedRect(oldX, oldY, player.x, player.y, wall, pad)) return true;
+  }
+  return false;
+}
+
+function revertClientPose(player, oldX, oldY, oldSx, oldSy) {
+  player.x = oldX;
+  player.y = oldY;
+  player.sx = oldSx | 0;
+  player.sy = oldSy | 0;
+  player.vx = 0;
+  player.vy = 0;
+  player.hasMoveTarget = false;
+}
+
 function clearAutoAttack(player, options = {}) {
   player.autoTargetKind = '';
   player.autoTargetId = 0;
@@ -41,7 +89,7 @@ function setMoveTarget(player, x, y, options = {}) {
   clearAutoAttack(player, { clearSelection: options.clearSelection !== false });
 }
 
-function acceptClientPose(player, msg, timeMs, abilityFresh) {
+function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
   if (player.sessionSetupPending || timeMs < (player.ignoreClientPoseUntil ?? 0)) return;
   if (!Number.isFinite(msg.cx) || !Number.isFinite(msg.cy)) return;
 
@@ -49,6 +97,10 @@ function acceptClientPose(player, msg, timeMs, abilityFresh) {
   // Le serveur ne doit plus tirer depuis une ancienne position parce qu'il a raté/rejeté
   // une frame. On garde seulement des bornes grossières, puis la logique collision/secteur
   // du serveur corrige les cas impossibles.
+  const oldX = player.x;
+  const oldY = player.y;
+  const oldSx = player.sx | 0;
+  const oldSy = player.sy | 0;
   const seq = msg.sectorSeq | 0;
   const lastSeq = player.lastClientSectorSeq | 0;
   if (seq >= lastSeq) {
@@ -57,6 +109,7 @@ function acceptClientPose(player, msg, timeMs, abilityFresh) {
     player.y = msg.cy;
     if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
     if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
+    if (clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy)) revertClientPose(player, oldX, oldY, oldSx, oldSy);
   }
 
   if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
@@ -67,13 +120,18 @@ function acceptClientPose(player, msg, timeMs, abilityFresh) {
   player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 1400 : 650);
 }
 
-function applyClientPoseFromAction(player, action, timeMs) {
+function applyClientPoseFromAction(state, player, action, timeMs) {
   if (!action || player.sessionSetupPending || timeMs < (player.ignoreClientPoseUntil ?? 0)) return;
   if (!Number.isFinite(action.cx) || !Number.isFinite(action.cy)) return;
+  const oldX = player.x;
+  const oldY = player.y;
+  const oldSx = player.sx | 0;
+  const oldSy = player.sy | 0;
   player.x = action.cx;
   player.y = action.cy;
   if (Number.isFinite(action.csx)) player.sx = action.csx | 0;
   if (Number.isFinite(action.csy)) player.sy = action.csy | 0;
+  if (clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy)) revertClientPose(player, oldX, oldY, oldSx, oldSy);
   if (Number.isFinite(action.cvx)) player.vx = action.cvx;
   if (Number.isFinite(action.cvy)) player.vy = action.cvy;
   if (Number.isFinite(action.crot)) player.rot = action.crot;
@@ -85,7 +143,7 @@ function applyClientPoseFromAction(player, action, timeMs) {
 
 function applyActionPacket(state, player, action, timeMs) {
   if (!action || (action.seq | 0) <= (player.lastActionSeq | 0)) return;
-  applyClientPoseFromAction(player, action, timeMs);
+  applyClientPoseFromAction(state, player, action, timeMs);
   player.lastActionSeq = action.seq | 0;
 
   if (action.type === 'move') {
@@ -190,7 +248,7 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
 
   const abilityFresh = (msg.abilitySeq | 0) > (player.lastClientAbilitySeq | 0);
   if (abilityFresh) player.lastClientAbilitySeq = msg.abilitySeq | 0;
-  acceptClientPose(player, msg, timeMs, abilityFresh);
+  acceptClientPose(state, player, msg, timeMs, abilityFresh);
 
   if (!player.sessionSetupPending && Number.isFinite(msg.aimWorldX) && Number.isFinite(msg.aimWorldY)) {
     player.mouseSx = msg.aimWorldX - player.x + player.viewportW * 0.5;
