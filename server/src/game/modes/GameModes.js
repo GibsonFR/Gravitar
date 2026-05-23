@@ -24,8 +24,8 @@ export const WORLD_IDS = { SETUP: 'setup', ENDLESS: 'endless', TEST: 'test', STR
 export const TEST_WORLD_DEFS = Object.freeze([
   {
     id: 'test-hub',
-    title: 'Serveur de test unique',
-    subtitle: 'Hub isolé avec portails dédiés : mobs, effets, fondations, biomes U2, stress test.',
+    title: 'Server Test',
+    subtitle: 'Hub de test',
     sx: SPECIAL_SECTORS.TEST_HUB.sx | 0,
     sy: SPECIAL_SECTORS.TEST_HUB.sy | 0,
     x: 0,

@@ -16,7 +16,7 @@ export function createInputState() {
     moveWorldQueued: false,
     moveWorldX: 0,
     moveWorldY: 0,
-    cameraLocked: false,
+    cameraLocked: true,
     cameraToggleQueued: false,
     suppressRightHoldUntilUp: false,
     targetClickQueued: false,

@@ -41,7 +41,7 @@ export class SessionSetupOverlay {
     this.cards = getSessionFrameCards();
     const stored = loadStoredSetup();
     this.frameByMode = stored.frameByMode && typeof stored.frameByMode === 'object' ? { ...stored.frameByMode } : {};
-    this.selectedMode = ['endless', 'test_server', 'test_world', 'stress_server', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
+    this.selectedMode = ['endless', 'test_server', 'test_world', 'battle_next', 'battle_server'].includes(stored.mode) ? stored.mode : 'endless';
     const initialFrameId = this.frameByMode[this.getModeProfileKey(this.selectedMode)] || stored.frameId || 'vanguard';
     this.selectedFrameId = this.cards.some((card) => card.id === initialFrameId) ? initialFrameId : this.cards[0]?.id || 'vanguard';
     this.selectedBattleSessionId = stored.battleSessionId || '';
@@ -111,48 +111,33 @@ export class SessionSetupOverlay {
 
         <section class="session-setup__page session-setup__page--mode" data-step="mode">
           <div class="session-setup__eyebrow">Serveurs</div>
-          <h1 class="session-setup__title">Choisir un monde</h1>
-          <p class="session-setup__subtitle">Endless est le vrai monde persistant. Le monde de test sert uniquement à vérifier la mise à jour actuelle avec une progression jetable.</p>
-          <div class="session-setup__account-line">Pseudo actuel : <b class="session-setup__current-pseudo">Pilote</b></div>
+          <h1 class="session-setup__title">Choisir un serveur</h1>
           <div class="session-setup__server-list">
             <button type="button" data-mode="endless" class="session-setup__server-card session-setup__server-card--endless">
               <div class="session-setup__server-main">
                 <b>Endless</b>
-                <span>Monde libre permanent</span>
               </div>
               <div class="session-setup__server-meta">
                 <span class="session-setup__endless-count">0 joueur</span>
-                <span>Sauvegarde avec compte</span>
               </div>
             </button>
-            <div class="session-setup__server-section-title">Monde de test de la mise à jour actuelle</div>
+            <div class="session-setup__server-section-title">Test</div>
             <div class="session-setup__test-world-list"></div>
-            <button type="button" data-mode="stress_server" class="session-setup__server-card session-setup__server-card--test">
-              <div class="session-setup__server-main">
-                <b>Stress</b>
-                <span>Test limite réseau / CPU</span>
-              </div>
-              <div class="session-setup__server-meta">
-                <span>local</span>
-                <span>Mobs denses · projectiles · statuts</span>
-              </div>
-            </button>
-            <div class="session-setup__server-section-title">Serveurs Battle Royale ouverts</div>
+            <div class="session-setup__server-section-title">Battle Royale</div>
             <div class="session-setup__battle-server-list"></div>
             <div class="session-setup__queue-card">
               <div class="session-setup__server-main">
-                <b>File d’attente du prochain serveur Battle Royale</b>
+                <b>Prochain Battle Royale</b>
                 <span class="session-setup__battle-next">Ouverture bientôt</span>
               </div>
               <div class="session-setup__server-meta">
                 <span class="session-setup__battle-waiting-count">0 en attente</span>
-                <span>Non jouable avant ouverture</span>
               </div>
-              <button type="button" data-mode="battle_next" class="session-setup__queue-button">Se mettre en attente</button>
+              <button type="button" data-mode="battle_next" class="session-setup__queue-button">Rejoindre la file</button>
             </div>
           </div>
           <div class="session-setup__mode-footer">
-            <div class="session-setup__selection-summary" data-selection-summary>Serveur sélectionné : Endless</div>
+            <div class="session-setup__selection-summary" data-selection-summary>Sélection : Endless</div>
             <button type="button" class="session-setup__secondary" data-step-back>Retour</button>
             <button type="button" class="session-setup__primary" data-step-next>Continuer</button>
           </div>
@@ -510,7 +495,7 @@ export class SessionSetupOverlay {
     if (this.waitingTimerEl) this.waitingTimerEl.textContent = nextText;
     if (this.testWorldListEl) {
       const worlds = Array.isArray(this.modes?.testWorlds) && this.modes.testWorlds.length ? this.modes.testWorlds : [
-        { id: 'test-hub', title: 'Serveur de test unique', subtitle: 'Hub avec portails vers chaque zone de test', playerCount: this.modes?.testPlayerCount ?? 0 }
+        { id: 'test-hub', title: 'Server Test', subtitle: '', playerCount: this.modes?.testPlayerCount ?? 0 }
       ];
       this.testWorldListEl.innerHTML = '';
       for (const world of worlds) {
@@ -524,12 +509,10 @@ export class SessionSetupOverlay {
         const n = world.playerCount ?? 0;
         btn.innerHTML = `
           <div class="session-setup__server-main">
-            <b>${world.title || id}</b>
-            <span>${world.subtitle || 'Monde isolé pour tester uniquement la mise à jour actuelle'}</span>
+            <b>${world.title || 'Server Test'}</b>
           </div>
           <div class="session-setup__server-meta">
             <span>${n} joueur${n > 1 ? 's' : ''}</span>
-            <span>Progression jetable · n’affecte pas Endless</span>
           </div>
         `;
         btn.addEventListener('click', () => this.selectMode('test_world', id));
@@ -545,7 +528,7 @@ export class SessionSetupOverlay {
         this.selectedBattleSessionId = '';
       }
       if (!sessions.length) {
-        this.battleServerListEl.innerHTML = '<div class="session-setup__server-empty">Aucun serveur Battle ouvert. Utilise la file d’attente du prochain serveur si tu veux attendre.</div>';
+        this.battleServerListEl.innerHTML = '<div class="session-setup__server-empty">Aucun serveur Battle ouvert.</div>';
       } else {
         this.battleServerListEl.innerHTML = '';
         for (const session of sessions) {
@@ -555,13 +538,10 @@ export class SessionSetupOverlay {
           btn.dataset.mode = 'battle_server';
           btn.dataset.serverId = session.id || '';
           if (this.selectedMode === 'battle_server' && this.selectedBattleSessionId === String(session.id || '')) btn.classList.add('is-selected');
-          const phase = 'Préparation ouverte';
-          const timeLabel = `finale dans ${this.formatDuration(session.remainingMs)}`;
-          const opened = this.formatDuration(session.startedAgoMs || 0);
+          const timeLabel = `début dans ${this.formatDuration(session.remainingMs)}`;
           btn.innerHTML = `
             <div class="session-setup__server-main">
               <b>Battle Royale #${session.seq ?? '?'}</b>
-              <span>${phase} · ouvert depuis ${opened}</span>
             </div>
             <div class="session-setup__server-meta">
               <span>${session.playerCount ?? 0} joueur${(session.playerCount ?? 0) > 1 ? 's' : ''}</span>
@@ -575,18 +555,12 @@ export class SessionSetupOverlay {
       }
     }
     if (this.selectionSummaryEl) {
-      const label = this.selectedMode === 'endless'
-        ? 'Serveur sélectionné : Endless'
-        : (this.selectedMode === 'test_world'
-          ? `Monde de test sélectionné : ${(this.modes?.testWorlds || []).find((w) => w.id === this.selectedTestWorldId)?.title || 'Serveur de test unique'}`
-          : (this.selectedMode === 'test_server'
-          ? 'Serveur sélectionné : Test — niveau 50, crédits de test, portails de démonstration'
-          : (this.selectedMode === 'stress_server'
-            ? 'Serveur sélectionné : Stress — mobs denses pour tester les limites réseau/CPU'
-            : (this.selectedMode === 'battle_next'
-            ? 'Action sélectionnée : attente du prochain serveur Battle, sans gameplay avant ouverture'
-            : `Serveur sélectionné : ${this.selectedBattleSessionId || 'Battle non sélectionné'}`))));
-      this.selectionSummaryEl.textContent = label;
+      let label = 'Battle Royale';
+      if (this.selectedMode === 'endless') label = 'Endless';
+      else if (this.selectedMode === 'test_world' || this.selectedMode === 'test_server') label = 'Server Test';
+      else if (this.selectedMode === 'stress_server') label = 'Stress';
+      else if (this.selectedMode === 'battle_next') label = 'File Battle Royale';
+      this.selectionSummaryEl.textContent = `Sélection : ${label}`;
     }
     if (this.currentPseudoEl) this.currentPseudoEl.textContent = this.getActiveAccountName();
 
