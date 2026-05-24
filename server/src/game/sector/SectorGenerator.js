@@ -19,7 +19,7 @@ import { spawnAllTestEffectZones } from '../status/TestEffectZoneSystem.js';
 import { getBastionAtSector, getBastionByInteriorSector, interiorSxForBastion } from '../bastion/BastionSession.js';
 import { spawnBastionInteriorShell } from '../bastion/BastionSystem.js';
 import { SPECIAL_SECTORS, TEST_BIOME_SECTORS, getTestBiomeSector } from './SpecialSectors.js';
-import { BATTLE, isBattleArenaSector } from '../modes/GameModes.js';
+import { BATTLE, isBattleArenaSector, ensureTestEquipmentBench } from '../modes/GameModes.js';
 import { getBastionColor, getBastionEffectSummary } from '../bastion/BastionTypes.js';
 import { SECTOR_BIOMES } from '../../../../shared/proc/SectorBiomes.js';
 
@@ -416,6 +416,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, 760, 1040, SPECIAL_SECTORS.TEST_EQUIPMENT.sx, SPECIAL_SECTORS.TEST_EQUIPMENT.sy, '⚙', {
+    label: 'Test équipement',
+    mode: 'test_equipment',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -439,6 +445,45 @@ function generateTestMiningContent(state, sx, sy, timeMs, h) {
     autoTrigger: true
   });
   spawnStation(state, sx, sy, 1650, 1500, true, h ^ 0x4d1e9a, timeMs);
+}
+
+
+
+function generateTestEquipmentContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+  spawnStation(state, sx, sy, 1650, 1500, true, h ^ 0xe9019a, timeMs);
+
+  const fakePlayer = {
+    id: 0,
+    pseudo: 'Test',
+    accountKey: 'test-equipment',
+    worldId: 'test:test-hub',
+    sx,
+    sy,
+    x: 0,
+    y: 0,
+    research: {
+      completed: [
+        'construction_foundations',
+        'industry_smelting_control',
+        'automation_routing',
+        'energy_distribution',
+        'advanced_industry',
+        'electronics_processing',
+        'resource_scanning',
+        'bio_processing',
+        'defense_turrets',
+        'advanced_research',
+        'alien_anomaly_analysis'
+      ]
+    },
+    inv: null
+  };
+  ensureTestEquipmentBench(state, fakePlayer, timeMs);
 }
 
 
@@ -875,6 +920,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testBiomes = sx === SPECIAL_SECTORS.TEST_BIOMES.sx && sy === SPECIAL_SECTORS.TEST_BIOMES.sy;
   const testBases = sx === SPECIAL_SECTORS.TEST_BASES.sx && sy === SPECIAL_SECTORS.TEST_BASES.sy;
   const testMining = sx === SPECIAL_SECTORS.TEST_MINING.sx && sy === SPECIAL_SECTORS.TEST_MINING.sy;
+  const testEquipment = sx === SPECIAL_SECTORS.TEST_EQUIPMENT.sx && sy === SPECIAL_SECTORS.TEST_EQUIPMENT.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -917,6 +963,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testMining) {
     generateTestMiningContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testEquipment) {
+    generateTestEquipmentContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

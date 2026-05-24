@@ -35,18 +35,6 @@ export const TEST_WORLD_DEFS = Object.freeze([
     level: 50,
     credits: 1000000,
     hint: 'TEST HUB — choisis un portail de test'
-  },
-  {
-    id: 'equipment-lab',
-    title: 'Test Équipement',
-    subtitle: 'Atelier d’équipement prêt à utiliser',
-    sx: SPECIAL_SECTORS.TEST_EQUIPMENT.sx | 0,
-    sy: SPECIAL_SECTORS.TEST_EQUIPMENT.sy | 0,
-    x: 0,
-    y: 0,
-    level: 50,
-    credits: 1000000,
-    hint: 'TEST ÉQUIPEMENT — atelier, station et ressources déjà prêts'
   }
 ]);
 
@@ -339,12 +327,12 @@ function ensureTestStructure(state, worldId, type, sx, sy, x, y, options = {}) {
   return st;
 }
 
-function ensureTestEquipmentBench(state, player, timeMs) {
+export function ensureTestEquipmentBench(state, player, timeMs) {
   if (!state?.structures || !player) return;
   const worldId = String(player.worldId || '');
   const sx = SPECIAL_SECTORS.TEST_EQUIPMENT.sx | 0;
   const sy = SPECIAL_SECTORS.TEST_EQUIPMENT.sy | 0;
-  if (String(player.testWorldId || '') !== 'equipment-lab' && (player.sx | 0) !== sx) return;
+  if ((player.sx | 0) !== sx || (player.sy | 0) !== sy) return;
   const owner = { ownerId: player.id | 0, ownerKey: player.accountKey || 'test', ownerName: player.pseudo || 'Test', timeMs };
   const core = ensureTestStructure(state, worldId, 'base_core', sx, sy, -384, 0, owner);
   if (core) {
@@ -456,11 +444,6 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   player.dockTimer = 0;
   if (player.inv) player.inv.credits = Math.max(player.inv.credits || 0, def.credits | 0 || 0);
   grantTestResources(player);
-  if (String(def.id || '') === 'equipment-lab') {
-    player.research = player.research || { completed: [], unlocked: [] };
-    const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'alien_anomaly_analysis']);
-    player.research.completed = [...completed];
-  }
   ensureTestMiningDeposits(state, player, timeMs);
   ensureTestEquipmentBench(state, player, timeMs);
   if (player.progression) {

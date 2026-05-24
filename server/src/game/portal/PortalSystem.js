@@ -6,6 +6,7 @@ import { enterBastion, exitBastion } from '../bastion/BastionSystem.js';
 import { getBastionAtSector, isBastionUnlockedForPlayer } from '../bastion/BastionSession.js';
 import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
 import { isSpecialDetachedSector } from '../sector/SpecialSectors.js';
+import { addResource } from '../inventory/InventorySystem.js';
 
 
 function preloadPortalDestination(state, sx, sy, timeMs) {
@@ -47,6 +48,28 @@ function beginPortalTransition(player, portal, timeMs) {
   // Pendant un téléport, ne jamais laisser une vieille pose client écraser la pose serveur.
   player.ignoreClientPoseUntil = timeMs + durationMs + 350;
   player.clientAuthoritativeUntil = 0;
+}
+
+
+function grantTestEquipmentPortalLoadout(player) {
+  if (!player?.inv) return;
+  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
+  const pack = {
+    ironOre: 48, copper: 48, aluminiumOre: 32, titaniumOre: 24, quartz: 32, graphite: 24,
+    silicon: 32, hydrocarbons: 28, biomass: 24, organicLipids: 16, waterIce: 24, methane: 20, ammonia: 20,
+    refinedFuel: 20, biofuel: 12, propellant: 12,
+    ironIngot: 30, copperIngot: 20, aluminiumIngot: 20, copperWire: 40, steelPlate: 24,
+    siliconWafer: 18, microTransistor: 10, printedCircuit: 8, controlCircuit: 4,
+    titaniumPlate: 10, carbonFiber: 8, opticalGlass: 8, lithiumBattery: 8, fuelCell: 8,
+    basicSciencePack: 20, automationSciencePack: 10, industrialSciencePack: 10, energySciencePack: 12,
+    biologySciencePack: 10, combatSciencePack: 10, advancedSciencePack: 12, anomalySciencePack: 8,
+    electricMotor: 6, compositeArmor: 4, laserLens: 4, microprocessor: 6, thermalCeramic: 6,
+    fuelInjector: 4, hydrogen: 20
+  };
+  for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
+  player.research = player.research || { completed: [], unlocked: [] };
+  const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'alien_anomaly_analysis']);
+  player.research.completed = [...completed];
 }
 
 function prepareTestArenaPlayer(player) {
@@ -145,8 +168,9 @@ export function tryUsePortal(state, player, timeMs) {
   player.selectedKind = '';
   player.selectedId = 0;
   if (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || String(best.mode || '').startsWith('test_biome_')) prepareTestArenaPlayer(player);
-  player.uiHint = best.mode === 'test_arena' ? 'Simulateur activé' : (best.mode === 'mob_bestiary' ? 'Bestiaire activé' : (String(best.mode || '').startsWith('test_biome_') ? 'Biome de test chargé' : `Saut → [${player.sx},${player.sy}]`));
-  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
+  if (best.mode === 'test_equipment') grantTestEquipmentPortalLoadout(player);
+  player.uiHint = best.mode === 'test_arena' ? 'Simulateur activé' : (best.mode === 'mob_bestiary' ? 'Bestiaire activé' : (best.mode === 'test_equipment' ? 'Test équipement chargé' : (String(best.mode || '').startsWith('test_biome_') ? 'Biome de test chargé' : `Saut → [${player.sx},${player.sy}]`)));
+  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   return true;
 }
