@@ -2,14 +2,13 @@ function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
-function resourceList(entries = []) {
-  if (!entries.length) return '<span class="equipment-fab__muted">Aucun</span>';
-  return entries.map((r) => `<span class="equipment-fab__res ${r.missing > 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)} ×${r.amount | 0}<em>${r.have | 0}</em></span>`).join('');
+function resourcePill(r) {
+  return `<span class="equipment-fab__res ${r.have <= 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)}<em>${r.have | 0}</em></span>`;
 }
 
 function bonusList(bonuses = {}) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => Number(v) !== 0);
-  if (!entries.length) return '<span class="equipment-fab__muted">Stats de base seulement</span>';
+  if (!entries.length) return '<span class="equipment-fab__muted">Base</span>';
   return entries.map(([key, value]) => `<span>${escapeHtml(key)} ${Number(value) > 0 ? '+' : ''}${Math.round(Number(value) * 1000) / 10}${Math.abs(Number(value)) < 1 ? '%' : ''}</span>`).join('');
 }
 
@@ -21,6 +20,7 @@ export class EquipmentRDStationPanelView {
     this.el.hidden = true;
     this.lastKey = '';
     this.selectedItemId = '';
+    this.selectedSciences = [];
     this.bind();
   }
 
@@ -43,12 +43,23 @@ export class EquipmentRDStationPanelView {
         ev.preventDefault();
         return;
       }
+      const sci = ev.target.closest('[data-equipment-rd-science]');
+      if (sci) {
+        const key = sci.dataset.equipmentRdScience || '';
+        const idx = Number(sci.dataset.index ?? -1);
+        if (idx >= 0) this.selectedSciences.splice(idx, 1);
+        else if (this.selectedSciences.length < 3) this.selectedSciences.push(key);
+        this.lastKey = '';
+        this.update(this.store);
+        ev.preventDefault();
+        return;
+      }
       const start = ev.target.closest('[data-equipment-rd-start]');
       if (start) {
         this.sendCmd('equipment_rd_start', {
           structureId: start.dataset.structure | 0,
           itemId: this.selectedItemId,
-          programId: start.dataset.equipmentRdStart || ''
+          sciences: this.selectedSciences.slice(0, 3)
         });
         ev.preventDefault();
         return;
@@ -71,43 +82,43 @@ export class EquipmentRDStationPanelView {
     }
     const items = data.neutralItems || [];
     if (!items.some((it) => it.itemId === this.selectedItemId)) this.selectedItemId = items[0]?.itemId || '';
-    const key = JSON.stringify({ data, selected: this.selectedItemId });
+    this.selectedSciences = this.selectedSciences.filter((key) => (data.sciences || []).some((s) => s.key === key && s.have > 0)).slice(0, data.maxSciences || 3);
+
+    const key = JSON.stringify({ data, selected: this.selectedItemId, sciences: this.selectedSciences });
     if (key === this.lastKey) return;
     this.lastKey = key;
     this.el.hidden = false;
 
     const selected = items.find((it) => it.itemId === this.selectedItemId) || null;
     const active = data.activeJob || null;
+
     const itemCards = items.map((it) => `
       <button type="button" class="equipment-rd__item ${it.itemId === this.selectedItemId ? 'is-selected' : ''}" data-equipment-rd-select="${escapeHtml(it.itemId)}">
         <strong>${escapeHtml(it.name)}</strong>
-        <small>${escapeHtml(it.categoryName)} · Mark ${it.mark | 0}</small>
+        <small>${escapeHtml(it.categoryName)} · Mk ${it.mark | 0}</small>
       </button>
-    `).join('') || '<div class="equipment-fab__muted">Aucun objet neutre disponible. Fabrique d’abord un objet dans l’atelier.</div>';
+    `).join('') || '<div class="equipment-fab__muted">Aucun objet</div>';
 
-    const programs = (data.programs || []).map((p) => `
-      <article class="equipment-fab__card ${p.locked ? 'is-locked' : ''}">
-        <div class="equipment-fab__card-top">
-          <div>
-            <strong>${escapeHtml(p.name)}</strong>
-            <small>${p.seconds | 0}s · max ${p.maxSciencePacks | 0} science(s)</small>
-          </div>
-          <span>${p.locked ? 'Verrouillé' : p.canStart && selected && !active ? 'Prêt' : 'Indisponible'}</span>
-        </div>
-        <p>${escapeHtml(p.description || '')}</p>
-        <div class="equipment-fab__sub">Sciences consommées</div>
-        <div class="equipment-fab__resources">${resourceList(p.input || [])}</div>
-        ${p.locked ? `<div class="equipment-fab__lock">Requiert : ${escapeHtml(p.requiredResearchName || p.requiredResearchId || 'recherche')}</div>` : ''}
-        <button type="button" data-equipment-rd-start="${escapeHtml(p.id)}" data-structure="${data.id | 0}" ${p.canStart && selected && !active ? '' : 'disabled'}>Lancer R&D</button>
-      </article>
-    `).join('');
+    const scienceSlots = Array.from({ length: data.maxSciences || 3 }, (_, i) => {
+      const key = this.selectedSciences[i] || '';
+      const sci = (data.sciences || []).find((s) => s.key === key);
+      return `<button type="button" class="equipment-rd__slot ${key ? 'is-filled' : ''}" ${key ? `data-equipment-rd-science="${escapeHtml(key)}" data-index="${i}"` : ''}>
+        ${key ? `${escapeHtml(sci?.name || key)} <small>retirer</small>` : '<span>Science</span>'}
+      </button>`;
+    }).join('');
+
+    const sciences = (data.sciences || []).map((s) => {
+      const countUsed = this.selectedSciences.filter((key) => key === s.key).length;
+      const disabled = active || s.have <= countUsed || this.selectedSciences.length >= (data.maxSciences || 3);
+      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(s.key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}</button>`;
+    }).join('');
 
     const activeHtml = active ? `
       <div class="equipment-fab__result">
         <div>
-          <span>R&D en cours</span>
+          <span>En cours</span>
           <strong>${escapeHtml(active.itemName)}</strong>
-          <small>${escapeHtml(active.programName)} · ${Math.ceil((active.remainingMs | 0) / 1000)}s restantes</small>
+          <small>${Math.ceil((active.remainingMs | 0) / 1000)}s</small>
         </div>
         <div>
           <div class="equipment-fab__bar"><span style="width:${Math.round((active.progress || 0) * 100)}%"></span></div>
@@ -115,26 +126,29 @@ export class EquipmentRDStationPanelView {
         </div>
       </div>` : '';
 
+    const canStart = !!selected && this.selectedSciences.length > 0 && !active && data.powered;
+
     this.el.innerHTML = `
       <div class="equipment-fab__head">
         <div>
-          <div class="equipment-fab__eyebrow">Station R&D</div>
+          <div class="equipment-fab__eyebrow">R&D</div>
           <div class="equipment-fab__title">${escapeHtml(data.name || 'Station R&D')}</div>
-          <div class="equipment-fab__meta">${data.powered ? 'Alimentée' : 'Sans énergie'} · amélioration procédurale en 60s</div>
+          <div class="equipment-fab__meta">${data.powered ? 'Alimentée' : 'Sans énergie'} · ${data.seconds | 0}s</div>
         </div>
         <button type="button" class="equipment-fab__close" data-equipment-rd-close="1">×</button>
       </div>
-      <div class="equipment-fab__notice">Choisis un objet neutre, puis injecte 1 à 3 sciences. L’objet sera consommé et remplacé par une version avec stats, passifs et tags.</div>
       ${activeHtml}
       <div class="equipment-rd__layout">
         <section>
-          <h3>Objets neutres</h3>
+          <h3>Objet</h3>
           <div class="equipment-rd__items">${itemCards}</div>
-          ${selected ? `<div class="equipment-rd__selected"><b>${escapeHtml(selected.name)}</b><div>${bonusList(selected.bonuses || {})}</div></div>` : ''}
+          ${selected ? `<div class="equipment-rd__selected"><b>${escapeHtml(selected.name)}</b><div class="equipment-fab__bonus">${bonusList(selected.bonuses || {})}</div></div>` : ''}
         </section>
         <section>
-          <h3>Programmes R&D</h3>
-          <div class="equipment-rd__programs">${programs}</div>
+          <h3>Sciences</h3>
+          <div class="equipment-rd__slots">${scienceSlots}</div>
+          <div class="equipment-rd__science-list">${sciences}</div>
+          <button class="equipment-rd__start" type="button" data-equipment-rd-start="1" data-structure="${data.id | 0}" ${canStart ? '' : 'disabled'}>Lancer</button>
         </section>
       </div>
     `;

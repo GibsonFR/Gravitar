@@ -6440,3 +6440,114 @@ button.station-item-icon[draggable="true"]:active,
   color: rgba(210, 140, 255, .98);
   background: linear-gradient(180deg, rgba(70, 38, 100, .86), rgba(18, 10, 36, .94));
 }
+
+/* v146 — interfaces équipement compactes */
+.equipment-fab__machine-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 14px;
+  padding: 16px 18px 20px;
+  max-height: 640px;
+  overflow: auto;
+}
+.equipment-fab__machine-layout section,
+.equipment-rd__layout section {
+  border: 1px solid rgba(126,220,255,.14);
+  border-radius: 14px;
+  background: rgba(5, 12, 20, .62);
+  padding: 12px;
+}
+.equipment-fab__machine-layout h3 {
+  margin: 0 0 10px;
+  color: rgba(210,235,255,.88);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.equipment-fab__recipe-list {
+  display: grid;
+  gap: 8px;
+}
+.equipment-fab__recipe {
+  border: 1px solid rgba(126,220,255,.18);
+  border-radius: 12px;
+  background: rgba(7, 16, 28, .88);
+  color: rgba(235,248,255,.96);
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.equipment-fab__recipe.is-selected {
+  outline: 2px solid rgba(126,220,255,.65);
+  border-color: rgba(126,220,255,.62);
+}
+.equipment-fab__recipe.is-locked {
+  opacity: .5;
+}
+.equipment-fab__recipe strong,
+.equipment-fab__recipe small {
+  display: block;
+}
+.equipment-fab__recipe small {
+  margin-top: 3px;
+  color: rgba(190,215,232,.72);
+}
+.equipment-fab__selected {
+  display: grid;
+  gap: 10px;
+}
+.equipment-fab__selected > button,
+.equipment-rd__start {
+  border: 1px solid rgba(126,220,255,.34);
+  background: linear-gradient(180deg, rgba(32, 98, 132, .90), rgba(11, 38, 64, .92));
+  color: rgba(245, 252, 255, .97);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.equipment-fab__selected > button:disabled,
+.equipment-rd__start:disabled {
+  opacity: .42;
+  cursor: default;
+}
+.equipment-rd__slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.equipment-rd__slot {
+  min-height: 54px;
+  border: 1px dashed rgba(210, 140, 255, .36);
+  border-radius: 12px;
+  background: rgba(210, 140, 255, .06);
+  color: rgba(230, 220, 255, .88);
+  font-weight: 900;
+}
+.equipment-rd__slot.is-filled {
+  border-style: solid;
+  background: rgba(210, 140, 255, .16);
+  cursor: pointer;
+}
+.equipment-rd__slot small {
+  display: block;
+  opacity: .62;
+  margin-top: 3px;
+}
+.equipment-rd__science-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+.equipment-rd__science {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.equipment-rd__science:disabled {
+  opacity: .36;
+  cursor: default;
+}

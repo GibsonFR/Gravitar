@@ -4,9 +4,8 @@ import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { removeResource } from '../inventory/InventorySystem.js';
 import { getPlayerItemDef, addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
-import { EQUIPMENT_RD_PROGRAMS, getEquipmentRDProgram } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
+import { EQUIPMENT_RD_ALLOWED_SCIENCES, EQUIPMENT_RD_MAX_SCIENCES, EQUIPMENT_RD_SECONDS, getEquipmentRDQualityBoost, isEquipmentRDScience } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
 import { rollRDEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
-import { getResearchName, isResearchCompleted } from '../../../../shared/content/research/ScienceResearchDefs.js';
 
 const RD_RANGE = 280;
 
@@ -22,23 +21,6 @@ function canAccess(state, player, st) {
   return distanceSqToStructureRect(st, player.x || 0, player.y || 0) <= RD_RANGE * RD_RANGE;
 }
 
-function completed(player) {
-  return Array.isArray(player?.research?.completed) ? player.research.completed : [];
-}
-
-function hasResources(player, input = {}) {
-  for (const [key, amount] of Object.entries(input || {})) {
-    if ((player?.inv?.resources?.[key] | 0) < (amount | 0)) return false;
-  }
-  return true;
-}
-
-function payResources(player, input = {}) {
-  if (!hasResources(player, input)) return false;
-  for (const [key, amount] of Object.entries(input || {})) removeResource(player.inv, key, amount | 0);
-  return true;
-}
-
 function resourceEntry(key, amount, player) {
   const def = RESOURCE_DEFS[key] || null;
   const have = Math.max(0, player?.inv?.resources?.[key] | 0);
@@ -50,6 +32,34 @@ function resourceEntry(key, amount, player) {
     missing: Math.max(0, (amount | 0) - have),
     colorHex: def?.colorHex || '#ffffff'
   };
+}
+
+function normalizeSciences(sciences = []) {
+  const out = [];
+  for (const raw of Array.isArray(sciences) ? sciences : []) {
+    const key = String(raw || '');
+    if (!isEquipmentRDScience(key)) continue;
+    if (out.length >= EQUIPMENT_RD_MAX_SCIENCES) break;
+    out.push(key);
+  }
+  return out;
+}
+
+function hasScience(player, sciences = []) {
+  const counts = {};
+  for (const key of sciences) counts[key] = (counts[key] | 0) + 1;
+  for (const [key, amount] of Object.entries(counts)) {
+    if ((player?.inv?.resources?.[key] | 0) < (amount | 0)) return false;
+  }
+  return true;
+}
+
+function payScience(player, sciences = []) {
+  if (!hasScience(player, sciences)) return false;
+  const counts = {};
+  for (const key of sciences) counts[key] = (counts[key] | 0) + 1;
+  for (const [key, amount] of Object.entries(counts)) removeResource(player.inv, key, amount | 0);
+  return true;
 }
 
 function ownedNeutralItems(player) {
@@ -71,22 +81,8 @@ function itemSnapshot(def) {
   };
 }
 
-function programSnapshot(player, program) {
-  const unlocked = isResearchCompleted(completed(player), program.requiresResearchId);
-  return {
-    id: program.id,
-    name: program.name,
-    description: program.description || '',
-    seconds: program.seconds | 0,
-    qualityBoost: program.qualityBoost | 0,
-    maxSciencePacks: program.maxSciencePacks | 0,
-    input: Object.entries(program.scienceInput || {}).map(([key, amount]) => resourceEntry(key, amount | 0, player)),
-    locked: !unlocked,
-    requiredResearchId: program.requiresResearchId || '',
-    requiredResearchName: program.requiresResearchId ? getResearchName(program.requiresResearchId) : '',
-    affordable: hasResources(player, program.scienceInput || {}),
-    canStart: unlocked && hasResources(player, program.scienceInput || {})
-  };
+function scienceSnapshot(player) {
+  return EQUIPMENT_RD_ALLOWED_SCIENCES.map((key) => resourceEntry(key, 1, player));
 }
 
 function activeJobSnapshot(st) {
@@ -96,8 +92,7 @@ function activeJobSnapshot(st) {
   const remaining = Math.max(0, job.remainingMs | 0);
   return {
     itemName: job.itemDef.name || '',
-    programId: job.programId || '',
-    programName: getEquipmentRDProgram(job.programId)?.name || '',
+    sciences: Array.isArray(job.sciences) ? job.sciences : [],
     progress: Math.max(0, Math.min(1, 1 - remaining / total)),
     remainingMs: remaining,
     totalMs: total
@@ -121,9 +116,11 @@ export function buildEquipmentRDStationSnapshot(state, player) {
     powered: !!st.powered,
     energyUse: Number(def?.energyUse) || 0,
     baseEnergy: core?.energyState || null,
+    maxSciences: EQUIPMENT_RD_MAX_SCIENCES,
+    seconds: EQUIPMENT_RD_SECONDS,
     activeJob: activeJobSnapshot(st),
     neutralItems: ownedNeutralItems(player).map(itemSnapshot),
-    programs: EQUIPMENT_RD_PROGRAMS.map((program) => programSnapshot(player, program)),
+    sciences: scienceSnapshot(player),
     lastCraftedItemId: player?.equipment?.lastCraftedItemId || ''
   };
 }
@@ -143,17 +140,16 @@ export function closeEquipmentRDStation(player) {
   return true;
 }
 
-export function startEquipmentRDJob(state, player, structureId, itemId, programId, timeMs = Date.now()) {
+export function startEquipmentRDJob(state, player, structureId, itemId, sciences, timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
   if (!st.powered) return { ok: false, error: 'no_power' };
   if (st.rdJob?.itemDef) return { ok: false, error: 'busy' };
   const item = getPlayerItemDef(player, itemId);
   if (!item?.neutralBase || item.rdEnhanced) return { ok: false, error: 'bad_item' };
-  const program = getEquipmentRDProgram(programId);
-  if (!program) return { ok: false, error: 'bad_program' };
-  if (program.requiresResearchId && !isResearchCompleted(completed(player), program.requiresResearchId)) return { ok: false, error: 'research_required' };
-  if (!payResources(player, program.scienceInput || {})) return { ok: false, error: 'missing_resources' };
+  const selectedSciences = normalizeSciences(sciences);
+  if (!selectedSciences.length) return { ok: false, error: 'missing_science' };
+  if (!payScience(player, selectedSciences)) return { ok: false, error: 'missing_resources' };
 
   player.equipment.ownedItemIds = (player.equipment.ownedItemIds || []).filter((id) => id !== item.id);
   player.equipment.equippedItemIds = (player.equipment.equippedItemIds || []).filter((id) => id !== item.id);
@@ -161,11 +157,11 @@ export function startEquipmentRDJob(state, player, structureId, itemId, programI
     itemDef: JSON.parse(JSON.stringify(item)),
     ownerId: player.id | 0,
     ownerKey: player.accountKey || player.pseudo || player.id || '',
-    programId: program.id,
-    qualityBoost: program.qualityBoost | 0,
+    sciences: selectedSciences,
+    qualityBoost: getEquipmentRDQualityBoost(selectedSciences),
     startedAt: timeMs,
-    totalMs: Math.max(1000, (program.seconds | 0) * 1000),
-    remainingMs: Math.max(1000, (program.seconds | 0) * 1000)
+    totalMs: EQUIPMENT_RD_SECONDS * 1000,
+    remainingMs: EQUIPMENT_RD_SECONDS * 1000
   };
   st.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
@@ -203,13 +199,14 @@ export function updateEquipmentRDStations(state, timeMs, dtMs) {
       owner.equipment.craftedItemCounter = Math.max(0, owner.equipment.craftedItemCounter | 0) + 1;
       const crafted = rollRDEquipment({
         neutralItemDef: job.itemDef,
-        programId: job.programId,
+        programId: `rd_${(job.sciences || []).join('_') || 'science'}`,
         ownerKey: job.ownerKey || owner.accountKey || owner.pseudo || owner.id || '',
         craftedIndex: owner.equipment.craftedItemCounter,
         timeMs,
         qualityBoost: job.qualityBoost | 0
       });
       if (crafted) {
+        crafted.usedSciences = Array.isArray(job.sciences) ? [...job.sciences] : [];
         addCustomEquipmentDef(owner, crafted);
         owner.equipment.ownedItemIds = [...new Set([...owner.equipment.ownedItemIds, crafted.id])].sort();
         owner.equipment.lastCraftedItemId = crafted.id;
