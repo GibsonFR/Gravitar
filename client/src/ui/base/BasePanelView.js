@@ -916,6 +916,7 @@ export class BasePanelView {
       radius: Math.max(rect.w, rect.h) * 0.5,
       orientation,
       claimRadius: def.claimRadius || 0,
+      extractionRange: def.type === 'mining_extractor' ? (def.extractionRange || BASE_TILE * 5) : 0,
       ok: validation.ok,
       reason: validation.reason,
       ownCore: validation.ownCore ? { x: validation.ownCore.x, y: validation.ownCore.y, claimRadius: validation.ownCore.claimRadius || BASE_TILE * 8 } : null

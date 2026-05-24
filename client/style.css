@@ -4855,3 +4855,11 @@ button.station-item-icon[draggable="true"]:active,
   line-height: 1.35;
   text-align: center;
 }
+
+
+.machine-panel__progress.mini {
+  margin-top: 10px;
+}
+.machine-panel__hint.is-danger {
+  color: rgba(255, 150, 150, .95);
+}

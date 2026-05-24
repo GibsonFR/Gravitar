@@ -153,7 +153,13 @@ export class MachinePanelView {
       const powerClass = powered ? 'is-powered' : 'is-unpowered';
       const status = machine.enabled === false ? 'Arrêté' : (machine.statusLabel || (powered ? 'Extraction' : 'Manque d’énergie'));
       const energy = machine.baseEnergy || null;
-      const energyLine = energy ? `${energy.production || 0} prod · ${energy.consumption || 0} conso · ${energy.surplus || 0} surplus` : 'Aucun noyau alimenté';
+      const prod = Number(energy?.production || 0);
+      const conso = Number(energy?.consumption || 0);
+      const surplus = Number(energy?.surplus || 0);
+      const use = Number(machine.energyUse || 0);
+      const energyLine = energy ? `${prod} production · ${conso} consommation · ${surplus} surplus` : 'Aucun noyau alimenté';
+      const energyPct = energy ? Math.max(0, Math.min(100, Math.round((conso / Math.max(1, prod)) * 100))) : 0;
+      const energyWarn = machine.enabled !== false && use > 0 && !machine.powered;
       this.el.innerHTML = `
         <div class="machine-panel__head">
           <div>
@@ -175,8 +181,15 @@ export class MachinePanelView {
             </div>
             <div class="machine-panel__cols">
               <section class="machine-panel__box">
-                <h3>Énergie</h3>
+                <h3>Énergie <span>${use | 0} active</span></h3>
                 <div class="machine-panel__empty">${escapeHtml(energyLine)}</div>
+                <div class="machine-panel__progress mini">
+                  <div class="machine-panel__progress-head"><span>Charge réseau</span><b>${energyPct}%</b></div>
+                  <div class="machine-panel__bar"><span style="width:${energyPct}%"></span></div>
+                </div>
+                <div class="machine-panel__hint ${energyWarn ? 'is-danger' : ''}">
+                  ${energyWarn ? 'Pas assez d’énergie : extraction arrêtée.' : 'L’extracteur consomme son énergie uniquement quand il est actif.'}
+                </div>
               </section>
               <section class="machine-panel__box machine-panel__center">
                 <button class="machine-panel__produce ${machine.enabled !== false ? 'is-off' : 'is-on'}" type="button" data-machine-toggle="1" data-enabled="${machine.enabled !== false ? '0' : '1'}">

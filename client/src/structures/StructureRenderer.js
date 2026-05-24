@@ -1183,6 +1183,28 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
       : (ok ? 'rgba(117, 255, 215, 0.92)' : 'rgba(255, 112, 112, 0.95)');
   const pulse = 0.55 + 0.45 * Math.sin(t * 5.2);
 
+  if (preview.type === 'mining_extractor' && preview.extractionRange) {
+    ctx.save();
+    const rp = worldToScreen(view, preview.x || 0, preview.y || 0, camX, camY);
+    const rr = Number(preview.extractionRange || 0) * view.dpr;
+    ctx.globalAlpha = ok ? 0.92 : 0.45;
+    ctx.fillStyle = 'rgba(159, 220, 255, 0.035)';
+    ctx.strokeStyle = ok ? 'rgba(159, 220, 255, 0.36)' : 'rgba(255, 112, 112, 0.26)';
+    ctx.lineWidth = 1.4 * view.dpr;
+    ctx.setLineDash([14 * view.dpr, 10 * view.dpr]);
+    ctx.beginPath();
+    ctx.arc(rp.x, rp.y, rr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = `${10 * view.dpr}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = ok ? 'rgba(205, 242, 255, .86)' : 'rgba(255, 204, 204, .84)';
+    ctx.fillText('portée extracteur', rp.x, rp.y - rr - 6 * view.dpr);
+    ctx.restore();
+  }
+
   const claim = preview.type === 'base_core'
     ? { x: preview.x, y: preview.y, half: preview.claimRadius || 0 }
     : preview.ownCore ? { x: preview.ownCore.x, y: preview.ownCore.y, half: preview.ownCore.claimRadius || 0 } : null;
@@ -1221,6 +1243,9 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
   } else if (isArmType(preview.type)) {
     ctx.globalAlpha *= 0.92;
     drawRobotArmBody(ctx, view, preview, w, h);
+    drawDirectionArrow(ctx, view, preview, w, h, true);
+  } else if (preview.type === 'mining_extractor') {
+    ctx.globalAlpha *= 0.92;
     drawDirectionArrow(ctx, view, preview, w, h, true);
   }
 
