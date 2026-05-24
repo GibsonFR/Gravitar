@@ -1,5 +1,5 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel']);
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -126,6 +126,29 @@ export function sanitizeCommandMessage(raw) {
   if (cmd === 'assign_rocket_ammo' || cmd === 'unassign_rocket_ammo' || cmd === 'switch_rocket_slot') {
     const slot = Number.isFinite(raw.slot) ? Math.floor(raw.slot) : Math.floor(Number(raw.slot) || 0);
     msg.slot = Math.max(0, Math.min(1, slot));
+  }
+
+  if (cmd === 'research_station_open' || cmd === 'research_station_close' || cmd === 'research_station_toggle' || cmd === 'research_station_start' || cmd === 'research_station_transfer') {
+    const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
+    msg.structureId = Math.max(0, Math.min(2147483647, structureId));
+  }
+
+  if (cmd === 'research_station_transfer') {
+    msg.resourceKey = cleanWord(raw.resourceKey ?? raw.resource ?? raw.key, 48);
+    const amount = Number.isFinite(raw.amount) ? Math.floor(raw.amount) : Math.floor(Number(raw.amount) || 0);
+    msg.amount = Math.max(1, Math.min(999999, amount));
+    const dir = cleanWord(raw.direction || raw.dir || '', 16).toLowerCase();
+    msg.direction = dir === 'withdraw' ? 'withdraw' : 'deposit';
+  }
+
+  if (cmd === 'research_station_start' || cmd === 'research_tree_start' || cmd === 'research_start') {
+    msg.projectId = cleanWord(raw.projectId ?? raw.project ?? '', 96).toLowerCase();
+  }
+
+  if (cmd === 'research_station_toggle') {
+    if (raw.enabled === true || raw.enabled === false) msg.enabled = !!raw.enabled;
+    else if (raw.enabled === 'true' || raw.enabled === '1' || raw.enabled === 1) msg.enabled = true;
+    else if (raw.enabled === 'false' || raw.enabled === '0' || raw.enabled === 0) msg.enabled = false;
   }
 
   return msg;

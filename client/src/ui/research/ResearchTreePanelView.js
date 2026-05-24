@@ -2,63 +2,91 @@ function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
-function pct(v) {
-  return `${Math.round(Math.max(0, Math.min(1, Number(v) || 0)) * 100)}%`;
-}
+const PACK_LABELS = {
+  basicSciencePack: 'Base',
+  automationSciencePack: 'Auto',
+  industrialSciencePack: 'Indus.',
+  energySciencePack: 'Énergie',
+  biologySciencePack: 'Bio',
+  combatSciencePack: 'Défense',
+  advancedSciencePack: 'Avancée',
+  anomalySciencePack: 'Anomalie'
+};
+
+const NODE_POS = {
+  construction_foundations: [70, 170],
+  industry_smelting_control: [70, 330],
+  automation_routing: [345, 95],
+  energy_distribution: [345, 245],
+  advanced_industry: [345, 405],
+  resource_scanning: [630, 60],
+  electronics_processing: [630, 230],
+  bio_processing: [630, 390],
+  defense_turrets: [630, 550],
+  advanced_research: [930, 270],
+  pirate_reverse_engineering: [930, 485],
+  alien_anomaly_analysis: [1240, 360]
+};
 
 function packCost(cost = {}) {
-  return Object.entries(cost || {}).filter(([, amount]) => (amount | 0) > 0).map(([key, amount]) => {
-    const short = key
-      .replace('SciencePack', '')
-      .replace('basic', 'Base')
-      .replace('automation', 'Auto')
-      .replace('industrial', 'Indus')
-      .replace('energy', 'Énergie')
-      .replace('biology', 'Bio')
-      .replace('combat', 'Défense')
-      .replace('advanced', 'Avancée')
-      .replace('anomaly', 'Anomalie');
-    return `${amount | 0}× ${short}`;
-  }).join(' · ');
+  const entries = Object.entries(cost || {}).filter(([, amount]) => (amount | 0) > 0);
+  if (!entries.length) return 'Aucun';
+  return entries.map(([key, amount]) => `${amount | 0}× ${PACK_LABELS[key] || key}`).join(' · ');
 }
 
-function prereqLabel(project, lookup) {
-  const ids = Array.isArray(project?.prereq) ? project.prereq : [];
-  if (!ids.length) return 'Aucun';
-  return ids.map((id) => lookup.get(id)?.name || id).join(' · ');
+function secondsLabel(seconds) {
+  const s = Math.max(0, seconds | 0);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r ? `${m}m ${r}s` : `${m}m`;
 }
 
-function describeStatus(status) {
-  switch (String(status || '')) {
-    case 'no_power': return 'Sans énergie';
-    case 'off': return 'Station désactivée';
-    case 'science': return 'Packs insuffisants';
-    case 'complete': return 'Recherche terminée';
-    case 'cancelled': return 'Recherche annulée';
-    default: return 'Opérationnel';
-  }
+function totalCost(project) {
+  return project.totalCost || Object.fromEntries(Object.entries(project.pointCost || {}).map(([k, v]) => [k, (v | 0) * (project.points | 0)]));
+}
+
+function prereqIds(project) {
+  return Array.isArray(project?.prereq) ? project.prereq : (Array.isArray(project?.prerequisites) ? project.prerequisites : []);
 }
 
 function listBlock(items = [], emptyLabel = 'Aucun') {
-  if (!items.length) return `<div class="research-tree__empty-block">${escapeHtml(emptyLabel)}</div>`;
-  return `<ul class="research-tree__unlock-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+  if (!items.length) return `<div class="research-tree-panel__empty-line">${escapeHtml(emptyLabel)}</div>`;
+  return `<ul class="research-tree-panel__unlock-list">${items.map((it) => `<li>${escapeHtml(it)}</li>`).join('')}</ul>`;
+}
+
+function nodeState(project, activeIds) {
+  if (project.completed) return 'done';
+  if (activeIds.has(project.id)) return 'active';
+  if (project.canStart) return 'ready';
+  if (project.available) return 'missing';
+  return 'locked';
+}
+
+function statusLabel(state) {
+  return {
+    done: 'Terminé',
+    active: 'En cours',
+    ready: 'Disponible',
+    missing: 'Packs manquants',
+    locked: 'Verrouillé'
+  }[state] || state;
 }
 
 function sortedProjects(projects = []) {
   return [...projects].sort((a, b) => {
-    const ta = a.tier | 0;
-    const tb = b.tier | 0;
-    if (ta !== tb) return ta - tb;
-    const sa = (a.completed ? 2 : a.canStart ? 0 : a.available ? 1 : 3);
-    const sb = (b.completed ? 2 : b.canStart ? 0 : b.available ? 1 : 3);
-    if (sa !== sb) return sa - sb;
+    const ax = NODE_POS[a.id]?.[0] ?? 99999;
+    const bx = NODE_POS[b.id]?.[0] ?? 99999;
+    if (ax !== bx) return ax - bx;
+    const ay = NODE_POS[a.id]?.[1] ?? 99999;
+    const by = NODE_POS[b.id]?.[1] ?? 99999;
+    if (ay !== by) return ay - by;
     return String(a.name || '').localeCompare(String(b.name || ''), 'fr');
   });
 }
 
-function pickDefaultProject(projects = []) {
-  const ordered = sortedProjects(projects);
-  return ordered.find((p) => p.canStart) || ordered.find((p) => p.available) || ordered[0] || null;
+function defaultProject(projects = []) {
+  return projects.find((p) => p.canStart) || projects.find((p) => p.available) || projects[0] || null;
 }
 
 export class ResearchTreePanelView {
@@ -66,162 +94,202 @@ export class ResearchTreePanelView {
     this.sendCmd = sendCmd;
     this.el = document.createElement('section');
     this.el.className = 'research-tree-panel';
-    this.el.hidden = true;
+    this.zoom = 0.92;
+    this.panX = 0;
+    this.panY = 0;
     this.selectedId = '';
+    this.drag = null;
     this.lastKey = '';
     this.bind();
   }
 
   bind() {
-    this.el.addEventListener('pointerdown', (ev) => ev.stopPropagation(), true);
-    this.el.addEventListener('mousedown', (ev) => ev.stopPropagation(), true);
+    this.el.addEventListener('pointerdown', (ev) => {
+      const viewport = ev.target.closest('.research-tree-panel__viewport');
+      if (!viewport || ev.target.closest('button')) return;
+      if (ev.target.closest('.research-tree-panel__node')) return;
+      this.drag = { x: ev.clientX, y: ev.clientY, panX: this.panX, panY: this.panY };
+      viewport.setPointerCapture?.(ev.pointerId);
+      ev.preventDefault();
+    });
+    this.el.addEventListener('pointermove', (ev) => {
+      if (!this.drag) return;
+      this.panX = this.drag.panX + (ev.clientX - this.drag.x);
+      this.panY = this.drag.panY + (ev.clientY - this.drag.y);
+      this.applyTransform();
+    });
+    this.el.addEventListener('pointerup', () => { this.drag = null; });
+    this.el.addEventListener('wheel', (ev) => {
+      if (!ev.target.closest('.research-tree-panel__viewport')) return;
+      this.zoom = Math.max(0.56, Math.min(1.42, this.zoom + (ev.deltaY < 0 ? 0.08 : -0.08)));
+      this.applyTransform();
+      ev.preventDefault();
+    }, { passive: false });
     this.el.addEventListener('click', (ev) => {
-      const close = ev.target.closest('[data-close-research]');
-      if (close) {
-        this.el.hidden = true;
-        ev.preventDefault();
-        return;
-      }
-      const start = ev.target.closest('[data-start-research]');
-      if (start) {
-        this.sendCmd('research_start', { projectId: start.dataset.startResearch || '' });
-        ev.preventDefault();
-        return;
-      }
-      const cancel = ev.target.closest('[data-cancel-research]');
-      if (cancel) {
-        this.sendCmd('research_cancel', {});
-        ev.preventDefault();
-        return;
-      }
-      const node = ev.target.closest('[data-select-research]');
+      const node = ev.target.closest('[data-research-node]');
       if (node) {
-        this.selectedId = node.dataset.selectResearch || '';
-        this.lastKey = '';
-        this.update(this.store);
+        this.selectedId = node.dataset.project || '';
+        this.renderSelection();
+        ev.preventDefault();
+        return;
+      }
+      const start = ev.target.closest('[data-research-start]');
+      if (start) {
+        this.sendCmd('research_tree_start', { projectId: start.dataset.project || '' });
+        ev.preventDefault();
+        return;
+      }
+      const cancel = ev.target.closest('[data-research-cancel]');
+      if (cancel) {
+        this.sendCmd('research_tree_cancel', {});
         ev.preventDefault();
       }
     });
   }
 
-  setOpen(open) {
-    this.el.hidden = !open;
+  applyTransform() {
+    const canvas = this.el.querySelector('.research-tree-panel__canvas');
+    if (canvas) canvas.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+    const z = this.el.querySelector('[data-research-zoom]');
+    if (z) z.textContent = `${Math.round(this.zoom * 100)}%`;
+  }
+
+  ensureSelection() {
+    const projects = this.projects || [];
+    if (!projects.length) return;
+    if (!projects.some((p) => p.id === this.selectedId)) this.selectedId = defaultProject(projects)?.id || projects[0].id;
+  }
+
+  renderSelection() {
+    const data = this.data;
+    const projects = this.projects || [];
+    this.ensureSelection();
+    const project = projects.find((p) => p.id === this.selectedId) || projects[0] || null;
+    const side = this.el.querySelector('.research-tree-panel__side');
+    if (!side || !project) return;
+    const map = new Map(projects.map((p) => [p.id, p]));
+    const activeIds = new Set((data.active || []).map((a) => a.projectId));
+    const state = nodeState(project, activeIds);
+    const branch = (data.branches || []).find((b) => b.id === project.branch) || null;
+    const prereq = prereqIds(project).map((id) => map.get(id)?.name || id);
+    const pointSeconds = data.pointSeconds | 0 || 30;
+    const estimatedOneStation = (project.points | 0) * pointSeconds;
+    side.innerHTML = `
+      <div class="research-tree-panel__branch" style="--branch:${escapeHtml(branch?.colorHex || '#7edcff')}">${escapeHtml(project.branchName || branch?.name || '')}</div>
+      <h2>${escapeHtml(project.name)}</h2>
+      <div class="research-tree-panel__status is-${state}">${escapeHtml(statusLabel(state))}</div>
+      <section>
+        <h3>Coût par point</h3>
+        <p>${escapeHtml(packCost(project.pointCost || {}))}</p>
+      </section>
+      <section>
+        <h3>Recherche</h3>
+        <p>${project.points | 0} points · ${secondsLabel(estimatedOneStation)} avec 1 station · ${project.energyUse | 0} énergie/station</p>
+      </section>
+      <section>
+        <h3>Prérequis</h3>
+        <p>${prereq.length ? prereq.map(escapeHtml).join(' + ') : 'Aucun'}</p>
+      </section>
+      <div class="research-tree-panel__split">
+        <section>
+          <h3>Bâtiments débloqués</h3>
+          ${listBlock(project.unlockBuildings || [], 'Aucun bâtiment')}
+        </section>
+        <section>
+          <h3>Recettes débloquées</h3>
+          ${listBlock(project.unlockRecipes || [], 'Aucune recette')}
+        </section>
+      </div>
+      <section>
+        <h3>Coût total</h3>
+        <p>${escapeHtml(packCost(totalCost(project)))}</p>
+      </section>
+      ${state === 'ready'
+        ? `<button type="button" data-research-start="1" data-project="${escapeHtml(project.id)}">Lancer cette recherche</button>`
+        : state === 'done'
+          ? '<button type="button" disabled>Déjà terminé</button>'
+          : state === 'active'
+            ? '<button type="button" disabled>Recherche en cours</button>'
+            : '<button type="button" disabled>Packs ou prérequis manquants</button>'}
+    `;
+    this.el.querySelectorAll('.research-tree-panel__node').forEach((n) => n.classList.toggle('is-selected', n.dataset.project === project.id));
   }
 
   update(store) {
-    this.store = store;
     const data = store.myState?.researchOverview || null;
     if (!data) {
-      this.el.hidden = true;
-      this.lastKey = '';
+      this.el.innerHTML = '<div class="research-tree-panel__empty">Aucune donnée de recherche.</div>';
       return;
     }
-    if (this.el.hidden) return;
-
-    const orderedProjects = sortedProjects(data.projects || []);
-    const map = new Map(orderedProjects.map((p) => [p.id, p]));
-    let selected = map.get(this.selectedId);
-    if (!selected) {
-      selected = pickDefaultProject(orderedProjects);
-      this.selectedId = selected?.id || '';
-    }
+    const projects = sortedProjects(data.projects || []);
+    this.data = data;
+    this.projects = projects;
+    this.ensureSelection();
 
     const key = JSON.stringify({
       selected: this.selectedId,
+      completed: data.completed,
       active: data.active,
-      projects: orderedProjects.map((p) => [p.id, p.completed, p.canStart, p.available]),
       science: data.science,
-      stations: [data.stationCount, data.poweredStations]
+      stations: [data.stationCount, data.poweredStations],
+      projects: projects.map((p) => [p.id, p.canStart, p.available, p.completed])
     });
     if (key === this.lastKey) return;
     this.lastKey = key;
 
     const active = (data.active || [])[0] || null;
-    const selectedBranch = data.branches?.find((b) => b.id === selected?.branch) || null;
-
-    const nodes = orderedProjects.map((project) => {
-      const branch = data.branches?.find((b) => b.id === project.branch) || null;
-      const classes = [
-        'research-tree__node',
-        project.completed ? 'is-done' : project.canStart ? 'is-ready' : project.available ? 'is-available' : 'is-locked',
-        this.selectedId === project.id ? 'is-selected' : ''
-      ].filter(Boolean).join(' ');
-      return `
-        <button type="button" class="${classes}" style="--branch:${escapeHtml(branch?.colorHex || '#b58cff')}" data-select-research="${escapeHtml(project.id)}">
-          <span class="research-tree__dot"></span>
-          <strong>${escapeHtml(project.name)}</strong>
-          <small>${escapeHtml(project.branchName || '')}</small>
-          <small>${project.points | 0} pts · ${escapeHtml(packCost(project.pointCost || {}) || 'Aucun')}</small>
-        </button>
-      `;
-    }).join('');
+    const activeIds = new Set((data.active || []).map((a) => a.projectId));
+    const nodeW = 178;
+    const nodeH = 72;
+    const maxX = Math.max(1500, ...projects.map((p) => (NODE_POS[p.id]?.[0] || 0) + nodeW + 60));
+    const maxY = Math.max(730, ...projects.map((p) => (NODE_POS[p.id]?.[1] || 0) + nodeH + 60));
+    const lines = projects.flatMap((p) => prereqIds(p).map((id) => {
+      const a = NODE_POS[id];
+      const b = NODE_POS[p.id];
+      if (!a || !b) return '';
+      const done = !!projects.find((x) => x.id === id)?.completed;
+      return `<path class="research-tree-panel__edge ${done ? 'is-done' : ''}" d="M${a[0] + nodeW},${a[1] + nodeH / 2} C${a[0] + nodeW + 80},${a[1] + nodeH / 2} ${b[0] - 80},${b[1] + nodeH / 2} ${b[0]},${b[1] + nodeH / 2}" />`;
+    })).join('');
 
     this.el.innerHTML = `
-      <div class="research-tree__head">
+      <div class="research-tree-panel__top">
         <div>
-          <div class="research-tree__eyebrow">Recherche globale</div>
-          <div class="research-tree__title">Arbre technologique</div>
-          <div class="research-tree__meta">${data.poweredStations | 0}/${data.stationCount | 0} station(s) alimentée(s) · ${data.pointSeconds | 0}s par point / station</div>
+          <div class="research-tree-panel__eyebrow">Recherche globale</div>
+          <div class="research-tree-panel__title">Arbre technologique</div>
+          <div class="research-tree-panel__meta">${data.poweredStations | 0}/${data.stationCount | 0} station(s) alimentée(s) · ${data.pointSeconds | 0 || 30}s / point / station</div>
         </div>
-        <button type="button" class="research-tree__close" data-close-research="1">Fermer</button>
+        <div class="research-tree-panel__summary">
+          <span>${(data.completed || []).length} terminées</span>
+          <span data-research-zoom>${Math.round(this.zoom * 100)}%</span>
+        </div>
       </div>
-      <div class="research-tree__summary">
-        <section>
-          <h3>Recherche active</h3>
-          ${active ? `
-            <div class="research-tree__active-name">${escapeHtml(active.name)}</div>
-            <div class="research-tree__bar"><span style="width:${pct(active.progress)}"></span></div>
-            <div class="research-tree__small">${active.pointsDone | 0}/${active.pointsTotal | 0} pts · ${escapeHtml(describeStatus(active.status))}</div>
-            <button type="button" data-cancel-research="1">Annuler</button>
-          ` : '<div class="research-tree__small">Aucune recherche active</div>'}
-        </section>
-        <section>
-          <h3>Packs en stock</h3>
-          <div class="research-tree__science-list">${(data.science || []).length ? (data.science || []).map((p) => `<span><i style="--pack:${escapeHtml(p.colorHex || '#fff')}"></i>${escapeHtml(p.name)} ×${p.amount | 0}</span>`).join('') : '<span>Aucun pack chargé dans les stations.</span>'}</div>
-        </section>
+      <div class="research-tree-panel__active">
+        <strong>${active ? escapeHtml(active.name) : 'Aucune recherche active'}</strong>
+        <div class="research-tree-panel__bar"><span style="width:${Math.round((active?.progress || 0) * 100)}%"></span></div>
+        <span>${active ? `${active.pointsDone | 0}/${active.pointsTotal | 0} pts` : '—'}</span>
+        <button type="button" data-research-cancel="1" ${active ? '' : 'disabled'}>Annuler</button>
       </div>
-      <div class="research-tree__body">
-        <div class="research-tree__map">${nodes}</div>
-        <aside class="research-tree__side">
-          ${selected ? `
-            <div class="research-tree__tag" style="--branch:${escapeHtml(selectedBranch?.colorHex || '#b58cff')}">${escapeHtml(selected.branchName || '')}</div>
-            <h2>${escapeHtml(selected.name)}</h2>
-            <div class="research-tree__detail-block">
-              <h4>Coût / point</h4>
-              <p>${escapeHtml(packCost(selected.pointCost || {}) || 'Aucun')}</p>
-            </div>
-            <div class="research-tree__detail-block">
-              <h4>Recherche</h4>
-              <p>${selected.points | 0} point(s) · ${(selected.points | 0) * (data.pointSeconds | 0)}s estimées avec 1 station</p>
-            </div>
-            <div class="research-tree__detail-block">
-              <h4>Prérequis</h4>
-              <p>${escapeHtml(prereqLabel(selected, map))}</p>
-            </div>
-            <div class="research-tree__detail-grid">
-              <div class="research-tree__detail-block">
-                <h4>Bâtiments débloqués</h4>
-                ${listBlock(selected.unlockBuildings || [], 'Aucun bâtiment')}
-              </div>
-              <div class="research-tree__detail-block">
-                <h4>Recettes débloquées</h4>
-                ${listBlock(selected.unlockRecipes || [], 'Aucune recette')}
-              </div>
-            </div>
-            <div class="research-tree__detail-block">
-              <h4>Coût total estimé</h4>
-              <p>${escapeHtml(packCost(selected.totalCost || {}) || 'Aucun')}</p>
-            </div>
-            ${selected.completed
-              ? '<button type="button" disabled>Déjà recherché</button>'
-              : active
-                ? '<button type="button" disabled>Une autre recherche est en cours</button>'
-                : selected.canStart
-                  ? `<button type="button" data-start-research="${escapeHtml(selected.id)}">Lancer cette recherche</button>`
-                  : '<button type="button" disabled>Packs ou prérequis manquants</button>'}
-          ` : '<div class="research-tree__small">Aucun projet sélectionné</div>'}
-        </aside>
+      <div class="research-tree-panel__main">
+        <div class="research-tree-panel__viewport">
+          <div class="research-tree-panel__canvas" style="width:${maxX}px;height:${maxY}px">
+            <svg class="research-tree-panel__edges" width="${maxX}" height="${maxY}" viewBox="0 0 ${maxX} ${maxY}">${lines}</svg>
+            ${projects.map((p) => {
+              const pos = NODE_POS[p.id] || [80, 80];
+              const branch = (data.branches || []).find((b) => b.id === p.branch) || {};
+              const state = nodeState(p, activeIds);
+              return `<button type="button" class="research-tree-panel__node is-${state}" data-research-node="1" data-project="${escapeHtml(p.id)}" style="--x:${pos[0]}px;--y:${pos[1]}px;--branch:${escapeHtml(branch.colorHex || '#7edcff')}">
+                <i></i><strong>${escapeHtml(p.name)}</strong><small>${p.points | 0} pts · ${escapeHtml(packCost(p.pointCost || {}))}</small>
+              </button>`;
+            }).join('')}
+          </div>
+        </div>
+        <aside class="research-tree-panel__side"></aside>
+      </div>
+      <div class="research-tree-panel__packs">
+        ${(data.science || []).length ? (data.science || []).map((p) => `<span style="--pack:${escapeHtml(p.colorHex || '#fff')}"><i></i>${escapeHtml(p.name)} ×${p.amount | 0}</span>`).join('') : '<em>Aucun pack chargé dans les stations.</em>'}
       </div>
     `;
+    this.applyTransform();
+    this.renderSelection();
   }
 }
