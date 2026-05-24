@@ -110,7 +110,7 @@ export class EquipmentRDStationPanelView {
     const sciences = (data.sciences || []).map((s) => {
       const countUsed = this.selectedSciences.filter((key) => key === s.key).length;
       const disabled = active || s.have <= countUsed || this.selectedSciences.length >= (data.maxSciences || 3);
-      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(s.key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}</button>`;
+      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(s.key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}<small>ajouter</small></button>`;
     }).join('');
 
     const activeHtml = active ? `
@@ -146,9 +146,10 @@ export class EquipmentRDStationPanelView {
         </section>
         <section>
           <h3>Sciences</h3>
+          <div class="equipment-rd__hint">Clique une science pour l’ajouter. Clique un slot rempli pour la retirer.</div>
           <div class="equipment-rd__slots">${scienceSlots}</div>
           <div class="equipment-rd__science-list">${sciences}</div>
-          <button class="equipment-rd__start" type="button" data-equipment-rd-start="1" data-structure="${data.id | 0}" ${canStart ? '' : 'disabled'}>Lancer</button>
+          <button class="equipment-rd__start" type="button" data-equipment-rd-start="1" data-structure="${data.id | 0}" ${canStart ? '' : 'disabled'}>Lancer R&D</button>
         </section>
       </div>
     `;

@@ -7,7 +7,7 @@ import { createNeutralCraftedEquipment } from '../../../../shared/content/equipm
 import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { EQUIPMENT_FABRICATOR_RECIPES, getEquipmentFabricatorRecipe } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
-import { getResearchName, isResearchCompleted } from '../../../../shared/content/research/ScienceResearchDefs.js';
+import { getRecipeResearchRequirement, getResearchName, isResearchCompleted } from '../../../../shared/content/research/ScienceResearchDefs.js';
 
 const FABRICATOR_RANGE = 280;
 
@@ -55,7 +55,8 @@ function completed(player) {
 
 function recipeSnapshot(player, recipe) {
   const base = getItemDef(recipe.baseItemId);
-  const researchDone = isResearchCompleted(completed(player), recipe.researchId);
+  const requiredResearchId = getRecipeResearchRequirement(recipe.id) || recipe.researchId || '';
+  const researchDone = isResearchCompleted(completed(player), requiredResearchId);
   const affordable = hasResources(player, recipe.input);
   return {
     id: recipe.id,
@@ -69,8 +70,8 @@ function recipeSnapshot(player, recipe) {
     input: Object.entries(recipe.input || {}).map(([key, amount]) => resourceEntry(key, amount | 0, player)),
     baseBonuses: base?.bonuses ? { ...base.bonuses } : {},
     locked: !researchDone,
-    requiredResearchId: recipe.researchId || '',
-    requiredResearchName: recipe.researchId ? getResearchName(recipe.researchId) : '',
+    requiredResearchId,
+    requiredResearchName: requiredResearchId ? getResearchName(requiredResearchId) : '',
     affordable,
     canCraft: !!base && researchDone && affordable
   };

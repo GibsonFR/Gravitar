@@ -64,7 +64,7 @@ function grantTestEquipmentPortalLoadout(state, player, timeMs) {
     titaniumPlate: 10, carbonFiber: 8, opticalGlass: 8, lithiumBattery: 8, fuelCell: 8,
     basicSciencePack: 20, automationSciencePack: 10, industrialSciencePack: 10, energySciencePack: 12,
     biologySciencePack: 10, combatSciencePack: 10, advancedSciencePack: 30, anomalySciencePack: 18,
-    precursorNanomaterial: 6, unknownTechFragment: 6, titaniumPlate: 24,
+    precursorNanomaterial: 12, unknownTechFragment: 10, titaniumPlate: 36, ancientSuperconductor: 4,
     electricMotor: 12, compositeArmor: 8, laserLens: 8, microprocessor: 12, thermalCeramic: 6,
     fuelInjector: 4, hydrogen: 20
   };

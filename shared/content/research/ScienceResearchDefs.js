@@ -139,7 +139,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 18,
     energyUse: 26,
     pointCost: { industrialSciencePack: 1, energySciencePack: 1, biologySciencePack: 1, combatSciencePack: 1 },
-    unlockBuildings: ['Atelier d’équipement', 'Station R&D'],
+    unlockBuildings: ['Atelier d’équipement'],
     unlockRecipes: ['Moteur électrique', 'Injecteur carburant', 'Science énergétique', 'Science avancée', 'Craft équipement avancé'],
     prereq: ['electronics_processing', 'bio_processing', 'defense_turrets'],
     tier: 4
@@ -157,6 +157,42 @@ export const RESEARCH_PROJECTS = Object.freeze([
     tier: 4
   },
   {
+    id: 'equipment_rd_station',
+    branch: 'combat',
+    name: 'Station R&D équipement',
+    points: 18,
+    energyUse: 30,
+    pointCost: { advancedSciencePack: 1, combatSciencePack: 1, biologySciencePack: 1 },
+    unlockBuildings: ['Station R&D'],
+    unlockRecipes: ['Amélioration R&D 1-3 sciences'],
+    prereq: ['advanced_research'],
+    tier: 5
+  },
+  {
+    id: 'equipment_mark_iv',
+    branch: 'combat',
+    name: 'Équipement Mark IV',
+    points: 28,
+    energyUse: 40,
+    pointCost: { advancedSciencePack: 1, combatSciencePack: 1, anomalySciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Propulseur Mark IV', 'Bouclier Mark IV', 'Arme Mark IV', 'Module Mark IV'],
+    prereq: ['alien_anomaly_analysis', 'equipment_rd_station'],
+    tier: 6
+  },
+  {
+    id: 'equipment_mark_v',
+    branch: 'alien',
+    name: 'Équipement Mark V',
+    points: 40,
+    energyUse: 52,
+    pointCost: { advancedSciencePack: 1, combatSciencePack: 1, biologySciencePack: 1, anomalySciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Propulseur Mark V', 'Bouclier Mark V', 'Arme Mark V', 'Module Mark V'],
+    prereq: ['equipment_mark_iv'],
+    tier: 7
+  },
+  {
     id: 'alien_anomaly_analysis',
     branch: 'alien',
     name: 'Analyse d’anomalies',
@@ -164,7 +200,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     energyUse: 36,
     pointCost: { advancedSciencePack: 1, biologySciencePack: 1, combatSciencePack: 1 },
     unlockBuildings: [],
-    unlockRecipes: ['Science anomalie'],
+    unlockRecipes: ['Science anomalie', 'Équipement Mark III', 'Station R&D'],
     prereq: ['advanced_research'],
     tier: 5
   }
@@ -188,10 +224,30 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   electronics_bench: 'electronics_processing',
   mining_extractor: 'resource_scanning',
   equipment_fabricator: 'advanced_research',
-  equipment_rd_station: 'advanced_research'
+  equipment_rd_station: 'equipment_rd_station'
 });
 
 export const RECIPE_RESEARCH_REQUIREMENTS = Object.freeze({
+  fab_thruster_mk1: 'advanced_research',
+  fab_shield_mk1: 'defense_turrets',
+  fab_weapon_mk1: 'advanced_research',
+  fab_module_mk1: 'advanced_research',
+  fab_thruster_mk2: 'alien_anomaly_analysis',
+  fab_shield_mk2: 'advanced_research',
+  fab_weapon_mk2: 'advanced_research',
+  fab_module_mk2: 'advanced_research',
+  fab_thruster_mk3: 'alien_anomaly_analysis',
+  fab_shield_mk3: 'alien_anomaly_analysis',
+  fab_weapon_mk3: 'alien_anomaly_analysis',
+  fab_module_mk3: 'alien_anomaly_analysis',
+  fab_thruster_mk4: 'equipment_mark_iv',
+  fab_shield_mk4: 'equipment_mark_iv',
+  fab_weapon_mk4: 'equipment_mark_iv',
+  fab_module_mk4: 'equipment_mark_iv',
+  fab_thruster_mk5: 'equipment_mark_v',
+  fab_shield_mk5: 'equipment_mark_v',
+  fab_weapon_mk5: 'equipment_mark_v',
+  fab_module_mk5: 'equipment_mark_v',
   automation_science_pack: 'construction_foundations',
   quartz_to_optical_glass: 'industry_smelting_control',
   graphite_to_carbon_fiber: 'industry_smelting_control',

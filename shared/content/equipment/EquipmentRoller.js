@@ -43,6 +43,23 @@ function roundBonus(v) {
   return Math.round(v * 1000) / 1000;
 }
 
+function scaleNeutralBonuses(baseBonuses = {}, mark = 1) {
+  const m = Math.max(1, mark | 0 || 1);
+  const out = {};
+  for (const [key, raw] of Object.entries(baseBonuses || {})) {
+    const value = Number(raw) || 0;
+    let mult = 1 + (m - 1) * 0.34;
+    if (String(key).endsWith('Flat')) mult = 1 + (m - 1) * 0.55;
+    if (String(key).endsWith('Pct')) mult = 1 + (m - 1) * 0.28;
+    out[key] = roundBonus(value * mult);
+  }
+  if (m >= 2) mergeBonus(out, 'energyFlat', 6 * (m - 1));
+  if (m >= 3) mergeBonus(out, 'cooldownReductionPct', 0.01 * (m - 2));
+  if (m >= 4) mergeBonus(out, 'critChancePct', 0.01 * (m - 3));
+  if (m >= 5) mergeBonus(out, 'damageMultPct', 0.015 * (m - 4));
+  return out;
+}
+
 function mergeBonus(out, key, value) {
   out[key] = roundBonus((Number(out[key]) || 0) + Number(value || 0));
 }
@@ -123,7 +140,7 @@ export function rollCraftedEquipment({ baseItemId, recipeId, ownerKey = '', craf
     name: `${base.name}${suffix}`,
     shortName: `${base.shortName || base.name}${suffix}`,
     shopOffer: false,
-    priceCredits: Math.round((base.priceCredits || 120) * (1.25 + quality.mult * 0.45)),
+    priceCredits: Math.round((base.priceCredits || 120) * (1.25 + quality.mult * 0.45) * (1 + ((neutralItemDef?.mark || 1) - 1) * 0.35)),
     bonuses,
     tags: [...(base.tags || []), { tagId: rollTag(rand), points: quality.id === 'epic' ? 2 : 1 }],
     rollLines: lines,
@@ -140,7 +157,7 @@ export function createNeutralCraftedEquipment({ baseItemId, recipeId, recipeName
   const base = getItemDef(baseItemId);
   if (!base) return null;
   const id = `neutral-${recipeId}-${craftedIndex}-${hashString(`${ownerKey}|${timeMs}|${baseItemId}|neutral`).toString(36)}`;
-  const baseBonuses = { ...(base.bonuses || {}) };
+  const baseBonuses = scaleNeutralBonuses(base.bonuses || {}, mark);
   return {
     ...base,
     id,

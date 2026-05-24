@@ -32,6 +32,26 @@ export const EQUIPMENT_FABRICATOR_RECIPES = Object.freeze([
     input: { electricMotor: 3, fuelInjector: 2, thermalCeramic: 3, precursorNanomaterial: 1, anomalySciencePack: 1 }
   },
   {
+    id: 'fab_thruster_mk4',
+    baseItemId: 'vector-thruster-vanes',
+    name: 'Propulseur Mark IV',
+    categoryId: ITEM_CATEGORY_IDS.ENGINE,
+    mark: 4,
+    seconds: 54,
+    researchId: 'equipment_mark_iv',
+    input: { electricMotor: 4, fuelInjector: 3, thermalCeramic: 5, precursorNanomaterial: 2, anomalySciencePack: 2 }
+  },
+  {
+    id: 'fab_thruster_mk5',
+    baseItemId: 'vector-thruster-vanes',
+    name: 'Propulseur Mark V',
+    categoryId: ITEM_CATEGORY_IDS.ENGINE,
+    mark: 5,
+    seconds: 72,
+    researchId: 'equipment_mark_v',
+    input: { electricMotor: 5, fuelInjector: 4, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 }
+  },
+  {
     id: 'fab_shield_mk1',
     baseItemId: 'compact-shield-array',
     name: 'Bouclier Mark I',
@@ -60,6 +80,26 @@ export const EQUIPMENT_FABRICATOR_RECIPES = Object.freeze([
     seconds: 42,
     researchId: 'alien_anomaly_analysis',
     input: { compositeArmor: 3, thermalCeramic: 3, precursorNanomaterial: 1, anomalySciencePack: 1 }
+  },
+  {
+    id: 'fab_shield_mk4',
+    baseItemId: 'compact-shield-array',
+    name: 'Bouclier Mark IV',
+    categoryId: ITEM_CATEGORY_IDS.DEFENSE,
+    mark: 4,
+    seconds: 56,
+    researchId: 'equipment_mark_iv',
+    input: { compositeArmor: 4, thermalCeramic: 5, precursorNanomaterial: 2, anomalySciencePack: 2 }
+  },
+  {
+    id: 'fab_shield_mk5',
+    baseItemId: 'compact-shield-array',
+    name: 'Bouclier Mark V',
+    categoryId: ITEM_CATEGORY_IDS.DEFENSE,
+    mark: 5,
+    seconds: 74,
+    researchId: 'equipment_mark_v',
+    input: { compositeArmor: 5, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 }
   },
   {
     id: 'fab_weapon_mk1',
@@ -92,6 +132,26 @@ export const EQUIPMENT_FABRICATOR_RECIPES = Object.freeze([
     input: { microprocessor: 3, laserLens: 3, thermalCeramic: 2, unknownTechFragment: 1, anomalySciencePack: 1 }
   },
   {
+    id: 'fab_weapon_mk4',
+    baseItemId: 'needle-array-mk1',
+    name: 'Arme cinétique Mark IV',
+    categoryId: ITEM_CATEGORY_IDS.WEAPON,
+    mark: 4,
+    seconds: 58,
+    researchId: 'equipment_mark_iv',
+    input: { microprocessor: 4, laserLens: 4, thermalCeramic: 4, unknownTechFragment: 2, anomalySciencePack: 2 }
+  },
+  {
+    id: 'fab_weapon_mk5',
+    baseItemId: 'needle-array-mk1',
+    name: 'Arme cinétique Mark V',
+    categoryId: ITEM_CATEGORY_IDS.WEAPON,
+    mark: 5,
+    seconds: 76,
+    researchId: 'equipment_mark_v',
+    input: { microprocessor: 5, laserLens: 5, ancientSuperconductor: 1, unknownTechFragment: 3, anomalySciencePack: 3 }
+  },
+  {
     id: 'fab_module_mk1',
     baseItemId: 'cargo-overmesh',
     name: 'Module utilitaire Mark I',
@@ -120,6 +180,26 @@ export const EQUIPMENT_FABRICATOR_RECIPES = Object.freeze([
     seconds: 38,
     researchId: 'alien_anomaly_analysis',
     input: { carbonFiber: 5, microprocessor: 2, precursorNanomaterial: 1, anomalySciencePack: 1 }
+  },
+  {
+    id: 'fab_module_mk4',
+    baseItemId: 'cargo-overmesh',
+    name: 'Module utilitaire Mark IV',
+    categoryId: ITEM_CATEGORY_IDS.MODULE,
+    mark: 4,
+    seconds: 52,
+    researchId: 'equipment_mark_iv',
+    input: { carbonFiber: 7, microprocessor: 3, precursorNanomaterial: 2, anomalySciencePack: 2 }
+  },
+  {
+    id: 'fab_module_mk5',
+    baseItemId: 'cargo-overmesh',
+    name: 'Module utilitaire Mark V',
+    categoryId: ITEM_CATEGORY_IDS.MODULE,
+    mark: 5,
+    seconds: 70,
+    researchId: 'equipment_mark_v',
+    input: { carbonFiber: 9, microprocessor: 4, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 }
   }
 ]);
 

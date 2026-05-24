@@ -2,6 +2,14 @@ function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
+const CATEGORY_ORDER = ['engine', 'weapon', 'defense', 'module'];
+const CATEGORY_LABELS = {
+  engine: 'Propulseurs',
+  weapon: 'Armes',
+  defense: 'Boucliers',
+  module: 'Modules'
+};
+
 function resourceList(entries = []) {
   if (!entries.length) return '<span class="equipment-fab__muted">Aucun</span>';
   return entries.map((r) => `<span class="equipment-fab__res ${r.missing > 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)} ×${r.amount | 0}<em>${r.have | 0}</em></span>`).join('');
@@ -20,6 +28,7 @@ export class EquipmentFabricatorPanelView {
     this.el.className = 'equipment-fab equipment-fabricator';
     this.el.hidden = true;
     this.selectedRecipeId = '';
+    this.category = 'engine';
     this.lastKey = '';
     this.bind();
   }
@@ -32,6 +41,15 @@ export class EquipmentFabricatorPanelView {
       if (close) {
         this.sendCmd('equipment_fabricator_close', {});
         this.el.hidden = true;
+        ev.preventDefault();
+        return;
+      }
+      const category = ev.target.closest('[data-equipment-fab-category]');
+      if (category) {
+        this.category = category.dataset.equipmentFabCategory || this.category;
+        this.selectedRecipeId = '';
+        this.lastKey = '';
+        this.update(this.store);
         ev.preventDefault();
         return;
       }
@@ -63,17 +81,25 @@ export class EquipmentFabricatorPanelView {
       return;
     }
     const recipes = data.recipes || [];
-    if (!recipes.some((r) => r.id === this.selectedRecipeId)) this.selectedRecipeId = recipes[0]?.id || '';
-    const key = JSON.stringify({ data, selected: this.selectedRecipeId });
+    const availableCategories = CATEGORY_ORDER.filter((cat) => recipes.some((r) => r.categoryId === cat));
+    if (!availableCategories.includes(this.category)) this.category = availableCategories[0] || 'engine';
+    const filtered = recipes.filter((r) => r.categoryId === this.category);
+    if (!filtered.some((r) => r.id === this.selectedRecipeId)) this.selectedRecipeId = filtered[0]?.id || '';
+    const key = JSON.stringify({ data, selected: this.selectedRecipeId, category: this.category });
     if (key === this.lastKey) return;
     this.lastKey = key;
     this.el.hidden = false;
 
-    const selected = recipes.find((r) => r.id === this.selectedRecipeId) || null;
-    const list = recipes.map((r) => `
+    const selected = filtered.find((r) => r.id === this.selectedRecipeId) || null;
+
+    const tabs = availableCategories.map((cat) => `
+      <button type="button" class="equipment-fab__tab ${cat === this.category ? 'is-active' : ''}" data-equipment-fab-category="${escapeHtml(cat)}">${escapeHtml(CATEGORY_LABELS[cat] || cat)}</button>
+    `).join('');
+
+    const list = filtered.map((r) => `
       <button type="button" class="equipment-fab__recipe ${r.id === this.selectedRecipeId ? 'is-selected' : ''} ${r.locked ? 'is-locked' : ''}" data-equipment-fab-select="${escapeHtml(r.id)}">
         <strong>${escapeHtml(r.name)}</strong>
-        <small>${escapeHtml(r.categoryName)} · Mk ${r.mark | 0} · ${r.seconds | 0}s</small>
+        <small>Mk ${r.mark | 0} · ${r.seconds | 0}s${r.locked ? ` · ${escapeHtml(r.requiredResearchName || '')}` : ''}</small>
       </button>
     `).join('');
 
@@ -86,6 +112,7 @@ export class EquipmentFabricatorPanelView {
         </div>
         <button type="button" class="equipment-fab__close" data-equipment-fab-close="1">×</button>
       </div>
+      <div class="equipment-fab__tabs">${tabs}</div>
       <div class="equipment-fab__machine-layout">
         <section>
           <h3>Recettes</h3>
@@ -98,7 +125,7 @@ export class EquipmentFabricatorPanelView {
               <div class="equipment-fab__card-top">
                 <div>
                   <strong>${escapeHtml(selected.name)}</strong>
-                  <small>${escapeHtml(selected.categoryName)} · Mark ${selected.mark | 0}</small>
+                  <small>Mark ${selected.mark | 0}</small>
                 </div>
                 <span>${selected.locked ? 'Verrouillé' : selected.canCraft ? 'Prêt' : 'Ressources'}</span>
               </div>
