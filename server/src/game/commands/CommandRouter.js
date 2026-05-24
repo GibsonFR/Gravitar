@@ -39,10 +39,15 @@ import { handleResearchStationToggle } from './ResearchStationToggleCommand.js';
 import { handleEquipmentFabricatorOpen } from './EquipmentFabricatorOpenCommand.js';
 import { handleEquipmentFabricatorClose } from './EquipmentFabricatorCloseCommand.js';
 import { handleEquipmentFabricatorCraft } from './EquipmentFabricatorCraftCommand.js';
+import { handleEquipmentFabricatorTransfer } from './EquipmentFabricatorTransferCommand.js';
+import { handleEquipmentFabricatorClaim } from './EquipmentFabricatorClaimCommand.js';
 import { handleEquipmentRDStationOpen } from './EquipmentRDStationOpenCommand.js';
 import { handleEquipmentRDStationClose } from './EquipmentRDStationCloseCommand.js';
 import { handleEquipmentRDStationStart } from './EquipmentRDStationStartCommand.js';
 import { handleEquipmentRDStationCancel } from './EquipmentRDStationCancelCommand.js';
+import { handleEquipmentRDStationTransfer } from './EquipmentRDStationTransferCommand.js';
+import { handleEquipmentRDStationLoadItem } from './EquipmentRDStationLoadItemCommand.js';
+import { handleEquipmentRDStationUnloadItem } from './EquipmentRDStationUnloadItemCommand.js';
 import { handleResearchTreeStart } from './ResearchTreeStartCommand.js';
 import { handleResearchTreeCancel } from './ResearchTreeCancelCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
@@ -93,10 +98,15 @@ const HANDLERS = {
   equipment_fabricator_open: handleEquipmentFabricatorOpen,
   equipment_fabricator_close: handleEquipmentFabricatorClose,
   equipment_fabricator_craft: handleEquipmentFabricatorCraft,
+  equipment_fabricator_transfer: handleEquipmentFabricatorTransfer,
+  equipment_fabricator_claim: handleEquipmentFabricatorClaim,
   equipment_rd_open: handleEquipmentRDStationOpen,
   equipment_rd_close: handleEquipmentRDStationClose,
   equipment_rd_start: handleEquipmentRDStationStart,
-  equipment_rd_cancel: handleEquipmentRDStationCancel
+  equipment_rd_cancel: handleEquipmentRDStationCancel,
+  equipment_rd_transfer: handleEquipmentRDStationTransfer,
+  equipment_rd_load_item: handleEquipmentRDStationLoadItem,
+  equipment_rd_unload_item: handleEquipmentRDStationUnloadItem
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

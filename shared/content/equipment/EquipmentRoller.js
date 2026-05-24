@@ -159,7 +159,7 @@ export function rollCraftedEquipment({ baseItemId, recipeId, ownerKey = '', craf
     name: `${base.name}${suffix}`,
     shortName: `${base.shortName || base.name}${suffix}`,
     shopOffer: false,
-    priceCredits: Math.round((base.priceCredits || 120) * (1.25 + quality.mult * 0.45) * (1 + ((neutralItemDef?.mark || 1) - 1) * 0.35)),
+    priceCredits: Math.round((base.priceCredits || 120) * (1.25 + quality.mult * 0.45)),
     bonuses,
     tags: [...(base.tags || []), { tagId: rollTag(rand), points: quality.id === 'epic' ? 2 : 1 }],
     rollLines: lines,

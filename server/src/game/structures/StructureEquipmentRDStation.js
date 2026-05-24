@@ -1,13 +1,14 @@
 import { getStructureDef } from './StructureDefs.js';
 import { isStructureOwner, distanceSqToStructureRect, findAliveCoreForStructure } from './StructureSystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
-import { removeResource } from '../inventory/InventorySystem.js';
+import { addResource, canAddResource, removeResource } from '../inventory/InventorySystem.js';
 import { getPlayerItemDef, addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { EQUIPMENT_RD_ALLOWED_SCIENCES, EQUIPMENT_RD_MAX_SCIENCES, EQUIPMENT_RD_SECONDS, getEquipmentRDQualityBoost, getEquipmentRDScienceScore, getEquipmentRDScienceTier, isEquipmentRDScience } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
 import { rollRDEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
 
 const RD_RANGE = 280;
+const RD_SCIENCE_CAPACITY = 24;
 
 function isRDStation(st) {
   return String(st?.type || '').toLowerCase() === 'equipment_rd_station';
@@ -21,6 +22,36 @@ function canAccess(state, player, st) {
   return distanceSqToStructureRect(st, player.x || 0, player.y || 0) <= RD_RANGE * RD_RANGE;
 }
 
+function clean(map = {}) {
+  for (const key of Object.keys(map)) if ((map[key] | 0) <= 0) delete map[key];
+  return map;
+}
+
+function scienceMap(st) {
+  if (!st.scienceInput || typeof st.scienceInput !== 'object') st.scienceInput = {};
+  return st.scienceInput;
+}
+
+function itemInput(st) {
+  return st.rdInputItem || null;
+}
+
+function setItemInput(st, item) {
+  st.rdInputItem = item || null;
+}
+
+function itemOutput(st) {
+  return st.rdOutputItem || null;
+}
+
+function setItemOutput(st, item) {
+  st.rdOutputItem = item || null;
+}
+
+function usedScienceCapacity(map = {}) {
+  return Object.values(map || {}).reduce((sum, amount) => sum + (amount | 0), 0);
+}
+
 function resourceEntry(key, amount, player) {
   const def = RESOURCE_DEFS[key] || null;
   const have = Math.max(0, player?.inv?.resources?.[key] | 0);
@@ -29,10 +60,24 @@ function resourceEntry(key, amount, player) {
     name: def?.name || key,
     amount: amount | 0,
     have,
-    missing: Math.max(0, (amount | 0) - have),
+    stored: 0,
+    missing: 0,
     colorHex: def?.colorHex || '#ffffff',
     tier: getEquipmentRDScienceTier(key)
   };
+}
+
+function mapRows(map = {}) {
+  return Object.entries(clean(map || {}))
+    .filter(([, amount]) => (amount | 0) > 0)
+    .sort(([a], [b]) => String(a).localeCompare(String(b)))
+    .map(([key, amount]) => ({
+      key,
+      amount: amount | 0,
+      name: RESOURCE_DEFS[key]?.name || key,
+      colorHex: RESOURCE_DEFS[key]?.colorHex || '#fff',
+      tier: getEquipmentRDScienceTier(key)
+    }));
 }
 
 function normalizeSciences(sciences = []) {
@@ -46,20 +91,23 @@ function normalizeSciences(sciences = []) {
   return out;
 }
 
-function hasScience(player, sciences = []) {
+function hasScience(st, sciences = []) {
   const counts = {};
   for (const key of sciences) counts[key] = (counts[key] | 0) + 1;
+  const map = scienceMap(st);
   for (const [key, amount] of Object.entries(counts)) {
-    if ((player?.inv?.resources?.[key] | 0) < (amount | 0)) return false;
+    if ((map[key] | 0) < (amount | 0)) return false;
   }
   return true;
 }
 
-function payScience(player, sciences = []) {
-  if (!hasScience(player, sciences)) return false;
+function payScience(st, sciences = []) {
+  if (!hasScience(st, sciences)) return false;
   const counts = {};
   for (const key of sciences) counts[key] = (counts[key] | 0) + 1;
-  for (const [key, amount] of Object.entries(counts)) removeResource(player.inv, key, amount | 0);
+  const map = scienceMap(st);
+  for (const [key, amount] of Object.entries(counts)) map[key] = (map[key] | 0) - (amount | 0);
+  clean(map);
   return true;
 }
 
@@ -69,6 +117,7 @@ function ownedNeutralItems(player) {
 }
 
 function itemSnapshot(def) {
+  if (!def) return null;
   return {
     itemId: def.id,
     name: def.name,
@@ -82,8 +131,9 @@ function itemSnapshot(def) {
   };
 }
 
-function scienceSnapshot(player) {
-  return EQUIPMENT_RD_ALLOWED_SCIENCES.map((key) => resourceEntry(key, 1, player));
+function scienceSnapshot(player, st) {
+  const map = scienceMap(st);
+  return EQUIPMENT_RD_ALLOWED_SCIENCES.map((key) => ({ ...resourceEntry(key, 1, player), stored: map[key] | 0 }));
 }
 
 function activeJobSnapshot(st) {
@@ -111,6 +161,7 @@ export function buildEquipmentRDStationSnapshot(state, player) {
   }
   const def = getStructureDef(st.type);
   const core = findAliveCoreForStructure(state, st);
+  const map = scienceMap(st);
   return {
     id: st.id | 0,
     type: st.type,
@@ -122,8 +173,13 @@ export function buildEquipmentRDStationSnapshot(state, player) {
     seconds: EQUIPMENT_RD_SECONDS,
     scoreHint: 'Score = somme des tiers de sciences, puis variation RNG ±60%',
     activeJob: activeJobSnapshot(st),
+    inputItem: itemSnapshot(itemInput(st)),
+    outputItem: itemSnapshot(itemOutput(st)),
     neutralItems: ownedNeutralItems(player).map(itemSnapshot),
-    sciences: scienceSnapshot(player),
+    scienceInput: mapRows(map),
+    scienceUsed: usedScienceCapacity(map),
+    scienceCapacity: RD_SCIENCE_CAPACITY,
+    sciences: scienceSnapshot(player, st),
     lastCraftedItemId: player?.equipment?.lastCraftedItemId || ''
   };
 }
@@ -143,21 +199,84 @@ export function closeEquipmentRDStation(player) {
   return true;
 }
 
+export function transferEquipmentRDScience(state, player, structureId, resourceKey, direction = 'deposit', amount = 1, timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
+  const key = String(resourceKey || '');
+  if (!isEquipmentRDScience(key) || !RESOURCE_DEFS[key]) return { ok: false, error: 'bad_resource' };
+  const n = Math.max(1, Math.min(9999, amount | 0 || 1));
+  const map = scienceMap(st);
+  if (direction === 'withdraw') {
+    const take = Math.min(map[key] | 0, n);
+    if (take <= 0 || !canAddResource(player.inv, key, take)) return { ok: false, error: 'empty' };
+    map[key] = (map[key] | 0) - take;
+    clean(map);
+    addResource(player.inv, key, take);
+  } else {
+    const free = Math.max(0, RD_SCIENCE_CAPACITY - usedScienceCapacity(map));
+    const put = Math.min(player.inv?.resources?.[key] | 0, n, free);
+    if (put <= 0) return { ok: false, error: 'full' };
+    removeResource(player.inv, key, put);
+    map[key] = (map[key] | 0) + put;
+  }
+  st.updatedAt = timeMs;
+  player.forceFullUiSnapshot = true;
+  state.structureStore?.saveFromState?.(state);
+  return { ok: true };
+}
+
+export function loadEquipmentRDItem(state, player, structureId, itemId, timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
+  if (st.rdJob?.itemDef || itemInput(st)) return { ok: false, error: 'slot_full' };
+  const item = getPlayerItemDef(player, itemId);
+  if (!item?.neutralBase || item.rdEnhanced) return { ok: false, error: 'bad_item' };
+  player.equipment.ownedItemIds = (player.equipment.ownedItemIds || []).filter((id) => id !== item.id);
+  player.equipment.equippedItemIds = (player.equipment.equippedItemIds || []).filter((id) => id !== item.id);
+  setItemInput(st, JSON.parse(JSON.stringify(item)));
+  st.updatedAt = timeMs;
+  player.forceFullUiSnapshot = true;
+  state.structureStore?.saveFromState?.(state);
+  return { ok: true };
+}
+
+export function unloadEquipmentRDItem(state, player, structureId, slot = 'input', timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
+  if (slot === 'output') {
+    const item = itemOutput(st);
+    if (!item) return { ok: false, error: 'empty' };
+    addCustomEquipmentDef(player, item);
+    player.equipment.ownedItemIds = [...new Set([...(player.equipment.ownedItemIds || []), item.id])].sort();
+    setItemOutput(st, null);
+  } else {
+    const item = itemInput(st);
+    if (!item || st.rdJob?.itemDef) return { ok: false, error: 'empty' };
+    addCustomEquipmentDef(player, item);
+    player.equipment.ownedItemIds = [...new Set([...(player.equipment.ownedItemIds || []), item.id])].sort();
+    setItemInput(st, null);
+  }
+  st.updatedAt = timeMs;
+  player.forceFullUiSnapshot = true;
+  state.structureStore?.saveFromState?.(state);
+  return { ok: true };
+}
+
 export function startEquipmentRDJob(state, player, structureId, itemId, sciences, timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
   if (!st.powered) return { ok: false, error: 'no_power' };
   if (st.rdJob?.itemDef) return { ok: false, error: 'busy' };
-  const item = getPlayerItemDef(player, itemId);
-  if (!item?.neutralBase || item.rdEnhanced) return { ok: false, error: 'bad_item' };
+  if (itemOutput(st)) return { ok: false, error: 'output_full' };
+  const input = itemInput(st);
+  if (!input?.neutralBase || input.rdEnhanced) return { ok: false, error: 'bad_item' };
   const selectedSciences = normalizeSciences(sciences);
   if (!selectedSciences.length) return { ok: false, error: 'missing_science' };
-  if (!payScience(player, selectedSciences)) return { ok: false, error: 'missing_resources' };
+  if (!payScience(st, selectedSciences)) return { ok: false, error: 'missing_resources' };
 
-  player.equipment.ownedItemIds = (player.equipment.ownedItemIds || []).filter((id) => id !== item.id);
-  player.equipment.equippedItemIds = (player.equipment.equippedItemIds || []).filter((id) => id !== item.id);
+  setItemInput(st, null);
   st.rdJob = {
-    itemDef: JSON.parse(JSON.stringify(item)),
+    itemDef: JSON.parse(JSON.stringify(input)),
     ownerId: player.id | 0,
     ownerKey: player.accountKey || player.pseudo || player.id || '',
     sciences: selectedSciences,
@@ -169,6 +288,7 @@ export function startEquipmentRDJob(state, player, structureId, itemId, sciences
   };
   st.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
+  state.structureStore?.saveFromState?.(state);
   return { ok: true };
 }
 
@@ -177,10 +297,12 @@ export function cancelEquipmentRDJob(state, player, structureId, timeMs = Date.n
   if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
   const job = st.rdJob;
   if (!job?.itemDef) return { ok: false, error: 'empty' };
-  player.equipment.ownedItemIds = [...new Set([...(player.equipment.ownedItemIds || []), job.itemDef.id])].sort();
+  if (itemInput(st)) return { ok: false, error: 'input_full' };
+  setItemInput(st, job.itemDef);
   st.rdJob = null;
   st.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
+  state.structureStore?.saveFromState?.(state);
   return { ok: true };
 }
 
@@ -193,30 +315,30 @@ export function updateEquipmentRDStations(state, timeMs, dtMs) {
     const job = st.rdJob;
     if (!job?.itemDef) continue;
     if (!st.powered) continue;
+    if (itemOutput(st)) {
+      st.automationStatus = 'output_full';
+      continue;
+    }
     job.remainingMs = Math.max(0, (job.remainingMs | 0) - stepMs);
     st.updatedAt = timeMs;
     if (job.remainingMs > 0) continue;
     const owner = [...(state.players?.values?.() || [])].find((p) => (p.id | 0) === (job.ownerId | 0) && String(p.worldId || 'endless') === String(st.worldId || 'endless'));
-    if (owner) {
-      owner.equipment ??= {};
-      if (!Array.isArray(owner.equipment.ownedItemIds)) owner.equipment.ownedItemIds = [];
-      owner.equipment.craftedItemCounter = Math.max(0, owner.equipment.craftedItemCounter | 0) + 1;
-      const crafted = rollRDEquipment({
-        neutralItemDef: job.itemDef,
-        programId: `rd_${(job.sciences || []).join('_') || 'science'}`,
-        ownerKey: job.ownerKey || owner.accountKey || owner.pseudo || owner.id || '',
-        craftedIndex: owner.equipment.craftedItemCounter,
-        timeMs,
-        qualityBoost: job.qualityBoost | 0
-      });
-      if (crafted) {
-        crafted.usedSciences = Array.isArray(job.sciences) ? [...job.sciences] : [];
-        addCustomEquipmentDef(owner, crafted);
-        owner.equipment.ownedItemIds = [...new Set([...owner.equipment.ownedItemIds, crafted.id])].sort();
-        owner.equipment.lastCraftedItemId = crafted.id;
-        owner.equipment.lastChangedAt = timeMs | 0;
+    const ownerKey = job.ownerKey || owner?.accountKey || owner?.pseudo || owner?.id || '';
+    const crafted = rollRDEquipment({
+      neutralItemDef: job.itemDef,
+      programId: `rd_${(job.sciences || []).join('_') || 'science'}`,
+      ownerKey,
+      craftedIndex: Math.max(0, owner?.equipment?.craftedItemCounter | 0) + 1,
+      timeMs,
+      qualityBoost: job.qualityBoost | 0
+    });
+    if (crafted) {
+      crafted.usedSciences = Array.isArray(job.sciences) ? [...job.sciences] : [];
+      setItemOutput(st, crafted);
+      if (owner?.equipment) owner.equipment.craftedItemCounter = Math.max(0, owner.equipment.craftedItemCounter | 0) + 1;
+      if (owner) {
         owner.forceFullUiSnapshot = true;
-        owner.hint = `R&D terminée : ${crafted.name}`;
+        owner.hint = `Sortie R&D : ${crafted.name}`;
       }
     }
     st.rdJob = null;

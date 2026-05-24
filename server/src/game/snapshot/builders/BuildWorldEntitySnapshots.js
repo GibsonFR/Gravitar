@@ -156,6 +156,7 @@ function firstStructureResourcePreview(structure) {
   if (structure?.storage?.resources) maps.push(structure.storage.resources);
   if (structure?.machineInput) maps.push(structure.machineInput);
   if (structure?.machineOutput) maps.push(structure.machineOutput);
+  if (structure?.scienceInput) maps.push(structure.scienceInput);
   for (const map of maps) {
     const entries = Object.entries(map || {}).filter(([, amount]) => (amount | 0) > 0);
     if (!entries.length) continue;

@@ -1,5 +1,5 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel', 'equipment_fabricator_open', 'equipment_fabricator_close', 'equipment_fabricator_craft', 'equipment_rd_open', 'equipment_rd_close', 'equipment_rd_start', 'equipment_rd_cancel']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel', 'equipment_fabricator_open', 'equipment_fabricator_close', 'equipment_fabricator_craft', 'equipment_fabricator_transfer', 'equipment_fabricator_claim', 'equipment_rd_open', 'equipment_rd_close', 'equipment_rd_start', 'equipment_rd_cancel', 'equipment_rd_transfer', 'equipment_rd_load_item', 'equipment_rd_unload_item']);
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -152,7 +152,7 @@ export function sanitizeCommandMessage(raw) {
   }
 
 
-  if (cmd === 'equipment_fabricator_open' || cmd === 'equipment_fabricator_close' || cmd === 'equipment_fabricator_craft' || cmd === 'equipment_rd_open' || cmd === 'equipment_rd_close' || cmd === 'equipment_rd_start' || cmd === 'equipment_rd_cancel') {
+  if (cmd === 'equipment_fabricator_open' || cmd === 'equipment_fabricator_close' || cmd === 'equipment_fabricator_craft' || cmd === 'equipment_fabricator_transfer' || cmd === 'equipment_fabricator_claim' || cmd === 'equipment_rd_open' || cmd === 'equipment_rd_close' || cmd === 'equipment_rd_start' || cmd === 'equipment_rd_cancel' || cmd === 'equipment_rd_transfer' || cmd === 'equipment_rd_load_item' || cmd === 'equipment_rd_unload_item') {
     const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
     msg.structureId = Math.max(0, Math.min(2147483647, structureId));
   }
@@ -160,6 +160,31 @@ export function sanitizeCommandMessage(raw) {
     msg.recipeId = cleanWord(raw.recipeId ?? raw.recipe ?? '', 80).toLowerCase();
     msg.mode = cleanWord(raw.mode ?? raw.craftMode ?? 'standard', 32).toLowerCase();
   }
+
+
+if (cmd === 'equipment_fabricator_transfer') {
+  msg.resourceKey = cleanWord(raw.resourceKey ?? raw.key ?? '', 80);
+  msg.direction = cleanWord(raw.direction ?? 'deposit', 16).toLowerCase();
+  msg.amount = Math.max(1, Math.min(9999, raw.amount === 'all' ? 9999 : (raw.amount | 0 || 1)));
+}
+if (cmd === 'equipment_fabricator_claim') {
+  msg.itemId = cleanWord(raw.itemId ?? raw.id ?? '', 96).toLowerCase();
+}
+if (cmd === 'equipment_rd_start') {
+  msg.itemId = cleanWord(raw.itemId ?? raw.id ?? '', 96).toLowerCase();
+  msg.sciences = Array.isArray(raw.sciences) ? raw.sciences.map((v) => cleanWord(v, 48)).filter(Boolean).slice(0, 3) : [];
+}
+if (cmd === 'equipment_rd_transfer') {
+  msg.resourceKey = cleanWord(raw.resourceKey ?? raw.key ?? '', 80);
+  msg.direction = cleanWord(raw.direction ?? 'deposit', 16).toLowerCase();
+  msg.amount = Math.max(1, Math.min(9999, raw.amount === 'all' ? 9999 : (raw.amount | 0 || 1)));
+}
+if (cmd === 'equipment_rd_load_item') {
+  msg.itemId = cleanWord(raw.itemId ?? raw.id ?? '', 96).toLowerCase();
+}
+if (cmd === 'equipment_rd_unload_item') {
+  msg.slot = cleanWord(raw.slot ?? 'input', 16).toLowerCase();
+}
 
   return msg;
 }

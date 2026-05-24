@@ -7,6 +7,31 @@ function resourcePill(r) {
 }
 
 
+
+
+function rdScienceRows(entries = [], structureId) {
+  if (!entries.length) return '<div class="equipment-fab__empty">Vide.</div>';
+  return entries.map((r) => `
+    <div class="equipment-fab__buffer-row">
+      <span class="equipment-fab__dot" style="background:${escapeHtml(r.colorHex || '#fff')}"></span>
+      <span>${escapeHtml(r.name)}</span>
+      <b>${r.amount | 0}</b>
+      <button type="button" data-equipment-rd-transfer="withdraw" data-key="${escapeHtml(r.key)}" data-amount="1" data-structure="${structureId | 0}">1</button>
+      <button type="button" data-equipment-rd-transfer="withdraw" data-key="${escapeHtml(r.key)}" data-amount="all" data-structure="${structureId | 0}">Tout</button>
+    </div>`).join('');
+}
+
+function rdItemSlot(item, kind, structureId, placeholder) {
+  if (!item) return `<div class="equipment-rd__big-slot is-empty"><span>${escapeHtml(placeholder)}</span></div>`;
+  const action = kind === 'output'
+    ? `<button type="button" data-equipment-rd-unload-item="output" data-structure="${structureId | 0}">Récupérer</button>`
+    : `<button type="button" data-equipment-rd-unload-item="input" data-structure="${structureId | 0}">Retirer</button>`;
+  return `<div class="equipment-rd__big-slot is-filled">
+    <div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.categoryName || '')} · Mk ${item.mark | 0}</small></div>
+    ${action}
+  </div>`;
+}
+
 function scienceScore(sciences = [], scienceDefs = []) {
   return sciences.reduce((sum, key) => {
     const def = scienceDefs.find((s) => s.key === key);
@@ -81,9 +106,34 @@ export class EquipmentRDStationPanelView {
         ev.preventDefault();
         return;
       }
+      const transfer = ev.target.closest('[data-equipment-rd-transfer]');
+      if (transfer) {
+        this.sendCmd('equipment_rd_transfer', {
+          structureId: transfer.dataset.structure | 0,
+          resourceKey: transfer.dataset.key || '',
+          direction: transfer.dataset.equipmentRdTransfer || 'deposit',
+          amount: transfer.dataset.amount || '1'
+        });
+        ev.preventDefault();
+        return;
+      }
+      const unload = ev.target.closest('[data-equipment-rd-unload-item]');
+      if (unload) {
+        this.sendCmd('equipment_rd_unload_item', {
+          structureId: unload.dataset.structure | 0,
+          slot: unload.dataset.equipmentRdUnloadItem || 'input'
+        });
+        ev.preventDefault();
+        return;
+      }
       const select = ev.target.closest('[data-equipment-rd-select]');
       if (select) {
         this.selectedItemId = select.dataset.equipmentRdSelect || '';
+        this.sendCmd('equipment_rd_load_item', {
+          structureId: select.dataset.structure | 0,
+          itemId: this.selectedItemId
+        });
+        this.selectedItemId = '';
         this.lastKey = '';
         this.update(this.store);
         ev.preventDefault();
@@ -104,7 +154,7 @@ export class EquipmentRDStationPanelView {
       if (start) {
         this.sendCmd('equipment_rd_start', {
           structureId: start.dataset.structure | 0,
-          itemId: this.selectedItemId,
+          itemId: data.inputItem?.itemId || '',
           sciences: this.selectedSciences.slice(0, 3)
         });
         ev.preventDefault();
@@ -128,7 +178,7 @@ export class EquipmentRDStationPanelView {
     }
     const items = data.neutralItems || [];
     if (!items.some((it) => it.itemId === this.selectedItemId)) this.selectedItemId = items[0]?.itemId || '';
-    this.selectedSciences = this.selectedSciences.filter((key) => (data.sciences || []).some((s) => s.key === key && s.have > 0)).slice(0, data.maxSciences || 3);
+    this.selectedSciences = this.selectedSciences.filter((key) => (data.sciences || []).some((s) => s.key === key && (s.stored | 0) > 0)).slice(0, data.maxSciences || 3);
 
     const key = JSON.stringify({ data, selected: this.selectedItemId, sciences: this.selectedSciences });
     if (key === this.lastKey) return;
@@ -139,11 +189,17 @@ export class EquipmentRDStationPanelView {
     const active = data.activeJob || null;
 
     const itemCards = items.map((it) => `
-      <button type="button" class="equipment-rd__item ${it.itemId === this.selectedItemId ? 'is-selected' : ''}" data-equipment-rd-select="${escapeHtml(it.itemId)}">
+      <button type="button" class="equipment-rd__item ${it.itemId === this.selectedItemId ? 'is-selected' : ''}" data-equipment-rd-select="${escapeHtml(it.itemId)}" data-structure="${data.id | 0}">
         <strong>${escapeHtml(it.name)}</strong>
-        <small>${escapeHtml(it.categoryName)} · Mk ${it.mark | 0}</small>
+        <small>${escapeHtml(it.categoryName)} · Mk ${it.mark | 0} · charger</small>
       </button>
     `).join('') || '<div class="equipment-fab__muted">Aucun objet</div>';
+
+    const scienceDepositRows = (data.sciences || []).map((s) => `
+      <button type="button" class="equipment-fab__deposit ${s.have <= 0 ? 'is-empty' : ''}" data-equipment-rd-transfer="deposit" data-key="${escapeHtml(s.key)}" data-amount="all" data-structure="${data.id | 0}" ${s.have <= 0 ? 'disabled' : ''}>
+        <span class="equipment-fab__dot" style="background:${escapeHtml(s.colorHex || '#fff')}"></span>
+        ${escapeHtml(s.name)} <b>${s.stored | 0}</b>
+      </button>`).join('');
 
     const scienceSlots = Array.from({ length: data.maxSciences || 3 }, (_, i) => {
       const key = this.selectedSciences[i] || '';
@@ -156,8 +212,8 @@ export class EquipmentRDStationPanelView {
     const sciences = (Array.isArray(data.sciences) ? data.sciences : []).filter(Boolean).map((s) => {
       const key = String(s.key || '');
       const countUsed = this.selectedSciences.filter((k) => k === key).length;
-      const disabled = !!active || ((s.have | 0) <= countUsed) || this.selectedSciences.length >= (data.maxSciences || 3);
-      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}<small>tier ${s.tier | 0} · ajouter</small></button>`;
+      const disabled = !!active || ((s.stored | 0) <= countUsed) || this.selectedSciences.length >= (data.maxSciences || 3);
+      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.stored | 0) - countUsed) })}<small>tier ${s.tier | 0} · choisir</small></button>`;
     }).join('');
 
     const activeProgress = Math.max(0, Math.min(1, active?.progress || 0));
@@ -183,7 +239,7 @@ export class EquipmentRDStationPanelView {
         <button type="button" data-equipment-rd-cancel="1" data-structure="${data.id | 0}">Annuler</button>
       </div>` : '';
 
-    const canStart = !!selected && this.selectedSciences.length > 0 && !active && data.powered;
+    const canStart = !!data.inputItem && this.selectedSciences.length > 0 && !active && data.powered && !data.outputItem;
 
     this.el.innerHTML = `
       <div class="equipment-fab__head">
@@ -197,13 +253,17 @@ export class EquipmentRDStationPanelView {
       ${activeHtml}
       <div class="equipment-rd__layout">
         <section>
-          <h3>Objet</h3>
-          <div class="equipment-rd__items ${active ? 'is-busy' : ''}">${itemCards}</div>
-          ${selected ? `<div class="equipment-rd__selected"><b>${escapeHtml(selected.name)}</b><div class="equipment-fab__bonus">${bonusList(selected.bonuses || {})}</div></div>` : ''}
+          <h3>Input / Output</h3>
+          ${rdItemSlot(data.inputItem, 'input', data.id, 'Glisse/charge un objet')}
+          ${rdItemSlot(data.outputItem, 'output', data.id, 'Sortie R&D')}
+          <h3>Objets disponibles</h3>
+          <div class="equipment-rd__items ${active || data.inputItem ? 'is-busy' : ''}">${itemCards}</div>
         </section>
         <section>
-          <h3>Sciences</h3>
-          <div class="equipment-rd__hint">Clique une science pour l’ajouter. Clique un slot rempli pour la retirer.</div>
+          <h3>Sciences en machine</h3>
+          <div class="equipment-rd__hint">Dépose des sciences dans le buffer, puis choisis jusqu’à 3 slots.</div>
+          <div class="equipment-fab__deposit-grid">${scienceDepositRows}</div>
+          <div class="equipment-fab__io-mini">${rdScienceRows(data.scienceInput || [], data.id)}</div>
           <div class="equipment-rd__slots">${scienceSlots}</div>
           <div class="equipment-rd__score">Score science : <b>${scienceScore(this.selectedSciences, data.sciences || [])}</b> · variation finale ±60%</div>
           <div class="equipment-rd__science-list ${active ? 'is-busy' : ''}">${sciences}</div>

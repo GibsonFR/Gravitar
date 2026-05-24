@@ -1,11 +1,13 @@
 import { getStructureDef } from './StructureDefs.js';
 import { getMachineRecipe } from '../../../../shared/content/crafting/MachineRecipes.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
+import { EQUIPMENT_RD_ALLOWED_SCIENCES } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
 
 const RESOURCE_CAPACITY_DEFAULT = 80;
 const MACHINE_INPUT_CAPACITY = 160;
 const AUTOMATION_SAVE_INTERVAL_MS = 5000;
 const FUEL_KEYS = new Set(['refinedFuel', 'biofuel', 'propellant']);
+const RD_SCIENCE_KEYS = new Set(EQUIPMENT_RD_ALLOWED_SCIENCES);
 const TILE = 64;
 
 function finite(v, fallback = 0) {
@@ -162,6 +164,16 @@ function getOutputMap(st) {
 
 function getInputMap(st, key) {
   const def = getStructureDef(st?.type);
+  const type = String(st?.type || '').toLowerCase();
+  if (type === 'equipment_fabricator') {
+    if (!st.machineInput || typeof st.machineInput !== 'object') st.machineInput = {};
+    return { map: st.machineInput, capacity: 96 };
+  }
+  if (type === 'equipment_rd_station') {
+    if (!RD_SCIENCE_KEYS.has(key)) return null;
+    if (!st.scienceInput || typeof st.scienceInput !== 'object') st.scienceInput = {};
+    return { map: st.scienceInput, capacity: 24 };
+  }
   if (def?.machineType) {
     const recipe = getMachineRecipe(st.machineRecipeId || '');
     if (recipe && !(key in (recipe.input || {}))) return null;

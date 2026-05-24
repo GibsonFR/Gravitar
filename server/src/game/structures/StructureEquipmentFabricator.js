@@ -1,7 +1,7 @@
 import { getStructureDef } from './StructureDefs.js';
 import { isStructureOwner, distanceSqToStructureRect, findAliveCoreForStructure } from './StructureSystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
-import { removeResource } from '../inventory/InventorySystem.js';
+import { addResource, canAddResource, removeResource } from '../inventory/InventorySystem.js';
 import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
 import { createNeutralCraftedEquipment, getNeutralBaseBonuses } from '../../../../shared/content/equipment/EquipmentRoller.js';
 import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
@@ -10,6 +10,8 @@ import { EQUIPMENT_FABRICATOR_RECIPES, getEquipmentFabricatorRecipe } from '../.
 import { getRecipeResearchRequirement, getResearchName, isResearchCompleted } from '../../../../shared/content/research/ScienceResearchDefs.js';
 
 const FABRICATOR_RANGE = 280;
+const FABRICATOR_INPUT_CAPACITY = 96;
+const FABRICATOR_OUTPUT_CAPACITY = 16;
 
 function isFabricator(st) {
   return String(st?.type || '').toLowerCase() === 'equipment_fabricator';
@@ -23,7 +25,30 @@ function canAccess(state, player, st) {
   return distanceSqToStructureRect(st, player.x || 0, player.y || 0) <= FABRICATOR_RANGE * FABRICATOR_RANGE;
 }
 
-function resourceEntry(key, amount, player) {
+function clean(map = {}) {
+  for (const key of Object.keys(map)) if ((map[key] | 0) <= 0) delete map[key];
+  return map;
+}
+
+function usedCapacity(map = {}) {
+  let total = 0;
+  for (const [key, amount] of Object.entries(map || {})) {
+    total += (Number(RESOURCE_DEFS[key]?.cargoPerUnit) || 1) * (amount | 0);
+  }
+  return total;
+}
+
+function inputMap(st) {
+  if (!st.machineInput || typeof st.machineInput !== 'object') st.machineInput = {};
+  return st.machineInput;
+}
+
+function outputItems(st) {
+  if (!Array.isArray(st.equipmentOutputItems)) st.equipmentOutputItems = [];
+  return st.equipmentOutputItems;
+}
+
+function resourceEntry(key, amount, player, stored = 0) {
   const def = RESOURCE_DEFS[key] || null;
   const have = Math.max(0, player?.inv?.resources?.[key] | 0);
   return {
@@ -31,21 +56,37 @@ function resourceEntry(key, amount, player) {
     name: def?.name || key,
     amount: amount | 0,
     have,
-    missing: Math.max(0, (amount | 0) - have),
+    stored: stored | 0,
+    missing: Math.max(0, (amount | 0) - (stored | 0)),
     colorHex: def?.colorHex || '#ffffff'
   };
 }
 
-function hasResources(player, input = {}) {
+function mapRows(map = {}) {
+  return Object.entries(clean(map || {}))
+    .filter(([, amount]) => (amount | 0) > 0)
+    .sort(([a], [b]) => String(a).localeCompare(String(b)))
+    .map(([key, amount]) => ({
+      key,
+      amount: amount | 0,
+      name: RESOURCE_DEFS[key]?.name || key,
+      colorHex: RESOURCE_DEFS[key]?.colorHex || '#fff'
+    }));
+}
+
+function hasBufferedResources(st, input = {}) {
+  const map = inputMap(st);
   for (const [key, amount] of Object.entries(input || {})) {
-    if ((player?.inv?.resources?.[key] | 0) < (amount | 0)) return false;
+    if ((map[key] | 0) < (amount | 0)) return false;
   }
   return true;
 }
 
-function payResources(player, input = {}) {
-  if (!hasResources(player, input)) return false;
-  for (const [key, amount] of Object.entries(input || {})) removeResource(player.inv, key, amount | 0);
+function consumeBufferedResources(st, input = {}) {
+  if (!hasBufferedResources(st, input)) return false;
+  const map = inputMap(st);
+  for (const [key, amount] of Object.entries(input || {})) map[key] = (map[key] | 0) - (amount | 0);
+  clean(map);
   return true;
 }
 
@@ -53,11 +94,13 @@ function completed(player) {
   return Array.isArray(player?.research?.completed) ? player.research.completed : [];
 }
 
-function recipeSnapshot(player, recipe) {
+function recipeSnapshot(player, recipe, st = null) {
   const base = getItemDef(recipe.baseItemId);
   const requiredResearchId = getRecipeResearchRequirement(recipe.id) || recipe.researchId || '';
   const researchDone = isResearchCompleted(completed(player), requiredResearchId);
-  const affordable = hasResources(player, recipe.input);
+  const map = st ? inputMap(st) : {};
+  const buffered = hasBufferedResources(st || { machineInput: {} }, recipe.input);
+  const outputFree = !st || outputItems(st).length < FABRICATOR_OUTPUT_CAPACITY;
   return {
     id: recipe.id,
     baseItemId: recipe.baseItemId,
@@ -65,16 +108,30 @@ function recipeSnapshot(player, recipe) {
     categoryId: base?.categoryId || recipe.categoryId,
     categoryName: getItemCategoryName(base?.categoryId || recipe.categoryId),
     mark: recipe.mark | 0,
-    description: `Objet neutre Mark ${recipe.mark | 0}. Aucun tag, aucun roll. Compatible avec la R&D.`,
+    description: '',
     seconds: recipe.seconds | 0,
-    input: Object.entries(recipe.input || {}).map(([key, amount]) => resourceEntry(key, amount | 0, player)),
+    input: Object.entries(recipe.input || {}).map(([key, amount]) => resourceEntry(key, amount | 0, player, map[key] | 0)),
     baseBonuses: getNeutralBaseBonuses(recipe.baseItemId, recipe.mark),
     locked: !researchDone,
     requiredResearchId,
     requiredResearchName: requiredResearchId ? getResearchName(requiredResearchId) : '',
-    affordable,
-    canCraft: !!base && researchDone && affordable
+    affordable: buffered,
+    outputFree,
+    canCraft: !!base && researchDone && buffered && outputFree
   };
+}
+
+function equipmentOutputSnapshot(player, st) {
+  return outputItems(st).map((def) => ({
+    itemId: def.id,
+    name: def.name,
+    shortName: def.shortName || def.name,
+    categoryId: def.categoryId,
+    categoryName: getItemCategoryName(def.categoryId),
+    mark: def.mark || 1,
+    neutralBase: !!def.neutralBase,
+    bonuses: { ...(def.bonuses || {}) }
+  }));
 }
 
 export function buildEquipmentFabricatorSnapshot(state, player) {
@@ -87,6 +144,7 @@ export function buildEquipmentFabricatorSnapshot(state, player) {
   }
   const def = getStructureDef(st.type);
   const core = findAliveCoreForStructure(state, st);
+  const map = inputMap(st);
   return {
     id: st.id | 0,
     type: st.type,
@@ -95,7 +153,13 @@ export function buildEquipmentFabricatorSnapshot(state, player) {
     energyUse: Number(def?.energyUse) || 0,
     baseEnergy: core?.energyState || null,
     lastCraftedItemId: player?.equipment?.lastCraftedItemId || '',
-    recipes: EQUIPMENT_FABRICATOR_RECIPES.map((recipe) => recipeSnapshot(player, recipe))
+    input: mapRows(map),
+    inputUsed: usedCapacity(map),
+    inputCapacity: FABRICATOR_INPUT_CAPACITY,
+    outputItems: equipmentOutputSnapshot(player, st),
+    outputUsed: outputItems(st).length,
+    outputCapacity: FABRICATOR_OUTPUT_CAPACITY,
+    recipes: EQUIPMENT_FABRICATOR_RECIPES.map((recipe) => recipeSnapshot(player, recipe, st))
   };
 }
 
@@ -114,18 +178,66 @@ export function closeEquipmentFabricator(player) {
   return true;
 }
 
+export function transferEquipmentFabricatorResource(state, player, structureId, resourceKey, direction = 'deposit', amount = 1, timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
+  const key = String(resourceKey || '');
+  if (!RESOURCE_DEFS[key]) return { ok: false, error: 'bad_resource' };
+  const n = Math.max(1, Math.min(9999, amount | 0 || 1));
+  const map = inputMap(st);
+  if (direction === 'withdraw') {
+    const take = Math.min(map[key] | 0, n);
+    if (take <= 0 || !canAddResource(player.inv, key, take)) return { ok: false, error: 'empty' };
+    map[key] = (map[key] | 0) - take;
+    clean(map);
+    addResource(player.inv, key, take);
+  } else {
+    const per = Number(RESOURCE_DEFS[key]?.cargoPerUnit) || 1;
+    const free = Math.max(0, FABRICATOR_INPUT_CAPACITY - usedCapacity(map));
+    const maxByCapacity = Math.floor(free / per);
+    const put = Math.min(player.inv?.resources?.[key] | 0, n, maxByCapacity);
+    if (put <= 0) return { ok: false, error: 'full' };
+    removeResource(player.inv, key, put);
+    map[key] = (map[key] | 0) + put;
+  }
+  st.updatedAt = timeMs;
+  player.forceFullUiSnapshot = true;
+  state.structureStore?.saveFromState?.(state);
+  return { ok: true };
+}
+
+export function claimEquipmentFabricatorOutput(state, player, structureId, itemId = '', timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
+  const list = outputItems(st);
+  const wanted = String(itemId || '');
+  const idx = wanted ? list.findIndex((it) => it.id === wanted) : 0;
+  if (idx < 0) return { ok: false, error: 'empty' };
+  const [item] = list.splice(idx, 1);
+  player.equipment ??= {};
+  if (!Array.isArray(player.equipment.ownedItemIds)) player.equipment.ownedItemIds = [];
+  addCustomEquipmentDef(player, item);
+  player.equipment.ownedItemIds = [...new Set([...player.equipment.ownedItemIds, item.id])].sort();
+  player.equipment.lastCraftedItemId = item.id;
+  player.equipment.lastChangedAt = timeMs | 0;
+  st.updatedAt = timeMs;
+  player.forceFullUiSnapshot = true;
+  state.structureStore?.saveFromState?.(state);
+  return { ok: true };
+}
+
 export function craftEquipmentItem(state, player, structureId, recipeId, timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
   if (!st.powered) return { ok: false, error: 'no_power' };
   const recipe = getEquipmentFabricatorRecipe(recipeId);
   if (!recipe) return { ok: false, error: 'bad_recipe' };
-  const snap = recipeSnapshot(player, recipe);
+  const snap = recipeSnapshot(player, recipe, st);
   if (snap.locked) return { ok: false, error: 'research_required' };
-  if (!snap.affordable || !payResources(player, recipe.input)) return { ok: false, error: 'missing_resources' };
+  if (!snap.affordable || !consumeBufferedResources(st, recipe.input)) return { ok: false, error: 'missing_resources' };
+  if (outputItems(st).length >= FABRICATOR_OUTPUT_CAPACITY) return { ok: false, error: 'output_full' };
 
   player.equipment ??= {};
-  if (!Array.isArray(player.equipment.ownedItemIds)) player.equipment.ownedItemIds = [];
   player.equipment.craftedItemCounter = Math.max(0, player.equipment.craftedItemCounter | 0) + 1;
   const crafted = createNeutralCraftedEquipment({
     baseItemId: recipe.baseItemId,
@@ -137,11 +249,10 @@ export function craftEquipmentItem(state, player, structureId, recipeId, timeMs 
     timeMs
   });
   if (!crafted) return { ok: false, error: 'craft_failed' };
-  addCustomEquipmentDef(player, crafted);
-  player.equipment.ownedItemIds = [...new Set([...player.equipment.ownedItemIds, crafted.id])].sort();
-  player.equipment.lastCraftedItemId = crafted.id;
-  player.equipment.lastChangedAt = timeMs | 0;
+  outputItems(st).push(crafted);
+  st.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
-  player.hint = `Fabriqué : ${crafted.name}`;
+  player.hint = `Sortie atelier : ${crafted.name}`;
+  state.structureStore?.saveFromState?.(state);
   return { ok: true };
 }
