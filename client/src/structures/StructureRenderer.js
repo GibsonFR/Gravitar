@@ -52,39 +52,63 @@ function portWorldPoint(s, forwardTiles = 0, sideTiles = 0) {
   };
 }
 
-function drawPortDot(ctx, view, x, y, kind = 'input', alpha = 1) {
-  const color = kind === 'output'
+function drawPortDot(ctx, view, x, y, kind = 'input', alpha = 1, dir = { x: 1, y: 0 }, label = '') {
+  const isOutput = kind === 'output';
+  const isPower = kind === 'power';
+  const color = isOutput
     ? 'rgba(255, 223, 128, 1)'
-    : kind === 'power'
+    : isPower
       ? 'rgba(126, 218, 255, 1)'
       : 'rgba(112, 255, 210, 1)';
+  const text = label || (isPower ? '⚡' : isOutput ? 'OUT' : 'IN');
+  const ux = Number(dir?.x) || 0;
+  const uy = Number(dir?.y) || 0;
+  const horizontal = Math.abs(ux) >= Math.abs(uy);
+  const bw = (horizontal ? 24 : 28) * view.dpr;
+  const bh = (horizontal ? 13 : 14) * view.dpr;
+  const nx = ux || (isOutput ? 1 : -1);
+  const ny = uy || 0;
+
   ctx.save();
   ctx.globalAlpha *= alpha;
   ctx.shadowColor = color;
-  ctx.shadowBlur = 7 * view.dpr;
-  ctx.fillStyle = color;
-  ctx.strokeStyle = 'rgba(5, 12, 18, .92)';
-  ctx.lineWidth = 1.2 * view.dpr;
+  ctx.shadowBlur = 9 * view.dpr;
+  ctx.fillStyle = 'rgba(5, 12, 18, .92)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.45 * view.dpr;
+
   ctx.beginPath();
-  ctx.arc(x, y, 4.5 * view.dpr, 0, Math.PI * 2);
+  roundedRect(ctx, x - bw * 0.5, y - bh * 0.5, bw, bh, 5 * view.dpr);
   ctx.fill();
   ctx.stroke();
+
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.2 * view.dpr;
-  ctx.beginPath();
-  ctx.arc(x, y, 7.5 * view.dpr, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + 0.5 * view.dpr);
+
+  if (!isPower) {
+    const ax = x + nx * (bw * 0.36);
+    const ay = y + ny * (bh * 0.36);
+    ctx.beginPath();
+    ctx.moveTo(ax + nx * 5 * view.dpr, ay + ny * 5 * view.dpr);
+    ctx.lineTo(ax - nx * 2 * view.dpr - ny * 3 * view.dpr, ay - ny * 2 * view.dpr + nx * 3 * view.dpr);
+    ctx.lineTo(ax - nx * 2 * view.dpr + ny * 3 * view.dpr, ay - ny * 2 * view.dpr - nx * 3 * view.dpr);
+    ctx.closePath();
+    ctx.fill();
+  }
   ctx.restore();
 }
 
-function drawLocalPort(ctx, view, x, y, kind = 'input', alpha = 1) {
-  drawPortDot(ctx, view, x, y, kind, alpha);
+function drawLocalPort(ctx, view, x, y, kind = 'input', alpha = 1, dir = { x: 1, y: 0 }, label = '') {
+  drawPortDot(ctx, view, x, y, kind, alpha, dir, label);
 }
 
-function drawWorldPort(ctx, view, point, camX, camY, kind = 'input', alpha = 1) {
+function drawWorldPort(ctx, view, point, camX, camY, kind = 'input', alpha = 1, dir = { x: 1, y: 0 }, label = '') {
   const p = worldToScreen(view, point.x, point.y, camX, camY);
-  drawPortDot(ctx, view, p.x, p.y, kind, alpha);
+  drawPortDot(ctx, view, p.x, p.y, kind, alpha, dir, label);
 }
 
 function oppositeDir(d) {
@@ -625,11 +649,11 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   const fill = (s.type === 'wall' || s.type === 'door')
     ? (s.owned ? 'rgba(38, 55, 72, .74)' : 'rgba(72, 34, 40, .70)')
     : machineTypes.has(s.type)
-      ? (s.owned ? 'rgba(40, 50, 60, .40)' : 'rgba(74, 36, 44, .32)')
+      ? (s.owned ? 'rgba(36, 48, 58, .62)' : 'rgba(74, 36, 44, .32)')
       : powerTypes.has(s.type)
-        ? (s.owned ? 'rgba(34, 52, 58, .40)' : 'rgba(74, 38, 44, .32)')
+        ? (s.owned ? 'rgba(30, 50, 56, .60)' : 'rgba(74, 38, 44, .32)')
         : storageTypes.has(s.type)
-          ? (s.owned ? 'rgba(34, 52, 50, .42)' : 'rgba(74, 38, 44, .30)')
+          ? (s.owned ? 'rgba(30, 54, 48, .62)' : 'rgba(74, 38, 44, .30)')
           : pal.fill;
 
   ctx.save();
@@ -925,24 +949,49 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.moveTo(0, 0);
       ctx.lineTo(0, h * 0.42);
     }
+    ctx.stroke();
     if (!isConveyor && !isRobotArm) {
+      const typeLabel = isStorage ? 'RES'
+        : isEquip ? 'GEAR'
+        : isAmmo ? 'AMMO'
+        : isSolar ? 'SOLAR'
+        : isGenerator ? 'GEN'
+        : isFuelTank ? 'FUEL'
+        : isFurnace ? 'FURN'
+        : isHighFurnace ? 'HOT'
+        : isChem ? 'CHEM'
+        : isElectro ? 'ELEC'
+        : isElectronics ? 'CHIP'
+        : isPress ? 'PRESS'
+        : '';
+      if (typeLabel) {
+        ctx.save();
+        ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(225, 245, 255, .66)';
+        ctx.shadowColor = 'rgba(0,0,0,.9)';
+        ctx.shadowBlur = 3 * view.dpr;
+        ctx.fillText(typeLabel, 0, h * 0.34);
+        ctx.restore();
+      }
+
       if (isStorage || isEquip || isAmmo) {
-        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .88);
+        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .96, { x: -1, y: 0 }, 'IN');
       } else if (isSolar) {
-        drawLocalPort(ctx, view, w * 0.50, 0, 'power', .90);
+        drawLocalPort(ctx, view, w * 0.50, 0, 'power', .96, { x: 1, y: 0 }, '⚡');
       } else if (isGenerator) {
-        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .78);
-        drawLocalPort(ctx, view, w * 0.50, 0, 'power', .90);
+        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .92, { x: -1, y: 0 }, 'FUEL');
+        drawLocalPort(ctx, view, w * 0.50, 0, 'power', .96, { x: 1, y: 0 }, '⚡');
       } else if (isFuelTank) {
-        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .80);
-        drawLocalPort(ctx, view, w * 0.50, 0, 'output', .82);
+        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .92, { x: -1, y: 0 }, 'IN');
+        drawLocalPort(ctx, view, w * 0.50, 0, 'output', .92, { x: 1, y: 0 }, 'OUT');
       } else if (isFurnace || isHighFurnace || isChem || isElectro || isElectronics || isPress) {
-        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .82);
-        drawLocalPort(ctx, view, w * 0.50, 0, 'output', .82);
-        drawLocalPort(ctx, view, 0, h * 0.50, 'power', .68);
+        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .92, { x: -1, y: 0 }, 'IN');
+        drawLocalPort(ctx, view, w * 0.50, 0, 'output', .92, { x: 1, y: 0 }, 'OUT');
+        drawLocalPort(ctx, view, 0, h * 0.50, 'power', .86, { x: 0, y: 1 }, '⚡');
       }
     }
-    ctx.stroke();
     if (isConveyor || isRobotArm) {
       drawAutomationItem(ctx, view, s, w, h, t);
     }
@@ -1059,10 +1108,10 @@ export function drawStructureFlowOverlay(ctx, view, structures, camX, camY, t = 
   }
   for (const st of structures.values()) {
     if (!st || !st.owned) continue;
-    for (const p of structureInputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, 'input', .72);
+    for (const p of structureInputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, 'input', .74, { x: -1, y: 0 }, 'IN');
     const type = String(st.type || '').toLowerCase();
     const power = type === 'solar_panel' || type === 'fuel_generator';
-    for (const p of structureOutputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, power ? 'power' : 'output', .78);
+    for (const p of structureOutputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, power ? 'power' : 'output', .78, { x: 1, y: 0 }, power ? '⚡' : 'OUT');
   }
   ctx.restore();
 }
