@@ -306,3 +306,303 @@ function ensureTestMiningDeposits(state, player, timeMs) {
     state.structures.set(st.id, st);
   }
 }
+
+function grantTestResources(player) {
+  if (!player?.inv) return;
+  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 240);
+  const pack = {
+    ironOre: 48, copper: 48, aluminiumOre: 32, titaniumOre: 24, quartz: 32, graphite: 24,
+    silicon: 32, hydrocarbons: 28, biomass: 24, organicLipids: 16, waterIce: 24, methane: 20, ammonia: 20,
+    refinedFuel: 20, biofuel: 12, propellant: 12
+  };
+  for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
+}
+
+function resetNonPersistentModeLoadout(player, options = {}) {
+  if (!player) return;
+  player.inv = createInventoryState();
+  player.equipment = createEquipmentState();
+  player.equipment.ownedItemIds = [STARTER_ITEM_IDS.weapon, STARTER_ITEM_IDS.launcher];
+  player.equipment.equippedItemIds = [STARTER_ITEM_IDS.weapon, STARTER_ITEM_IDS.launcher];
+  player.equipment.rocketAmmoCountsById = { ...(STARTER_AMMO_LOADOUT.inventory ?? {}) };
+  player.equipment.rocketAmmoSlotItemIds = [...(STARTER_AMMO_LOADOUT.slots ?? ['', ''])];
+  player.equipment.activeRocketSlot = Math.max(0, Math.min(1, STARTER_AMMO_LOADOUT.activeSlot ?? 0));
+  player.completedBastionIds = [];
+  player.bastionBuffs = [];
+  player.bastionReturn = null;
+  player.bastionRunKey = '';
+  player.frameBonuses = {};
+  if (options.resetProgression) player.progression = createPlayerProgressionState();
+}
+
+export function setPlayerEndless(state, player, timeMs) {
+  if (!player) return;
+  clearPlayerBattleResidue(state, player, timeMs, { checkWinner: true });
+  player.gameMode = GAME_MODES.ENDLESS;
+  player.battleSessionId = '';
+  player.battleEliminated = false;
+  player.worldId = WORLD_IDS.ENDLESS;
+  if (!Number.isFinite(player.sx) || isBattleArenaSector(player.sx | 0, player.sy | 0)) {
+    player.sx = 0;
+    player.sy = 0;
+    player.x = 0;
+    player.y = 0;
+  }
+}
+
+
+export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hub') {
+  if (!player) return;
+  const def = getTestWorldDef(testWorldId);
+  clearPlayerBattleResidue(state, player, timeMs, { checkWinner: true });
+  player.gameMode = GAME_MODES.TEST;
+  player.testWorldId = def.id;
+  player.battleSessionId = '';
+  player.battleEliminated = false;
+  player.worldId = testWorldIdFor(def);
+  player.sessionSetupPending = false;
+  player.sessionSetupStep = '';
+  player.sx = def.sx | 0;
+  player.sy = def.sy | 0;
+  player.x = Number(def.x || 0);
+  player.y = Number(def.y || 0);
+  player.vx = 0;
+  player.vy = 0;
+  player.hasMoveTarget = false;
+  player.autoTargetKind = '';
+  player.autoTargetId = 0;
+  player.selectedKind = '';
+  player.selectedId = 0;
+  resetNonPersistentModeLoadout(player, { resetProgression: false });
+  player.dockedStationId = 0;
+  player.dockPhase = 'none';
+  player.dockStationId = 0;
+  player.dockProg01 = 0;
+  player.dockTimer = 0;
+  if (player.inv) player.inv.credits = Math.max(player.inv.credits || 0, def.credits | 0 || 0);
+  grantTestResources(player);
+  ensureTestMiningDeposits(state, player, timeMs);
+  if (player.progression) {
+    player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
+    player.progression.xp = 0;
+    player.progression.nextXp = 1;
+    player.progression.skillPoints = 0;
+    player.progression.abilityLevels = { A: 15, Z: 15, E: 15, R: 5 };
+    player.progression.xpPulseLeft = 0;
+    player.progression.levelUpFlashLeft = 0;
+    player.progression.recentXpGain = 0;
+    player.progression.recentXpReason = '';
+    player.progression.canSpendAt = 0;
+  }
+  syncPlayerFrameStats(player, { restoreVitals: true, preserveRatios: false });
+  restoreStatBlockFull(player.stats);
+  ensureSectorLoaded(state, player.sx | 0, player.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.MOB_BESTIARY.sx | 0, SPECIAL_SECTORS.MOB_BESTIARY.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_EFFECTS.sx | 0, SPECIAL_SECTORS.TEST_EFFECTS.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_FOUNDATIONS.sx | 0, SPECIAL_SECTORS.TEST_FOUNDATIONS.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_MINING.sx | 0, SPECIAL_SECTORS.TEST_MINING.sy | 0, timeMs);
+  visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
+  player.uiHint = def.hint || 'Monde de test';
+  player.uiHintTimer = 3.0;
+}
+
+export function setPlayerTestServer(state, player, timeMs) {
+  setPlayerTestWorld(state, player, timeMs, 'test-hub');
+}
+
+export function setPlayerStressServer(state, player, timeMs) {
+  setPlayerTestServer(state, player, timeMs);
+  player.gameMode = GAME_MODES.STRESS;
+  player.worldId = WORLD_IDS.STRESS;
+  player.testWorldId = 'stress';
+  player.sx = SPECIAL_SECTORS.STRESS_ARENA.sx | 0;
+  player.sy = SPECIAL_SECTORS.STRESS_ARENA.sy | 0;
+  player.x = 0;
+  player.y = 0;
+  player.vx = 0;
+  player.vy = 0;
+  player.hasMoveTarget = false;
+  player.autoTargetKind = '';
+  player.autoTargetId = 0;
+  ensureSectorLoaded(state, player.sx | 0, player.sy | 0, timeMs);
+  visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
+  player.uiHint = 'Serveur stress — mobs denses pour tester réseau/CPU';
+  player.uiHintTimer = 4.0;
+}
+
+export function clearPlayerBattleResidue(state, player, timeMs, options = {}) {
+  if (!player || !state?.modes) return;
+  const playerId = player.id | 0;
+  const checkWinner = options.checkWinner !== false;
+  const affectedArenaSessions = [];
+
+  state.modes.battleQueueNext?.delete?.(playerId);
+
+  for (const session of state.modes.battleSessions ?? []) {
+    const hadAlive = session.alive?.delete?.(playerId) || false;
+    const hadPlayer = session.players?.delete?.(playerId) || false;
+    if ((hadAlive || hadPlayer) && session.state === 'arena') affectedArenaSessions.push(session);
+  }
+
+  player.battleSessionId = '';
+  player.battleQueuedForSeq = 0;
+  player.battleEliminated = false;
+
+  if (checkWinner) {
+    for (const session of affectedArenaSessions) checkBattleWinner(state, session, timeMs);
+  }
+}
+
+export function leaveBattleSession(state, player, timeMs, eliminated = true) {
+  const id = player?.battleSessionId || '';
+  if (!id) {
+    state?.modes?.battleQueueNext?.delete?.(player?.id | 0);
+    if (player) player.battleQueuedForSeq = 0;
+    return;
+  }
+  const session = state.modes?.battleSessions?.find?.((s) => s.id === id);
+  if (session) {
+    session.alive.delete(player.id | 0);
+    if (!eliminated) session.players.delete(player.id | 0);
+    if (session.state === 'arena') checkBattleWinner(state, session, timeMs);
+  }
+  state.modes?.battleQueueNext?.delete?.(player.id | 0);
+  player.battleSessionId = '';
+  player.battleQueuedForSeq = 0;
+}
+
+export function startBattleArena(state, session, timeMs) {
+  if (!session || session.state !== 'lobby') return;
+  session.state = 'arena';
+  session.arenaStartsAtMs = Number(timeMs || 0);
+  session.arenaEndsAtMs = Number(timeMs || 0) + BATTLE.arenaDurationMs;
+  session.alive = new Set();
+  ensureSectorLoaded(state, session.sx | 0, session.sy | 0, timeMs);
+  let index = 0;
+  const ids = [...session.players];
+  for (const playerId of ids) {
+    const p = state.players.get(playerId | 0);
+    if (!p || p.gameMode !== GAME_MODES.BATTLE || p.battleSessionId !== session.id) continue;
+    p.worldId = battleWorldId(session);
+    p.sx = session.sx | 0;
+    p.sy = session.sy | 0;
+    const pos = spawnPointForPlayer(index++, Math.max(12, ids.length + 2));
+    p.x = pos.x;
+    p.y = pos.y;
+    p.vx = 0;
+    p.vy = 0;
+    p.hasMoveTarget = false;
+    p.autoTargetKind = '';
+    p.autoTargetId = 0;
+    p.selectedKind = '';
+    p.selectedId = 0;
+    restoreStatBlockFull(p.stats);
+    session.alive.add(p.id | 0);
+    visitSectorOnPlayer(state, p, p.sx | 0, p.sy | 0, timeMs);
+    p.uiHint = 'Battle Royale — arène ouverte';
+    p.uiHintTimer = 4.0;
+  }
+}
+
+function getBattleStats(state, accountKey) {
+  if (!accountKey) return null;
+  if (!state.modes.battleStats.has(accountKey)) state.modes.battleStats.set(accountKey, { played: 0, wins: 0, kills: 0, deaths: 0 });
+  return state.modes.battleStats.get(accountKey);
+}
+
+export function recordBattleDeath(state, player) {
+  const stats = getBattleStats(state, player?.accountKey || '');
+  if (stats) stats.deaths += 1;
+}
+
+export function recordBattleKill(state, player) {
+  const stats = getBattleStats(state, player?.accountKey || '');
+  if (stats) stats.kills += 1;
+}
+
+export function closeBattleSession(state, session, timeMs, reason = 'end') {
+  if (!session || session.state === 'ended') return;
+  const wasArena = session.state === 'arena';
+  session.state = 'ended';
+  session.endedAtMs = Number(timeMs);
+  let winnerId = 0;
+  if (session.alive.size === 1) winnerId = [...session.alive][0] | 0;
+  session.winnerId = winnerId;
+  const winner = winnerId ? state.players.get(winnerId) : null;
+  session.winnerName = winner?.pseudo || '';
+  for (const playerId of session.players) {
+    const p = state.players.get(playerId | 0);
+    const stats = getBattleStats(state, p?.accountKey || '');
+    if (stats && wasArena) {
+      stats.played += 1;
+      if ((playerId | 0) === winnerId) stats.wins += 1;
+    }
+    if (!p) continue;
+    p.battleSessionId = '';
+    p.battleQueuedForSeq = 0;
+    p.battleEliminated = false;
+    p.gameMode = GAME_MODES.ENDLESS;
+    p.worldId = WORLD_IDS.SETUP;
+    p.sessionSetupPending = true;
+    p.sessionSetupStep = 'mode';
+    p.sx = 0;
+    p.sy = 0;
+    p.x = 0;
+    p.y = 0;
+    p.vx = 0;
+    p.vy = 0;
+    p.hasMoveTarget = false;
+    p.autoTargetKind = '';
+    p.autoTargetId = 0;
+    p.selectedKind = '';
+    p.selectedId = 0;
+    p.dockedStationId = 0;
+    p.dockPhase = 'none';
+    p.dockStationId = 0;
+    p.dockProg01 = 0;
+    p.dockTimer = 0;
+    restoreStatBlockFull(p.stats);
+    p.uiHint = winnerId === (p.id | 0) ? 'Victoire Battle Royale — choisis un serveur' : (reason === 'timer' ? 'Battle Royale terminée — choisis un serveur' : 'Battle Royale terminé — choisis un serveur');
+    p.uiHintTimer = 4.0;
+  }
+}
+
+export function checkBattleWinner(state, session, timeMs) {
+  if (!session || session.state !== 'arena') return;
+  const alive = [...session.alive].filter((id) => {
+    const p = state.players.get(id | 0);
+    return p && p.gameMode === GAME_MODES.BATTLE && p.battleSessionId === session.id && !p.battleEliminated && (p.stats?.hp ?? 0) > 0;
+  });
+  session.alive = new Set(alive);
+  if (session.players.size > 1 && alive.length <= 1) closeBattleSession(state, session, timeMs, 'last_alive');
+}
+
+export function buildModeSnapshot(state, player, timeMs) {
+  const sessions = (state.modes?.battleSessions ?? []).map((s) => formatBattleSession(s, timeMs));
+  const current = getNewestOpenBattleSession(state, timeMs);
+  const nextMs = getNextBattleOpenMs(timeMs);
+  const key = player?.accountKey || '';
+  const stats = key ? (state.modes?.battleStats?.get?.(key) ?? null) : null;
+  const worldCounts = countPlayersByWorld(state);
+  return {
+    currentMode: player?.gameMode || GAME_MODES.ENDLESS,
+    testWorldId: player?.testWorldId || '',
+    testWorldTitle: player?.gameMode === GAME_MODES.TEST ? getTestWorldDef(player?.testWorldId).title : '',
+    battleSessionId: player?.battleSessionId || '',
+    battleQueuedNext: !!state.modes?.battleQueueNext?.has?.(player?.id | 0),
+    battleArenaHalf: BATTLE.arenaHalf,
+    battleCurrentId: current?.id || '',
+    battleNextOpenMs: nextMs,
+    battleNextInMs: Math.max(0, nextMs - Number(timeMs || 0)),
+    battleWaitingCount: worldCounts.battleWaiting,
+    endlessPlayerCount: worldCounts.endless,
+    testPlayerCount: worldCounts.test,
+    testWorlds: TEST_WORLD_DEFS.map((def) => ({ ...def, playerCount: worldCounts.testWorlds?.[def.id] || 0 })),
+    battleSessions: sessions,
+    account: {
+      guest: !player?.accountKey,
+      name: player?.accountName || '',
+      battleStats: stats ? { ...stats, winrate: stats.played > 0 ? stats.wins / stats.played : 0 } : null
+    }
+  };
+}
