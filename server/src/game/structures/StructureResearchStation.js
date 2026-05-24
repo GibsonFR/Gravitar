@@ -63,6 +63,13 @@ function resourceList(map = {}) {
   return Object.entries(map || {}).filter(([, amount]) => (amount | 0) > 0).map(([key, amount]) => resourceEntry(key, amount));
 }
 
+function cargoScienceList(player) {
+  const resources = player?.inv?.resources || {};
+  return Object.entries(resources)
+    .filter(([key, amount]) => isSciencePack(key) && (amount | 0) > 0)
+    .map(([key, amount]) => resourceEntry(key, amount));
+}
+
 function mapHas(map = {}, required = {}) {
   for (const [key, amount] of Object.entries(required || {})) {
     if ((map[key] | 0) < (amount | 0)) return false;
@@ -328,6 +335,7 @@ export function buildResearchStationSnapshot(state, player) {
     pointProgress: activeProject ? pointProgress(normalizedJob, activeProject) : 0,
     pointSeconds: RESEARCH_POINT_SECONDS,
     scienceInput: resourceList(scienceInput(station)),
+    cargoScience: cargoScienceList(player),
     inputUsed: usedCapacity(scienceInput(station)),
     inputCapacity: SCIENCE_CAPACITY,
     packs: SCIENCE_PACKS,
