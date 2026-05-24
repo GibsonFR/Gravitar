@@ -747,7 +747,7 @@ function spawnSectorResourceDeposits(state, sx, sy, rng, h, mapLevel, worldId = 
 }
 
 
-function generateSectorContent(state, sx, sy, timeMs) {
+export function generateSectorContent(state, sx, sy, timeMs) {
   const seed = state.seed | 0;
   const h = hash2D_Mix(seed, sx, sy);
   const rng = new DotNetRandom(h);
