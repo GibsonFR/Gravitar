@@ -566,8 +566,9 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   if (!s) return;
   if (s.type === 'base_core') drawClaimSquare(ctx, view, s, camX, camY);
   const p = worldToScreen(view, s.x || 0, s.y || 0, camX, camY);
-  const w = (s.w || s.radius * 2 || 80) * view.dpr;
-  const h = (s.h || s.radius * 2 || 80) * view.dpr;
+  const storage1x1 = s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage';
+  const w = (storage1x1 ? 64 : (s.w || s.radius * 2 || 80)) * view.dpr;
+  const h = (storage1x1 ? 64 : (s.h || s.radius * 2 || 80)) * view.dpr;
   const pal = ownerPalette(s);
   const edge = pal.edge;
   const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press']);
@@ -644,6 +645,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     const tilesY = Math.max(1, Math.round((s.h || 64) / 64));
     drawFootprintCells(ctx, view, w, h, tilesX, tilesY);
     ctx.shadowBlur = 0;
+    const isStorage = s.type === 'storage';
     const isEquip = s.type === 'equipment_storage';
     const isAmmo = s.type === 'ammo_storage';
     const isSolar = s.type === 'solar_panel';
