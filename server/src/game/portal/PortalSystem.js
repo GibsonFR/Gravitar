@@ -7,6 +7,7 @@ import { getBastionAtSector, isBastionUnlockedForPlayer } from '../bastion/Basti
 import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
 import { isSpecialDetachedSector } from '../sector/SpecialSectors.js';
 import { addResource } from '../inventory/InventorySystem.js';
+import { ensureTestEquipmentBench } from '../modes/GameModes.js';
 
 
 function preloadPortalDestination(state, sx, sy, timeMs) {
@@ -51,7 +52,7 @@ function beginPortalTransition(player, portal, timeMs) {
 }
 
 
-function grantTestEquipmentPortalLoadout(player) {
+function grantTestEquipmentPortalLoadout(state, player, timeMs) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
   const pack = {
@@ -70,6 +71,7 @@ function grantTestEquipmentPortalLoadout(player) {
   player.research = player.research || { completed: [], unlocked: [] };
   const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'alien_anomaly_analysis']);
   player.research.completed = [...completed];
+  ensureTestEquipmentBench(state, player, timeMs);
 }
 
 function prepareTestArenaPlayer(player) {
@@ -168,7 +170,7 @@ export function tryUsePortal(state, player, timeMs) {
   player.selectedKind = '';
   player.selectedId = 0;
   if (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || String(best.mode || '').startsWith('test_biome_')) prepareTestArenaPlayer(player);
-  if (best.mode === 'test_equipment') grantTestEquipmentPortalLoadout(player);
+  if (best.mode === 'test_equipment') grantTestEquipmentPortalLoadout(state, player, timeMs);
   player.uiHint = best.mode === 'test_arena' ? 'Simulateur activé' : (best.mode === 'mob_bestiary' ? 'Bestiaire activé' : (best.mode === 'test_equipment' ? 'Test équipement chargé' : (String(best.mode || '').startsWith('test_biome_') ? 'Biome de test chargé' : `Saut → [${player.sx},${player.sy}]`)));
   player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);

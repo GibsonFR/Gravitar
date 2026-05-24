@@ -309,7 +309,15 @@ function ensureTestMiningDeposits(state, player, timeMs) {
 
 function ensureTestStructure(state, worldId, type, sx, sy, x, y, options = {}) {
   const exists = [...(state.structures?.values?.() || [])].find((st) => String(st.worldId || '') === worldId && st.type === type && (st.sx | 0) === (sx | 0) && (st.sy | 0) === (sy | 0) && Math.abs(Number(st.x || 0) - x) < 4 && Math.abs(Number(st.y || 0) - y) < 4);
-  if (exists) return exists;
+  if (exists) {
+    if (options.ownerKey || (options.ownerId | 0)) {
+      exists.ownerId = options.ownerId | 0;
+      exists.ownerKey = options.ownerKey || exists.ownerKey || '';
+      exists.ownerName = options.ownerName || exists.ownerName || '';
+      exists.updatedAt = options.timeMs || Date.now();
+    }
+    return exists;
+  }
   const st = createStructure(state, type, sx | 0, sy | 0, x, y, {
     ownerId: options.ownerId | 0 || 0,
     ownerKey: options.ownerKey || 'test',
