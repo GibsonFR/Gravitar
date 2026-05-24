@@ -1090,6 +1090,72 @@ function drawFlowLine(ctx, view, a, b, camX, camY, t, blocked = false) {
   ctx.restore();
 }
 
+
+function drawFlowLegend(ctx, view) {
+  const x = 18 * view.dpr;
+  const y = 126 * view.dpr;
+  const w = 240 * view.dpr;
+  const h = 84 * view.dpr;
+  ctx.save();
+  ctx.fillStyle = 'rgba(4, 9, 15, .78)';
+  ctx.strokeStyle = 'rgba(126, 220, 255, .28)';
+  ctx.lineWidth = 1 * view.dpr;
+  ctx.beginPath();
+  roundedRect(ctx, x, y, w, h, 10 * view.dpr);
+  ctx.fill();
+  ctx.stroke();
+  ctx.font = `${10 * view.dpr}px system-ui, sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(226, 245, 255, .92)';
+  ctx.fillText('Logistique', x + 12 * view.dpr, y + 14 * view.dpr);
+  const rows = [
+    ['IN', 'entrée bras / machine / coffre', 'rgba(112,255,210,1)'],
+    ['OUT', 'sortie production / transport', 'rgba(255,223,128,1)'],
+    ['⚡', 'énergie', 'rgba(126,218,255,1)']
+  ];
+  rows.forEach((row, i) => {
+    const yy = y + (34 + i * 16) * view.dpr;
+    drawPortDot(ctx, view, x + 22 * view.dpr, yy, row[0] === 'OUT' ? 'output' : row[0] === '⚡' ? 'power' : 'input', .95, { x: 1, y: 0 }, row[0]);
+    ctx.fillStyle = row[2];
+    ctx.font = `${9 * view.dpr}px system-ui, sans-serif`;
+    ctx.fillText(row[1], x + 46 * view.dpr, yy);
+  });
+  ctx.restore();
+}
+
+function drawPreviewConnections(ctx, view, preview, structures, camX, camY, t = 0) {
+  if (!preview || preview.mode !== 'build' || !structures?.values) return;
+  const alpha = preview.ok ? .92 : .45;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  for (const input of structureInputPorts(preview)) {
+    const source = nearestStructureAtPort(structures, preview, input);
+    if (source) drawFlowLine(ctx, view, { x: source.x, y: source.y }, input, camX, camY, t, false);
+    drawWorldPort(ctx, view, input, camX, camY, 'input', .90, { x: -1, y: 0 }, 'IN');
+  }
+  for (const output of structureOutputPorts(preview)) {
+    const target = nearestStructureAtPort(structures, preview, output);
+    const isPower = String(preview.type || '') === 'solar_panel' || String(preview.type || '') === 'fuel_generator';
+    if (target) drawFlowLine(ctx, view, output, { x: target.x, y: target.y }, camX, camY, t, false);
+    else {
+      const d = dirOf(preview);
+      drawFlowLine(ctx, view, output, { x: output.x + d.x * 32, y: output.y + d.y * 32 }, camX, camY, t, true);
+    }
+    drawWorldPort(ctx, view, output, camX, camY, isPower ? 'power' : 'output', .94, { x: 1, y: 0 }, isPower ? '⚡' : 'OUT');
+  }
+  if (blocked) {
+    ctx.font = `${9 * view.dpr}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255, 196, 196, .92)';
+    ctx.shadowColor = 'rgba(0,0,0,.9)';
+    ctx.shadowBlur = 3 * view.dpr;
+    ctx.fillText('bloqué', (pa.x + pb.x) * 0.5, (pa.y + pb.y) * 0.5 - 10 * view.dpr);
+  }
+  ctx.restore();
+}
+
 export function drawStructureFlowOverlay(ctx, view, structures, camX, camY, t = 0, active = false) {
   if (!active || !structures?.values) return;
   ctx.save();
@@ -1113,10 +1179,11 @@ export function drawStructureFlowOverlay(ctx, view, structures, camX, camY, t = 
     const power = type === 'solar_panel' || type === 'fuel_generator';
     for (const p of structureOutputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, power ? 'power' : 'output', .78, { x: 1, y: 0 }, power ? '⚡' : 'OUT');
   }
+  drawFlowLegend(ctx, view);
   ctx.restore();
 }
 
-export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0) {
+export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0, structures = null) {
   if (!preview) return;
   drawBuildGrid(ctx, view, camX, camY, preview.gridSize || 64);
   const p = worldToScreen(view, preview.x || 0, preview.y || 0, camX, camY);
@@ -1190,6 +1257,8 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
     ctx.stroke();
   }
   ctx.restore();
+
+  drawPreviewConnections(ctx, view, preview, structures, camX, camY, t);
 
   ctx.save();
   ctx.font = `${11 * view.dpr}px system-ui, sans-serif`;
