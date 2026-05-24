@@ -6344,3 +6344,13 @@ button.station-item-icon[draggable="true"]:active,
   color: rgba(230, 220, 255, .9);
   background: rgba(181, 140, 255, .08);
 }
+
+
+/* v135 — cartes monde de test */
+.session-setup__server-main small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(190, 215, 230, .68);
+  font-size: 11px;
+  line-height: 1.25;
+}

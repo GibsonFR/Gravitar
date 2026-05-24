@@ -35,6 +35,18 @@ export const TEST_WORLD_DEFS = Object.freeze([
     level: 50,
     credits: 1000000,
     hint: 'TEST HUB — choisis un portail de test'
+  },
+  {
+    id: 'equipment-lab',
+    title: 'Test Équipement',
+    subtitle: 'Atelier d’équipement prêt à utiliser',
+    sx: SPECIAL_SECTORS.TEST_EQUIPMENT.sx | 0,
+    sy: SPECIAL_SECTORS.TEST_EQUIPMENT.sy | 0,
+    x: 0,
+    y: 0,
+    level: 50,
+    credits: 1000000,
+    hint: 'TEST ÉQUIPEMENT — atelier, station et ressources déjà prêts'
   }
 ]);
 
@@ -307,9 +319,65 @@ function ensureTestMiningDeposits(state, player, timeMs) {
   }
 }
 
+function ensureTestStructure(state, worldId, type, sx, sy, x, y, options = {}) {
+  const exists = [...(state.structures?.values?.() || [])].find((st) => String(st.worldId || '') === worldId && st.type === type && (st.sx | 0) === (sx | 0) && (st.sy | 0) === (sy | 0) && Math.abs(Number(st.x || 0) - x) < 4 && Math.abs(Number(st.y || 0) - y) < 4);
+  if (exists) return exists;
+  const st = createStructure(state, type, sx | 0, sy | 0, x, y, {
+    ownerId: options.ownerId | 0 || 0,
+    ownerKey: options.ownerKey || 'test',
+    ownerName: options.ownerName || 'Test',
+    worldId,
+    createdAt: options.timeMs || Date.now(),
+    updatedAt: options.timeMs || Date.now()
+  });
+  if (!st) return null;
+  st.powered = true;
+  st.ownerId = options.ownerId | 0 || st.ownerId | 0;
+  st.ownerKey = options.ownerKey || st.ownerKey || 'test';
+  st.ownerName = options.ownerName || st.ownerName || 'Test';
+  state.structures.set(st.id, st);
+  return st;
+}
+
+function ensureTestEquipmentBench(state, player, timeMs) {
+  if (!state?.structures || !player) return;
+  const worldId = String(player.worldId || '');
+  const sx = SPECIAL_SECTORS.TEST_EQUIPMENT.sx | 0;
+  const sy = SPECIAL_SECTORS.TEST_EQUIPMENT.sy | 0;
+  if (String(player.testWorldId || '') !== 'equipment-lab' && (player.sx | 0) !== sx) return;
+  const owner = { ownerId: player.id | 0, ownerKey: player.accountKey || 'test', ownerName: player.pseudo || 'Test', timeMs };
+  const core = ensureTestStructure(state, worldId, 'base_core', sx, sy, -384, 0, owner);
+  if (core) {
+    core.claimRadius = Math.max(core.claimRadius || 0, 1400);
+    core.energy = Math.max(core.energy || 0, 2000);
+  }
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -192, -160, owner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -64, -160, owner);
+  ensureTestStructure(state, worldId, 'fuel_generator', sx, sy, 80, -160, owner);
+  ensureTestStructure(state, worldId, 'science_lab', sx, sy, -96, 96, owner);
+  const station = ensureTestStructure(state, worldId, 'research_station', sx, sy, 128, 96, owner);
+  if (station) {
+    station.scienceInput = {
+      basicSciencePack: 30,
+      automationSciencePack: 20,
+      industrialSciencePack: 20,
+      energySciencePack: 20,
+      biologySciencePack: 16,
+      combatSciencePack: 16,
+      advancedSciencePack: 16,
+      anomalySciencePack: 10
+    };
+    station.researchEnabled = true;
+  }
+  ensureTestStructure(state, worldId, 'equipment_fabricator', sx, sy, 384, 96, owner);
+  ensureTestStructure(state, worldId, 'equipment_storage', sx, sy, 640, 96, owner);
+  ensureTestStructure(state, worldId, 'storage', sx, sy, 640, -96, owner);
+}
+
+
 function grantTestResources(player) {
   if (!player?.inv) return;
-  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 240);
+  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
   const pack = {
     ironOre: 48, copper: 48, aluminiumOre: 32, titaniumOre: 24, quartz: 32, graphite: 24,
     silicon: 32, hydrocarbons: 28, biomass: 24, organicLipids: 16, waterIce: 24, methane: 20, ammonia: 20,
@@ -317,7 +385,10 @@ function grantTestResources(player) {
     ironIngot: 30, copperIngot: 20, aluminiumIngot: 20, copperWire: 40, steelPlate: 24,
     siliconWafer: 18, microTransistor: 10, printedCircuit: 8, controlCircuit: 4,
     titaniumPlate: 10, carbonFiber: 8, opticalGlass: 8, lithiumBattery: 4, fuelCell: 4,
-    basicSciencePack: 20, automationSciencePack: 10, industrialSciencePack: 10, energySciencePack: 8
+    basicSciencePack: 20, automationSciencePack: 10, industrialSciencePack: 10, energySciencePack: 12,
+    biologySciencePack: 10, combatSciencePack: 10, advancedSciencePack: 12, anomalySciencePack: 8,
+    electricMotor: 6, compositeArmor: 4, laserLens: 4, microprocessor: 6, thermalCeramic: 6,
+    fuelInjector: 4, hydrogen: 20, lithiumBattery: 8, fuelCell: 8
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
 }
@@ -385,7 +456,13 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   player.dockTimer = 0;
   if (player.inv) player.inv.credits = Math.max(player.inv.credits || 0, def.credits | 0 || 0);
   grantTestResources(player);
+  if (String(def.id || '') === 'equipment-lab') {
+    player.research = player.research || { completed: [], unlocked: [] };
+    const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'alien_anomaly_analysis']);
+    player.research.completed = [...completed];
+  }
   ensureTestMiningDeposits(state, player, timeMs);
+  ensureTestEquipmentBench(state, player, timeMs);
   if (player.progression) {
     player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
     player.progression.xp = 0;
@@ -405,6 +482,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_EFFECTS.sx | 0, SPECIAL_SECTORS.TEST_EFFECTS.sy | 0, timeMs);
   ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_FOUNDATIONS.sx | 0, SPECIAL_SECTORS.TEST_FOUNDATIONS.sy | 0, timeMs);
   ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_MINING.sx | 0, SPECIAL_SECTORS.TEST_MINING.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_EQUIPMENT.sx | 0, SPECIAL_SECTORS.TEST_EQUIPMENT.sy | 0, timeMs);
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   player.uiHint = def.hint || 'Monde de test';
   player.uiHintTimer = 3.0;

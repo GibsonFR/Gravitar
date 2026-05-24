@@ -510,6 +510,7 @@ export class SessionSetupOverlay {
         btn.innerHTML = `
           <div class="session-setup__server-main">
             <b>${world.title || 'Server Test'}</b>
+            ${world.subtitle ? `<small>${world.subtitle}</small>` : ''}
           </div>
           <div class="session-setup__server-meta">
             <span>${n} joueur${n > 1 ? 's' : ''}</span>
