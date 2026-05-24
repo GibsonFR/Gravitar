@@ -64,7 +64,8 @@ export function sanitizeCommandMessage(raw) {
 
   if (cmd === 'build_structure') {
     msg.structureType = cleanWord(raw.structureType ?? raw.type ?? '', 32).toLowerCase();
-    msg.orientation = cleanWord(raw.orientation || 'h', 1).toLowerCase() === 'v' ? 'v' : 'h';
+    const rawOrientation = cleanWord(raw.orientation || 'h', 1).toLowerCase();
+    msg.orientation = ['h', 'v', 'r', 'd', 'l', 'u'].includes(rawOrientation) ? rawOrientation : 'h';
     const x = Number(raw.x);
     const y = Number(raw.y);
     if (Number.isFinite(x)) msg.x = Math.max(-4000, Math.min(4000, x));

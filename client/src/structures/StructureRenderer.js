@@ -27,10 +27,10 @@ function ownerPalette(s) {
 
 function dirOf(s) {
   const o = String(s?.orientation || 'h').toLowerCase();
-  if (o === 'v' || o === 'd') return { x: 0, y: 1, label: 'bas' };
-  if (o === 'u') return { x: 0, y: -1, label: 'haut' };
-  if (o === 'l') return { x: -1, y: 0, label: 'gauche' };
-  return { x: 1, y: 0, label: 'droite' };
+  if (o === 'v' || o === 'd') return { x: 0, y: 1, label: 'bas', orientation: 'd' };
+  if (o === 'u') return { x: 0, y: -1, label: 'haut', orientation: 'u' };
+  if (o === 'l') return { x: -1, y: 0, label: 'gauche', orientation: 'l' };
+  return { x: 1, y: 0, label: 'droite', orientation: 'r' };
 }
 
 function rotateToDir(ctx, s) {
@@ -408,6 +408,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     if (isConveyor) {
       ctx.save();
       rotateToDir(ctx, s);
+      ctx.beginPath();
       ctx.rect(-w * 0.38, -h * 0.22, w * 0.76, h * 0.44);
       ctx.moveTo(-w * 0.26, 0); ctx.lineTo(w * 0.24, 0);
       ctx.moveTo(w * 0.24, 0); ctx.lineTo(w * 0.08, -h * 0.13);
@@ -415,17 +416,22 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
       ctx.moveTo(-w * 0.30, h * 0.30); ctx.arc(-w * 0.30, h * 0.30, w * 0.035, 0, Math.PI * 2);
       ctx.moveTo(0, h * 0.30); ctx.arc(0, h * 0.30, w * 0.035, 0, Math.PI * 2);
       ctx.moveTo(w * 0.30, h * 0.30); ctx.arc(w * 0.30, h * 0.30, w * 0.035, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
+      ctx.beginPath();
     } else if (isRobotArm) {
       ctx.save();
       rotateToDir(ctx, s);
+      ctx.beginPath();
       ctx.arc(0, 0, Math.min(w, h) * 0.16, 0, Math.PI * 2);
       ctx.moveTo(-w * 0.34, 0); ctx.lineTo(w * 0.28, 0);
       ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, -h * 0.11);
       ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, h * 0.11);
       ctx.moveTo(-w * 0.30, -h * 0.30); ctx.lineTo(-w * 0.16, -h * 0.16);
       ctx.moveTo(w * 0.30, h * 0.30); ctx.lineTo(w * 0.16, h * 0.16);
+      ctx.stroke();
       ctx.restore();
+      ctx.beginPath();
     } else if (isSolar) {
       for (let i = -1; i <= 1; i += 1) {
         const x = i * w * 0.18;
