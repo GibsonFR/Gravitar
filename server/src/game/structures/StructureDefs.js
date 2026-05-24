@@ -336,9 +336,9 @@ export const STRUCTURE_DEFS = {
     solid: false,
     rotatable: true,
     storageKind: 'conveyor',
-    storageCapacity: 80,
+    storageCapacity: 1,
     automationKind: 'conveyor',
-    automationIntervalMs: 450,
+    automationIntervalMs: 720,
     color: '#253f4a',
     borderColor: '#6ed7ff',
     cost: { ironOre: 6, copper: 2 }
@@ -359,7 +359,7 @@ export const STRUCTURE_DEFS = {
     solid: false,
     rotatable: true,
     automationKind: 'robot_arm',
-    automationIntervalMs: 850,
+    automationIntervalMs: 920,
     color: '#443a2c',
     borderColor: '#ffd27b',
     cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }

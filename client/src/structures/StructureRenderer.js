@@ -45,23 +45,71 @@ function drawAutomationItem(ctx, view, s, w, h, t) {
   if (!preview && used <= 0) return;
   const color = preview?.colorHex || 'rgba(230,245,255,.95)';
   const dir = dirOf(s);
-  const age = Math.max(0, Math.min(1, (Date.now() - Number(s.automationPulse || preview?.at || 0)) / 520));
-  const phase = s.automationItem ? age : (0.5 + 0.35 * Math.sin(t * 3.0));
-  const px = dir.x * (phase - 0.5) * w * 0.68;
-  const py = dir.y * (phase - 0.5) * h * 0.68;
+  const progress = Number.isFinite(Number(preview?.progress))
+    ? Math.max(0, Math.min(1, Number(preview.progress)))
+    : (s.automationItem ? Math.max(0, Math.min(1, (Date.now() - Number(s.automationPulse || preview?.at || 0)) / 700)) : (0.5 + 0.35 * Math.sin(t * 3.0)));
+  const phase = preview?.phase === 'blocked' || preview?.phase === 'arm_blocked' ? 1 : progress;
+  const travel = preview?.phase === 'arm' || preview?.phase === 'arm_blocked' ? 0.84 : 0.72;
+  const px = dir.x * (phase - 0.5) * w * travel;
+  const py = dir.y * (phase - 0.5) * h * travel;
   ctx.save();
   ctx.shadowColor = color;
-  ctx.shadowBlur = 8 * view.dpr;
+  ctx.shadowBlur = 10 * view.dpr;
   ctx.fillStyle = color;
+  ctx.strokeStyle = 'rgba(255,255,255,.75)';
+  ctx.lineWidth = 1 * view.dpr;
   ctx.beginPath();
-  ctx.arc(px, py, Math.max(4, Math.min(w, h) * 0.09), 0, Math.PI * 2);
+  ctx.arc(px, py, Math.max(4, Math.min(w, h) * 0.10), 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
+  if (preview?.phase === 'blocked' || preview?.phase === 'arm_blocked') {
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,120,120,.95)';
+    ctx.beginPath();
+    ctx.moveTo(px - 5 * view.dpr, py - 5 * view.dpr);
+    ctx.lineTo(px + 5 * view.dpr, py + 5 * view.dpr);
+    ctx.moveTo(px + 5 * view.dpr, py - 5 * view.dpr);
+    ctx.lineTo(px - 5 * view.dpr, py + 5 * view.dpr);
+    ctx.stroke();
+  }
   if (preview?.amount > 1) {
     ctx.shadowBlur = 0;
     ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(255,255,255,.9)';
     ctx.fillText(String(preview.amount), px, py - Math.min(w, h) * 0.14);
+  }
+  ctx.restore();
+}
+
+function drawDirectionArrow(ctx, view, s, w, h, label = false) {
+  const d = dirOf(s);
+  const len = Math.min(w, h) * 0.34;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,245,170,.95)';
+  ctx.fillStyle = 'rgba(255,245,170,.95)';
+  ctx.lineWidth = 2.4 * view.dpr;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-d.x * len * 0.45, -d.y * len * 0.45);
+  ctx.lineTo(d.x * len * 0.55, d.y * len * 0.55);
+  ctx.stroke();
+  ctx.beginPath();
+  const hx = d.x * len * 0.60;
+  const hy = d.y * len * 0.60;
+  const px = -d.y;
+  const py = d.x;
+  ctx.moveTo(hx, hy);
+  ctx.lineTo(hx - d.x * 10 * view.dpr + px * 6 * view.dpr, hy - d.y * 10 * view.dpr + py * 6 * view.dpr);
+  ctx.lineTo(hx - d.x * 10 * view.dpr - px * 6 * view.dpr, hy - d.y * 10 * view.dpr - py * 6 * view.dpr);
+  ctx.closePath();
+  ctx.fill();
+  if (label) {
+    ctx.font = `${9 * view.dpr}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(d.label, 0, Math.min(w, h) * 0.36);
   }
   ctx.restore();
 }
@@ -440,6 +488,9 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
   ctx.stroke();
   ctx.setLineDash([]);
   drawFootprintCells(ctx, view, w, h, preview.tilesX || 1, preview.tilesY || 1);
+  if (preview.type === 'conveyor' || preview.type === 'robot_arm') {
+    drawDirectionArrow(ctx, view, preview, w, h, true);
+  }
 
   if (!ok) {
     ctx.shadowBlur = 0;

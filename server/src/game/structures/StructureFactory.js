@@ -78,6 +78,9 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     fuelUsePerSecond: Number(def.fuelUsePerSecond) || 0,
     fuelBufferSeconds: Number(options.fuelBufferSeconds ?? options.energyBuffer ?? 0) || 0,
     energyState: options.energyState || null,
+    automationJob: options.automationJob && typeof options.automationJob === 'object' ? { ...options.automationJob } : null,
+    automationMoving: options.automationMoving && typeof options.automationMoving === 'object' ? { ...options.automationMoving } : null,
+    automationItem: options.automationItem && typeof options.automationItem === 'object' ? { ...options.automationItem } : null,
     createdAt: options.createdAt || Date.now(),
     updatedAt: options.updatedAt || Date.now()
   };
@@ -108,6 +111,9 @@ export function serializeStructure(structure) {
     open: !!structure.open,
     fuelBufferSeconds: Math.max(0, Math.round((Number(structure.fuelBufferSeconds) || 0) * 10) / 10),
     energyState: structure.energyState || null,
+    automationJob: structure.automationJob || null,
+    automationMoving: structure.automationMoving || null,
+    automationItem: structure.automationItem || null,
     createdAt: structure.createdAt || Date.now(),
     updatedAt: Date.now()
   };
