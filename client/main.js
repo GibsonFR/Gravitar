@@ -17,26 +17,12 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
   root.appendChild(box);
 }
 
-async function bootFromSource() {
-  const mod = await import('./src/App.js');
-  mod.startApp();
-}
-
-async function bootFromBundle(sourceError) {
-  console.warn('[Gravitar boot] Source modules failed, loading fallback bundle.', sourceError);
-  await import('./app.bundle.js?v=103');
-}
-
 async function boot() {
   try {
-    await bootFromSource();
-  } catch (sourceError) {
-    try {
-      await bootFromBundle(sourceError);
-    } catch (bundleError) {
-      const combined = `${bundleError?.stack || bundleError?.message || bundleError}\n\nSource module error:\n${sourceError?.stack || sourceError?.message || sourceError}`;
-      showBootError(new Error(combined), 'Erreur au chargement du jeu');
-    }
+    const mod = await import('./src/App.js?v=107');
+    mod.startApp();
+  } catch (err) {
+    showBootError(err, 'Erreur au chargement du jeu');
   }
 }
 

@@ -55,8 +55,8 @@ export const BUILD_STRUCTURES = [
     w: 192,
     h: 64,
     hp: 760,
-    role: 'Protège la base et bloque les tirs.',
-    stats: ['Orientable'],
+    role: 'Protège la base.',
+    stats: [],
     cost: { ironOre: 12, copper: 2 }
   },
 
@@ -73,8 +73,8 @@ export const BUILD_STRUCTURES = [
     w: 192,
     h: 64,
     hp: 680,
-    role: 'Entrée de base ouvrable par le propriétaire.',
-    stats: ['Orientable', 'Ouvrir / fermer à portée'],
+    role: 'Entrée de base ouvrable.',
+    stats: [],
     cost: { ironOre: 10, copper: 4, aluminiumOre: 2 }
   },
   {
@@ -90,8 +90,8 @@ export const BUILD_STRUCTURES = [
     h: 128,
     hp: 0,
     storageCapacity: 420,
-    role: 'Stockage local de ressources.',
-    stats: ['Ouverture à portée', 'Pillable si le noyau est détruit'],
+    role: 'Stocke les ressources de la base.',
+    stats: [],
     cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
   }
 ];
@@ -395,14 +395,17 @@ export class BasePanelView {
       this.details.innerHTML = `<h3>À venir</h3><p>Cette catégorie sera remplie dans une prochaine update.</p>`;
       return;
     }
+    const sections = [
+      `<div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} cases</span></div>`
+    ];
+    if (def.storageCapacity) sections.push(`<div class="base-panel__details-section"><strong>Capacité</strong><span>${def.storageCapacity} unités</span></div>`);
+    if (def.hp) sections.push(`<div class="base-panel__details-section"><strong>Résistance</strong><span>${def.hp} PV</span></div>`);
+    sections.push(`<div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>`);
     this.details.innerHTML = `
       <div class="base-panel__details-icon base-panel__details-icon--${escapeHtml(def.icon)}">${iconSvg(def.icon)}</div>
       <h3>${escapeHtml(def.title)}</h3>
       <p>${escapeHtml(def.role || def.subtitle || '')}</p>
-      <div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} tiles</span></div>
-      <div class="base-panel__details-section"><strong>PV</strong><span>${def.hp ? def.hp : 'aucun — non ciblable'}</span></div>
-      <div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>
-      ${(def.stats || []).map((s) => `<div class="base-panel__details-line">${escapeHtml(s)}</div>`).join('')}`;
+      ${sections.join('')}`;
   }
 
   refresh() {

@@ -328,22 +328,37 @@ export function startApp() {
 
   canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
+  // Capture avant le contrôleur de déplacement : un clic gauche/droit sur une structure
+  // interactive doit ouvrir/toggle la structure, pas devenir un ordre de déplacement.
   canvas.addEventListener('mousedown', (ev) => {
     if (ev.button !== 0 && ev.button !== 2) return;
     if (store.myState?.sessionSetup?.pending ?? true) return;
     const rect = canvas.getBoundingClientRect();
     const px = ev.clientX - rect.left;
     const py = ev.clientY - rect.top;
-    if (ev.button === 2) {
-      if (tryInteractStructureAt(px, py)) {
-        ev.preventDefault();
-        return;
-      }
-      return;
-    }
-    if (basePanel.hasActivePlacement?.()) {
+
+    if (ev.button === 0 && basePanel.hasActivePlacement?.()) {
       const mouseWorld = screenPointToWorld(px, py);
       basePanel.placeCurrent(store, mouseWorld);
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      return;
+    }
+
+    if (tryInteractStructureAt(px, py)) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }
+  }, true);
+
+  canvas.addEventListener('mousedown', (ev) => {
+    if (ev.button !== 0 && ev.button !== 2) return;
+    if (store.myState?.sessionSetup?.pending ?? true) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = ev.clientX - rect.left;
+    const py = ev.clientY - rect.top;
+    if (ev.button === 2) return;
+    if (basePanel.hasActivePlacement?.()) {
       ev.preventDefault();
       return;
     }
