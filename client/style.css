@@ -4724,3 +4724,49 @@ button.station-item-icon[draggable="true"]:active,
   .machine-panel__cols { grid-template-columns: 1fr; }
   .machine-panel__center { min-height: auto; }
 }
+
+/* v114 — production machines avec durée réelle */
+.machine-panel {
+  touch-action: none;
+}
+.machine-panel button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+.machine-panel__progress,
+.machine-panel__idle {
+  border: 1px solid rgba(126, 210, 255, .16);
+  border-radius: 12px;
+  background: rgba(5, 14, 24, .72);
+  padding: 10px 12px;
+}
+.machine-panel__idle {
+  color: rgba(220, 238, 255, .58);
+  font-size: 12px;
+  font-weight: 800;
+}
+.machine-panel__progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(230, 248, 255, .82);
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.machine-panel__progress-head b { color: #ffe08c; }
+.machine-panel__bar {
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(3, 9, 16, .88);
+  border: 1px solid rgba(126, 210, 255, .16);
+}
+.machine-panel__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(90, 236, 214, .95), rgba(255, 224, 140, .92));
+  box-shadow: 0 0 14px rgba(90, 236, 214, .28);
+  transition: width .18s linear;
+}

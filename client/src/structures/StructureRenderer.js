@@ -126,7 +126,12 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
   const h = (s.h || s.radius * 2 || 80) * view.dpr;
   const pal = ownerPalette(s);
   const edge = pal.edge;
-  const fill = (s.type === 'wall' || s.type === 'door') ? (s.owned ? 'rgba(38, 55, 72, .74)' : 'rgba(72, 34, 40, .70)') : pal.fill;
+  const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press']);
+  const fill = (s.type === 'wall' || s.type === 'door')
+    ? (s.owned ? 'rgba(38, 55, 72, .74)' : 'rgba(72, 34, 40, .70)')
+    : machineTypes.has(s.type)
+      ? (s.owned ? 'rgba(42, 54, 64, .34)' : 'rgba(74, 36, 44, .30)')
+      : pal.fill;
 
   ctx.save();
   ctx.translate(p.x, p.y);
@@ -198,7 +203,24 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     const isSolar = s.type === 'solar_panel';
     const isGenerator = s.type === 'fuel_generator';
     const isFuelTank = s.type === 'fuel_tank';
-    ctx.strokeStyle = isSolar ? 'rgba(210,255,150,.62)' : isGenerator ? 'rgba(255,185,96,.64)' : isFuelTank ? 'rgba(255,200,118,.56)' : isAmmo ? 'rgba(255,197,112,.58)' : isEquip ? 'rgba(150,185,255,.58)' : (s.owned ? 'rgba(145,255,220,.32)' : 'rgba(255,130,130,.30)');
+    const isFurnace = s.type === 'furnace';
+    const isHighFurnace = s.type === 'high_temp_furnace';
+    const isChem = s.type === 'chemical_refinery';
+    const isElectro = s.type === 'electrolyzer';
+    const isElectronics = s.type === 'electronics_bench';
+    const isPress = s.type === 'industrial_press';
+    ctx.strokeStyle = isHighFurnace ? 'rgba(255,118,92,.74)'
+      : isFurnace ? 'rgba(255,178,94,.72)'
+      : isChem ? 'rgba(150,235,130,.68)'
+      : isElectro ? 'rgba(120,220,255,.72)'
+      : isElectronics ? 'rgba(145,176,255,.72)'
+      : isPress ? 'rgba(220,232,242,.70)'
+      : isSolar ? 'rgba(210,255,150,.62)'
+      : isGenerator ? 'rgba(255,185,96,.64)'
+      : isFuelTank ? 'rgba(255,200,118,.56)'
+      : isAmmo ? 'rgba(255,197,112,.58)'
+      : isEquip ? 'rgba(150,185,255,.58)'
+      : (s.owned ? 'rgba(145,255,220,.32)' : 'rgba(255,130,130,.30)');
     ctx.lineWidth = 1.5 * view.dpr;
     ctx.beginPath();
     if (isSolar) {
@@ -232,6 +254,41 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
       ctx.lineTo(w * 0.12, 0);
       ctx.moveTo(-w * 0.30, h * 0.34);
       ctx.lineTo(w * 0.30, h * 0.34);
+    } else if (isFurnace || isHighFurnace) {
+      ctx.rect(-w * 0.32, -h * 0.22, w * 0.64, h * 0.46);
+      ctx.moveTo(-w * 0.26, h * 0.24); ctx.lineTo(w * 0.26, h * 0.24);
+      ctx.moveTo(-w * 0.16, -h * 0.02);
+      ctx.quadraticCurveTo(0, -h * (isHighFurnace ? 0.34 : 0.25), w * 0.16, -h * 0.02);
+      ctx.quadraticCurveTo(w * 0.05, h * 0.18, -w * 0.16, -h * 0.02);
+      if (isHighFurnace) {
+        ctx.moveTo(-w * 0.30, -h * 0.34); ctx.lineTo(w * 0.30, -h * 0.34);
+        ctx.moveTo(-w * 0.24, -h * 0.42); ctx.lineTo(w * 0.24, -h * 0.42);
+      }
+    } else if (isChem) {
+      ctx.moveTo(-w * 0.24, h * 0.28); ctx.lineTo(-w * 0.08, -h * 0.30);
+      ctx.lineTo(w * 0.08, -h * 0.30); ctx.lineTo(w * 0.24, h * 0.28); ctx.closePath();
+      ctx.moveTo(-w * 0.18, h * 0.05); ctx.lineTo(w * 0.18, h * 0.05);
+      ctx.moveTo(w * 0.30, -h * 0.20); ctx.arc(w * 0.30, -h * 0.20, w * 0.035, 0, Math.PI * 2);
+      ctx.moveTo(w * 0.24, -h * 0.34); ctx.arc(w * 0.24, -h * 0.34, w * 0.026, 0, Math.PI * 2);
+    } else if (isElectro) {
+      ctx.moveTo(-w * 0.28, -h * 0.22); ctx.lineTo(w * 0.28, -h * 0.22);
+      ctx.moveTo(-w * 0.28, h * 0.22); ctx.lineTo(w * 0.28, h * 0.22);
+      ctx.moveTo(-w * 0.10, -h * 0.34); ctx.lineTo(-w * 0.02, -h * 0.02); ctx.lineTo(-w * 0.14, -h * 0.02); ctx.lineTo(w * 0.08, h * 0.34);
+      ctx.moveTo(w * 0.18, -h * 0.10); ctx.arc(w * 0.18, -h * 0.10, w * 0.05, 0, Math.PI * 2);
+      ctx.moveTo(w * 0.28, h * 0.08); ctx.arc(w * 0.28, h * 0.08, w * 0.035, 0, Math.PI * 2);
+    } else if (isElectronics) {
+      ctx.rect(-w * 0.30, -h * 0.26, w * 0.60, h * 0.52);
+      for (let i = -1; i <= 1; i += 1) {
+        const x = i * w * 0.13;
+        ctx.moveTo(x, -h * 0.26); ctx.lineTo(x, h * 0.26);
+        ctx.moveTo(-w * 0.30, x * 0.65); ctx.lineTo(w * 0.30, x * 0.65);
+      }
+      ctx.moveTo(0, 0); ctx.arc(0, 0, w * 0.07, 0, Math.PI * 2);
+    } else if (isPress) {
+      ctx.rect(-w * 0.30, -h * 0.34, w * 0.60, h * 0.18);
+      ctx.rect(-w * 0.24, h * 0.16, w * 0.48, h * 0.16);
+      ctx.moveTo(0, -h * 0.16); ctx.lineTo(0, h * 0.16);
+      ctx.moveTo(-w * 0.18, -h * 0.02); ctx.lineTo(w * 0.18, -h * 0.02);
     } else {
       ctx.moveTo(-w * 0.34, -h * 0.22);
       ctx.lineTo(0, -h * 0.40);

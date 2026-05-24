@@ -15,7 +15,7 @@ function fmtList(entries = [], withHave = false) {
   }).join('');
 }
 
-function resourceRows(entries = [], actionLabel, direction, slot, structureId) {
+function resourceRows(entries = [], actionLabel, direction, slot, structureId, disabled = false) {
   if (!entries.length) return `<div class="machine-panel__empty">Vide.</div>`;
   return entries.map((r) => {
     const amount = r.amount | 0;
@@ -24,8 +24,8 @@ function resourceRows(entries = [], actionLabel, direction, slot, structureId) {
         <span class="machine-panel__dot" style="background:${escapeHtml(r.colorHex || '#fff')}"></span>
         <span class="machine-panel__row-name" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</span>
         <span class="machine-panel__qty">${amount}</span>
-        <button type="button" class="machine-panel__mini" data-machine-transfer="${escapeHtml(direction)}" data-amount="1">1</button>
-        <button type="button" class="machine-panel__main-btn" data-machine-transfer="${escapeHtml(direction)}" data-amount="all">${escapeHtml(actionLabel)}</button>
+        <button type="button" class="machine-panel__mini" data-machine-transfer="${escapeHtml(direction)}" data-amount="1" ${disabled ? 'disabled' : ''}>1</button>
+        <button type="button" class="machine-panel__main-btn" data-machine-transfer="${escapeHtml(direction)}" data-amount="all" ${disabled ? 'disabled' : ''}>${escapeHtml(actionLabel)}</button>
       </div>`;
   }).join('');
 }
@@ -45,21 +45,21 @@ export class MachinePanelView {
       if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
     };
 
-    this.el.addEventListener('pointerdown', (ev) => {
+    const handleAction = (ev) => {
       const target = ev.target;
-      if (!(target instanceof Element)) return;
+      if (!(target instanceof Element)) return false;
       const close = target.closest('[data-close-machine]');
       if (close) {
         stopUiEvent(ev);
         this.closeLocal();
-        return;
+        return true;
       }
       const tab = target.closest('[data-machine-tab]');
       if (tab) {
         stopUiEvent(ev);
         this.tab = tab.dataset.machineTab || 'production';
         this.lastKey = '';
-        return;
+        return true;
       }
       const recipe = target.closest('[data-select-recipe]');
       if (recipe) {
@@ -70,28 +70,34 @@ export class MachinePanelView {
           this.tab = 'production';
           this.lastKey = '';
         }
-        return;
+        return true;
       }
       const transfer = target.closest('[data-machine-transfer]');
       if (transfer) {
         stopUiEvent(ev);
-        this.transferFromButton(transfer);
-        return;
+        if (!transfer.disabled) this.transferFromButton(transfer);
+        return true;
       }
       const produce = target.closest('[data-produce-machine]');
       if (produce) {
         stopUiEvent(ev);
-        const recipeId = produce.dataset.recipe || '';
-        const amount = produce.dataset.amount | 0 || 1;
-        if (this.currentId && recipeId) this.sendCmd('machine_process', { structureId: this.currentId, recipeId, amount });
-        return;
+        if (!produce.disabled) {
+          const recipeId = produce.dataset.recipe || '';
+          const amount = produce.dataset.amount | 0 || 1;
+          if (this.currentId && recipeId) this.sendCmd('machine_process', { structureId: this.currentId, recipeId, amount });
+        }
+        return true;
       }
-      stopUiEvent(ev);
-    }, { capture: true });
+      return false;
+    };
 
-    this.el.addEventListener('click', (ev) => {
-      if (ev.target instanceof Element && ev.target.closest('.machine-panel')) stopUiEvent(ev);
-    }, { capture: true });
+    for (const eventName of ['pointerdown', 'mousedown', 'click']) {
+      this.el.addEventListener(eventName, (ev) => {
+        if (!handleAction(ev)) stopUiEvent(ev);
+      }, { capture: true });
+    }
+    this.el.addEventListener('pointerup', stopUiEvent, { capture: true });
+    this.el.addEventListener('contextmenu', stopUiEvent, { capture: true });
   }
 
   closeLocal() {
@@ -125,20 +131,22 @@ export class MachinePanelView {
     }
     this.currentId = machine.id | 0;
     this.el.classList.remove('is-hidden');
-    const key = JSON.stringify({ machine, tab: this.tab });
+    const key = JSON.stringify({ machine, tab: this.tab, t: Math.floor(Date.now() / 250) });
     if (key === this.lastKey) return;
     this.lastKey = key;
 
     const recipes = Array.isArray(machine.recipes) ? machine.recipes : [];
     const selected = machine.selectedRecipe || null;
+    const job = machine.job || null;
     const powerLabel = machine.powered ? 'Alimentée' : 'Sans énergie';
     const powerClass = machine.powered ? 'is-powered' : 'is-unpowered';
     const activeTab = this.tab === 'select' ? 'select' : 'production';
+    const busy = !!job?.active;
 
     const selectHtml = `
       <div class="machine-panel__select-grid">
         ${recipes.map((r) => `
-          <button type="button" class="machine-panel__recipe-card ${r.id === machine.selectedRecipeId ? 'is-selected' : ''}" data-select-recipe="${escapeHtml(r.id)}">
+          <button type="button" class="machine-panel__recipe-card ${r.id === machine.selectedRecipeId ? 'is-selected' : ''}" data-select-recipe="${escapeHtml(r.id)}" ${busy ? 'disabled' : ''}>
             <strong>${escapeHtml(r.name)}</strong>
             <em>${r.seconds | 0}s · ${r.energyUse | 0} énergie</em>
             <div class="machine-panel__line"><b>Entrée</b>${fmtList(r.input, false)}</div>
@@ -146,35 +154,44 @@ export class MachinePanelView {
           </button>`).join('') || '<div class="machine-panel__empty">Aucune recette disponible.</div>'}
       </div>`;
 
+    const progressPct = Math.round((Number(job?.progress) || 0) * 100);
+    const progressHtml = job?.active ? `
+      <div class="machine-panel__progress">
+        <div class="machine-panel__progress-head">
+          <span>${job.paused ? 'En pause' : 'Production'}</span>
+          <b>${fmt(job.remainingSeconds)}s restantes</b>
+        </div>
+        <div class="machine-panel__bar"><span style="width:${progressPct}%"></span></div>
+      </div>` : '<div class="machine-panel__idle">Aucune production en cours.</div>';
+
     const productionHtml = selected ? `
       <div class="machine-panel__production">
         <div class="machine-panel__recipe-banner">
-          <div>
-            <div class="machine-panel__recipe-title">${escapeHtml(selected.name)}</div>
-          </div>
+          <div class="machine-panel__recipe-title">${escapeHtml(selected.name)}</div>
           <div class="machine-panel__recipe-stats">${selected.seconds | 0}s · ${selected.energyUse | 0} énergie</div>
         </div>
+        ${progressHtml}
         <div class="machine-panel__cols">
           <section class="machine-panel__box">
             <h3>Entrée <span>${fmt(machine.inputUsed)} / ${fmt(machine.inputCapacity)}</span></h3>
             <div class="machine-panel__need">${fmtList(selected.input, true)}</div>
-            ${resourceRows(machine.cargoResources || [], 'Insérer', 'deposit', 'input', machine.id)}
+            ${resourceRows(machine.cargoResources || [], 'Insérer', 'deposit', 'input', machine.id, busy)}
             <div class="machine-panel__subhead">Dans la machine</div>
-            ${resourceRows(machine.input || [], 'Reprendre', 'withdraw', 'input', machine.id)}
+            ${resourceRows(machine.input || [], 'Reprendre', 'withdraw', 'input', machine.id, false)}
           </section>
           <section class="machine-panel__box machine-panel__center">
             <button class="machine-panel__produce" type="button" data-produce-machine="1" data-recipe="${escapeHtml(selected.id)}" data-amount="1" ${machine.canProduce ? '' : 'disabled'}>
-              Produire
+              Démarrer
             </button>
             <button class="machine-panel__produce is-secondary" type="button" data-produce-machine="1" data-recipe="${escapeHtml(selected.id)}" data-amount="5" ${machine.canProduce ? '' : 'disabled'}>
               ×5
             </button>
-            <div class="machine-panel__status ${powerClass}">${escapeHtml(powerLabel)}</div>
+            <div class="machine-panel__status ${powerClass}">${escapeHtml(busy && job.paused ? 'En attente d’énergie' : powerLabel)}</div>
           </section>
           <section class="machine-panel__box">
             <h3>Sortie <span>${fmt(machine.outputUsed)} / ${fmt(machine.outputCapacity)}</span></h3>
             <div class="machine-panel__need">${fmtList(selected.output, false)}</div>
-            ${resourceRows(machine.output || [], 'Récupérer', 'withdraw', 'output', machine.id)}
+            ${resourceRows(machine.output || [], 'Récupérer', 'withdraw', 'output', machine.id, false)}
           </section>
         </div>
       </div>` : '<div class="machine-panel__empty">Choisis une recette.</div>';
@@ -184,7 +201,7 @@ export class MachinePanelView {
         <div>
           <div class="machine-panel__eyebrow">Industrie</div>
           <div class="machine-panel__title">${escapeHtml(machine.name || 'Machine')}</div>
-          <div class="machine-panel__meta ${powerClass}">${escapeHtml(powerLabel)} · ${machine.energyUse | 0} énergie</div>
+          <div class="machine-panel__meta ${powerClass}">${escapeHtml(powerLabel)} · ${machine.energyUse | 0} énergie active</div>
         </div>
         <button class="machine-panel__close" type="button" data-close-machine="1">×</button>
       </div>
