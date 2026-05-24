@@ -355,7 +355,6 @@ function findNearestDeposit(state, extractor) {
   let bestD2 = range * range;
   for (const st of state?.structures?.values?.() || []) {
     if (!st || !isDeposit(st) || !sameWorld(extractor, st)) continue;
-    if ((st.depositRemaining | 0) <= 0) continue;
     const dx = finite(st.x) - finite(extractor.x);
     const dy = finite(st.y) - finite(extractor.y);
     const d2 = dx * dx + dy * dy;
@@ -395,7 +394,7 @@ function updateExtractor(state, extractor, timeMs) {
 
   let changed = pushExtractorBuffer(state, extractor, timeMs);
   let deposit = findDepositById(state, extractor.depositId, extractor);
-  if (!deposit || (deposit.depositRemaining | 0) <= 0) {
+  if (!deposit) {
     deposit = findNearestDeposit(state, extractor);
     extractor.depositId = deposit?.id | 0 || 0;
   }
@@ -430,11 +429,6 @@ function updateExtractor(state, extractor, timeMs) {
 
   const amount = Math.max(1, Number(def?.extractionYield) || 1);
   map[key] = (map[key] | 0) + amount;
-  if (deposit.depositRemaining > 0) deposit.depositRemaining = Math.max(0, (deposit.depositRemaining | 0) - amount);
-  if ((deposit.depositRemaining | 0) <= 0) {
-    deposit.depletedAt = timeMs;
-    extractor.depositId = 0;
-  }
   extractor.lastExtractionAt = timeMs;
   extractor.extractionProgress = 0;
   extractor.automationStatus = '';

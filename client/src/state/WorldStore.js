@@ -316,6 +316,7 @@ export class WorldStore {
         depositResourceKey: normalized.depositResourceKey ?? current.depositResourceKey,
         depositLabel: normalized.depositLabel ?? current.depositLabel,
         depositColorHex: normalized.depositColorHex ?? current.depositColorHex,
+        depositInfinite: normalized.depositInfinite ?? current.depositInfinite,
         depositRemaining: normalized.depositRemaining ?? current.depositRemaining,
         depositMax: normalized.depositMax ?? current.depositMax,
         depositId: normalized.depositId ?? current.depositId,

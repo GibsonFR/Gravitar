@@ -284,10 +284,10 @@ function ensureTestMiningDeposits(state, player, timeMs) {
     const defName = {
       ironOre: 'Minerai de fer',
       copper: 'Cuivre',
-      aluminiumOre: 'Minerai d’aluminium',
+      aluminiumOre: 'Bauxite',
       quartz: 'Quartz',
       graphite: 'Graphite',
-      hydrocarbons: 'Hydrocarbures'
+      hydrocarbons: 'Pétrole'
     }[dep.key] || dep.key;
     const st = createStructure(state, 'resource_deposit', sx, sy, dep.x, dep.y, {
       ownerId: player.id | 0,
@@ -295,8 +295,8 @@ function ensureTestMiningDeposits(state, player, timeMs) {
       ownerName: 'Gisement test',
       worldId,
       depositResourceKey: dep.key,
-      depositRemaining: dep.amount,
-      depositMax: dep.amount,
+      depositRemaining: -1,
+      depositMax: -1,
       depositLabel: defName,
       createdAt: timeMs,
       updatedAt: timeMs
