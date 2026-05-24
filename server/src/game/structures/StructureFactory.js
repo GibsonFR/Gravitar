@@ -36,7 +36,8 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
   if (!def) return null;
   const rawOrientation = String(options.orientation || 'h').toLowerCase();
   const orientation = ['h', 'v', 'r', 'd', 'l', 'u'].includes(rawOrientation) ? rawOrientation : 'h';
-  const swap = (def.id === 'wall' || def.id === 'door') && orientation === 'v';
+  const verticalOrientation = orientation === 'v' || orientation === 'u' || orientation === 'd';
+  const swap = verticalOrientation && (Number(def.w) !== Number(def.h) || Number(def.tilesX || 0) !== Number(def.tilesY || 0));
   const id = Number.isFinite(options.id) ? (options.id | 0) : newEntityId(state);
   const damageable = def.damageable !== false;
   const maxHp = damageable ? Math.max(1, options.maxHp || def.maxHp || 100) : 0;
@@ -143,6 +144,9 @@ export function hydrateStructure(state, saved) {
     open: !!s.open,
     fuelBufferSeconds: s.fuelBufferSeconds ?? s.energyBuffer ?? 0,
     energyState: s.energyState || null,
+    automationJob: s.automationJob || null,
+    automationMoving: s.automationMoving || null,
+    automationItem: s.automationItem || null,
     automationOutputIndex: s.automationOutputIndex | 0 || 0,
     automationStatus: s.automationStatus || '',
     createdAt: s.createdAt,

@@ -41,8 +41,13 @@ function iconSvg(kind) {
   if (kind === 'fuel_tank') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 13h24l6 8v30H14V21l6-8z" fill="rgba(255,195,111,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 29h20M22 38h20M27 13v-4h10v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'machine') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="18" width="42" height="32" rx="5" fill="rgba(255,180,110,.12)" stroke="currentColor" stroke-width="3"/><circle cx="25" cy="34" r="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M37 27h8M37 34h8M37 41h8M18 18v-6h28v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'automation') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 34h34" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M38 24l12 10-12 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="46" r="4" fill="currentColor" opacity=".65"/><circle cx="32" cy="46" r="4" fill="currentColor" opacity=".65"/></svg>`;
-  if (kind === 'conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="22" width="48" height="20" rx="4" fill="rgba(110,215,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M18 32h25M37 24l9 8-9 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="48" r="3" fill="currentColor" opacity=".65"/><circle cx="32" cy="48" r="3" fill="currentColor" opacity=".65"/><circle cx="46" cy="48" r="3" fill="currentColor" opacity=".65"/></svg>`;
+  if (kind === 'conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="22" width="48" height="20" rx="4" fill="rgba(110,215,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 28h36M14 36h36" stroke="currentColor" stroke-width="2" opacity=".35"/><path d="M18 32h22M34 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="32" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="46" cy="48" r="3" fill="currentColor" opacity=".5"/></svg>`;
+  if (kind === 'fast_conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="18" width="48" height="28" rx="5" fill="rgba(120,255,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M14 24h36M14 40h36" stroke="currentColor" stroke-width="2.5" opacity=".7"/><path d="M16 32h14M28 25l8 7-8 7M38 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  if (kind === 'splitter') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="7" y="22" width="50" height="20" rx="4" fill="rgba(140,232,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M16 32h12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M28 32h8l10-10M36 32l10 10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  if (kind === 'merger') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="7" y="22" width="50" height="20" rx="4" fill="rgba(140,232,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M18 22l10 10h8M18 42l10-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M36 32h12M42 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   if (kind === 'robot_arm') return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="8" fill="rgba(255,210,123,.12)" stroke="currentColor" stroke-width="3"/><path d="M12 32h16M36 32h16M46 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 22l8 8M46 42l-8-8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".75"/></svg>`;
+  if (kind === 'fast_arm') return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="8" fill="rgba(255,228,140,.12)" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="15" fill="none" stroke="currentColor" stroke-width="2" opacity=".55"/><path d="M12 32h16M36 32h16M46 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  if (kind === 'long_arm') return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="24" cy="32" r="7" fill="rgba(255,210,123,.12)" stroke="currentColor" stroke-width="3"/><path d="M8 32h10M30 32h24M50 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M24 25l10 7-10 7" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".75"/></svg>`;
   if (kind === 'power') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M35 6L16 36h14l-3 22 21-34H34l1-18z" fill="rgba(255,213,95,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
   return '';
 }
@@ -104,13 +109,13 @@ export const BUILD_STRUCTURES = [
     type: 'storage',
     category: 'storage',
     title: 'Coffre de ressources',
-    subtitle: '2 × 2 cases',
+    subtitle: '',
     icon: 'storage',
     orientation: 'h',
-    tilesX: 2,
-    tilesY: 2,
-    w: 128,
-    h: 128,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
     hp: 0,
     storageCapacity: 420,
     role: 'Stocke les minerais et matériaux.',
@@ -121,13 +126,13 @@ export const BUILD_STRUCTURES = [
     type: 'equipment_storage',
     category: 'storage',
     title: 'Coffre d’équipement',
-    subtitle: '18 objets',
+    subtitle: '',
     icon: 'equipment_storage',
     orientation: 'h',
-    tilesX: 2,
-    tilesY: 2,
-    w: 128,
-    h: 128,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
     hp: 0,
     itemCapacity: 18,
     role: 'Stocke armes, lance-roquettes et modules.',
@@ -293,13 +298,13 @@ export const BUILD_STRUCTURES = [
     type: 'ammo_storage',
     category: 'storage',
     title: 'Coffre de roquettes',
-    subtitle: '260 roquettes',
+    subtitle: '',
     icon: 'ammo_storage',
     orientation: 'h',
-    tilesX: 2,
-    tilesY: 2,
-    w: 128,
-    h: 128,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
     hp: 0,
     ammoCapacity: 260,
     role: 'Stocke uniquement les roquettes.',
@@ -312,7 +317,7 @@ export const BUILD_STRUCTURES = [
     type: 'conveyor',
     category: 'automation',
     title: 'Convoyeur',
-    subtitle: '1 × 1 case',
+    subtitle: '',
     icon: 'conveyor',
     orientation: 'r',
     rotatable: true,
@@ -330,8 +335,8 @@ export const BUILD_STRUCTURES = [
     type: 'fast_conveyor',
     category: 'automation',
     title: 'Convoyeur rapide',
-    subtitle: '1 × 1 case',
-    icon: 'conveyor',
+    subtitle: '',
+    icon: 'fast_conveyor',
     orientation: 'r',
     rotatable: true,
     tilesX: 1,
@@ -348,43 +353,43 @@ export const BUILD_STRUCTURES = [
     type: 'splitter',
     category: 'automation',
     title: 'Répartiteur',
-    subtitle: '1 entrée · 3 sorties',
-    icon: 'conveyor',
+    subtitle: '',
+    icon: 'splitter',
     orientation: 'r',
     rotatable: true,
-    tilesX: 1,
+    tilesX: 2,
     tilesY: 1,
-    w: 64,
+    w: 128,
     h: 64,
     hp: 0,
     storageCapacity: 1,
-    role: 'Répartit vers avant, gauche et droite.',
-    stats: ['Sorties : 3', 'Priorité alternée'],
+    role: 'Reçoit par l’arrière et répartit vers deux sorties latérales.',
+    stats: ['Entrée : 1', 'Sorties : 2'],
     cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
   },
   {
     type: 'merger',
     category: 'automation',
     title: 'Fusionneur',
-    subtitle: '3 entrées · 1 sortie',
-    icon: 'conveyor',
+    subtitle: '',
+    icon: 'merger',
     orientation: 'r',
     rotatable: true,
-    tilesX: 1,
+    tilesX: 2,
     tilesY: 1,
-    w: 64,
+    w: 128,
     h: 64,
     hp: 0,
     storageCapacity: 1,
-    role: 'Regroupe plusieurs lignes vers l’avant.',
-    stats: ['Sortie : avant', 'Buffer : 1'],
+    role: 'Combine deux arrivées latérales vers une sortie avant.',
+    stats: ['Entrées : 2', 'Sortie : 1'],
     cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
   },
   {
     type: 'robot_arm',
     category: 'automation',
     title: 'Bras robotique',
-    subtitle: '1 × 1 case',
+    subtitle: '',
     icon: 'robot_arm',
     orientation: 'r',
     rotatable: true,
@@ -401,8 +406,8 @@ export const BUILD_STRUCTURES = [
     type: 'fast_arm',
     category: 'automation',
     title: 'Bras rapide',
-    subtitle: '1 × 1 case',
-    icon: 'robot_arm',
+    subtitle: '',
+    icon: 'fast_arm',
     orientation: 'r',
     rotatable: true,
     tilesX: 1,
@@ -418,8 +423,8 @@ export const BUILD_STRUCTURES = [
     type: 'long_arm',
     category: 'automation',
     title: 'Bras long',
-    subtitle: 'Portée 2 cases',
-    icon: 'robot_arm',
+    subtitle: '',
+    icon: 'long_arm',
     orientation: 'r',
     rotatable: true,
     tilesX: 1,
@@ -475,7 +480,8 @@ function orientationLabel(o = 'h') {
 }
 
 function orientedSize(def, orientation = 'h') {
-  const vertical = (def.type === 'wall' || def.type === 'door') && orientation === 'v';
+  const o = String(orientation || 'h').toLowerCase();
+  const vertical = (o === 'v' || o === 'u' || o === 'd') && (Number(def?.w) !== Number(def?.h) || Number(def?.tilesX || 0) !== Number(def?.tilesY || 0));
   return {
     w: vertical ? def.h : def.w,
     h: vertical ? def.w : def.h,
@@ -751,8 +757,10 @@ export class BasePanelView {
       this.details.innerHTML = `<h3>À venir</h3><p>Cette catégorie sera remplie dans une prochaine update.</p>`;
       return;
     }
+    const previewOrientation = this.activeBuild?.type === def.type ? (this.activeBuild.orientation || def.orientation || 'h') : (def.orientation || 'h');
+    const size = orientedSize(def, previewOrientation);
     const sections = [
-      `<div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} cases</span></div>`
+      `<div class="base-panel__details-section"><strong>Taille</strong><span>${size.tilesX} × ${size.tilesY} cases</span></div>`
     ];
     if (def.storageCapacity) sections.push(`<div class="base-panel__details-section"><strong>Capacité</strong><span>${def.storageCapacity} unités</span></div>`);
     if (def.itemCapacity) sections.push(`<div class="base-panel__details-section"><strong>Capacité</strong><span>${def.itemCapacity} objets</span></div>`);
@@ -796,7 +804,6 @@ export class BasePanelView {
             <span class="base-panel__icon base-panel__icon--${escapeHtml(s.icon)}">${iconSvg(s.icon)}</span>
             <span class="base-panel__meta">
               <strong>${escapeHtml(s.title)}</strong>
-              <small>${escapeHtml(s.subtitle)}</small>
             </span>
           </button>
         `).join('');

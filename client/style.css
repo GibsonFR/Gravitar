@@ -4244,6 +4244,25 @@ button.station-item-icon[draggable="true"]:active,
   color: rgba(118, 246, 202, .95);
   background: linear-gradient(180deg, rgba(30,72,64,.76), rgba(6, 18, 18, .84));
 }
+.base-panel__icon--conveyor {
+  color: rgba(118, 223, 255, .95);
+  background: linear-gradient(180deg, rgba(20,60,82,.76), rgba(7,18,28,.88));
+}
+.base-panel__icon--fast_conveyor {
+  color: rgba(154, 255, 255, .98);
+  background: linear-gradient(180deg, rgba(16,74,88,.84), rgba(7,20,26,.9));
+}
+.base-panel__icon--splitter,
+.base-panel__icon--merger {
+  color: rgba(255, 241, 158, .96);
+  background: linear-gradient(180deg, rgba(60,58,24,.78), rgba(18,20,12,.9));
+}
+.base-panel__icon--robot_arm,
+.base-panel__icon--fast_arm,
+.base-panel__icon--long_arm {
+  color: rgba(255, 215, 130, .96);
+  background: linear-gradient(180deg, rgba(72,46,22,.78), rgba(22,16,10,.9));
+}
 .base-panel__meta { align-items: center; gap: 5px; }
 .base-panel__meta strong { font-size: 14px; }
 .base-panel__meta small { font-size: 11px; }

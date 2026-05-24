@@ -209,89 +209,125 @@ function drawConveyorBody(ctx, view, s, w, h, t, structures) {
   const links = automationLinks(structures, s);
   ctx.save();
   rotateToDir(ctx, s);
-  const rr = 8 * view.dpr;
-  ctx.fillStyle = 'rgba(13, 25, 34, .78)';
-  ctx.strokeStyle = 'rgba(112, 225, 255, .88)';
+  const rr = Math.min(10 * view.dpr, Math.min(w, h) * 0.22);
+  const isFast = s.type === 'fast_conveyor';
+  const isSplitter = s.type === 'splitter';
+  const isMerger = s.type === 'merger';
+  const laneFill = isFast ? 'rgba(28, 92, 106, .88)' : 'rgba(29, 65, 80, .88)';
+  const laneStroke = isFast ? 'rgba(154, 255, 255, .92)' : 'rgba(112, 225, 255, .88)';
+
+  ctx.fillStyle = 'rgba(12, 21, 30, .82)';
+  ctx.strokeStyle = laneStroke;
   ctx.lineWidth = 1.8 * view.dpr;
   ctx.beginPath();
-  roundedRect(ctx, -w * 0.43, -h * 0.30, w * 0.86, h * 0.60, rr);
+  roundedRect(ctx, -w * 0.46, -h * 0.32, w * 0.92, h * 0.64, rr);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = 'rgba(31, 70, 84, .86)';
+  ctx.fillStyle = laneFill;
   ctx.beginPath();
-  roundedRect(ctx, -w * 0.35, -h * 0.19, w * 0.70, h * 0.38, 5 * view.dpr);
+  roundedRect(ctx, -w * 0.38, -h * 0.22, w * 0.76, h * 0.44, 6 * view.dpr);
   ctx.fill();
 
-  ctx.strokeStyle = 'rgba(185, 245, 255, .22)';
+  ctx.strokeStyle = isFast ? 'rgba(214, 255, 255, .30)' : 'rgba(185, 245, 255, .18)';
   ctx.lineWidth = 1 * view.dpr;
-  for (let x = -w * 0.28; x <= w * 0.28; x += w * 0.14) {
-    ctx.beginPath();
-    ctx.moveTo(x, -h * 0.18);
-    ctx.lineTo(x + w * 0.05, h * 0.18);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = 'rgba(95, 205, 255, .56)';
-  ctx.lineWidth = 2.4 * view.dpr;
-  ctx.lineCap = 'round';
-  const span = Math.max(10 * view.dpr, w * 0.20);
-  const offset = ((t * 84 * view.dpr) % span) - span;
-  for (let x = -w * 0.42 + offset; x < w * 0.50; x += span) {
-    ctx.beginPath();
-    ctx.moveTo(x - w * 0.04, -h * 0.10);
-    ctx.lineTo(x + w * 0.055, 0);
-    ctx.lineTo(x - w * 0.04, h * 0.10);
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = 'rgba(115, 230, 255, .30)';
-  if (links.back) ctx.fillRect(-w * 0.52, -h * 0.13, w * 0.12, h * 0.26);
-  if (links.front) ctx.fillRect(w * 0.40, -h * 0.13, w * 0.12, h * 0.26);
-  if (links.left || s.type === 'splitter' || s.type === 'merger') ctx.fillRect(-w * 0.10, -h * 0.40, w * 0.20, h * 0.12);
-  if (links.right || s.type === 'splitter' || s.type === 'merger') ctx.fillRect(-w * 0.10, h * 0.28, w * 0.20, h * 0.12);
-
-  if (s.type === 'fast_conveyor') {
-    ctx.strokeStyle = 'rgba(135, 255, 255, .86)';
-    ctx.lineWidth = 1.4 * view.dpr;
-    for (let y of [-h * 0.23, h * 0.23]) {
+  if (isFast) {
+    for (const y of [-h * 0.12, h * 0.12]) {
       ctx.beginPath();
-      ctx.moveTo(-w * 0.34, y);
-      ctx.lineTo(w * 0.34, y);
+      ctx.moveTo(-w * 0.30, y);
+      ctx.lineTo(w * 0.30, y);
       ctx.stroke();
     }
-  } else if (s.type === 'splitter') {
-    ctx.strokeStyle = 'rgba(255, 248, 176, .72)';
-    ctx.lineWidth = 1.9 * view.dpr;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(w * 0.25, -h * 0.28);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(w * 0.25, h * 0.28);
-    ctx.stroke();
-  } else if (s.type === 'merger') {
-    ctx.strokeStyle = 'rgba(255, 248, 176, .72)';
-    ctx.lineWidth = 1.9 * view.dpr;
-    ctx.beginPath();
-    ctx.moveTo(-w * 0.25, -h * 0.28);
-    ctx.lineTo(0, 0);
-    ctx.lineTo(-w * 0.25, h * 0.28);
-    ctx.stroke();
+  } else {
+    const step = Math.max(w * 0.10, 12 * view.dpr);
+    for (let x = -w * 0.28; x <= w * 0.28; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, -h * 0.16);
+      ctx.lineTo(x + w * 0.04, h * 0.16);
+      ctx.stroke();
+    }
   }
 
-  ctx.strokeStyle = 'rgba(255, 248, 176, .96)';
-  ctx.fillStyle = 'rgba(255, 248, 176, .96)';
+  ctx.fillStyle = isFast ? 'rgba(150, 255, 255, .34)' : 'rgba(115, 230, 255, .26)';
+  if (links.back) ctx.fillRect(-w * 0.54, -h * 0.12, w * 0.12, h * 0.24);
+  if (links.front) ctx.fillRect(w * 0.42, -h * 0.12, w * 0.12, h * 0.24);
+  if (links.left || isSplitter || isMerger) ctx.fillRect(-w * 0.08, -h * 0.40, w * 0.16, h * 0.12);
+  if (links.right || isSplitter || isMerger) ctx.fillRect(-w * 0.08, h * 0.28, w * 0.16, h * 0.12);
+
+  const span = Math.max(12 * view.dpr, w * (isFast ? 0.16 : 0.22));
+  const speed = isFast ? 132 : 80;
+  const offset = ((t * speed * view.dpr) % span) - span;
+  ctx.strokeStyle = isFast ? 'rgba(168, 255, 255, .96)' : 'rgba(110, 223, 255, .74)';
+  ctx.lineWidth = isFast ? 2.6 * view.dpr : 2.2 * view.dpr;
+  ctx.lineCap = 'round';
+  for (let x = -w * 0.42 + offset; x < w * 0.52; x += span) {
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.04, -h * 0.10);
+    ctx.lineTo(x + w * (isFast ? 0.07 : 0.05), 0);
+    ctx.lineTo(x - w * 0.04, h * 0.10);
+    ctx.stroke();
+    if (isFast) {
+      ctx.beginPath();
+      ctx.moveTo(x - w * 0.06, -h * 0.18);
+      ctx.lineTo(x + w * 0.05, -h * 0.12);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x - w * 0.06, h * 0.18);
+      ctx.lineTo(x + w * 0.05, h * 0.12);
+      ctx.stroke();
+    }
+  }
+
+  ctx.strokeStyle = 'rgba(255, 244, 170, .96)';
+  ctx.fillStyle = 'rgba(255, 244, 170, .96)';
   ctx.lineWidth = 2.2 * view.dpr;
-  ctx.beginPath();
-  ctx.moveTo(-w * 0.18, 0);
-  ctx.lineTo(w * 0.17, 0);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(w * 0.25, 0);
-  ctx.lineTo(w * 0.10, -h * 0.12);
-  ctx.lineTo(w * 0.10, h * 0.12);
-  ctx.closePath();
-  ctx.fill();
+  if (isSplitter) {
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.26, 0);
+    ctx.lineTo(-w * 0.04, 0);
+    ctx.moveTo(-w * 0.02, 0);
+    ctx.lineTo(w * 0.18, -h * 0.18);
+    ctx.moveTo(-w * 0.02, 0);
+    ctx.lineTo(w * 0.18, h * 0.18);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.24, -h * 0.18);
+    ctx.lineTo(w * 0.12, -h * 0.27);
+    ctx.lineTo(w * 0.12, -h * 0.09);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.24, h * 0.18);
+    ctx.lineTo(w * 0.12, h * 0.09);
+    ctx.lineTo(w * 0.12, h * 0.27);
+    ctx.closePath();
+    ctx.fill();
+  } else if (isMerger) {
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.24, -h * 0.18);
+    ctx.lineTo(-w * 0.02, 0);
+    ctx.lineTo(-w * 0.24, h * 0.18);
+    ctx.moveTo(-w * 0.02, 0);
+    ctx.lineTo(w * 0.18, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.24, 0);
+    ctx.lineTo(w * 0.10, -h * 0.12);
+    ctx.lineTo(w * 0.10, h * 0.12);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.18, 0);
+    ctx.lineTo(w * 0.17, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.25, 0);
+    ctx.lineTo(w * 0.10, -h * 0.12);
+    ctx.lineTo(w * 0.10, h * 0.12);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   if (s.automationItem?.phase === 'blocked') {
     ctx.strokeStyle = 'rgba(255, 106, 106, .95)';
@@ -595,7 +631,9 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     roundedRect(ctx, -w * 0.5, -h * 0.5, w, h, rr);
     ctx.fill();
     ctx.stroke();
-    drawFootprintCells(ctx, view, w, h, 2, 2);
+    const tilesX = Math.max(1, Math.round((s.w || 64) / 64));
+    const tilesY = Math.max(1, Math.round((s.h || 64) / 64));
+    drawFootprintCells(ctx, view, w, h, tilesX, tilesY);
     ctx.shadowBlur = 0;
     const isEquip = s.type === 'equipment_storage';
     const isAmmo = s.type === 'ammo_storage';
