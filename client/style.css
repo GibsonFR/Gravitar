@@ -4863,3 +4863,170 @@ button.station-item-icon[draggable="true"]:active,
 .machine-panel__hint.is-danger {
   color: rgba(255, 150, 150, .95);
 }
+
+
+.base-panel__icon--science_lab {
+  color: rgba(126, 220, 255, .98);
+  background: linear-gradient(180deg, rgba(20,48,76,.84), rgba(7,16,28,.94));
+}
+.base-panel__icon--research_station {
+  color: rgba(181, 140, 255, .98);
+  background: linear-gradient(180deg, rgba(46,32,82,.84), rgba(12,10,24,.94));
+}
+
+.research-station {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 65;
+  width: min(980px, calc(100vw - 48px));
+  max-height: min(820px, calc(100vh - 48px));
+  overflow: auto;
+  color: rgba(235, 245, 255, .96);
+  background: rgba(5, 9, 16, .95);
+  border: 1px solid rgba(181, 140, 255, .30);
+  border-radius: 18px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.50);
+  pointer-events: auto;
+}
+.research-station[hidden] { display: none; }
+.research-station__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid rgba(181, 140, 255, .16);
+}
+.research-station__eyebrow {
+  color: rgba(181, 140, 255, .80);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+.research-station__title {
+  font-size: 20px;
+  font-weight: 800;
+}
+.research-station__meta,
+.research-station__empty {
+  color: rgba(190, 210, 230, .74);
+  font-size: 12px;
+}
+.research-station__close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 10px;
+  color: white;
+  background: rgba(255,255,255,.06);
+}
+.research-station__status {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr 1.35fr;
+  gap: 12px;
+  padding: 14px 16px 10px;
+}
+.research-station__status section,
+.research-station__branch {
+  border: 1px solid rgba(181, 140, 255, .14);
+  border-radius: 14px;
+  background: rgba(11, 15, 28, .74);
+  padding: 12px;
+}
+.research-station h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.research-station__bar {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+  margin: 8px 0;
+}
+.research-station__bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(126,220,255,.95), rgba(181,140,255,.95));
+}
+.research-station__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding: 7px 0;
+}
+.research-station__pack {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.research-station__pack i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pack, #fff);
+  box-shadow: 0 0 10px var(--pack, #fff);
+}
+.research-station__pack-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.research-station button {
+  cursor: pointer;
+  color: rgba(235, 250, 255, .96);
+  background: linear-gradient(180deg, rgba(75, 58, 145, .92), rgba(28, 28, 78, .94));
+  border: 1px solid rgba(181, 140, 255, .30);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-weight: 700;
+}
+.research-station button:disabled {
+  cursor: default;
+  opacity: .42;
+}
+.research-station__tree {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 18px;
+}
+.research-station__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.research-station__card {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-left: 3px solid var(--branch, #b58cff);
+  background: rgba(3, 8, 15, .62);
+}
+.research-station__card.is-done {
+  background: rgba(18, 42, 32, .58);
+  opacity: .78;
+}
+.research-station__card.is-locked {
+  opacity: .55;
+}
+.research-station__card-title {
+  font-weight: 800;
+  font-size: 13px;
+}
+.research-station__card-meta,
+.research-station__card-cost,
+.research-station__card-unlocks {
+  color: rgba(190, 215, 230, .74);
+  font-size: 11px;
+}
+@media (max-width: 980px) {
+  .research-station__status,
+  .research-station__cards {
+    grid-template-columns: 1fr;
+  }
+}

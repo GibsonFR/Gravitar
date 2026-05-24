@@ -1,5 +1,6 @@
 import { STRUCTURE_TYPES, getStructureDef } from './StructureDefs.js';
 import { getMachineActiveEnergyUse } from './StructureMachineRuntime.js';
+import { getResearchActiveEnergyUse } from './StructureResearchStation.js';
 const FUEL_ENERGY_SECONDS = {
   refinedFuel: 40,
   biofuel: 26,
@@ -116,7 +117,7 @@ export function updateBaseEnergy(state, dt, timeMs = Date.now()) {
     for (const st of children) {
       st.baseCoreId = core.id | 0;
       const def = getStructureDef(st.type);
-      const use = Math.max(0, Number(def?.machineType ? getMachineActiveEnergyUse(st) : (def?.energyUse ?? st.energyUse)) || 0);
+      const use = Math.max(0, Number(def?.machineType ? getMachineActiveEnergyUse(st) : (def?.researchStation ? getResearchActiveEnergyUse(st) : (def?.energyUse ?? st.energyUse))) || 0);
       if (use > 0) consumption += use;
 
       if (st.type === STRUCTURE_TYPES.SOLAR_PANEL) {
@@ -137,7 +138,7 @@ export function updateBaseEnergy(state, dt, timeMs = Date.now()) {
     const powered = consumption <= 0 || production >= consumption;
     for (const st of children) {
       const def = getStructureDef(st.type);
-      const activeUse = Math.max(0, Number(def?.machineType ? getMachineActiveEnergyUse(st) : (def?.energyUse ?? st.energyUse)) || 0);
+      const activeUse = Math.max(0, Number(def?.machineType ? getMachineActiveEnergyUse(st) : (def?.researchStation ? getResearchActiveEnergyUse(st) : (def?.energyUse ?? st.energyUse))) || 0);
       if (def?.machineType) {
         st.powered = production > 0 && (activeUse <= 0 || powered);
       } else if (activeUse > 0) {

@@ -64,6 +64,15 @@ function readJsonFile(f) {
   }
 }
 
+function normalizeResearch(research) {
+  if (!research || typeof research !== 'object') return { completed: [], unlocked: [] };
+  if (!Array.isArray(research.completed)) research.completed = [];
+  if (!Array.isArray(research.unlocked)) research.unlocked = [];
+  research.completed = research.completed.map((v) => String(v || '')).filter((v, i, a) => v && a.indexOf(v) === i);
+  research.unlocked = research.unlocked.map((v) => String(v || '')).filter((v, i, a) => v && a.indexOf(v) === i);
+  return research;
+}
+
 function normalizeProgression(prog) {
   if (!prog || typeof prog !== 'object') return null;
   if (!prog.abilityLevels || typeof prog.abilityLevels !== 'object') prog.abilityLevels = { A: 0, Z: 0, E: 0, R: 0 };
@@ -81,6 +90,7 @@ function normalizeSaveProfile(profile) {
   profile.progression = normalizeProgression(profile.progression);
   if (!profile.inv || typeof profile.inv !== 'object') profile.inv = null;
   if (!profile.equipment || typeof profile.equipment !== 'object') profile.equipment = null;
+  profile.research = normalizeResearch(profile.research);
   if (!Array.isArray(profile.completedBastionIds)) profile.completedBastionIds = [];
   profile.completedBastionIds = profile.completedBastionIds.map((v) => v | 0).filter((v, i, a) => Number.isFinite(v) && a.indexOf(v) === i);
   profile.schemaVersion = Math.max(1, profile.schemaVersion | 0 || 1);
@@ -306,6 +316,7 @@ export function buildEndlessSave(player) {
     inv: player.inv || null,
     equipment: player.equipment || null,
     completedBastionIds: player.completedBastionIds || [],
+    research: player.research || { completed: [], unlocked: [] },
     savedAt: Date.now(),
     schemaVersion: 1
   };
@@ -318,6 +329,7 @@ export function applyEndlessSave(player, save) {
   if (normalized.progression) player.progression = normalized.progression;
   if (normalized.inv) player.inv = normalized.inv;
   if (normalized.equipment) player.equipment = normalized.equipment;
+  player.research = normalizeResearch(normalized.research);
   if (Array.isArray(normalized.completedBastionIds)) player.completedBastionIds = normalized.completedBastionIds.map((v) => v | 0);
   return true;
 }

@@ -4,7 +4,8 @@ export const MACHINE_TYPES = Object.freeze({
   CHEM_REFINERY: 'chemical_refinery',
   ELECTROLYZER: 'electrolyzer',
   ELECTRONICS_BENCH: 'electronics_bench',
-  INDUSTRIAL_PRESS: 'industrial_press'
+  INDUSTRIAL_PRESS: 'industrial_press',
+  SCIENCE_LAB: 'science_lab'
 });
 
 export const MACHINE_RECIPES = Object.freeze([
@@ -160,6 +161,150 @@ export const MACHINE_RECIPES = Object.freeze([
     energyUse: 8,
     input: { steelPlate: 2, copperWire: 2 },
     output: { servomotor: 1 }
+  },
+  {
+    id: 'printed_circuit_to_control_circuit',
+    machineType: MACHINE_TYPES.ELECTRONICS_BENCH,
+    name: 'Circuit de contrôle',
+    seconds: 12,
+    energyUse: 10,
+    input: { printedCircuit: 2, microTransistor: 2, copperWire: 4 },
+    output: { controlCircuit: 1 }
+  },
+  {
+    id: 'printed_circuit_to_microprocessor',
+    machineType: MACHINE_TYPES.ELECTRONICS_BENCH,
+    name: 'Microprocesseur',
+    seconds: 16,
+    energyUse: 14,
+    input: { printedCircuit: 2, controlCircuit: 1, siliconWafer: 3 },
+    output: { microprocessor: 1 }
+  },
+  {
+    id: 'silicon_glass_to_laser_lens',
+    machineType: MACHINE_TYPES.ELECTRONICS_BENCH,
+    name: 'Lentille laser',
+    seconds: 12,
+    energyUse: 10,
+    input: { siliconWafer: 2, opticalGlass: 2 },
+    output: { laserLens: 1 }
+  },
+  {
+    id: 'lithium_wire_to_battery',
+    machineType: MACHINE_TYPES.ELECTRONICS_BENCH,
+    name: 'Batterie lithium',
+    seconds: 12,
+    energyUse: 10,
+    input: { lithiumOre: 4, copperWire: 3 },
+    output: { lithiumBattery: 1 }
+  },
+  {
+    id: 'hydrogen_circuit_to_fuel_cell',
+    machineType: MACHINE_TYPES.ELECTROLYZER,
+    name: 'Pile à combustible',
+    seconds: 14,
+    energyUse: 12,
+    input: { hydrogenIce: 4, printedCircuit: 1 },
+    output: { fuelCell: 1 }
+  },
+  {
+    id: 'aluminium_copper_to_motor',
+    machineType: MACHINE_TYPES.INDUSTRIAL_PRESS,
+    name: 'Moteur électrique',
+    seconds: 11,
+    energyUse: 9,
+    input: { aluminiumIngot: 2, copperWire: 4, steelPlate: 1 },
+    output: { electricMotor: 1 }
+  },
+  {
+    id: 'steel_fuel_to_injector',
+    machineType: MACHINE_TYPES.INDUSTRIAL_PRESS,
+    name: 'Injecteur carburant',
+    seconds: 10,
+    energyUse: 8,
+    input: { steelPlate: 1, copperWire: 2, refinedFuel: 1 },
+    output: { fuelInjector: 1 }
+  },
+  {
+    id: 'quartz_sulfur_to_thermal_ceramic',
+    machineType: MACHINE_TYPES.HIGH_TEMP_FURNACE,
+    name: 'Céramique thermique',
+    seconds: 14,
+    energyUse: 13,
+    input: { quartz: 4, sulfur: 3 },
+    output: { thermalCeramic: 1 }
+  },
+  {
+    id: 'basic_science_pack',
+    machineType: MACHINE_TYPES.SCIENCE_LAB,
+    name: 'Science de base',
+    seconds: 8,
+    energyUse: 6,
+    input: { ironIngot: 1, copperWire: 2 },
+    output: { basicSciencePack: 1 }
+  },
+  {
+    id: 'automation_science_pack',
+    machineType: MACHINE_TYPES.SCIENCE_LAB,
+    name: 'Science automatisation',
+    seconds: 12,
+    energyUse: 8,
+    input: { steelPlate: 1, servomotor: 1, printedCircuit: 1 },
+    output: { automationSciencePack: 1 }
+  },
+  {
+    id: 'industrial_science_pack',
+    machineType: MACHINE_TYPES.SCIENCE_LAB,
+    name: 'Science industrielle',
+    seconds: 14,
+    energyUse: 10,
+    input: { titaniumPlate: 1, carbonFiber: 1, refinedFuel: 1 },
+    output: { industrialSciencePack: 1 }
+  },
+  {
+    id: 'energy_science_pack',
+    machineType: MACHINE_TYPES.SCIENCE_LAB,
+    name: 'Science énergétique',
+    seconds: 14,
+    energyUse: 11,
+    input: { lithiumBattery: 1, fuelCell: 1, copperWire: 3 },
+    output: { energySciencePack: 1 }
+  },
+  {
+    id: 'biology_science_pack',
+    machineType: MACHINE_TYPES.SCIENCE_LAB,
+    name: 'Science biologique',
+    seconds: 16,
+    energyUse: 11,
+    input: { biofuel: 1, biomass: 4, organicLipids: 2 },
+    output: { biologySciencePack: 1 }
+  },
+  {
+    id: 'combat_science_pack',
+    machineType: MACHINE_TYPES.SCIENCE_LAB,
+    name: 'Science défense',
+    seconds: 18,
+    energyUse: 13,
+    input: { compositeArmor: 1, propellant: 1, controlCircuit: 1 },
+    output: { combatSciencePack: 1 }
+  },
+  {
+    id: 'advanced_science_pack',
+    machineType: MACHINE_TYPES.SCIENCE_LAB,
+    name: 'Science avancée',
+    seconds: 24,
+    energyUse: 18,
+    input: { microprocessor: 1, laserLens: 1, thermalCeramic: 1, fuelInjector: 1, compositeArmor: 1 },
+    output: { advancedSciencePack: 1 }
+  },
+  {
+    id: 'anomaly_science_pack',
+    machineType: MACHINE_TYPES.SCIENCE_LAB,
+    name: 'Science anomalie',
+    seconds: 32,
+    energyUse: 24,
+    input: { unknownTechFragment: 1, precursorNanomaterial: 1, containedAntimatter: 1, advancedSciencePack: 1 },
+    output: { anomalySciencePack: 1 }
   }
 ]);
 

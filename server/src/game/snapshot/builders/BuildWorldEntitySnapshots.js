@@ -255,6 +255,7 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       depositMax: structure.depositMax | 0 || 0,
       depositId: structure.depositId | 0 || 0,
       extractionProgress: Math.max(0, Math.min(1, Number(structure.extractionProgress || 0))),
+      researchProgress: structure.researchJob ? Math.max(0, Math.min(1, 1 - ((Number(structure.researchJob.remainingMs) || 0) / Math.max(1, Number(structure.researchJob.totalMs) || 1)))) : 0,
       baseCoreId: structure.baseCoreId | 0 || 0,
       protectedByCore: isStructureProtectedByCore({ structures }, structure),
       attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false

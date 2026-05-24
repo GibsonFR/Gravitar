@@ -724,7 +724,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   const h = (storage1x1 ? 64 : (s.h || s.radius * 2 || 80)) * view.dpr;
   const pal = ownerPalette(s);
   const edge = pal.edge;
-  const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press']);
+  const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press', 'science_lab', 'research_station']);
   const powerTypes = new Set(['solar_panel', 'fuel_generator', 'fuel_tank']);
   const storageTypes = new Set(['storage', 'equipment_storage', 'ammo_storage']);
   const depositTypes = new Set(['resource_deposit']);
@@ -822,6 +822,8 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     const isElectro = s.type === 'electrolyzer';
     const isElectronics = s.type === 'electronics_bench';
     const isPress = s.type === 'industrial_press';
+    const isScienceLab = s.type === 'science_lab';
+    const isResearchStation = s.type === 'research_station';
     const isDeposit = s.type === 'resource_deposit';
     const isExtractor = s.type === 'mining_extractor';
     const isConveyor = isConveyorType(s.type);
@@ -831,6 +833,8 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       : isChem ? 'rgba(150,235,130,.68)'
       : isElectro ? 'rgba(120,220,255,.72)'
       : isElectronics ? 'rgba(145,176,255,.72)'
+      : isScienceLab ? 'rgba(126,220,255,.78)'
+      : isResearchStation ? 'rgba(181,140,255,.80)'
       : isPress ? 'rgba(220,232,242,.70)'
       : isExtractor ? 'rgba(159,220,255,.78)'
       : isDeposit ? 'rgba(158,240,199,.76)'
@@ -1115,6 +1119,33 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.moveTo(w * 0.18, h * 0.04); ctx.lineTo(w * 0.28, h * 0.04);
       ctx.moveTo(0, -h * 0.22); ctx.lineTo(0, -h * 0.08);
       ctx.moveTo(0, h * 0.08); ctx.lineTo(0, h * 0.22);
+    } else if (isScienceLab) {
+      ctx.fillStyle = 'rgba(24, 46, 68, .42)';
+      ctx.fillRect(-w * 0.30, -h * 0.26, w * 0.60, h * 0.52);
+      ctx.strokeStyle = 'rgba(126,220,255,.82)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.30, -h * 0.26, w * 0.60, h * 0.52);
+      ctx.moveTo(-w * 0.12, -h * 0.14); ctx.lineTo(-w * 0.20, h * 0.16); ctx.lineTo(w * 0.20, h * 0.16); ctx.lineTo(w * 0.12, -h * 0.14);
+      ctx.moveTo(-w * 0.06, -h * 0.02); ctx.lineTo(w * 0.08, -h * 0.02);
+      ctx.arc(w * 0.16, -h * 0.12, w * 0.035, 0, Math.PI * 2);
+      ctx.arc(-w * 0.18, h * 0.26, w * 0.025, 0, Math.PI * 2);
+      ctx.arc(w * 0.22, h * 0.28, w * 0.02, 0, Math.PI * 2);
+    } else if (isResearchStation) {
+      ctx.fillStyle = 'rgba(36, 28, 66, .48)';
+      ctx.fillRect(-w * 0.34, -h * 0.25, w * 0.68, h * 0.50);
+      ctx.strokeStyle = 'rgba(181,140,255,.84)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.34, -h * 0.25, w * 0.68, h * 0.50);
+      for (let i = 0; i < 3; i += 1) {
+        const yy = -h * 0.12 + i * h * 0.12;
+        ctx.moveTo(-w * 0.22, yy); ctx.lineTo(w * 0.10, yy);
+      }
+      ctx.arc(w * 0.22, h * 0.08, w * 0.07, 0, Math.PI * 2);
+      ctx.moveTo(w * 0.27, h * 0.13); ctx.lineTo(w * 0.32, h * 0.20);
+      if (s.researchJob || s.machineJob) {
+        ctx.fillStyle = 'rgba(181,140,255,.24)';
+        ctx.fillRect(-w * 0.26, h * 0.30, w * 0.52 * (s.researchProgress || 0), 5 * view.dpr);
+      }
     } else if (isPress) {
 
       ctx.fillStyle = 'rgba(66, 74, 82, .28)';

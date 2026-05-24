@@ -31,6 +31,11 @@ import { handleMachineProcess } from './MachineProcessCommand.js';
 import { handleMachineSelectRecipe } from './MachineSelectRecipeCommand.js';
 import { handleMachineTransfer } from './MachineTransferCommand.js';
 import { handleMachineToggle } from './MachineToggleCommand.js';
+import { handleResearchStationOpen } from './ResearchStationOpenCommand.js';
+import { handleResearchStationClose } from './ResearchStationCloseCommand.js';
+import { handleResearchStationTransfer } from './ResearchStationTransferCommand.js';
+import { handleResearchStationStart } from './ResearchStationStartCommand.js';
+import { handleResearchStationToggle } from './ResearchStationToggleCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -66,7 +71,12 @@ const HANDLERS = {
   machine_process: handleMachineProcess,
   machine_select_recipe: handleMachineSelectRecipe,
   machine_transfer: handleMachineTransfer,
-  machine_toggle: handleMachineToggle
+  machine_toggle: handleMachineToggle,
+  research_station_open: handleResearchStationOpen,
+  research_station_close: handleResearchStationClose,
+  research_station_transfer: handleResearchStationTransfer,
+  research_station_start: handleResearchStationStart,
+  research_station_toggle: handleResearchStationToggle
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

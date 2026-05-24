@@ -41,6 +41,7 @@ import { getOptionsIconSvg } from './ui/options/OptionsIconSvg.js';
 import { BasePanelView } from './ui/base/BasePanelView.js';
 import { StoragePanelView } from './ui/storage/StoragePanelView.js';
 import { MachinePanelView } from './ui/machine/MachinePanelView.js';
+import { ResearchStationPanelView } from './ui/research/ResearchStationPanelView.js';
 import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
 
@@ -215,6 +216,8 @@ export function startApp() {
   uiRoot.appendChild(storagePanel.el);
   const machinePanel = new MachinePanelView(sendCmd);
   uiRoot.appendChild(machinePanel.el);
+  const researchStationPanel = new ResearchStationPanelView(sendCmd);
+  uiRoot.appendChild(researchStationPanel.el);
 
   window.addEventListener('keydown', (ev) => {
     const tag = String(ev.target?.tagName || '').toLowerCase();
@@ -322,10 +325,11 @@ export function startApp() {
   }
 
   function tryInteractStructureAt(px, py) {
-    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'mining_extractor');
+    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'science_lab' || s.type === 'mining_extractor' || s.type === 'research_station');
     if (!st) return false;
     if (st.type === 'storage' || st.type === 'equipment_storage' || st.type === 'ammo_storage' || st.type === 'fuel_tank' || st.type === 'fuel_generator') sendCmd('storage_open', { structureId: st.id | 0 });
     else if (st.type === 'door') sendCmd('toggle_structure', { structureId: st.id | 0 });
+    else if (st.type === 'research_station') sendCmd('research_station_open', { structureId: st.id | 0 });
     else sendCmd('machine_open', { structureId: st.id | 0 });
     return true;
   }
@@ -843,6 +847,7 @@ export function startApp() {
     basePanel.update(store);
     storagePanel.update(store);
     machinePanel.update(store);
+    researchStationPanel.update(store);
     playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
     stationWindow.update(store.myState, store.stations);
