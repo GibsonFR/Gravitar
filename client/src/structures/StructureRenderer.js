@@ -39,6 +39,54 @@ function rotateToDir(ctx, s) {
   ctx.rotate(angle);
 }
 
+function rightOf(d) {
+  return { x: -d.y, y: d.x };
+}
+
+function portWorldPoint(s, forwardTiles = 0, sideTiles = 0) {
+  const d = dirOf(s);
+  const r = rightOf(d);
+  return {
+    x: (Number(s?.x) || 0) + d.x * 64 * forwardTiles + r.x * 64 * sideTiles,
+    y: (Number(s?.y) || 0) + d.y * 64 * forwardTiles + r.y * 64 * sideTiles
+  };
+}
+
+function drawPortDot(ctx, view, x, y, kind = 'input', alpha = 1) {
+  const color = kind === 'output'
+    ? 'rgba(255, 223, 128, 1)'
+    : kind === 'power'
+      ? 'rgba(126, 218, 255, 1)'
+      : 'rgba(112, 255, 210, 1)';
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 7 * view.dpr;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = 'rgba(5, 12, 18, .92)';
+  ctx.lineWidth = 1.2 * view.dpr;
+  ctx.beginPath();
+  ctx.arc(x, y, 4.5 * view.dpr, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.2 * view.dpr;
+  ctx.beginPath();
+  ctx.arc(x, y, 7.5 * view.dpr, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawLocalPort(ctx, view, x, y, kind = 'input', alpha = 1) {
+  drawPortDot(ctx, view, x, y, kind, alpha);
+}
+
+function drawWorldPort(ctx, view, point, camX, camY, kind = 'input', alpha = 1) {
+  const p = worldToScreen(view, point.x, point.y, camX, camY);
+  drawPortDot(ctx, view, p.x, p.y, kind, alpha);
+}
+
 function oppositeDir(d) {
   return { x: -d.x, y: -d.y };
 }
@@ -877,6 +925,23 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.moveTo(0, 0);
       ctx.lineTo(0, h * 0.42);
     }
+    if (!isConveyor && !isRobotArm) {
+      if (isStorage || isEquip || isAmmo) {
+        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .88);
+      } else if (isSolar) {
+        drawLocalPort(ctx, view, w * 0.50, 0, 'power', .90);
+      } else if (isGenerator) {
+        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .78);
+        drawLocalPort(ctx, view, w * 0.50, 0, 'power', .90);
+      } else if (isFuelTank) {
+        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .80);
+        drawLocalPort(ctx, view, w * 0.50, 0, 'output', .82);
+      } else if (isFurnace || isHighFurnace || isChem || isElectro || isElectronics || isPress) {
+        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .82);
+        drawLocalPort(ctx, view, w * 0.50, 0, 'output', .82);
+        drawLocalPort(ctx, view, 0, h * 0.50, 'power', .68);
+      }
+    }
     ctx.stroke();
     if (isConveyor || isRobotArm) {
       drawAutomationItem(ctx, view, s, w, h, t);
@@ -895,6 +960,111 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     ctx.fillText(label, p.x, p.y + ((s.h || s.radius * 2 || 80) * 0.5 + 18) * view.dpr);
     ctx.restore();
   }
+}
+
+
+function isMachineLikeStructure(s) {
+  const t = String(s?.type || '').toLowerCase();
+  return t === 'furnace' || t === 'high_temp_furnace' || t === 'chemical_refinery' || t === 'electrolyzer' || t === 'electronics_bench' || t === 'industrial_press';
+}
+
+function isStorageLikeStructure(s) {
+  const t = String(s?.type || '').toLowerCase();
+  return t === 'storage' || t === 'equipment_storage' || t === 'ammo_storage';
+}
+
+function structureInputPorts(s) {
+  const t = String(s?.type || '').toLowerCase();
+  if (t === 'merger') return [portWorldPoint(s, -0.5, -0.5), portWorldPoint(s, -0.5, 0.5)];
+  if (t === 'splitter') return [portWorldPoint(s, -0.5, -0.5)];
+  if (isStorageLikeStructure(s) || isMachineLikeStructure(s) || t === 'fuel_generator' || t === 'fuel_tank') return [portWorldPoint(s, -0.5, 0)];
+  if (isConveyorType(t) || isArmType(t)) return [portWorldPoint(s, -0.5, 0)];
+  return [];
+}
+
+function structureOutputPorts(s) {
+  const t = String(s?.type || '').toLowerCase();
+  if (t === 'splitter') return [portWorldPoint(s, 0.5, -0.5), portWorldPoint(s, 0.5, 0.5)];
+  if (t === 'merger') return [portWorldPoint(s, 0.5, -0.5)];
+  if (t === 'fuel_tank' || isMachineLikeStructure(s) || isConveyorType(t) || isArmType(t)) return [portWorldPoint(s, 0.5, 0)];
+  if (t === 'solar_panel' || t === 'fuel_generator') return [portWorldPoint(s, 0.5, 0)];
+  return [];
+}
+
+function nearestStructureAtPort(structures, source, point) {
+  if (!structures?.values) return null;
+  let best = null;
+  let bestD2 = Infinity;
+  for (const st of structures.values()) {
+    if (!st || st.id === source?.id || !sameSector(source, st)) continue;
+    const dx = (Number(st.x) || 0) - point.x;
+    const dy = (Number(st.y) || 0) - point.y;
+    const halfW = Math.max(36, Number(st.w || st.radius * 2 || 64) * 0.52);
+    const halfH = Math.max(36, Number(st.h || st.radius * 2 || 64) * 0.52);
+    if (Math.abs(dx) > halfW + 10 || Math.abs(dy) > halfH + 10) continue;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) { best = st; bestD2 = d2; }
+  }
+  return best;
+}
+
+function drawFlowLine(ctx, view, a, b, camX, camY, t, blocked = false) {
+  const pa = worldToScreen(view, a.x, a.y, camX, camY);
+  const pb = worldToScreen(view, b.x, b.y, camX, camY);
+  const dx = pb.x - pa.x;
+  const dy = pb.y - pa.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return;
+  const ux = dx / len;
+  const uy = dy / len;
+  const pulse = ((t * 75 * view.dpr) % 18);
+  ctx.save();
+  ctx.globalAlpha *= blocked ? .80 : .62;
+  ctx.strokeStyle = blocked ? 'rgba(255, 112, 112, .82)' : 'rgba(126, 244, 255, .58)';
+  ctx.lineWidth = blocked ? 2.2 * view.dpr : 1.6 * view.dpr;
+  ctx.setLineDash([10 * view.dpr, 8 * view.dpr]);
+  ctx.lineDashOffset = -pulse;
+  ctx.beginPath();
+  ctx.moveTo(pa.x, pa.y);
+  ctx.lineTo(pb.x, pb.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = blocked ? 'rgba(255, 112, 112, .92)' : 'rgba(255, 226, 128, .92)';
+  ctx.beginPath();
+  const ax = pb.x - ux * 9 * view.dpr;
+  const ay = pb.y - uy * 9 * view.dpr;
+  ctx.moveTo(pb.x, pb.y);
+  ctx.lineTo(ax - uy * 4 * view.dpr, ay + ux * 4 * view.dpr);
+  ctx.lineTo(ax + uy * 4 * view.dpr, ay - ux * 4 * view.dpr);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+export function drawStructureFlowOverlay(ctx, view, structures, camX, camY, t = 0, active = false) {
+  if (!active || !structures?.values) return;
+  ctx.save();
+  for (const st of structures.values()) {
+    if (!st || !st.owned) continue;
+    const outputs = structureOutputPorts(st);
+    const blocked = st.automationStatus === 'blocked';
+    for (const out of outputs) {
+      const target = nearestStructureAtPort(structures, st, out);
+      if (target) drawFlowLine(ctx, view, out, { x: target.x, y: target.y }, camX, camY, t, blocked);
+      else if (isAutomationStructure(st) || isMachineLikeStructure(st) || String(st.type).includes('fuel')) {
+        const d = dirOf(st);
+        drawFlowLine(ctx, view, out, { x: out.x + d.x * 30, y: out.y + d.y * 30 }, camX, camY, t, true);
+      }
+    }
+  }
+  for (const st of structures.values()) {
+    if (!st || !st.owned) continue;
+    for (const p of structureInputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, 'input', .72);
+    const type = String(st.type || '').toLowerCase();
+    const power = type === 'solar_panel' || type === 'fuel_generator';
+    for (const p of structureOutputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, power ? 'power' : 'output', .78);
+  }
+  ctx.restore();
 }
 
 export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0) {
