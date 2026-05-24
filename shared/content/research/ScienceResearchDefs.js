@@ -9,6 +9,8 @@ export const SCIENCE_PACKS = Object.freeze([
   { id: 'anomalySciencePack', name: 'Science anomalie', tier: 5, colorHex: '#b58cff' }
 ]);
 
+export const RESEARCH_POINT_SECONDS = 30;
+
 export const RESEARCH_BRANCHES = Object.freeze([
   { id: 'construction', name: 'Construction', colorHex: '#9fdcff' },
   { id: 'industry', name: 'Industrie', colorHex: '#ffb866' },
@@ -27,10 +29,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'construction_foundations',
     branch: 'construction',
     name: 'Fondations métalliques',
-    seconds: 24,
+    points: 6,
     energyUse: 8,
-    scienceCost: { basicSciencePack: 8 },
-    unlocks: ['Fondations 1×1', 'plateformes industrielles'],
+    pointCost: { basicSciencePack: 1 },
+    unlockBuildings: ['Laboratoire scientifique', 'Station de recherche'],
+    unlockRecipes: [],
     prereq: [],
     tier: 1
   },
@@ -38,10 +41,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'industry_smelting_control',
     branch: 'industry',
     name: 'Contrôle de fusion',
-    seconds: 28,
+    points: 7,
     energyUse: 9,
-    scienceCost: { basicSciencePack: 10 },
-    unlocks: ['rendements four basique', 'recettes lingots optimisées'],
+    pointCost: { basicSciencePack: 1 },
+    unlockBuildings: ['Four haute température'],
+    unlockRecipes: ['Lingot de fer', 'Lingot de cuivre', 'Lingot d’aluminium', 'Verre optique', 'Fibre de carbone', 'Plaque de titane'],
     prereq: [],
     tier: 1
   },
@@ -49,10 +53,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'automation_routing',
     branch: 'automation',
     name: 'Routage logistique',
-    seconds: 32,
+    points: 8,
     energyUse: 10,
-    scienceCost: { basicSciencePack: 10, automationSciencePack: 6 },
-    unlocks: ['filtres de bras', 'priorités entrée/sortie'],
+    pointCost: { basicSciencePack: 1, automationSciencePack: 1 },
+    unlockBuildings: ['Convoyeur', 'Bras robotisé', 'Répartiteur', 'Fusionneur'],
+    unlockRecipes: [],
     prereq: ['construction_foundations'],
     tier: 2
   },
@@ -60,10 +65,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'energy_distribution',
     branch: 'energy',
     name: 'Distribution énergétique',
-    seconds: 34,
+    points: 8,
     energyUse: 12,
-    scienceCost: { basicSciencePack: 10, energySciencePack: 8 },
-    unlocks: ['réseau électrique avancé', 'diagnostic énergie'],
+    pointCost: { basicSciencePack: 1, energySciencePack: 1 },
+    unlockBuildings: ['Générateur', 'Réservoir de carburant'],
+    unlockRecipes: ['Pile à combustible', 'Batterie lithium'],
     prereq: ['construction_foundations'],
     tier: 2
   },
@@ -71,10 +77,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'advanced_industry',
     branch: 'industry',
     name: 'Industrie avancée',
-    seconds: 42,
+    points: 10,
     energyUse: 16,
-    scienceCost: { basicSciencePack: 8, automationSciencePack: 8, industrialSciencePack: 10 },
-    unlocks: ['assembleur mécanique', 'chaînes composants'],
+    pointCost: { basicSciencePack: 1, automationSciencePack: 1, industrialSciencePack: 1 },
+    unlockBuildings: ['Raffinerie chimique', 'Électrolyseur', 'Presse industrielle'],
+    unlockRecipes: ['Carburant raffiné', 'Biocarburant', 'Propergol', 'Fil de cuivre', 'Plaque d’acier', 'Blindage composite', 'Servomoteur', 'Moteur électrique', 'Injecteur carburant'],
     prereq: ['industry_smelting_control', 'automation_routing'],
     tier: 2
   },
@@ -82,10 +89,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'electronics_processing',
     branch: 'industry',
     name: 'Électronique de contrôle',
-    seconds: 46,
+    points: 12,
     energyUse: 18,
-    scienceCost: { automationSciencePack: 8, energySciencePack: 8, industrialSciencePack: 6 },
-    unlocks: ['circuits de contrôle', 'microprocesseurs'],
+    pointCost: { automationSciencePack: 1, energySciencePack: 1, industrialSciencePack: 1 },
+    unlockBuildings: ['Atelier électronique'],
+    unlockRecipes: ['Wafer de silicium', 'Microtransistor', 'Circuit imprimé', 'Circuit de contrôle', 'Microprocesseur', 'Lentille laser', 'Céramique thermique'],
     prereq: ['energy_distribution', 'advanced_industry'],
     tier: 3
   },
@@ -93,10 +101,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'resource_scanning',
     branch: 'exploration',
     name: 'Scanner de ressources',
-    seconds: 40,
+    points: 9,
     energyUse: 14,
-    scienceCost: { basicSciencePack: 8, automationSciencePack: 6, energySciencePack: 6 },
-    unlocks: ['détection gisements', 'radar ressources'],
+    pointCost: { basicSciencePack: 1, automationSciencePack: 1, energySciencePack: 1 },
+    unlockBuildings: ['Extracteur minier'],
+    unlockRecipes: [],
     prereq: ['energy_distribution'],
     tier: 3
   },
@@ -104,10 +113,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'bio_processing',
     branch: 'biology',
     name: 'Traitement biologique',
-    seconds: 52,
+    points: 12,
     energyUse: 18,
-    scienceCost: { basicSciencePack: 8, industrialSciencePack: 6, biologySciencePack: 12 },
-    unlocks: ['biocarburants avancés', 'matériaux organiques'],
+    pointCost: { basicSciencePack: 1, industrialSciencePack: 1, biologySciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Science biologique'],
     prereq: ['advanced_industry'],
     tier: 3
   },
@@ -115,10 +125,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'defense_turrets',
     branch: 'defense',
     name: 'Tourelles cinétiques',
-    seconds: 56,
+    points: 12,
     energyUse: 20,
-    scienceCost: { automationSciencePack: 10, industrialSciencePack: 10, combatSciencePack: 12 },
-    unlocks: ['tourelle cinétique', 'radar de base'],
+    pointCost: { automationSciencePack: 1, industrialSciencePack: 1, combatSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Science défense'],
     prereq: ['advanced_industry'],
     tier: 3
   },
@@ -126,10 +137,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'advanced_research',
     branch: 'industry',
     name: 'Recherche avancée',
-    seconds: 70,
+    points: 16,
     energyUse: 26,
-    scienceCost: { automationSciencePack: 12, industrialSciencePack: 12, energySciencePack: 12, advancedSciencePack: 10 },
-    unlocks: ['science avancée stable', 'production haut niveau'],
+    pointCost: { automationSciencePack: 1, industrialSciencePack: 1, energySciencePack: 1, advancedSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Science avancée'],
     prereq: ['electronics_processing', 'bio_processing'],
     tier: 4
   },
@@ -137,10 +149,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'pirate_reverse_engineering',
     branch: 'pirate',
     name: 'Rétro-ingénierie pirate',
-    seconds: 78,
+    points: 18,
     energyUse: 28,
-    scienceCost: { industrialSciencePack: 10, combatSciencePack: 10, advancedSciencePack: 12 },
-    unlocks: ['brouilleur radar', 'charges de brèche'],
+    pointCost: { industrialSciencePack: 1, combatSciencePack: 1, advancedSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: [],
     prereq: ['defense_turrets', 'advanced_research'],
     tier: 4
   },
@@ -148,10 +161,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'alien_anomaly_analysis',
     branch: 'alien',
     name: 'Analyse d’anomalies',
-    seconds: 96,
+    points: 24,
     energyUse: 36,
-    scienceCost: { advancedSciencePack: 14, biologySciencePack: 10, combatSciencePack: 10, anomalySciencePack: 8 },
-    unlocks: ['analyse matière étrange', 'technologies précurseurs'],
+    pointCost: { advancedSciencePack: 1, biologySciencePack: 1, combatSciencePack: 1, anomalySciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: [],
     prereq: ['advanced_research'],
     tier: 5
   }
@@ -180,4 +194,11 @@ export function getResearchProjectsForBranch(branchId) {
 export function arePrerequisitesMet(project, completed = []) {
   const done = new Set(completed || []);
   return (project?.prereq || []).every((id) => done.has(id));
+}
+
+export function getResearchProjectTotalCost(project) {
+  const points = Math.max(1, Number(project?.points ?? 1) || 1);
+  const total = {};
+  for (const [key, amount] of Object.entries(project?.pointCost || {})) total[key] = Math.max(0, amount | 0) * points;
+  return total;
 }

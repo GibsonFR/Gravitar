@@ -6,7 +6,9 @@ import {
   SCIENCE_PACKS,
   RESEARCH_BRANCHES,
   RESEARCH_PROJECTS,
+  RESEARCH_POINT_SECONDS,
   getResearchProject,
+  getResearchProjectTotalCost,
   arePrerequisitesMet,
   isSciencePack
 } from '../../../../shared/content/research/ScienceResearchDefs.js';
@@ -14,6 +16,7 @@ import {
 const RESEARCH_RANGE = 280;
 const SCIENCE_CAPACITY = 240;
 const RESEARCH_SAVE_INTERVAL_MS = 5000;
+const POINT_MS = RESEARCH_POINT_SECONDS * 1000;
 
 export function ensurePlayerResearch(player) {
   if (!player.research || typeof player.research !== 'object') player.research = { completed: [], unlocked: [] };
@@ -92,6 +95,13 @@ function projectAvailable(project, player) {
   return arePrerequisitesMet(project, [...done]);
 }
 
+function unlockList(project) {
+  return [
+    ...(Array.isArray(project?.unlockBuildings) ? project.unlockBuildings : []),
+    ...(Array.isArray(project?.unlockRecipes) ? project.unlockRecipes : [])
+  ];
+}
+
 function projectSnapshot(project, player) {
   const research = ensurePlayerResearch(player);
   const completed = research.completed.includes(project.id);
@@ -101,16 +111,55 @@ function projectSnapshot(project, player) {
     branchName: RESEARCH_BRANCHES.find((b) => b.id === project.branch)?.name || project.branch,
     completed,
     available,
-    locked: !completed && !available
+    locked: !completed && !available,
+    totalCost: getResearchProjectTotalCost(project)
   };
 }
 
+function ensureResearchJobShape(station, project) {
+  const job = station?.researchJob || null;
+  if (!job || !project) return job;
+  if (Number.isFinite(job.pointsTotal) && Number.isFinite(job.pointsDone) && Number.isFinite(job.pointRemainingMs)) {
+    if (!Number.isFinite(job.pointMs) || (job.pointMs | 0) <= 0) job.pointMs = POINT_MS;
+    if (typeof job.pointLoaded !== 'boolean') job.pointLoaded = true;
+    return job;
+  }
+  const oldTotal = Math.max(1000, Number(job.totalMs || 0) || POINT_MS);
+  const oldRemaining = Math.max(0, Number(job.remainingMs || oldTotal) || 0);
+  const totalPoints = Math.max(1, Number(project.points || 1) || 1);
+  const ratio = Math.max(0, Math.min(1, 1 - oldRemaining / oldTotal));
+  const exactPoints = ratio * totalPoints;
+  const pointsDone = Math.max(0, Math.min(totalPoints - 1, Math.floor(exactPoints)));
+  const partial = Math.max(0, exactPoints - pointsDone);
+  station.researchJob = {
+    projectId: job.projectId,
+    startedAt: job.startedAt || Date.now(),
+    pointsTotal: totalPoints,
+    pointsDone,
+    pointMs: POINT_MS,
+    pointRemainingMs: partial > 0 ? Math.max(1, Math.round((1 - partial) * POINT_MS)) : POINT_MS,
+    pointLoaded: partial > 0,
+    paused: !!job.paused
+  };
+  return station.researchJob;
+}
+
 function progressOf(station) {
-  const job = station.researchJob || null;
+  const job = station?.researchJob || null;
   if (!job?.projectId) return 0;
-  const total = Math.max(1, Number(job.totalMs) || 1);
-  const remaining = Math.max(0, Number(job.remainingMs) || 0);
-  return Math.max(0, Math.min(1, 1 - remaining / total));
+  const project = getResearchProject(job.projectId);
+  const normalized = ensureResearchJobShape(station, project) || job;
+  const totalPoints = Math.max(1, Number(normalized.pointsTotal || project?.points || 1) || 1);
+  const done = Math.max(0, Number(normalized.pointsDone || 0) || 0);
+  const pointMs = Math.max(1, Number(normalized.pointMs || POINT_MS) || POINT_MS);
+  const inPoint = normalized.pointLoaded ? Math.max(0, Math.min(1, 1 - (Math.max(0, Number(normalized.pointRemainingMs || pointMs) || pointMs) / pointMs))) : 0;
+  return Math.max(0, Math.min(1, (done + inPoint) / totalPoints));
+}
+
+function pointProgress(job, project) {
+  const normalized = ensureResearchJobShape({ researchJob: job }, project) || job;
+  const pointMs = Math.max(1, Number(normalized.pointMs || POINT_MS) || POINT_MS);
+  return normalized.pointLoaded ? Math.max(0, Math.min(1, 1 - (Math.max(0, Number(normalized.pointRemainingMs || pointMs) || pointMs) / pointMs))) : 0;
 }
 
 export function canPlayerAccessResearchStation(state, player, station) {
@@ -121,11 +170,10 @@ export function getResearchActiveEnergyUse(station) {
   if (!isResearchStation(station)) return 0;
   if (station.researchEnabled === false) return 0;
   const job = station.researchJob || null;
-  if (!job?.projectId || Number(job.remainingMs || 0) <= 0) return 0;
+  if (!job?.projectId) return 0;
   const project = getResearchProject(job.projectId);
   return Math.max(0, Number(project?.energyUse ?? getStructureDef(station.type)?.energyUse) || 0);
 }
-
 
 function ownedResearchStations(state, player) {
   const arr = [];
@@ -155,23 +203,35 @@ function aggregateActiveJobs(stations = []) {
       const job = st.researchJob || null;
       const project = job?.projectId ? getResearchProject(job.projectId) : null;
       if (!job || !project) return null;
+      const normalized = ensureResearchJobShape(st, project) || job;
       return {
         stationId: st.id | 0,
         projectId: project.id,
         name: project.name,
         progress: progressOf(st),
         powered: !!st.powered,
-        paused: !!job.paused,
-        status: st.researchStatus || ''
+        paused: !!normalized.paused,
+        status: st.researchStatus || '',
+        pointsDone: normalized.pointsDone | 0,
+        pointsTotal: normalized.pointsTotal | 0,
+        pointProgress: pointProgress(normalized, project),
+        pointSeconds: RESEARCH_POINT_SECONDS
       };
     })
     .filter(Boolean);
 }
 
-function canPayFromStation(station, project) {
+function canPayPointFromStation(station, project) {
   if (!station || !project) return false;
+  return mapHas(scienceInput(station), project.pointCost || {});
+}
+
+function canStartOnStation(state, player, station, project) {
+  if (!station || !project) return false;
+  if (!stationAccess(state, player, station)) return false;
+  if (station.researchEnabled === false) return false;
   if (station.researchJob?.projectId) return false;
-  return mapHas(scienceInput(station), project.scienceCost || {});
+  return canPayPointFromStation(station, project);
 }
 
 function chooseStationForProject(state, player, project) {
@@ -183,7 +243,7 @@ function chooseStationForProject(state, player, project) {
       if (ap !== bp) return ap - bp;
       return (a.id | 0) - (b.id | 0);
     });
-  return stations.find((st) => canPayFromStation(st, project)) || null;
+  return stations.find((st) => canStartOnStation(state, player, st, project)) || null;
 }
 
 export function buildResearchOverviewSnapshot(state, player) {
@@ -200,6 +260,7 @@ export function buildResearchOverviewSnapshot(state, player) {
     active,
     branches: RESEARCH_BRANCHES,
     packs: SCIENCE_PACKS,
+    pointSeconds: RESEARCH_POINT_SECONDS,
     projects: RESEARCH_PROJECTS.map((p) => {
       const snap = projectSnapshot(p, player);
       const station = chooseStationForProject(state, player, p);
@@ -238,7 +299,6 @@ export function cancelResearchProjectGlobal(state, player, timeMs = Date.now()) 
   return { ok: changed };
 }
 
-
 export function buildResearchStationSnapshot(state, player) {
   if (!player?.openResearchStationId) return null;
   const station = state?.structures?.get?.(player.openResearchStationId | 0);
@@ -247,7 +307,9 @@ export function buildResearchStationSnapshot(state, player) {
   const research = ensurePlayerResearch(player);
   const job = station.researchJob || null;
   const activeProject = job?.projectId ? getResearchProject(job.projectId) : null;
+  const normalizedJob = activeProject ? ensureResearchJobShape(station, activeProject) : null;
   const core = findAliveCoreForStructure(state, station);
+  const activeGlobal = aggregateActiveJobs(ownedResearchStations(state, player));
   return {
     id: station.id | 0,
     type: station.type,
@@ -260,7 +322,11 @@ export function buildResearchStationSnapshot(state, player) {
     activeProjectId: job?.projectId || '',
     activeProjectName: activeProject?.name || '',
     progress: progressOf(station),
-    paused: !!job?.paused,
+    paused: !!normalizedJob?.paused,
+    pointsDone: normalizedJob?.pointsDone | 0,
+    pointsTotal: normalizedJob?.pointsTotal | 0,
+    pointProgress: activeProject ? pointProgress(normalizedJob, activeProject) : 0,
+    pointSeconds: RESEARCH_POINT_SECONDS,
     scienceInput: resourceList(scienceInput(station)),
     inputUsed: usedCapacity(scienceInput(station)),
     inputCapacity: SCIENCE_CAPACITY,
@@ -268,7 +334,14 @@ export function buildResearchStationSnapshot(state, player) {
     branches: RESEARCH_BRANCHES,
     completed: research.completed.slice(),
     unlocked: research.unlocked.slice(),
-    projects: RESEARCH_PROJECTS.map((p) => projectSnapshot(p, player))
+    projects: RESEARCH_PROJECTS.map((p) => {
+      const snap = projectSnapshot(p, player);
+      return {
+        ...snap,
+        canStart: !snap.completed && !snap.locked && activeGlobal.length === 0 && canStartOnStation(state, player, station, p),
+        totalCost: getResearchProjectTotalCost(p)
+      };
+    })
   };
 }
 
@@ -326,15 +399,18 @@ export function startResearchProject(state, player, stationId, projectId, timeMs
   const research = ensurePlayerResearch(player);
   if (research.completed.includes(project.id)) return { ok: false, error: 'completed' };
   if (!projectAvailable(project, player)) return { ok: false, error: 'locked' };
+  if (aggregateActiveJobs(ownedResearchStations(state, player)).length > 0) return { ok: false, error: 'busy' };
   if (station.researchJob?.projectId) return { ok: false, error: 'busy' };
   const input = scienceInput(station);
-  if (!mapHas(input, project.scienceCost || {})) return { ok: false, error: 'science' };
-  consume(input, project.scienceCost || {});
+  if (!mapHas(input, project.pointCost || {})) return { ok: false, error: 'science' };
   station.researchJob = {
     projectId: project.id,
     startedAt: timeMs,
-    totalMs: Math.max(1000, Number(project.seconds || 1) * 1000),
-    remainingMs: Math.max(1000, Number(project.seconds || 1) * 1000),
+    pointsTotal: Math.max(1, Number(project.points || 1) || 1),
+    pointsDone: 0,
+    pointMs: POINT_MS,
+    pointRemainingMs: POINT_MS,
+    pointLoaded: false,
     paused: false
   };
   station.researchStatus = '';
@@ -374,23 +450,47 @@ export function updateResearchStations(state, timeMs, dtMs) {
       continue;
     }
 
+    const normalized = ensureResearchJobShape(station, project) || job;
+
     if (station.researchEnabled === false) {
-      job.paused = true;
+      normalized.paused = true;
       station.researchStatus = 'off';
       continue;
     }
     if (!station.powered) {
-      job.paused = true;
+      normalized.paused = true;
       station.researchStatus = 'no_power';
       continue;
     }
 
-    job.paused = false;
-    job.remainingMs = Math.max(0, Number(job.remainingMs || job.totalMs || 1) - stepMs);
+    if (!normalized.pointLoaded) {
+      if (!consume(scienceInput(station), project.pointCost || {})) {
+        normalized.paused = true;
+        station.researchStatus = 'science';
+        continue;
+      }
+      normalized.pointLoaded = true;
+      normalized.pointRemainingMs = Math.max(1, Number(normalized.pointMs || POINT_MS) || POINT_MS);
+    }
+
+    normalized.paused = false;
+    normalized.pointRemainingMs = Math.max(0, Number(normalized.pointRemainingMs || normalized.pointMs || POINT_MS) - stepMs);
     station.researchStatus = '';
     station.updatedAt = timeMs;
 
-    if (job.remainingMs > 0) {
+    if (normalized.pointRemainingMs > 0) {
+      if (String(station.worldId || 'endless') === 'endless' && timeMs - (station.lastResearchSaveAt || 0) > RESEARCH_SAVE_INTERVAL_MS) {
+        station.lastResearchSaveAt = timeMs;
+        shouldSave = true;
+      }
+      continue;
+    }
+
+    normalized.pointsDone = Math.max(0, (normalized.pointsDone | 0) + 1);
+    normalized.pointLoaded = false;
+    normalized.pointRemainingMs = Math.max(1, Number(normalized.pointMs || POINT_MS) || POINT_MS);
+
+    if (normalized.pointsDone < Math.max(1, Number(normalized.pointsTotal || project.points || 1) || 1)) {
       if (String(station.worldId || 'endless') === 'endless' && timeMs - (station.lastResearchSaveAt || 0) > RESEARCH_SAVE_INTERVAL_MS) {
         station.lastResearchSaveAt = timeMs;
         shouldSave = true;
@@ -402,7 +502,7 @@ export function updateResearchStations(state, timeMs, dtMs) {
     if (owner) {
       const research = ensurePlayerResearch(owner);
       if (!research.completed.includes(project.id)) research.completed.push(project.id);
-      for (const unlock of project.unlocks || []) if (!research.unlocked.includes(unlock)) research.unlocked.push(unlock);
+      for (const unlock of unlockList(project)) if (!research.unlocked.includes(unlock)) research.unlocked.push(unlock);
       owner.forceFullUiSnapshot = true;
     }
     station.researchJob = null;
