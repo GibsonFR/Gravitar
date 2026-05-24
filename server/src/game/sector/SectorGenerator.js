@@ -2,7 +2,7 @@ import { SECTOR } from './SectorDefs.js';
 import { sectorFrontierLevel } from './SectorMath.js';
 import { hash2D_Mix, hash2D_XorShift } from '../util/HashUtil.js';
 import { DotNetRandom } from '../util/DotNetRandom.js';
-import { rollResourceKeyForSector } from '../asteroid/AsteroidSpawnDirector.js';
+import { rollResourceKeyForSector, getSectorResourcePool } from '../asteroid/AsteroidSpawnDirector.js';
 import { RESOURCE_DEFS, getResourceRarityScore } from '../inventory/ResourceDefs.js';
 import { spawnAsteroidProc } from '../asteroid/AsteroidFactory.js';
 import { spawnStation } from '../station/StationFactory.js';
@@ -719,23 +719,79 @@ export
 
 function depositDisplayName(resourceKey) {
   return ({
-    ironOre: 'Gisement de fer',
+    scrap: 'Débris métalliques',
+    ironOre: 'Gisement de minerai de fer',
     copper: 'Veine de cuivre',
+    nickelOre: 'Gisement de minerai de nickel',
+    titaniumOre: 'Gisement de minerai de titane',
     aluminiumOre: 'Gisement de bauxite',
+    cobaltOre: 'Gisement de minerai de cobalt',
+    silicon: 'Gisement de silicium',
     quartz: 'Filon de quartz',
     graphite: 'Veine de graphite',
-    hydrocarbons: 'Poche de pétrole',
-    titaniumOre: 'Gisement de titane',
-    nickelOre: 'Gisement de nickel',
-    cobaltOre: 'Gisement de cobalt',
-    silicon: 'Gisement de silicium',
-    waterIce: 'Glace d’eau',
-    methaneIce: 'Glace de méthane',
-    ammoniaIce: 'Glace d’ammoniac',
+    lithiumOre: 'Gisement de minerai de lithium',
+    boronOre: 'Gisement de minerai de bore',
+    berylliumOre: 'Gisement de minerai de béryllium',
+    rareEarthOre: 'Gisement de terres rares',
+    waterIce: 'Gisement de glace d’eau',
+    hydrogenIce: 'Gisement d’hydrogène solide',
+    methaneIce: 'Gisement de méthane solide',
+    ammoniaIce: 'Gisement d’ammoniac gelé',
+    hydrocarbons: 'Poche d’hydrocarbures',
     sulfur: 'Gisement de soufre',
-    uraniumOre: 'Gisement d’uranium',
-    thoriumOre: 'Gisement de thorium'
-  })[resourceKey] || RESOURCE_DEFS[resourceKey]?.name || resourceKey;
+    uraniumOre: 'Gisement de minerai d’uranium',
+    thoriumOre: 'Gisement de minerai de thorium',
+    unstableIsotopes: 'Gisement d’isotopes instables',
+    leadOre: 'Gisement de minerai de plomb',
+    biomass: 'Nappe de biomasse',
+    chitin: 'Dépôt de chitine',
+    organicLipids: 'Poche de lipides organiques',
+    enzymes: 'Nappe enzymatique',
+    proteinFibers: 'Dépôt de fibres protéiques',
+    spores: 'Nappe de spores',
+    containedAntimatter: 'Anomalie d’antimatière confinée',
+    strangeMatter: 'Anomalie de matière étrange',
+    unknownTechFragment: 'Débris de technologie inconnue',
+    ancientSuperconductor: 'Gisement de supraconducteur ancien',
+    precursorNanomaterial: 'Nappe de nanomatériau précurseur'
+  })[resourceKey] || (RESOURCE_DEFS[resourceKey]?.name ? `Gisement de ${RESOURCE_DEFS[resourceKey].name}` : `Gisement ${resourceKey}`);
+}
+
+function isDepositResourceKey(resourceKey) {
+  const def = RESOURCE_DEFS[resourceKey];
+  if (!def) return false;
+  if (!def.spawnTier || def.spawnTier <= 0) return false;
+  if (!def.shapeClass) return false;
+  const blocked = [
+    'Ingot', 'Plate', 'Wire', 'Circuit', 'processor', 'Battery', 'Cell', 'Fuel',
+    'propellant', 'turbine', 'Pump', 'Motor', 'motor', 'Injector', 'Rod',
+    'Ceramic', 'Fiber', 'Armor'
+  ];
+  return !blocked.some((part) => String(resourceKey).includes(part));
+}
+
+function depositCountForSector(mapLevel, rng) {
+  const level = Math.max(0, mapLevel | 0);
+  if (level <= 2) return rng.nextDouble() < 0.28 ? 1 : 0;
+  if (level <= 6) return 1 + (rng.nextDouble() < 0.35 ? 1 : 0);
+  if (level <= 12) return 2 + (rng.nextDouble() < 0.45 ? 1 : 0);
+  if (level <= 24) return 3 + (rng.nextDouble() < 0.55 ? 1 : 0);
+  if (level <= 42) return 4 + (rng.nextDouble() < 0.65 ? 1 : 0);
+  return 5 + Math.min(3, Math.floor((level - 42) / 18)) + (rng.nextDouble() < 0.70 ? 1 : 0);
+}
+
+function weightedDepositKey(rng, specs, mapLevel) {
+  const filtered = (specs || []).filter((s) => isDepositResourceKey(s.key));
+  const pool = filtered.length ? filtered : Object.entries(RESOURCE_DEFS)
+    .filter(([key]) => isDepositResourceKey(key))
+    .map(([key, def]) => ({ key, weight: Math.max(0.05, def.baseWeight || 1) / Math.max(1, def.rarity || 1) }));
+  const total = pool.reduce((acc, s) => acc + Math.max(0.0001, s.weight || 0), 0);
+  let pick = rng.nextDouble() * total;
+  for (const spec of pool) {
+    pick -= Math.max(0.0001, spec.weight || 0);
+    if (pick <= 0) return spec.key;
+  }
+  return pool[pool.length - 1]?.key || 'ironOre';
 }
 
 function hasStructureNear(state, sx, sy, type, x, y, radius = 96, worldId = 'endless') {
@@ -778,11 +834,28 @@ function spawnResourceDeposit(state, sx, sy, x, y, resourceKey, amount, seed, wo
 }
 
 function spawnSectorResourceDeposits(state, sx, sy, rng, h, mapLevel, worldId = 'endless', ownerId = 0) {
-  const count = 1 + Math.min(2, Math.floor(Math.max(0, mapLevel) / 16));
+  const count = depositCountForSector(mapLevel, rng);
+  if (count <= 0) return;
+  const pool = getSectorResourcePool(state.seed | 0, sx | 0, sy | 0, mapLevel | 0);
+  const used = new Set();
+  const biomeResources = (pool?.biome?.resources || []).filter(isDepositResourceKey);
   for (let i = 0; i < count; i += 1) {
-    const x = Math.max(-1500, Math.min(1500, rollPos(rng)));
-    const y = Math.max(-1500, Math.min(1500, rollPos(rng)));
-    const key = rollResourceKeyForSector(rng, mapLevel, sx, sy, state.seed | 0);
+    const angle = rng.nextDouble() * Math.PI * 2;
+    const distance = 520 + rng.nextDouble() * 1050;
+    const jitterX = (rng.nextDouble() - 0.5) * 220;
+    const jitterY = (rng.nextDouble() - 0.5) * 220;
+    const x = Math.max(-1536, Math.min(1536, Math.cos(angle) * distance + jitterX));
+    const y = Math.max(-1536, Math.min(1536, Math.sin(angle) * distance + jitterY));
+
+    let key = i < biomeResources.length && rng.nextDouble() < 0.65
+      ? biomeResources[(Math.abs((h >> (i % 13)) + i * 7) % biomeResources.length)]
+      : weightedDepositKey(rng, pool?.specs || [], mapLevel);
+
+    if (used.has(key)) {
+      for (let tries = 0; tries < 6 && used.has(key); tries += 1) key = weightedDepositKey(rng, pool?.specs || [], mapLevel);
+    }
+    used.add(key);
+
     const rarity = getResourceRarityScore(key);
     const amount = 160 + Math.floor(rng.nextDouble() * 140) + Math.max(0, rarity | 0) * 20;
     spawnResourceDeposit(state, sx, sy, x, y, key, amount, h ^ (i * 2654435761), worldId, ownerId);
