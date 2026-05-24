@@ -314,6 +314,8 @@ export class WorldStore {
         automationPulse: normalized.automationPulse ?? current.automationPulse,
         automationStatus: normalized.automationStatus ?? current.automationStatus,
         depositResourceKey: normalized.depositResourceKey ?? current.depositResourceKey,
+        depositLabel: normalized.depositLabel ?? current.depositLabel,
+        depositColorHex: normalized.depositColorHex ?? current.depositColorHex,
         depositRemaining: normalized.depositRemaining ?? current.depositRemaining,
         depositMax: normalized.depositMax ?? current.depositMax,
         depositId: normalized.depositId ?? current.depositId,

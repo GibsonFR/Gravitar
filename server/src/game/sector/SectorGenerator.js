@@ -410,6 +410,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, 1520, 320, SPECIAL_SECTORS.TEST_MINING.sx, SPECIAL_SECTORS.TEST_MINING.sy, '⛏', {
+    label: 'Test minage / gisements',
+    mode: 'test_mining',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -425,6 +431,16 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     });
   }
 }
+
+function generateTestMiningContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+  spawnStation(state, sx, sy, 1650, 1500, true, h ^ 0x4d1e9a, timeMs);
+}
+
 
 function generateTestEffectsContent(state, sx, sy, timeMs, h) {
   spawnPortal(state, sx, sy, -1600, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52, autoTrigger: true });
@@ -714,8 +730,10 @@ function hasStructureNear(state, sx, sy, type, x, y, radius = 96, worldId = 'end
 }
 
 function spawnResourceDeposit(state, sx, sy, x, y, resourceKey, amount, seed, worldId = 'endless', ownerId = 0) {
-  if (hasStructureNear(state, sx, sy, 'resource_deposit', x, y, 128, worldId)) return null;
-  const st = createStructure(state, 'resource_deposit', sx, sy, x, y, {
+  const gx = Math.round(Number(x || 0) / 64) * 64;
+  const gy = Math.round(Number(y || 0) / 64) * 64;
+  if (hasStructureNear(state, sx, sy, 'resource_deposit', gx, gy, 128, worldId)) return null;
+  const st = createStructure(state, 'resource_deposit', sx, sy, gx, gy, {
     ownerId,
     ownerKey: 'world',
     ownerName: 'Gisement',
@@ -723,6 +741,8 @@ function spawnResourceDeposit(state, sx, sy, x, y, resourceKey, amount, seed, wo
     depositResourceKey: resourceKey,
     depositRemaining: amount,
     depositMax: amount,
+    depositLabel: RESOURCE_DEFS[resourceKey]?.name || resourceKey,
+    depositColorHex: RESOURCE_DEFS[resourceKey]?.colorHex || '#9ef0c7',
     createdAt: Date.now(),
     updatedAt: Date.now()
   });
@@ -730,12 +750,13 @@ function spawnResourceDeposit(state, sx, sy, x, y, resourceKey, amount, seed, wo
   st.name = `Gisement ${RESOURCE_DEFS[resourceKey]?.name || resourceKey}`;
   st.depositSeed = seed | 0;
   st.color = RESOURCE_DEFS[resourceKey]?.colorHex || st.color;
+  st.borderColor = RESOURCE_DEFS[resourceKey]?.colorHex || st.borderColor;
   state.structures.set(st.id, st);
   return st;
 }
 
 function spawnSectorResourceDeposits(state, sx, sy, rng, h, mapLevel, worldId = 'endless', ownerId = 0) {
-  const count = 2 + Math.min(2, Math.floor(Math.max(0, mapLevel) / 12));
+  const count = 1 + Math.min(2, Math.floor(Math.max(0, mapLevel) / 16));
   for (let i = 0; i < count; i += 1) {
     const x = Math.max(-1500, Math.min(1500, rollPos(rng)));
     const y = Math.max(-1500, Math.min(1500, rollPos(rng)));
@@ -758,6 +779,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testFoundations = sx === SPECIAL_SECTORS.TEST_FOUNDATIONS.sx && sy === SPECIAL_SECTORS.TEST_FOUNDATIONS.sy;
   const testBiomes = sx === SPECIAL_SECTORS.TEST_BIOMES.sx && sy === SPECIAL_SECTORS.TEST_BIOMES.sy;
   const testBases = sx === SPECIAL_SECTORS.TEST_BASES.sx && sy === SPECIAL_SECTORS.TEST_BASES.sy;
+  const testMining = sx === SPECIAL_SECTORS.TEST_MINING.sx && sy === SPECIAL_SECTORS.TEST_MINING.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -796,6 +818,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testBases) {
     generateTestBasesContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testMining) {
+    generateTestMiningContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

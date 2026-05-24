@@ -7,6 +7,7 @@ export const SPECIAL_SECTORS = {
   TEST_FOUNDATIONS: { sx: 9104, sy: -9100 },
   TEST_BIOMES: { sx: 9105, sy: -9100 },
   TEST_BASES: { sx: 9106, sy: -9100 },
+  TEST_MINING: { sx: 9107, sy: -9100 },
   TEST_BIOME_METALLIC: { sx: 9110, sy: -9100, biomeId: 'metallic', label: 'Type M — métallique' },
   TEST_BIOME_SILICATE: { sx: 9111, sy: -9100, biomeId: 'silicate', label: 'Type S — silicaté' },
   TEST_BIOME_ORGANIC: { sx: 9112, sy: -9100, biomeId: 'organic', label: 'Protobiologique' },
@@ -35,6 +36,7 @@ export function isSpecialDetachedSector(sx, sy) {
   if (sx === SPECIAL_SECTORS.TEST_FOUNDATIONS.sx) return true;
   if (sx === SPECIAL_SECTORS.TEST_BIOMES.sx) return true;
   if (sx === SPECIAL_SECTORS.TEST_BASES.sx) return true;
+  if (sx === SPECIAL_SECTORS.TEST_MINING.sx) return true;
   if (getTestBiomeSector(sx, sy)) return true;
   if (sx === SPECIAL_SECTORS.MOB_BESTIARY.sx) return true;
   if (sx === SPECIAL_SECTORS.STRESS_ARENA.sx) return true;

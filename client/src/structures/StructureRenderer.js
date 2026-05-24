@@ -724,6 +724,18 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.fillRect(-w * 0.28, h * 0.34, w * 0.56, 5 * view.dpr);
       ctx.fillStyle = color;
       ctx.fillRect(-w * 0.28, h * 0.34, w * 0.56 * ratio, 5 * view.dpr);
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.95)';
+      ctx.shadowBlur = 3 * view.dpr;
+      ctx.fillStyle = ratio > 0 ? 'rgba(232, 255, 244, .90)' : 'rgba(255, 150, 150, .92)';
+      ctx.font = `${9 * view.dpr}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const label = String(s.depositLabel || s.depositResourceKey || 'Gisement');
+      ctx.fillText(ratio > 0 ? label : 'ÉPUISÉ', 0, -h * 0.39);
+      ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+      ctx.fillText(`${Math.max(0, s.depositRemaining | 0)} / ${Math.max(0, s.depositMax | 0)}`, 0, h * 0.47);
+      ctx.restore();
       ctx.beginPath();
     } else if (isExtractor) {
       const progress = Math.max(0, Math.min(1, Number(s.extractionProgress || s.automationItem?.progress || 0)));

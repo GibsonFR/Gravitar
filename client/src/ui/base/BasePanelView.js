@@ -323,7 +323,7 @@ export const BUILD_STRUCTURES = [
 
   {
     type: 'mining_extractor',
-    category: 'automation',
+    category: 'industry',
     title: 'Extracteur minier',
     subtitle: '',
     icon: 'mining_extractor',
