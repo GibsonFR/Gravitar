@@ -5145,14 +5145,15 @@ button.station-item-icon[draggable="true"]:active,
     radial-gradient(circle at 30% 30%, rgba(126,220,255,.055), transparent 30%),
     linear-gradient(180deg, rgba(6,12,22,.68), rgba(2,6,12,.78));
   cursor: grab;
+  min-height: 0;
 }
 .research-tree-panel__viewport:active {
   cursor: grabbing;
 }
 .research-tree-panel__canvas {
   position: absolute;
-  left: 20px;
-  top: 20px;
+  left: 28px;
+  top: 26px;
   transform-origin: 0 0;
 }
 .research-tree-panel__edges {
@@ -5173,19 +5174,21 @@ button.station-item-icon[draggable="true"]:active,
   position: absolute;
   left: var(--x);
   top: var(--y);
-  width: 164px;
-  min-height: 78px;
+  width: 178px;
+  min-height: 76px;
   border-radius: 14px;
   border: 1px solid rgba(126, 220, 255, .22);
-  background: rgba(4, 11, 19, .90);
+  background: rgba(4, 11, 19, .92);
   color: rgba(236, 248, 255, .96);
   box-shadow: 0 8px 28px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.05);
   display: grid;
   grid-template-columns: 28px 1fr;
   align-items: center;
   gap: 10px;
-  padding: 10px;
+  padding: 10px 12px;
   text-align: left;
+  white-space: normal;
+  overflow: hidden;
 }
 .research-node i {
   width: 24px;
@@ -5198,7 +5201,10 @@ button.station-item-icon[draggable="true"]:active,
 .research-node span {
   font-size: 12px;
   font-weight: 900;
-  line-height: 1.15;
+  line-height: 1.2;
+  letter-spacing: 0;
+  word-break: break-word;
+  text-wrap: balance;
 }
 .research-node.is-done {
   border-color: rgba(126, 240, 210, .55);

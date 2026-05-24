@@ -14,17 +14,22 @@ const PACK_NAMES = {
 };
 
 const NODE_POS = {
-  construction_foundations: [80, 90],
-  industry_smelting_control: [300, 80],
-  automation_routing: [300, 210],
-  energy_distribution: [520, 80],
-  exploration_scanning: [520, 210],
-  industry_advanced_components: [740, 80],
-  electronics_control: [740, 210],
-  biology_sampling: [740, 340],
-  defense_systems: [960, 210],
-  advanced_research: [1180, 160],
-  anomaly_science: [1400, 160]
+  construction_foundations: [70, 160],
+  industry_smelting_control: [70, 300],
+
+  automation_routing: [340, 90],
+  energy_distribution: [340, 220],
+  advanced_industry: [340, 350],
+
+  electronics_processing: [610, 80],
+  resource_scanning: [610, 210],
+  bio_processing: [610, 340],
+  defense_turrets: [610, 470],
+
+  advanced_research: [900, 200],
+  pirate_reverse_engineering: [900, 360],
+
+  alien_anomaly_analysis: [1180, 210]
 };
 
 function packCost(cost = {}) {
@@ -38,7 +43,29 @@ function projectState(project, completed, activeIds) {
   if (activeIds.has(project.id)) return 'active';
   if (project.locked) return 'locked';
   if (project.canStart) return 'ready';
-  return 'missing';
+  if (project.available) return 'missing';
+  return 'locked';
+}
+
+function getPrereq(project) {
+  return Array.isArray(project?.prereq) ? project.prereq : (Array.isArray(project?.prerequisites) ? project.prerequisites : []);
+}
+
+function sortedProjects(projects = []) {
+  return [...projects].sort((a, b) => {
+    const at = a?.tier | 0;
+    const bt = b?.tier | 0;
+    if (at !== bt) return at - bt;
+    const ay = NODE_POS[a.id]?.[1] ?? 9999;
+    const by = NODE_POS[b.id]?.[1] ?? 9999;
+    if (ay !== by) return ay - by;
+    return String(a.name || '').localeCompare(String(b.name || ''), 'fr');
+  });
+}
+
+function pickDefaultProject(projects = []) {
+  if (!projects.length) return null;
+  return projects.find((p) => p.completed) || projects.find((p) => p.canStart) || projects.find((p) => p.available) || projects[0];
 }
 
 export class ResearchTreePanelView {
@@ -46,7 +73,7 @@ export class ResearchTreePanelView {
     this.sendCmd = sendCmd;
     this.el = document.createElement('section');
     this.el.className = 'research-tree-panel';
-    this.zoom = 1;
+    this.zoom = 0.92;
     this.panX = 0;
     this.panY = 0;
     this.selectedId = '';
@@ -106,16 +133,27 @@ export class ResearchTreePanelView {
     if (zoom) zoom.textContent = `${Math.round(this.zoom * 100)}%`;
   }
 
+  ensureSelection(projects) {
+    if (!projects.length) {
+      this.selectedId = '';
+      return;
+    }
+    if (!projects.some((p) => p.id === this.selectedId)) {
+      this.selectedId = pickDefaultProject(projects)?.id || projects[0].id;
+    }
+  }
+
   updateSelection() {
     const data = this.current || null;
-    const projects = data?.projects || [];
+    const projects = sortedProjects(data?.projects || []);
+    this.ensureSelection(projects);
     const selected = projects.find((p) => p.id === this.selectedId) || projects[0] || null;
     const side = this.el.querySelector('.research-tree-panel__side');
     if (!side || !selected) return;
     const completed = new Set(data.completed || []);
     const activeIds = new Set((data.active || []).map((a) => a.projectId));
     const state = projectState(selected, completed, activeIds);
-    const prereq = (selected.prerequisites || []).map((id) => projects.find((p) => p.id === id)?.name || id);
+    const prereq = getPrereq(selected).map((id) => projects.find((p) => p.id === id)?.name || id);
     side.innerHTML = `
       <div class="research-tree-panel__side-head">
         <span>${escapeHtml(selected.branchName || selected.branch || '')}</span>
@@ -150,24 +188,24 @@ export class ResearchTreePanelView {
       s: data.science,
       stationCount: data.stationCount,
       selected: this.selectedId,
-      projects: (data.projects || []).map((p) => [p.id, p.locked, p.canStart, p.completed])
+      projects: (data.projects || []).map((p) => [p.id, p.locked, p.canStart, p.completed, p.available])
     });
     if (key === this.lastKey) return;
     this.lastKey = key;
 
-    const projects = data.projects || [];
-    if (!this.selectedId && projects[0]) this.selectedId = projects[0].id;
+    const projects = sortedProjects(data.projects || []);
+    this.ensureSelection(projects);
     const completed = new Set(data.completed || []);
     const activeIds = new Set((data.active || []).map((a) => a.projectId));
     const active = data.active?.[0] || null;
-    const maxX = Math.max(1550, ...projects.map((p) => (NODE_POS[p.id]?.[0] || 0) + 220));
-    const maxY = Math.max(520, ...projects.map((p) => (NODE_POS[p.id]?.[1] || 0) + 130));
+    const maxX = Math.max(1460, ...projects.map((p) => (NODE_POS[p.id]?.[0] || 0) + 220));
+    const maxY = Math.max(640, ...projects.map((p) => (NODE_POS[p.id]?.[1] || 0) + 120));
 
-    const lines = projects.flatMap((p) => (p.prerequisites || []).map((pre) => {
+    const lines = projects.flatMap((p) => getPrereq(p).map((pre) => {
       const a = NODE_POS[pre] || [0, 0];
       const b = NODE_POS[p.id] || [0, 0];
       const done = completed.has(pre);
-      return `<line class="research-edge ${done ? 'is-done' : ''}" x1="${a[0] + 160}" y1="${a[1] + 42}" x2="${b[0]}" y2="${b[1] + 42}" />`;
+      return `<line class="research-edge ${done ? 'is-done' : ''}" x1="${a[0] + 176}" y1="${a[1] + 38}" x2="${b[0]}" y2="${b[1] + 38}" />`;
     })).join('');
 
     this.el.innerHTML = `
