@@ -10,9 +10,24 @@ const CATEGORY_LABELS = {
   module: 'Modules'
 };
 
+const MODULE_FAMILY_LABELS = {
+  cargo: 'Soute',
+  damage: 'Dégâts',
+  energy: 'Énergie',
+  repair: 'Réparation',
+  targeting: 'Ciblage'
+};
+
+function moduleFamily(recipe) {
+  const id = String(recipe?.id || '');
+  const m = id.match(/^fab_module_([^_]+)_mk\d+$/);
+  return m ? m[1] : 'cargo';
+}
+
 function statLabel(key) {
   return ({
     enginePct: 'engine power',
+    damageFlat: 'attack damage',
     damageMultPct: 'damage',
     fireRatePct: 'fire rate',
     critChancePct: 'crit chance',
@@ -57,6 +72,7 @@ export class EquipmentFabricatorPanelView {
     this.el.hidden = true;
     this.selectedRecipeId = '';
     this.category = 'engine';
+    this.moduleFamily = 'cargo';
     this.lastKey = '';
     this.bind();
   }
@@ -75,6 +91,15 @@ export class EquipmentFabricatorPanelView {
       const category = ev.target.closest('[data-equipment-fab-category]');
       if (category) {
         this.category = category.dataset.equipmentFabCategory || this.category;
+        this.selectedRecipeId = '';
+        this.lastKey = '';
+        this.update(this.store);
+        ev.preventDefault();
+        return;
+      }
+      const modFamily = ev.target.closest('[data-equipment-fab-module-family]');
+      if (modFamily) {
+        this.moduleFamily = modFamily.dataset.equipmentFabModuleFamily || this.moduleFamily;
         this.selectedRecipeId = '';
         this.lastKey = '';
         this.update(this.store);
@@ -111,9 +136,14 @@ export class EquipmentFabricatorPanelView {
     const recipes = data.recipes || [];
     const availableCategories = CATEGORY_ORDER.filter((cat) => recipes.some((r) => r.categoryId === cat));
     if (!availableCategories.includes(this.category)) this.category = availableCategories[0] || 'engine';
-    const filtered = recipes.filter((r) => r.categoryId === this.category);
+    let filtered = recipes.filter((r) => r.categoryId === this.category);
+    const moduleFamilies = [...new Set(recipes.filter((r) => r.categoryId === 'module').map(moduleFamily))];
+    if (this.category === 'module') {
+      if (!moduleFamilies.includes(this.moduleFamily)) this.moduleFamily = moduleFamilies[0] || 'cargo';
+      filtered = filtered.filter((r) => moduleFamily(r) === this.moduleFamily);
+    }
     if (!filtered.some((r) => r.id === this.selectedRecipeId)) this.selectedRecipeId = filtered[0]?.id || '';
-    const key = JSON.stringify({ data, selected: this.selectedRecipeId, category: this.category });
+    const key = JSON.stringify({ data, selected: this.selectedRecipeId, category: this.category, moduleFamily: this.moduleFamily });
     if (key === this.lastKey) return;
     this.lastKey = key;
     this.el.hidden = false;
@@ -123,6 +153,12 @@ export class EquipmentFabricatorPanelView {
     const tabs = availableCategories.map((cat) => `
       <button type="button" class="equipment-fab__tab ${cat === this.category ? 'is-active' : ''}" data-equipment-fab-category="${escapeHtml(cat)}">${escapeHtml(CATEGORY_LABELS[cat] || cat)}</button>
     `).join('');
+
+    const moduleSubtabs = this.category === 'module' ? `
+      <div class="equipment-fab__subtabs">
+        ${moduleFamilies.map((fam) => `<button type="button" class="equipment-fab__subtab ${fam === this.moduleFamily ? 'is-active' : ''}" data-equipment-fab-module-family="${escapeHtml(fam)}">${escapeHtml(MODULE_FAMILY_LABELS[fam] || fam)}</button>`).join('')}
+      </div>
+    ` : '';
 
     const list = filtered.map((r) => `
       <button type="button" class="equipment-fab__recipe ${r.id === this.selectedRecipeId ? 'is-selected' : ''} ${r.locked ? 'is-locked' : ''}" data-equipment-fab-select="${escapeHtml(r.id)}">
@@ -141,6 +177,7 @@ export class EquipmentFabricatorPanelView {
         <button type="button" class="equipment-fab__close" data-equipment-fab-close="1">×</button>
       </div>
       <div class="equipment-fab__tabs">${tabs}</div>
+      ${moduleSubtabs}
       <div class="equipment-fab__machine-layout">
         <section>
           <h3>Recettes</h3>

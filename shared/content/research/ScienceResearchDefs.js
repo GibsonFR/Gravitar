@@ -160,13 +160,13 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'equipment_rd_station',
     branch: 'combat',
     name: 'Station R&D équipement',
-    points: 12,
+    points: 14,
     energyUse: 24,
     pointCost: { automationSciencePack: 1, combatSciencePack: 1 },
     unlockBuildings: ['Station R&D'],
     unlockRecipes: ['Amélioration R&D 1-3 sciences'],
-    prereq: ['advanced_research'],
-    tier: 4
+    prereq: ['equipment_mark_ii'],
+    tier: 5
   },
   {
     id: 'equipment_mark_ii',
@@ -184,37 +184,37 @@ export const RESEARCH_PROJECTS = Object.freeze([
     id: 'equipment_mark_iii',
     branch: 'combat',
     name: 'Équipement Mark III',
-    points: 22,
-    energyUse: 30,
+    points: 24,
+    energyUse: 32,
     pointCost: { advancedSciencePack: 1, combatSciencePack: 1 },
     unlockBuildings: [],
     unlockRecipes: ['Équipement Mark III'],
-    prereq: ['equipment_mark_ii', 'equipment_rd_station'],
-    tier: 5
+    prereq: ['equipment_rd_station'],
+    tier: 6
   },
   {
     id: 'equipment_mark_iv',
     branch: 'alien',
     name: 'Équipement Mark IV',
-    points: 32,
-    energyUse: 42,
+    points: 34,
+    energyUse: 44,
     pointCost: { advancedSciencePack: 1, combatSciencePack: 1, anomalySciencePack: 1 },
     unlockBuildings: [],
     unlockRecipes: ['Équipement Mark IV'],
     prereq: ['alien_anomaly_analysis', 'equipment_mark_iii'],
-    tier: 6
+    tier: 7
   },
   {
     id: 'equipment_mark_v',
     branch: 'alien',
     name: 'Équipement Mark V',
-    points: 52,
-    energyUse: 58,
+    points: 56,
+    energyUse: 60,
     pointCost: { advancedSciencePack: 1, combatSciencePack: 1, biologySciencePack: 1, anomalySciencePack: 2 },
     unlockBuildings: [],
     unlockRecipes: ['Équipement Mark V'],
     prereq: ['equipment_mark_iv'],
-    tier: 7
+    tier: 8
   },
   {
     id: 'alien_anomaly_analysis',
@@ -225,8 +225,8 @@ export const RESEARCH_PROJECTS = Object.freeze([
     pointCost: { advancedSciencePack: 1, biologySciencePack: 1, combatSciencePack: 1 },
     unlockBuildings: [],
     unlockRecipes: ['Science anomalie', 'Équipement Mark IV'],
-    prereq: ['advanced_research'],
-    tier: 5
+    prereq: ['equipment_mark_iii'],
+    tier: 7
   }
 ]);
 

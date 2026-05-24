@@ -6598,3 +6598,26 @@ button.station-item-icon[draggable="true"]:active,
 .equipment-rd__score b {
   color: rgba(210,140,255,.98);
 }
+
+/* v150 — sous-catégories modules */
+.equipment-fab__subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 18px 0;
+}
+.equipment-fab__subtab {
+  border: 1px solid rgba(210, 140, 255, .20);
+  border-radius: 999px;
+  background: rgba(16, 10, 30, .82);
+  color: rgba(230,220,255,.82);
+  padding: 5px 9px;
+  font-weight: 900;
+  font-size: 11px;
+  cursor: pointer;
+}
+.equipment-fab__subtab.is-active {
+  border-color: rgba(210,140,255,.68);
+  background: rgba(92, 58, 130, .58);
+  color: rgba(250,245,255,.98);
+}

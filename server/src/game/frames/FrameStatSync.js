@@ -31,7 +31,7 @@ export function syncPlayerFrameStats(player, options = {}) {
     fireRateMult: (nextStats.fireRateMult ?? 1) * (1 + (equipmentBonuses.fireRatePct ?? 0)),
     cooldownRecoveryMult: 1 + (equipmentBonuses.cooldownReductionPct ?? 0),
     autoAttackBaseCooldown: nextStats.autoAttackBaseCooldown ?? 0.70,
-    autoAttackBaseDamage: nextStats.autoAttackBaseDamage ?? 13,
+    autoAttackBaseDamage: (nextStats.autoAttackBaseDamage ?? 13) + (equipmentBonuses.damageFlat ?? 0),
     hullRegen,
     energyRegen,
     critChance: equipmentBonuses.critChancePct ?? 0,

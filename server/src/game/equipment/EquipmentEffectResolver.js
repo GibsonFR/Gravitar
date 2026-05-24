@@ -26,6 +26,7 @@ function emptyRuntimeBonuses() {
     hullRegenFlat: 0,
     energyRegenFlat: 0,
     energyRegenPct: 0,
+    damageFlat: 0,
     damageMultPct: 0,
     enginePct: 0,
     cargoFlat: 0,

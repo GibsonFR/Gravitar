@@ -40,6 +40,7 @@ export function resolveEquipmentBonuses(player) {
     hullRegenFlat: 0,
     energyRegenFlat: 0,
     energyRegenPct: 0,
+    damageFlat: 0,
     damageMultPct: 0,
     enginePct: 0,
     cargoFlat: 0,
@@ -80,6 +81,7 @@ export function resolveEquipmentBonuses(player) {
     out.hullRegenFlat += finite(bonuses.hullRegenFlat, 0);
     out.energyRegenFlat += finite(bonuses.energyRegenFlat, 0);
     out.energyRegenPct += finite(bonuses.energyRegenPct, 0);
+    out.damageFlat += finite(bonuses.damageFlat, 0);
     out.damageMultPct += finite(bonuses.damageMultPct, 0);
     out.enginePct += finite(bonuses.enginePct, 0);
     out.cargoFlat += finite(bonuses.cargoFlat, 0);

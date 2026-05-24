@@ -55,7 +55,7 @@ export function scaleNeutralBonuses(baseBonuses = {}, mark = 1, categoryId = '')
   }
 
   if (categoryId === ITEM_CATEGORY_IDS.WEAPON) {
-    mergeBonus(out, 'damageMultPct', 0.06 + (m - 1) * 0.045);
+    mergeBonus(out, 'damageFlat', 10 + (m - 1) * 8);
     mergeBonus(out, 'fireRatePct', 0.02 + (m - 1) * 0.018);
     if (m >= 3) mergeBonus(out, 'armorPenFlat', 3 * (m - 2));
   } else if (categoryId === ITEM_CATEGORY_IDS.ENGINE) {

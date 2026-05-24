@@ -7,6 +7,8 @@ import { getBastionAtSector, isBastionUnlockedForPlayer } from '../bastion/Basti
 import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
 import { isSpecialDetachedSector } from '../sector/SpecialSectors.js';
 import { addResource } from '../inventory/InventorySystem.js';
+import { createNeutralCraftedEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
+import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { ensureTestEquipmentBench } from '../modes/GameModes.js';
 
 
@@ -52,6 +54,49 @@ function beginPortalTransition(player, portal, timeMs) {
 }
 
 
+
+function seedTestEquipmentItems(player, timeMs = Date.now()) {
+  if (!player?.equipment) return;
+  player.equipment.customItemDefs ??= {};
+  player.equipment.ownedItemIds = Array.isArray(player.equipment.ownedItemIds) ? player.equipment.ownedItemIds : [];
+  const specs = [
+    ['vector-thruster-vanes', 'Propulseur Mark III', 3],
+    ['needle-array-mk1', 'Arme cinétique Mark III', 3],
+    ['compact-shield-array', 'Bouclier Mark III', 3],
+    ['cargo-overmesh', 'Module soute Mark III', 3],
+    ['reaver-gyro-stabilizer', 'Module dégâts Mark III', 3],
+    ['surge-capacitor-bank', 'Module énergie Mark III', 3],
+    ['siphon-repair-weave', 'Module réparation Mark III', 3],
+    ['siege-target-matrix', 'Module ciblage Mark III', 3],
+    ['vector-thruster-vanes', 'Propulseur Mark V', 5],
+    ['needle-array-mk1', 'Arme cinétique Mark V', 5],
+    ['compact-shield-array', 'Bouclier Mark V', 5]
+  ];
+  player.equipment.craftedItemCounter = Math.max(0, player.equipment.craftedItemCounter | 0);
+  for (let i = 0; i < specs.length; i += 1) {
+    const [baseItemId, name, mark] = specs[i];
+    const stableId = `test-neutral-${baseItemId.replace(/[^a-z0-9]+/g, '-')}-mk${mark}`;
+    if (player.equipment.customItemDefs[stableId]) continue;
+    const crafted = createNeutralCraftedEquipment({
+      baseItemId,
+      recipeId: stableId,
+      recipeName: name,
+      mark,
+      ownerKey: player.accountKey || player.pseudo || player.id || 'test',
+      craftedIndex: 9000 + i,
+      timeMs: 100000 + i
+    });
+    if (!crafted) continue;
+    crafted.id = stableId;
+    crafted.name = name;
+    crafted.shortName = name;
+    addCustomEquipmentDef(player, crafted);
+    if (!player.equipment.ownedItemIds.includes(stableId)) player.equipment.ownedItemIds.push(stableId);
+  }
+  player.equipment.ownedItemIds = [...new Set(player.equipment.ownedItemIds)].sort();
+  player.equipment.lastChangedAt = timeMs | 0;
+}
+
 function grantTestEquipmentPortalLoadout(state, player, timeMs) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
@@ -73,6 +118,7 @@ function grantTestEquipmentPortalLoadout(state, player, timeMs) {
   const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'equipment_rd_station', 'equipment_mark_ii', 'equipment_mark_iii', 'equipment_mark_iv', 'equipment_mark_v', 'alien_anomaly_analysis']);
   player.research.completed = [...completed];
   ensureTestEquipmentBench(state, player, timeMs);
+  seedTestEquipmentItems(player, timeMs);
 }
 
 function prepareTestArenaPlayer(player) {
