@@ -172,6 +172,21 @@ function getAutomationKindSnapshot(structure) {
   return '';
 }
 
+
+export function buildStructureAutomationSnapshots(structures, inSector) {
+  return [...structures.values()]
+    .filter(inSector)
+    .filter((structure) => getAutomationKindSnapshot(structure))
+    .map((structure) => ({
+      id: structure.id,
+      storageUsed: structure.storage?.resources ? Object.values(structure.storage.resources).reduce((a, b) => a + (b | 0), 0) : 0,
+      storagePreview: firstStructureResourcePreview(structure),
+      automationItem: structure.automationItem || null,
+      automationKind: getAutomationKindSnapshot(structure),
+      automationPulse: structure.automationPulse || 0
+    }));
+}
+
 export function buildStructureSnapshots(structures, inSector, player = null) {
   const playerOwner = String(player?.accountKey || player?.accountName || player?.pseudo || `guest-${player?.id | 0}`).toLowerCase();
   const playerWorld = String(player?.worldId || 'endless');

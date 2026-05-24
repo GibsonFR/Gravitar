@@ -180,7 +180,7 @@ function updateConveyorVisual(belt, timeMs) {
   }
   const totalMs = Math.max(1, Number(belt.automationMoving.totalMs) || 700);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(belt.automationMoving.startedAt || timeMs)) / totalMs));
-  belt.automationItem = { ...resourceMeta(key), phase: 'belt', progress, at: timeMs };
+  belt.automationItem = { ...resourceMeta(key), phase: 'belt', progress, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
 }
 
 function updateConveyor(state, belt, timeMs) {
@@ -193,7 +193,7 @@ function updateConveyor(state, belt, timeMs) {
   const target = findStructureAt(state, belt, targetPoint(belt, true));
   if (!target || !canPut(target, key)) {
     belt.automationMoving.startedAt = timeMs - totalMs;
-    belt.automationItem = { ...resourceMeta(key), phase: 'blocked', progress: 1, at: timeMs };
+    belt.automationItem = { ...resourceMeta(key), phase: 'blocked', progress: 1, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
     return false;
   }
   const map = getOutputMap(belt);
@@ -214,7 +214,7 @@ function ensureArmVisual(arm, timeMs) {
   }
   const totalMs = Math.max(1, Number(arm.automationJob.totalMs) || 900);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(arm.automationJob.startedAt || timeMs)) / totalMs));
-  arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase: 'arm', progress, at: timeMs };
+  arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase: 'arm', progress, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
 }
 
 function updateRobotArm(state, arm, timeMs) {
@@ -227,7 +227,7 @@ function updateRobotArm(state, arm, timeMs) {
     const target = findStructureAt(state, arm, targetPoint(arm, true));
     if (!target || !canPut(target, arm.automationJob.key)) {
       arm.automationJob.startedAt = timeMs - totalMs;
-      arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase: 'arm_blocked', progress: 1, at: timeMs };
+      arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase: 'arm_blocked', progress: 1, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
       return false;
     }
     putOne(target, arm.automationJob.key);

@@ -24,6 +24,8 @@ export class WorldStore {
     this.pendingStationCommands = new Map();
     this.stationOptimistic = { version: 0, actions: new Map() };
     this.lastSnapAt = 0;
+    this.lastServerTime = 0;
+    this.lastServerTimeAt = 0;
     this.localPrediction = {
       hasMoveTarget: false,
       moveX: 0,
@@ -244,6 +246,53 @@ export class WorldStore {
     });
   }
 
+  _estimateServerNow() {
+    if (!Number.isFinite(this.lastServerTime) || !Number.isFinite(this.lastServerTimeAt) || this.lastServerTime <= 0) return Date.now();
+    return this.lastServerTime + Math.max(0, performance.now() - this.lastServerTimeAt);
+  }
+
+  _normalizeAutomationItem(item, serverNow) {
+    if (!item || typeof item !== 'object') return item || null;
+    const totalMs = Math.max(1, Number(item.totalMs) || 0);
+    const startedAt = Number(item.startedAt);
+    if (!Number.isFinite(startedAt) || !Number.isFinite(totalMs) || totalMs <= 0) return { ...item };
+    const elapsed = Math.max(0, serverNow - startedAt);
+    const localStartedAt = performance.now() - elapsed;
+    const progress = Math.max(0, Math.min(1, elapsed / totalMs));
+    return {
+      ...item,
+      totalMs,
+      startedAt,
+      progress,
+      _localStartedAt: localStartedAt,
+      _localUpdatedAt: performance.now()
+    };
+  }
+
+  _normalizeStructureSnapshot(st, serverNow) {
+    if (!st || typeof st !== 'object') return st;
+    if (!st.automationItem) return st;
+    return { ...st, automationItem: this._normalizeAutomationItem(st.automationItem, serverNow) };
+  }
+
+  _applyStructureAutomationSnapshots(arr, serverNow) {
+    if (!Array.isArray(arr) || !arr.length) return;
+    for (const snap of arr) {
+      const id = snap?.id;
+      if (!id || !this.structures.has(id)) continue;
+      const current = this.structures.get(id);
+      const normalized = this._normalizeStructureSnapshot(snap, serverNow);
+      this.structures.set(id, {
+        ...current,
+        storageUsed: normalized.storageUsed ?? current.storageUsed,
+        storagePreview: normalized.storagePreview ?? null,
+        automationItem: normalized.automationItem ?? null,
+        automationKind: normalized.automationKind ?? current.automationKind,
+        automationPulse: normalized.automationPulse ?? current.automationPulse
+      });
+    }
+  }
+
   _syncMap(map, arr, options = {}) {
     const seen = new Set();
     for (const item of arr) {
@@ -392,7 +441,10 @@ export class WorldStore {
   }
 
   applySnapshot(msg) {
-    this.lastSnapAt = performance.now();
+    const snapLocalNow = performance.now();
+    this.lastSnapAt = snapLocalNow;
+    this.lastServerTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : Date.now();
+    this.lastServerTimeAt = snapLocalNow;
     this.seed = msg.seed | 0;
     this.world = msg.world ?? this.world;
     this.session = msg.session ?? this.session;
@@ -423,7 +475,11 @@ export class WorldStore {
     // de vider la map, ce qui évite de retransmettre 20-40 astéroïdes à chaque frame.
     if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true });
     if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
-    if (Array.isArray(msg.structures)) this._syncMap(this.structures, msg.structures);
+    const structureServerNow = this._estimateServerNow();
+    if (Array.isArray(msg.structures)) {
+      this._syncMap(this.structures, msg.structures.map((st) => this._normalizeStructureSnapshot(st, structureServerNow)));
+    }
+    if (Array.isArray(msg.structureAutomation)) this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
     if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles);
     if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);

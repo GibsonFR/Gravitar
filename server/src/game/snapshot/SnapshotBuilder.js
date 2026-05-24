@@ -16,6 +16,7 @@ import {
   buildPortalSnapshots,
   buildProjectileSnapshots,
   buildStationSnapshots,
+  buildStructureAutomationSnapshots,
   buildStructureSnapshots
 } from './builders/BuildWorldEntitySnapshots.js';
 
@@ -75,6 +76,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : buildAsteroidCombatSnapshots(state.asteroids, nearStatic),
     stations: staticWorld ? buildStationSnapshots(state.stations, nearStatic) : undefined,
     structures: staticWorld ? buildStructureSnapshots(state.structures, nearStatic, me) : undefined,
+    structureAutomation: buildStructureAutomationSnapshots(state.structures, nearStatic),
     portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
     staticWorld,
     projectiles: buildProjectileSnapshots(state.projectiles, nearDynamic),

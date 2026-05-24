@@ -39,46 +39,134 @@ function rotateToDir(ctx, s) {
   ctx.rotate(angle);
 }
 
+function smoothstep01(v) {
+  const x = Math.max(0, Math.min(1, Number(v) || 0));
+  return x * x * (3 - 2 * x);
+}
+
+function localAutomationProgress(preview) {
+  if (!preview || typeof preview !== 'object') return null;
+  const totalMs = Math.max(1, Number(preview.totalMs) || 0);
+  const localStartedAt = Number(preview._localStartedAt);
+  if (Number.isFinite(localStartedAt) && totalMs > 0) {
+    return Math.max(0, Math.min(1, (performance.now() - localStartedAt) / totalMs));
+  }
+  const startedAt = Number(preview.startedAt);
+  if (Number.isFinite(startedAt) && totalMs > 0) {
+    return Math.max(0, Math.min(1, (Date.now() - startedAt) / totalMs));
+  }
+  if (Number.isFinite(Number(preview.progress))) return Math.max(0, Math.min(1, Number(preview.progress)));
+  return null;
+}
+
+function drawResourceChip(ctx, view, color, x, y, radius, dir, amount = 1) {
+  const angle = dir.x > 0 ? 0 : dir.y > 0 ? Math.PI / 2 : dir.x < 0 ? Math.PI : -Math.PI / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 10 * view.dpr;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = 'rgba(255,255,255,.78)';
+  ctx.lineWidth = 1 * view.dpr;
+  ctx.beginPath();
+  ctx.moveTo(radius * 1.35, 0);
+  ctx.lineTo(radius * 0.22, radius * 0.95);
+  ctx.lineTo(-radius * 1.05, radius * 0.62);
+  ctx.lineTo(-radius * 1.05, -radius * 0.62);
+  ctx.lineTo(radius * 0.22, -radius * 0.95);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(15,25,35,.38)';
+  ctx.beginPath();
+  ctx.moveTo(-radius * 0.58, 0);
+  ctx.lineTo(radius * 0.55, 0);
+  ctx.stroke();
+  ctx.restore();
+
+  if (amount > 1) {
+    ctx.save();
+    ctx.shadowBlur = 0;
+    ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,.94)';
+    ctx.fillText(String(amount), x, y - radius * 1.65);
+    ctx.restore();
+  }
+}
+
 function drawAutomationItem(ctx, view, s, w, h, t) {
   const preview = s.automationItem || s.storagePreview || null;
   const used = Number(s.storageUsed || 0);
   if (!preview && used <= 0) return;
   const color = preview?.colorHex || 'rgba(230,245,255,.95)';
   const dir = dirOf(s);
-  const progress = Number.isFinite(Number(preview?.progress))
-    ? Math.max(0, Math.min(1, Number(preview.progress)))
-    : (s.automationItem ? Math.max(0, Math.min(1, (Date.now() - Number(s.automationPulse || preview?.at || 0)) / 700)) : (0.5 + 0.35 * Math.sin(t * 3.0)));
-  const phase = preview?.phase === 'blocked' || preview?.phase === 'arm_blocked' ? 1 : progress;
-  const travel = preview?.phase === 'arm' || preview?.phase === 'arm_blocked' ? 0.84 : 0.72;
+  const rawProgress = localAutomationProgress(preview);
+  const progress = rawProgress == null
+    ? (s.automationItem ? Math.max(0, Math.min(1, (performance.now() - Number(s.automationPulse || 0)) / 700)) : (0.5 + 0.35 * Math.sin(t * 3.0)))
+    : rawProgress;
+  const blocked = preview?.phase === 'blocked' || preview?.phase === 'arm_blocked';
+  let phase = blocked ? 1 : progress;
+  if (preview?.phase === 'arm') phase = smoothstep01(progress);
+  const travel = preview?.phase === 'arm' || preview?.phase === 'arm_blocked' ? 0.88 : 0.74;
   const px = dir.x * (phase - 0.5) * w * travel;
   const py = dir.y * (phase - 0.5) * h * travel;
-  ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 10 * view.dpr;
-  ctx.fillStyle = color;
-  ctx.strokeStyle = 'rgba(255,255,255,.75)';
-  ctx.lineWidth = 1 * view.dpr;
-  ctx.beginPath();
-  ctx.arc(px, py, Math.max(4, Math.min(w, h) * 0.10), 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  if (preview?.phase === 'blocked' || preview?.phase === 'arm_blocked') {
+  drawResourceChip(ctx, view, color, px, py, Math.max(4, Math.min(w, h) * 0.10), dir, preview?.amount | 0 || 1);
+  if (blocked) {
+    ctx.save();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(255,120,120,.95)';
+    ctx.lineWidth = 2 * view.dpr;
     ctx.beginPath();
-    ctx.moveTo(px - 5 * view.dpr, py - 5 * view.dpr);
-    ctx.lineTo(px + 5 * view.dpr, py + 5 * view.dpr);
-    ctx.moveTo(px + 5 * view.dpr, py - 5 * view.dpr);
-    ctx.lineTo(px - 5 * view.dpr, py + 5 * view.dpr);
+    ctx.moveTo(px - 6 * view.dpr, py - 6 * view.dpr);
+    ctx.lineTo(px + 6 * view.dpr, py + 6 * view.dpr);
+    ctx.moveTo(px + 6 * view.dpr, py - 6 * view.dpr);
+    ctx.lineTo(px - 6 * view.dpr, py + 6 * view.dpr);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawConveyorMotion(ctx, view, s, w, h, t) {
+  ctx.save();
+  rotateToDir(ctx, s);
+  ctx.strokeStyle = 'rgba(145,230,255,.42)';
+  ctx.lineWidth = 2 * view.dpr;
+  ctx.lineCap = 'round';
+  const span = w * 0.22;
+  const offset = ((t * 70 * view.dpr) % span) - span;
+  for (let x = -w * 0.42 + offset; x < w * 0.48; x += span) {
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.035, -h * 0.11);
+    ctx.lineTo(x + w * 0.045, 0);
+    ctx.lineTo(x - w * 0.035, h * 0.11);
     ctx.stroke();
   }
-  if (preview?.amount > 1) {
-    ctx.shadowBlur = 0;
-    ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,.9)';
-    ctx.fillText(String(preview.amount), px, py - Math.min(w, h) * 0.14);
-  }
+  ctx.restore();
+}
+
+function drawRobotArmMotion(ctx, view, s, w, h) {
+  const preview = s.automationItem || null;
+  const p = preview ? localAutomationProgress(preview) : null;
+  const phase = preview?.phase === 'arm' ? smoothstep01(p ?? 0) : (preview?.phase === 'arm_blocked' ? 1 : 0.5);
+  ctx.save();
+  rotateToDir(ctx, s);
+  ctx.strokeStyle = 'rgba(255,220,145,.54)';
+  ctx.fillStyle = 'rgba(255,220,145,.20)';
+  ctx.lineWidth = 3 * view.dpr;
+  ctx.lineCap = 'round';
+  const clawX = (phase - 0.5) * w * 0.78;
+  ctx.beginPath();
+  ctx.arc(0, 0, Math.min(w, h) * 0.11, 0, Math.PI * 2);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(clawX, 0);
+  ctx.moveTo(clawX, 0);
+  ctx.lineTo(clawX - w * 0.055, -h * 0.075);
+  ctx.moveTo(clawX, 0);
+  ctx.lineTo(clawX - w * 0.055, h * 0.075);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -419,7 +507,12 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
       ctx.lineTo(0, h * 0.42);
     }
     ctx.stroke();
-    if (isConveyor || isRobotArm) drawAutomationItem(ctx, view, s, w, h, t);
+    if (isConveyor) drawConveyorMotion(ctx, view, s, w, h, t);
+    if (isRobotArm) drawRobotArmMotion(ctx, view, s, w, h);
+    if (isConveyor || isRobotArm) {
+      drawAutomationItem(ctx, view, s, w, h, t);
+      drawDirectionArrow(ctx, view, s, w, h, false);
+    }
   }
   ctx.restore();
   drawStructureBar(ctx, view, s, p.x, p.y);
