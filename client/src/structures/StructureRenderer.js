@@ -112,20 +112,17 @@ function smoothstep01(v) {
 const DEPOSIT_DISPLAY_NAMES = {
   ironOre: 'Gisement de fer',
   copper: 'Veine de cuivre',
-  aluminiumOre: 'Bauxite',
-  quartz: 'Cristaux de quartz',
+  aluminiumOre: 'Gisement de bauxite',
+  quartz: 'Filon de quartz',
   graphite: 'Veine de graphite',
   hydrocarbons: 'Poche de pétrole',
-  titaniumOre: 'Minerai de titane',
-  nickelOre: 'Minerai de nickel',
-  cobaltOre: 'Minerai de cobalt',
-  silicon: 'Silicium',
-  waterIce: 'Glace d’eau',
-  methaneIce: 'Glace de méthane',
-  ammoniaIce: 'Glace d’ammoniac',
-  sulfur: 'Soufre',
-  uraniumOre: 'Minerai d’uranium',
-  thoriumOre: 'Minerai de thorium'
+  titaniumOre: 'Gisement de titane',
+  silicon: 'Gisement de silicium',
+  waterIce: 'Glace exploitable',
+  methane: 'Poche de méthane',
+  ammonia: 'Poche d’ammoniac',
+  biomass: 'Biomasse exploitable',
+  organicLipids: 'Dépôt de lipides'
 };
 
 function depositDisplayName(s) {
@@ -852,22 +849,18 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.arc(w * 0.00, h * 0.12, w * 0.045, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha /= Math.max(0.01, 0.22 + ratio * 0.48);
-      ctx.fillStyle = 'rgba(5, 12, 18, .78)';
-      ctx.fillRect(-w * 0.28, h * 0.34, w * 0.56, 5 * view.dpr);
-      ctx.fillStyle = color;
-      ctx.fillRect(-w * 0.28, h * 0.34, w * 0.56, 5 * view.dpr);
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,.95)';
-      ctx.shadowBlur = 3 * view.dpr;
-      ctx.fillStyle = 'rgba(232, 255, 244, .92)';
+      ctx.shadowBlur = 4 * view.dpr;
+      ctx.fillStyle = 'rgba(236, 255, 245, .94)';
       ctx.font = `${10 * view.dpr}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const label = String(s.depositLabel || DEPOSIT_DISPLAY_NAMES[s.depositResourceKey] || s.depositResourceKey || 'Gisement');
-      ctx.fillText(label, 0, -h * 0.39);
+      const label = String(DEPOSIT_DISPLAY_NAMES[s.depositResourceKey] || s.depositLabel || s.depositResourceKey || 'Gisement naturel');
+      ctx.fillText(label, 0, -h * 0.42);
       ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
-      ctx.fillStyle = 'rgba(210, 238, 225, .78)';
-      ctx.fillText('source permanente', 0, h * 0.47);
+      ctx.fillStyle = 'rgba(185, 225, 210, .72)';
+      ctx.fillText('source permanente', 0, h * 0.42);
       ctx.restore();
       ctx.beginPath();
     } else if (isExtractor) {

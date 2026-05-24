@@ -109,7 +109,7 @@ function buildExtractorSnapshot(state, player, st, def, core) {
   const resDef = RESOURCE_DEFS[selectedKey] || null;
   const powerLabel = st.machineEnabled === false ? 'Arrêté' : st.powered ? 'Alimenté' : 'Manque d’énergie';
   const statusMap = {
-    no_deposit: 'Aucun gisement sous ou près de l’extracteur',
+    no_deposit: 'Aucun gisement à portée de l’extracteur',
     no_power: 'Manque d’énergie',
     buffer_full: 'Buffer plein',
     disabled: 'Arrêté',

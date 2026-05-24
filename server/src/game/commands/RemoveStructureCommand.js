@@ -13,6 +13,7 @@ export function handleRemoveStructure(state, player, msg, timeMs) {
 function removeErrorHint(error) {
   switch (error) {
     case 'not_owner': return 'Cette structure ne t’appartient pas';
+    case 'natural_deposit': return 'Impossible de démolir un gisement naturel';
     case 'too_far': return 'Structure trop loin';
     case 'storage_not_empty': return 'Vide le coffre avant de le démonter';
     case 'core_not_empty': return 'Démonte les structures protégées avant le noyau';

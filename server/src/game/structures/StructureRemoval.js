@@ -38,6 +38,7 @@ export function removeStructure(state, player, structureId, _timeMs = Date.now()
   const st = state.structures?.get?.(id);
   if (!st) return { ok: false, error: 'not_found' };
   if (!inSameWorld(st, player)) return { ok: false, error: 'wrong_world' };
+  if (st.type === STRUCTURE_TYPES.RESOURCE_DEPOSIT) return { ok: false, error: 'natural_deposit' };
   if ((st.sx | 0) !== (player.sx | 0) || (st.sy | 0) !== (player.sy | 0)) return { ok: false, error: 'wrong_sector' };
   const owned = String(st.worldId || 'endless') === 'endless'
     ? String(st.ownerKey || '').toLowerCase() === ownerKey(player)

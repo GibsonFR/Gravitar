@@ -39,11 +39,18 @@ function pointInside(st, x, y, pad = 6) {
   return x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
 }
 
+function rectDistanceSq(a, b) {
+  const ar = rectOf(a);
+  const br = rectOf(b);
+  const dx = Math.max(0, Math.max(ar.left - br.right, br.left - ar.right));
+  const dy = Math.max(0, Math.max(ar.top - br.bottom, br.top - ar.bottom));
+  return dx * dx + dy * dy;
+}
+
 function sameWorld(a, b) {
   return String(a?.worldId || 'endless') === String(b?.worldId || 'endless')
     && (a?.sx | 0) === (b?.sx | 0)
-    && (a?.sy | 0) === (b?.sy | 0)
-    && String(a?.ownerKey || '').toLowerCase() === String(b?.ownerKey || '').toLowerCase();
+    && (a?.sy | 0) === (b?.sy | 0);
 }
 
 function dirOf(st) {
@@ -359,14 +366,12 @@ function findDepositById(state, id, origin = null) {
 }
 
 function findNearestDeposit(state, extractor) {
-  const range = Number(getStructureDef(extractor?.type)?.extractionRange) || TILE * 2.5;
+  const range = Number(getStructureDef(extractor?.type)?.extractionRange) || TILE * 4.5;
   let best = null;
   let bestD2 = range * range;
   for (const st of state?.structures?.values?.() || []) {
     if (!st || !isDeposit(st) || !sameWorld(extractor, st)) continue;
-    const dx = finite(st.x) - finite(extractor.x);
-    const dy = finite(st.y) - finite(extractor.y);
-    const d2 = dx * dx + dy * dy;
+    const d2 = rectDistanceSq(extractor, st);
     if (d2 <= bestD2) { best = st; bestD2 = d2; }
   }
   return best;
