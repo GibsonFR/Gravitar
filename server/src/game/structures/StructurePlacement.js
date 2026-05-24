@@ -3,6 +3,7 @@ import { BASE_TILE_SIZE, getStructureDef } from './StructureDefs.js';
 import { createStructure } from './StructureFactory.js';
 import { removeResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
+import { getResearchName, getStructureResearchRequirement, isStructureUnlockedByResearch } from '../../../../shared/content/research/ScienceResearchDefs.js';
 
 function finite(v, fallback = 0) {
   return Number.isFinite(v) ? v : fallback;
@@ -95,6 +96,20 @@ function findOverlappedDeposit(state, player, rect) {
   return null;
 }
 
+
+function researchCompletedForPlayer(player) {
+  return Array.isArray(player?.research?.completed) ? player.research.completed : [];
+}
+
+function buildResearchRequirementError(type) {
+  const id = getStructureResearchRequirement(type);
+  return id ? `research_required:${id}` : 'research_required';
+}
+
+function canBuildByResearch(player, type) {
+  return isStructureUnlockedByResearch(type, researchCompletedForPlayer(player));
+}
+
 function hasResources(inv, cost) {
   for (const [key, amount] of Object.entries(cost || {})) {
     if (!RESOURCE_DEFS[key]) return false;
@@ -130,6 +145,7 @@ function findOwnCore(state, player, sx, sy, rect) {
 export function canPlaceStructure(state, player, type, x, y, orientation = 'h') {
   const def = getStructureDef(type);
   if (!def) return { ok: false, error: 'unknown_structure' };
+  if (!isTestPlayer(player) && !canBuildByResearch(player, type)) return { ok: false, error: buildResearchRequirementError(type), researchId: getStructureResearchRequirement(type), researchName: getResearchName(getStructureResearchRequirement(type)) };
   const sx = player.sx | 0;
   const sy = player.sy | 0;
   const rawX = finite(x, player.x);

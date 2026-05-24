@@ -249,7 +249,7 @@ export const MACHINE_RECIPES = Object.freeze([
     name: 'Science automatisation',
     seconds: 12,
     energyUse: 8,
-    input: { steelPlate: 1, servomotor: 1, printedCircuit: 1 },
+    input: { steelPlate: 1, copperWire: 4, basicSciencePack: 1 },
     output: { automationSciencePack: 1 }
   },
   {

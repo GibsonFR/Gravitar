@@ -220,9 +220,9 @@ export class MachinePanelView {
     const selectHtml = `
       <div class="machine-panel__select-grid">
         ${recipes.map((r) => `
-          <button type="button" class="machine-panel__recipe-card ${r.id === machine.selectedRecipeId ? 'is-selected' : ''}" data-select-recipe="${escapeHtml(r.id)}" ${busy ? 'disabled' : ''}>
+          <button type="button" class="machine-panel__recipe-card ${r.id === machine.selectedRecipeId ? 'is-selected' : ''} ${r.locked ? 'is-locked' : ''}" data-select-recipe="${escapeHtml(r.id)}" ${busy || r.locked ? 'disabled' : ''}>
             <strong>${escapeHtml(r.name)}</strong>
-            <em>${r.seconds | 0}s · ${r.energyUse | 0} énergie</em>
+            <em>${r.locked ? `Requiert : ${escapeHtml(r.requiredResearchName || r.requiredResearchId || 'recherche')}` : `${r.seconds | 0}s · ${r.energyUse | 0} énergie`}</em>
             <div class="machine-panel__line"><b>Entrée</b>${fmtList(r.input, false)}</div>
             <div class="machine-panel__line"><b>Sortie</b>${fmtList(r.output, false)}</div>
           </button>`).join('') || '<div class="machine-panel__empty">Aucune recette disponible.</div>'}
@@ -242,7 +242,7 @@ export class MachinePanelView {
       <div class="machine-panel__production">
         <div class="machine-panel__recipe-banner">
           <div class="machine-panel__recipe-title">${escapeHtml(selected.name)}</div>
-          <div class="machine-panel__recipe-stats">${selected.seconds | 0}s · ${selected.energyUse | 0} énergie</div>
+          <div class="machine-panel__recipe-stats">${selected.locked ? `Requiert : ${escapeHtml(selected.requiredResearchName || selected.requiredResearchId || 'recherche')}` : `${selected.seconds | 0}s · ${selected.energyUse | 0} énergie`}</div>
         </div>
         ${progressHtml}
         <div class="machine-panel__cols">

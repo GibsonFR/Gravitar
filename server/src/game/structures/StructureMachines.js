@@ -3,11 +3,27 @@ import { isStructureOwner, distanceSqToStructureRect, findAliveCoreForStructure 
 import { addResource, removeResource, canAddResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { getMachineRecipe, getRecipesForMachine } from '../../../../shared/content/crafting/MachineRecipes.js';
+import { getRecipeResearchRequirement, getResearchName, isRecipeUnlockedByResearch } from '../../../../shared/content/research/ScienceResearchDefs.js';
 import { isMachineJobActive } from './StructureMachineRuntime.js';
 
 const MACHINE_RANGE = 280;
 const MACHINE_INPUT_CAPACITY = 160;
 const MACHINE_OUTPUT_CAPACITY = 160;
+
+
+function playerResearchCompleted(player) {
+  return Array.isArray(player?.research?.completed) ? player.research.completed : [];
+}
+
+function recipeLockSnapshot(recipe, player) {
+  const researchId = getRecipeResearchRequirement(recipe);
+  if (!researchId || isRecipeUnlockedByResearch(recipe, playerResearchCompleted(player))) return { locked: false, requiredResearchId: '', requiredResearchName: '' };
+  return { locked: true, requiredResearchId: researchId, requiredResearchName: getResearchName(researchId) };
+}
+
+function recipeUnlockedForPlayer(recipe, player) {
+  return !recipeLockSnapshot(recipe, player).locked;
+}
 
 function isExtractorStructure(structure) {
   return String(structure?.type || '').toLowerCase() === 'mining_extractor';
@@ -184,20 +200,29 @@ export function buildMachineSnapshot(state, player) {
   const def = getStructureDef(st.type);
   const core = findAliveCoreForStructure(state, st);
   if (isExtractorStructure(st)) return buildExtractorSnapshot(state, player, st, def, core);
-  const recipes = getRecipesForMachine(def.machineType).map((recipe) => ({
-    id: recipe.id,
-    name: recipe.name,
-    seconds: Number(recipe.seconds) || 0,
-    energyUse: getRecipeEnergyUse(st, recipe),
-    input: recipeEntries(recipe.input).map(([key, amount]) => ({ ...resourceEntry(key, amount | 0), have: player?.inv?.resources?.[key] | 0 })),
-    output: recipeEntries(recipe.output).map(([key, amount]) => resourceEntry(key, amount | 0))
-  }));
-  if (!st.machineRecipeId && recipes[0]?.id) st.machineRecipeId = recipes[0].id;
-  const selectedRecipe = getMachineRecipe(st.machineRecipeId) || getMachineRecipe(recipes[0]?.id || '');
+  const allRecipes = getRecipesForMachine(def.machineType);
+  const recipes = allRecipes.map((recipe) => {
+    const lock = recipeLockSnapshot(recipe, player);
+    return {
+      id: recipe.id,
+      name: recipe.name,
+      seconds: Number(recipe.seconds) || 0,
+      energyUse: getRecipeEnergyUse(st, recipe),
+      input: recipeEntries(recipe.input).map(([key, amount]) => ({ ...resourceEntry(key, amount | 0), have: player?.inv?.resources?.[key] | 0 })),
+      output: recipeEntries(recipe.output).map(([key, amount]) => resourceEntry(key, amount | 0)),
+      ...lock
+    };
+  });
+  const firstUnlockedRecipe = allRecipes.find((recipe) => recipeUnlockedForPlayer(recipe, player));
+  const currentRecipe = getMachineRecipe(st.machineRecipeId);
+  if (!currentRecipe || !recipeUnlockedForPlayer(currentRecipe, player)) st.machineRecipeId = firstUnlockedRecipe?.id || '';
+  const selectedRecipe = getMachineRecipe(st.machineRecipeId) || firstUnlockedRecipe || null;
   const input = resourceMap(st, 'input');
   const output = resourceMap(st, 'output');
   const job = buildJobSnapshot(st);
+  const selectedLock = selectedRecipe ? recipeLockSnapshot(selectedRecipe, player) : { locked: false, requiredResearchId: '', requiredResearchName: '' };
   const canRun = !!selectedRecipe
+    && !selectedLock.locked
     && canBaseStartRecipe(core, st, selectedRecipe)
     && hasMachineInputs(st, selectedRecipe, 1)
     && canFitMachineOutput(st, selectedRecipe, 1);
@@ -221,7 +246,8 @@ export function buildMachineSnapshot(state, player) {
       input: recipeEntries(selectedRecipe.input).map(([key, amount]) => resourceEntry(key, amount | 0, { stored: input[key] | 0, have: player?.inv?.resources?.[key] | 0 })),
       output: recipeEntries(selectedRecipe.output).map(([key, amount]) => resourceEntry(key, amount | 0)),
       canProduce,
-      canRun
+      canRun,
+      ...selectedLock
     } : null,
     recipes,
     input: mapRows(input),
@@ -244,6 +270,7 @@ export function selectMachineRecipe(state, player, structureId, recipeId, timeMs
   const def = getStructureDef(st.type);
   const recipe = getMachineRecipe(recipeId);
   if (!recipe || recipe.machineType !== def.machineType) return { ok: false, error: 'bad_recipe' };
+  if (!recipeUnlockedForPlayer(recipe, player)) return { ok: false, error: 'research_required' };
   st.machineRecipeId = recipe.id;
   st.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
@@ -301,6 +328,7 @@ export function processMachineRecipe(state, player, structureId, recipeId = '', 
   const def = getStructureDef(st.type);
   const recipe = getMachineRecipe(recipeId || st.machineRecipeId || '');
   if (!recipe || recipe.machineType !== def.machineType) return { ok: false, error: 'bad_recipe' };
+  if (!recipeUnlockedForPlayer(recipe, player)) return { ok: false, error: 'research_required' };
   st.machineRecipeId = recipe.id;
   st.machineEnabled = true;
   st.updatedAt = timeMs;

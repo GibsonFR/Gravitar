@@ -326,7 +326,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 6,
     color: '#25384d',
     borderColor: '#7edcff',
-    cost: { ironIngot: 8, copperWire: 8, siliconWafer: 3 }
+    cost: { ironOre: 18, copper: 12, aluminiumOre: 8 }
   },
 
   [STRUCTURE_TYPES.RESEARCH_STATION]: {
@@ -347,7 +347,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 8,
     color: '#26304d',
     borderColor: '#b58cff',
-    cost: { steelPlate: 8, printedCircuit: 4, opticalGlass: 2 }
+    cost: { ironIngot: 8, copperWire: 8, aluminiumOre: 12 }
   },
 
   [STRUCTURE_TYPES.INDUSTRIAL_PRESS]: {
@@ -368,7 +368,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 10,
     color: '#3e4653',
     borderColor: '#b6c8dc',
-    cost: { steelPlate: 5, copper: 8, aluminiumOre: 8 }
+    cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
   }
 ,
 

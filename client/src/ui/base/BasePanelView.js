@@ -1,3 +1,4 @@
+import { getResearchName, getStructureResearchRequirement, isStructureUnlockedByResearch } from '../../../../shared/content/research/ScienceResearchDefs.js';
 const BASE_TILE = 64;
 const SECTOR_HALF = 2000;
 const BUILD_RANGE = 1200;
@@ -249,7 +250,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 6,
     role: 'Produit les packs de science à partir de composants industriels.',
     stats: ['Machine de production', 'Packs de science'],
-    cost: { ironIngot: 8, copperWire: 8, siliconWafer: 3 }
+    cost: { ironOre: 18, copper: 12, aluminiumOre: 8 }
   },
   {
     type: 'research_station',
@@ -265,7 +266,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 8,
     role: 'Consomme les packs de science pour débloquer des technologies.',
     stats: ['Arbre de recherche', 'Packs requis', 'Énergie active'],
-    cost: { steelPlate: 8, printedCircuit: 4, opticalGlass: 2 }
+    cost: { ironIngot: 8, copperWire: 8, aluminiumOre: 12 }
   },
 
   {
@@ -368,7 +369,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 10,
     role: 'Assemble pièces mécaniques et blindage.',
     stats: ['Consommation : 10 énergie'],
-    cost: { steelPlate: 5, copper: 8, aluminiumOre: 8 }
+    cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
   },
   {
     type: 'ammo_storage',
@@ -554,6 +555,26 @@ function formatCost(cost = {}) {
   const entries = Object.entries(cost || {}).filter(([, v]) => Number(v) > 0);
   if (!entries.length) return 'Aucun coût';
   return entries.map(([key, amount]) => `${amount} ${RESOURCE_LABELS[key] || key}`).join(' · ');
+}
+
+function researchCompletedForStore(store) {
+  const overview = store?.myState?.researchOverview;
+  const direct = store?.myState?.research;
+  if (Array.isArray(overview?.completed)) return overview.completed;
+  if (Array.isArray(direct?.completed)) return direct.completed;
+  return [];
+}
+
+function unlockRequirementForBuild(store, type) {
+  const researchId = getStructureResearchRequirement(type);
+  if (!researchId) return null;
+  const completed = researchCompletedForStore(store);
+  if (isStructureUnlockedByResearch(type, completed)) return null;
+  return { id: researchId, name: getResearchName(researchId) };
+}
+
+function isBuildUnlocked(store, type) {
+  return !unlockRequirementForBuild(store, type);
 }
 
 function orientationCycle(def, current = 'h') {
@@ -788,6 +809,13 @@ export class BasePanelView {
   select(type) {
     const def = structureDef(type);
     if (!def) return;
+    const req = unlockRequirementForBuild(this.store, type);
+    if (req) {
+      this.hoveredType = type;
+      this.refresh();
+      this.status.textContent = `Recherche requise : ${req.name}`;
+      return;
+    }
     const prev = this.activeBuild;
     const orientation = prev?.type === type ? prev.orientation : def.orientation;
     this.activeBuild = { mode: 'build', type, orientation };
@@ -869,6 +897,8 @@ export class BasePanelView {
     if (def.fuelCapacity) sections.push(`<div class="base-panel__details-section"><strong>Carburant</strong><span>${def.fuelCapacity} unités</span></div>`);
     if (def.energyOutput) sections.push(`<div class="base-panel__details-section"><strong>Énergie</strong><span>+${def.energyOutput}</span></div>`);
     if (def.hp) sections.push(`<div class="base-panel__details-section"><strong>Résistance</strong><span>${def.hp} PV</span></div>`);
+    const requirement = unlockRequirementForBuild(this.store, def.type);
+    if (requirement) sections.unshift(`<div class="base-panel__details-section is-locked"><strong>Recherche requise</strong><span>${escapeHtml(requirement.name)}</span></div>`);
     sections.push(`<div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>`);
     this.details.innerHTML = `
       <div class="base-panel__details-icon base-panel__details-icon--${escapeHtml(def.icon)}">${iconSvg(def.icon)}</div>
@@ -900,14 +930,18 @@ export class BasePanelView {
     } else {
       this.grid.innerHTML = BUILD_STRUCTURES
         .filter((s) => s.category === this.category)
-        .map((s) => `
-          <button class="base-panel__btn ${s.type === activeType ? 'is-active' : ''}" data-type="${s.type}" type="button">
+        .map((s) => {
+          const req = unlockRequirementForBuild(this.store, s.type);
+          const locked = !!req;
+          return `
+          <button class="base-panel__btn ${s.type === activeType ? 'is-active' : ''} ${locked ? 'is-locked' : ''}" data-type="${s.type}" type="button" title="${locked ? `Requiert : ${escapeHtml(req.name)}` : ''}">
             <span class="base-panel__icon base-panel__icon--${escapeHtml(s.icon)}">${iconSvg(s.icon)}</span>
             <span class="base-panel__meta">
               <strong>${escapeHtml(s.title)}</strong>
+              ${locked ? `<small>Requiert : ${escapeHtml(req.name)}</small>` : ''}
             </span>
-          </button>
-        `).join('');
+          </button>`;
+        }).join('');
     }
     this.cancelBtn.classList.toggle('is-visible', !!this.activeBuild);
     this.renderDetails();
@@ -962,6 +996,26 @@ export class BasePanelView {
     }
     const def = structureDef(this.activeBuild.type);
     if (!def) return null;
+    const requirement = unlockRequirementForBuild(this.store, def.type);
+    if (requirement) {
+      this.lastPreview = {
+        mode: 'build',
+        type: def.type,
+        title: def.title,
+        reason: `Recherche requise : ${requirement.name}`,
+        ok: false,
+        x: mouseWorld.x,
+        y: mouseWorld.y,
+        sx: me?.sx | 0,
+        sy: me?.sy | 0,
+        w: def.w || BASE_TILE,
+        h: def.h || BASE_TILE,
+        tilesX: def.tilesX || 1,
+        tilesY: def.tilesY || 1,
+        gridSize: BASE_TILE
+      };
+      return this.lastPreview;
+    }
     const orientation = this.activeBuild.orientation || 'h';
     const size = orientedSize(def, orientation);
     const snapped = snapFootprint(mouseWorld.x, mouseWorld.y, size, BASE_TILE);

@@ -6079,3 +6079,30 @@ button.station-item-icon[draggable="true"]:active,
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v131 — verrous de recherche */
+.base-panel__btn.is-locked,
+.machine-panel__recipe-card.is-locked {
+  opacity: .48;
+  filter: grayscale(.35);
+  border-style: dashed;
+}
+.base-panel__btn.is-locked .base-panel__icon,
+.machine-panel__recipe-card.is-locked {
+  box-shadow: none;
+}
+.base-panel__details-section.is-locked {
+  border-color: rgba(255, 180, 120, .34);
+  background: rgba(54, 30, 12, .34);
+}
+.base-panel__meta small {
+  display: block;
+  margin-top: 3px;
+  color: rgba(255, 205, 150, .86);
+  font-size: 10px;
+  line-height: 1.2;
+}
+.machine-panel__recipe-card.is-locked em {
+  color: rgba(255, 190, 140, .92);
+}

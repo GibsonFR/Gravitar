@@ -25,78 +25,233 @@ export const RESEARCH_BRANCHES = Object.freeze([
 
 export const RESEARCH_PROJECTS = Object.freeze([
   {
-    id: 'construction_foundations', branch: 'construction', name: 'Fondations métalliques', tier: 1,
-    points: 12, energyUse: 8, pointCost: { basicSciencePack: 1 }, prereq: [],
-    unlockBuildings: ['Coffre de ressources', 'Coffre d’équipement', 'Coffre de roquettes', 'Laboratoire scientifique', 'Station de recherche'],
-    unlockRecipes: ['Science de base']
+    id: 'construction_foundations',
+    branch: 'construction',
+    name: 'Fondations métalliques',
+    points: 6,
+    energyUse: 8,
+    pointCost: { basicSciencePack: 1 },
+    unlockBuildings: ['Laboratoire scientifique', 'Station de recherche'],
+    unlockRecipes: ['Science automatisation'],
+    prereq: [],
+    tier: 1
   },
   {
-    id: 'industry_smelting_control', branch: 'industry', name: 'Contrôle de fusion', tier: 1,
-    points: 14, energyUse: 9, pointCost: { basicSciencePack: 1 }, prereq: [],
-    unlockBuildings: ['Four basique', 'Four haute température'],
-    unlockRecipes: ['Lingot de fer', 'Lingot de cuivre', 'Lingot d’aluminium', 'Verre optique', 'Fibre de carbone', 'Plaque de titane', 'Science industrielle']
+    id: 'industry_smelting_control',
+    branch: 'industry',
+    name: 'Contrôle de fusion',
+    points: 8,
+    energyUse: 9,
+    pointCost: { basicSciencePack: 1 },
+    unlockBuildings: ['Four haute température'],
+    unlockRecipes: ['Verre optique', 'Fibre de carbone', 'Plaque de titane'],
+    prereq: [],
+    tier: 1
   },
   {
-    id: 'automation_routing', branch: 'automation', name: 'Routage logistique', tier: 2,
-    points: 22, energyUse: 12, pointCost: { basicSciencePack: 1, automationSciencePack: 1 }, prereq: ['construction_foundations'],
-    unlockBuildings: ['Convoyeur', 'Convoyeur rapide', 'Bras robotisé', 'Bras rapide', 'Répartiteur', 'Fusionneur'],
-    unlockRecipes: ['Science automatisation', 'Servomoteur']
+    id: 'automation_routing',
+    branch: 'automation',
+    name: 'Routage logistique',
+    points: 9,
+    energyUse: 10,
+    pointCost: { basicSciencePack: 1, automationSciencePack: 1 },
+    unlockBuildings: ['Convoyeur', 'Convoyeur rapide', 'Bras robotisé', 'Bras rapide', 'Bras long', 'Répartiteur', 'Fusionneur'],
+    unlockRecipes: [],
+    prereq: ['construction_foundations'],
+    tier: 2
   },
   {
-    id: 'energy_distribution', branch: 'energy', name: 'Distribution énergétique', tier: 2,
-    points: 22, energyUse: 14, pointCost: { basicSciencePack: 1, energySciencePack: 1 }, prereq: ['construction_foundations'],
-    unlockBuildings: ['Panneau solaire', 'Générateur à carburant', 'Réservoir de carburant'],
-    unlockRecipes: ['Batterie lithium', 'Pile à combustible', 'Science énergétique']
+    id: 'energy_distribution',
+    branch: 'energy',
+    name: 'Distribution énergétique',
+    points: 10,
+    energyUse: 12,
+    pointCost: { basicSciencePack: 1, automationSciencePack: 1 },
+    unlockBuildings: ['Générateur thermique', 'Réservoir carburant'],
+    unlockRecipes: ['Batterie lithium', 'Pile à combustible'],
+    prereq: ['construction_foundations'],
+    tier: 2
   },
   {
-    id: 'advanced_industry', branch: 'industry', name: 'Industrie avancée', tier: 2,
-    points: 34, energyUse: 18, pointCost: { basicSciencePack: 1, automationSciencePack: 1, industrialSciencePack: 1 }, prereq: ['industry_smelting_control', 'automation_routing'],
-    unlockBuildings: ['Raffinerie chimique', 'Électrolyseur', 'Presse industrielle', 'Extracteur minier'],
-    unlockRecipes: ['Carburant raffiné', 'Biocarburant', 'Propergol', 'Fil de cuivre', 'Plaque d’acier', 'Blindage composite', 'Moteur électrique', 'Injecteur carburant']
+    id: 'advanced_industry',
+    branch: 'industry',
+    name: 'Industrie avancée',
+    points: 12,
+    energyUse: 16,
+    pointCost: { basicSciencePack: 1, automationSciencePack: 1 },
+    unlockBuildings: ['Raffinerie chimique', 'Électrolyseur'],
+    unlockRecipes: ['Carburant raffiné', 'Biocarburant', 'Hydrogène', 'Propergol', 'Science industrielle'],
+    prereq: ['industry_smelting_control', 'automation_routing'],
+    tier: 2
   },
   {
-    id: 'resource_scanning', branch: 'exploration', name: 'Scanner de ressources', tier: 3,
-    points: 30, energyUse: 16, pointCost: { basicSciencePack: 1, automationSciencePack: 1, energySciencePack: 1 }, prereq: ['energy_distribution'],
-    unlockBuildings: ['Balise de scan', 'Carte des gisements'],
-    unlockRecipes: ['Marqueurs de gisements', 'Analyse de biome']
-  },
-  {
-    id: 'electronics_processing', branch: 'industry', name: 'Électronique de contrôle', tier: 3,
-    points: 42, energyUse: 22, pointCost: { automationSciencePack: 1, industrialSciencePack: 1, energySciencePack: 1 }, prereq: ['advanced_industry', 'energy_distribution'],
+    id: 'electronics_processing',
+    branch: 'industry',
+    name: 'Électronique de contrôle',
+    points: 14,
+    energyUse: 18,
+    pointCost: { automationSciencePack: 1, industrialSciencePack: 1 },
     unlockBuildings: ['Atelier électronique'],
-    unlockRecipes: ['Wafer de silicium', 'Microtransistor', 'Circuit imprimé', 'Circuit de contrôle', 'Microprocesseur', 'Lentille laser', 'Céramique thermique']
+    unlockRecipes: ['Wafer de silicium', 'Microtransistor', 'Circuit imprimé', 'Circuit de contrôle', 'Microprocesseur', 'Lentille laser', 'Céramique thermique'],
+    prereq: ['advanced_industry', 'energy_distribution'],
+    tier: 3
   },
   {
-    id: 'bio_processing', branch: 'biology', name: 'Traitement biologique', tier: 3,
-    points: 44, energyUse: 22, pointCost: { basicSciencePack: 1, industrialSciencePack: 1, biologySciencePack: 1 }, prereq: ['advanced_industry'],
-    unlockBuildings: ['Cuve biologique'],
-    unlockRecipes: ['Science biologique', 'Enzymes stabilisées', 'Support organique', 'Catalyseur biologique']
+    id: 'resource_scanning',
+    branch: 'exploration',
+    name: 'Scanner de ressources',
+    points: 10,
+    energyUse: 14,
+    pointCost: { basicSciencePack: 1, automationSciencePack: 1, energySciencePack: 1 },
+    unlockBuildings: ['Extracteur minier'],
+    unlockRecipes: [],
+    prereq: ['energy_distribution', 'electronics_processing'],
+    tier: 3
   },
   {
-    id: 'defense_turrets', branch: 'defense', name: 'Systèmes défensifs', tier: 3,
-    points: 46, energyUse: 24, pointCost: { automationSciencePack: 1, industrialSciencePack: 1, combatSciencePack: 1 }, prereq: ['advanced_industry'],
-    unlockBuildings: ['Atelier d’armement', 'Atelier de boucliers'],
-    unlockRecipes: ['Science défense', 'Blindage composite', 'Module de bouclier basique', 'Munitions renforcées']
+    id: 'bio_processing',
+    branch: 'biology',
+    name: 'Traitement biologique',
+    points: 12,
+    energyUse: 18,
+    pointCost: { industrialSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Science biologique'],
+    prereq: ['advanced_industry'],
+    tier: 3
   },
   {
-    id: 'advanced_research', branch: 'industry', name: 'Recherche avancée', tier: 4,
-    points: 72, energyUse: 34, pointCost: { automationSciencePack: 1, industrialSciencePack: 1, energySciencePack: 1, advancedSciencePack: 1 }, prereq: ['electronics_processing', 'bio_processing'],
-    unlockBuildings: ['Atelier de modules', 'Atelier de propulseurs'],
-    unlockRecipes: ['Science avancée', 'Propulseur ionique', 'Module de cadence', 'Module de capacité', 'Module de rendement']
+    id: 'defense_turrets',
+    branch: 'defense',
+    name: 'Tourelles cinétiques',
+    points: 12,
+    energyUse: 20,
+    pointCost: { automationSciencePack: 1, industrialSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Blindage composite', 'Science défense'],
+    prereq: ['advanced_industry'],
+    tier: 3
   },
   {
-    id: 'pirate_reverse_engineering', branch: 'pirate', name: 'Rétro-ingénierie pirate', tier: 4,
-    points: 84, energyUse: 36, pointCost: { industrialSciencePack: 1, combatSciencePack: 1, advancedSciencePack: 1 }, prereq: ['defense_turrets', 'advanced_research'],
-    unlockBuildings: ['Banc de récupération pirate'],
-    unlockRecipes: ['Armes instables', 'Recycleur d’équipement', 'Catalyseur de reroll']
+    id: 'advanced_research',
+    branch: 'industry',
+    name: 'Recherche avancée',
+    points: 18,
+    energyUse: 26,
+    pointCost: { industrialSciencePack: 1, energySciencePack: 1, biologySciencePack: 1, combatSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Moteur électrique', 'Injecteur carburant', 'Science énergétique', 'Science avancée'],
+    prereq: ['electronics_processing', 'bio_processing', 'defense_turrets'],
+    tier: 4
   },
   {
-    id: 'alien_anomaly_analysis', branch: 'alien', name: 'Analyse d’anomalies', tier: 5,
-    points: 120, energyUse: 48, pointCost: { advancedSciencePack: 1, biologySciencePack: 1, combatSciencePack: 1, anomalySciencePack: 1 }, prereq: ['advanced_research', 'pirate_reverse_engineering'],
-    unlockBuildings: ['Stabilisateur anomalie', 'Forge exotique'],
-    unlockRecipes: ['Science anomalie', 'Matrice précurseur', 'Antimatière confinée stabilisée', 'Propulseur gravitationnel', 'Bouclier de phase']
+    id: 'pirate_reverse_engineering',
+    branch: 'pirate',
+    name: 'Rétro-ingénierie pirate',
+    points: 20,
+    energyUse: 28,
+    pointCost: { industrialSciencePack: 1, combatSciencePack: 1, advancedSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: [],
+    prereq: ['advanced_research'],
+    tier: 4
+  },
+  {
+    id: 'alien_anomaly_analysis',
+    branch: 'alien',
+    name: 'Analyse d’anomalies',
+    points: 30,
+    energyUse: 36,
+    pointCost: { advancedSciencePack: 1, biologySciencePack: 1, combatSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Science anomalie'],
+    prereq: ['advanced_research'],
+    tier: 5
   }
 ]);
+
+
+
+export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
+  high_temp_furnace: 'industry_smelting_control',
+  conveyor: 'automation_routing',
+  fast_conveyor: 'automation_routing',
+  splitter: 'automation_routing',
+  merger: 'automation_routing',
+  robot_arm: 'automation_routing',
+  fast_arm: 'automation_routing',
+  long_arm: 'automation_routing',
+  fuel_generator: 'energy_distribution',
+  fuel_tank: 'energy_distribution',
+  chemical_refinery: 'advanced_industry',
+  electrolyzer: 'advanced_industry',
+  electronics_bench: 'electronics_processing',
+  mining_extractor: 'resource_scanning'
+});
+
+export const RECIPE_RESEARCH_REQUIREMENTS = Object.freeze({
+  automation_science_pack: 'construction_foundations',
+  quartz_to_optical_glass: 'industry_smelting_control',
+  graphite_to_carbon_fiber: 'industry_smelting_control',
+  titanium_ore_to_titanium_plate: 'industry_smelting_control',
+  hydrocarbons_to_refined_fuel: 'advanced_industry',
+  biomass_lipids_to_biofuel: 'advanced_industry',
+  water_ice_to_hydrogen: 'advanced_industry',
+  methane_ammonia_to_propellant: 'advanced_industry',
+  industrial_science_pack: 'advanced_industry',
+  silicon_to_wafer: 'electronics_processing',
+  wafer_wire_to_microtransistor: 'electronics_processing',
+  microtransistor_to_printed_circuit: 'electronics_processing',
+  printed_circuit_to_control_circuit: 'electronics_processing',
+  printed_circuit_to_microprocessor: 'electronics_processing',
+  silicon_glass_to_laser_lens: 'electronics_processing',
+  quartz_sulfur_to_thermal_ceramic: 'electronics_processing',
+  lithium_wire_to_battery: 'energy_distribution',
+  hydrogen_circuit_to_fuel_cell: 'energy_distribution',
+  steel_titanium_carbon_to_composite_armor: 'defense_turrets',
+  biology_science_pack: 'bio_processing',
+  combat_science_pack: 'defense_turrets',
+  aluminium_copper_to_motor: 'advanced_research',
+  steel_fuel_to_injector: 'advanced_research',
+  energy_science_pack: 'advanced_research',
+  advanced_science_pack: 'advanced_research',
+  anomaly_science_pack: 'alien_anomaly_analysis'
+});
+
+export function completedResearchSet(researchOrCompleted = []) {
+  const list = Array.isArray(researchOrCompleted)
+    ? researchOrCompleted
+    : Array.isArray(researchOrCompleted?.completed)
+      ? researchOrCompleted.completed
+      : [];
+  return new Set(list.map((v) => String(v || '')).filter(Boolean));
+}
+
+export function getResearchName(researchId) {
+  return RESEARCH_PROJECTS.find((p) => p.id === researchId)?.name || researchId || '';
+}
+
+export function isResearchCompleted(researchOrCompleted, researchId) {
+  if (!researchId) return true;
+  return completedResearchSet(researchOrCompleted).has(researchId);
+}
+
+export function getStructureResearchRequirement(structureType) {
+  return STRUCTURE_RESEARCH_REQUIREMENTS[String(structureType || '').toLowerCase()] || '';
+}
+
+export function isStructureUnlockedByResearch(structureType, researchOrCompleted) {
+  return isResearchCompleted(researchOrCompleted, getStructureResearchRequirement(structureType));
+}
+
+export function getRecipeResearchRequirement(recipeOrId) {
+  const id = typeof recipeOrId === 'string' ? recipeOrId : recipeOrId?.id;
+  return RECIPE_RESEARCH_REQUIREMENTS[String(id || '')] || '';
+}
+
+export function isRecipeUnlockedByResearch(recipeOrId, researchOrCompleted) {
+  return isResearchCompleted(researchOrCompleted, getRecipeResearchRequirement(recipeOrId));
+}
 
 export function getSciencePack(id) { return SCIENCE_PACKS.find((p) => p.id === id) || null; }
 export function isSciencePack(id) { return !!getSciencePack(id); }
