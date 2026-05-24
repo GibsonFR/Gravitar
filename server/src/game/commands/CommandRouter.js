@@ -28,6 +28,8 @@ import { handleToggleStructure } from './ToggleStructureCommand.js';
 import { handleMachineOpen } from './MachineOpenCommand.js';
 import { handleMachineClose } from './MachineCloseCommand.js';
 import { handleMachineProcess } from './MachineProcessCommand.js';
+import { handleMachineSelectRecipe } from './MachineSelectRecipeCommand.js';
+import { handleMachineTransfer } from './MachineTransferCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -60,7 +62,9 @@ const HANDLERS = {
   toggle_structure: handleToggleStructure,
   machine_open: handleMachineOpen,
   machine_close: handleMachineClose,
-  machine_process: handleMachineProcess
+  machine_process: handleMachineProcess,
+  machine_select_recipe: handleMachineSelectRecipe,
+  machine_transfer: handleMachineTransfer
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

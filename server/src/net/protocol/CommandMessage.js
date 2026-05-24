@@ -1,5 +1,5 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer']);
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -78,6 +78,24 @@ export function sanitizeCommandMessage(raw) {
 
 
 
+
+  if (cmd === 'machine_select_recipe') {
+    const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
+    msg.structureId = Math.max(0, Math.min(2147483647, structureId));
+    msg.recipeId = cleanWord(raw.recipeId ?? raw.recipe ?? '', 80).toLowerCase();
+  }
+
+  if (cmd === 'machine_transfer') {
+    const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
+    msg.structureId = Math.max(0, Math.min(2147483647, structureId));
+    msg.resourceKey = cleanWord(raw.resourceKey ?? raw.resource ?? raw.key, 48);
+    const amount = Number.isFinite(raw.amount) ? Math.floor(raw.amount) : Math.floor(Number(raw.amount) || 0);
+    msg.amount = Math.max(1, Math.min(999999, amount));
+    const dir = cleanWord(raw.direction || raw.dir || '', 16).toLowerCase();
+    msg.direction = dir === 'withdraw' ? 'withdraw' : 'deposit';
+    const slot = cleanWord(raw.slot || 'input', 16).toLowerCase();
+    msg.slot = slot === 'output' ? 'output' : 'input';
+  }
 
   if (cmd === 'machine_process') {
     const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);

@@ -9,24 +9,34 @@ export const MACHINE_TYPES = Object.freeze({
 
 export const MACHINE_RECIPES = Object.freeze([
   {
-    id: 'iron_ore_to_steel_plate',
+    id: 'iron_ore_to_iron_ingot',
     machineType: MACHINE_TYPES.FURNACE,
-    name: 'Acier',
-    description: 'Réduction et fusion du minerai de fer.',
+    name: 'Lingot de fer',
+    description: 'Fonte du minerai de fer en lingots utilisables.',
     seconds: 6,
     energyUse: 4,
-    input: { ironOre: 8 },
-    output: { steelPlate: 1 }
+    input: { ironOre: 6 },
+    output: { ironIngot: 1 }
   },
   {
-    id: 'copper_to_wire',
+    id: 'copper_ore_to_copper_ingot',
     machineType: MACHINE_TYPES.FURNACE,
-    name: 'Fil de cuivre',
-    description: 'Fonte puis tréfilage simple du cuivre.',
-    seconds: 4,
-    energyUse: 3,
-    input: { copper: 4 },
-    output: { copperWire: 2 }
+    name: 'Lingot de cuivre',
+    description: 'Fonte du cuivre brut en lingots.',
+    seconds: 5,
+    energyUse: 4,
+    input: { copper: 5 },
+    output: { copperIngot: 1 }
+  },
+  {
+    id: 'aluminium_ore_to_aluminium_ingot',
+    machineType: MACHINE_TYPES.FURNACE,
+    name: 'Lingot d’aluminium',
+    description: 'Fonte basique du minerai d’aluminium.',
+    seconds: 7,
+    energyUse: 4,
+    input: { aluminiumOre: 6 },
+    output: { aluminiumIngot: 1 }
   },
   {
     id: 'quartz_to_optical_glass',
@@ -47,6 +57,16 @@ export const MACHINE_RECIPES = Object.freeze([
     energyUse: 10,
     input: { graphite: 7 },
     output: { carbonFiber: 1 }
+  },
+  {
+    id: 'titanium_ore_to_titanium_plate',
+    machineType: MACHINE_TYPES.HIGH_TEMP_FURNACE,
+    name: 'Plaque de titane',
+    description: 'Réduction haute température du minerai de titane.',
+    seconds: 12,
+    energyUse: 11,
+    input: { titaniumOre: 7 },
+    output: { titaniumPlate: 1 }
   },
   {
     id: 'hydrocarbons_to_refined_fuel',
@@ -119,13 +139,33 @@ export const MACHINE_RECIPES = Object.freeze([
     output: { printedCircuit: 1 }
   },
   {
+    id: 'copper_ingot_to_wire',
+    machineType: MACHINE_TYPES.INDUSTRIAL_PRESS,
+    name: 'Fil de cuivre',
+    description: 'Tréfilage mécanique du cuivre.',
+    seconds: 5,
+    energyUse: 5,
+    input: { copperIngot: 1 },
+    output: { copperWire: 4 }
+  },
+  {
+    id: 'iron_graphite_to_steel_plate',
+    machineType: MACHINE_TYPES.INDUSTRIAL_PRESS,
+    name: 'Plaque d’acier',
+    description: 'Laminage d’un acier simple à partir de fer et graphite.',
+    seconds: 8,
+    energyUse: 8,
+    input: { ironIngot: 2, graphite: 1 },
+    output: { steelPlate: 1 }
+  },
+  {
     id: 'steel_titanium_carbon_to_composite_armor',
     machineType: MACHINE_TYPES.INDUSTRIAL_PRESS,
     name: 'Blindage composite',
     description: 'Pressage de plaques métalliques et fibre de carbone.',
     seconds: 12,
     energyUse: 10,
-    input: { steelPlate: 3, titaniumOre: 3, carbonFiber: 1 },
+    input: { steelPlate: 3, titaniumPlate: 2, carbonFiber: 1 },
     output: { compositeArmor: 1 }
   },
   {
