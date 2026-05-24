@@ -25,6 +25,9 @@ import { handleStorageTransfer } from './StorageTransferCommand.js';
 import { handleStorageOpen } from './StorageOpenCommand.js';
 import { handleStorageClose } from './StorageCloseCommand.js';
 import { handleToggleStructure } from './ToggleStructureCommand.js';
+import { handleMachineOpen } from './MachineOpenCommand.js';
+import { handleMachineClose } from './MachineCloseCommand.js';
+import { handleMachineProcess } from './MachineProcessCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -54,7 +57,10 @@ const HANDLERS = {
   storage_transfer: handleStorageTransfer,
   storage_open: handleStorageOpen,
   storage_close: handleStorageClose,
-  toggle_structure: handleToggleStructure
+  toggle_structure: handleToggleStructure,
+  machine_open: handleMachineOpen,
+  machine_close: handleMachineClose,
+  machine_process: handleMachineProcess
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

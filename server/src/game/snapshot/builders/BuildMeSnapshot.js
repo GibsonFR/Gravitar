@@ -15,6 +15,7 @@ import { getSectorSummary } from '../../../../../shared/proc/SectorSummary.js';
 import { SECTOR_BIOMES } from '../../../../../shared/proc/SectorBiomes.js';
 import { getTestBiomeSector } from '../../sector/SpecialSectors.js';
 import { buildStorageSnapshot } from '../../structures/StructureStorage.js';
+import { buildMachineSnapshot } from '../../structures/StructureMachines.js';
 
 
 function buildCurrentSectorBiomeSnapshot(player, state = null) {
@@ -117,6 +118,7 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     equipment: buildEquipmentSnapshot(player),
     stationShop: buildStationShopSnapshot(dockedStation, player, timeMs),
     storage: buildStorageSnapshot(state, player),
+    machine: buildMachineSnapshot(state, player),
     map: buildPlayerMapSnapshot(player, state, timeMs),
     cooldowns: {
       A: player.cooldownALeft,
@@ -163,6 +165,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
     deaths: player.deaths,
     inv: buildInventorySnapshot(player.inv),
     storage: buildStorageSnapshot(state, player),
+    machine: buildMachineSnapshot(state, player),
     cooldowns: {
       A: player.cooldownALeft,
       Z: player.cooldownZLeft,

@@ -40,6 +40,7 @@ import { OptionsPanelView } from './ui/options/OptionsPanelView.js';
 import { getOptionsIconSvg } from './ui/options/OptionsIconSvg.js';
 import { BasePanelView } from './ui/base/BasePanelView.js';
 import { StoragePanelView } from './ui/storage/StoragePanelView.js';
+import { MachinePanelView } from './ui/machine/MachinePanelView.js';
 import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
 
@@ -212,6 +213,8 @@ export function startApp() {
   dock.registerPanel({ id: 'base', title: 'Build', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el, group: 'game' });
   const storagePanel = new StoragePanelView(sendCmd);
   uiRoot.appendChild(storagePanel.el);
+  const machinePanel = new MachinePanelView(sendCmd);
+  uiRoot.appendChild(machinePanel.el);
 
   window.addEventListener('keydown', (ev) => {
     const tag = String(ev.target?.tagName || '').toLowerCase();
@@ -319,10 +322,11 @@ export function startApp() {
   }
 
   function tryInteractStructureAt(px, py) {
-    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door');
+    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press');
     if (!st) return false;
     if (st.type === 'storage' || st.type === 'equipment_storage' || st.type === 'ammo_storage' || st.type === 'fuel_tank' || st.type === 'fuel_generator') sendCmd('storage_open', { structureId: st.id | 0 });
     else if (st.type === 'door') sendCmd('toggle_structure', { structureId: st.id | 0 });
+    else sendCmd('machine_open', { structureId: st.id | 0 });
     return true;
   }
 
@@ -838,6 +842,7 @@ export function startApp() {
 
     basePanel.update(store);
     storagePanel.update(store);
+    machinePanel.update(store);
     playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
     stationWindow.update(store.myState, store.stations);

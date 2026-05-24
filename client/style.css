@@ -4484,3 +4484,95 @@ button.station-item-icon[draggable="true"]:active,
   box-shadow: 0 0 10px rgba(123,220,255,.35);
   flex: 0 0 auto;
 }
+
+.machine-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(680px, calc(100vh - 60px));
+  z-index: 80;
+  background: rgba(7, 14, 24, .94);
+  border: 1px solid rgba(118, 207, 255, .34);
+  border-radius: 16px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .42), inset 0 0 34px rgba(77, 170, 255, .04);
+  color: #eaf6ff;
+  pointer-events: auto;
+  overflow: hidden;
+}
+.machine-panel.is-hidden { display: none; }
+.machine-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid rgba(130, 215, 255, .18);
+}
+.machine-panel__eyebrow {
+  color: #7fdfff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.machine-panel__title {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.machine-panel__meta {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.machine-panel__meta.is-powered { color: #9cf3bd; }
+.machine-panel__meta.is-unpowered { color: #ff9b8f; }
+.machine-panel__close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 120, 120, .42);
+  color: #ffd1d1;
+  background: rgba(120, 36, 45, .45);
+  font-weight: 900;
+  cursor: pointer;
+}
+.machine-panel__recipes {
+  padding: 16px 18px 20px;
+  overflow: auto;
+  max-height: 520px;
+  display: grid;
+  gap: 12px;
+}
+.machine-panel__recipe {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid rgba(126, 210, 255, .18);
+  border-radius: 12px;
+  background: rgba(10, 25, 40, .62);
+}
+.machine-panel__recipe.is-disabled { opacity: .58; }
+.machine-panel__recipe-title { font-weight: 900; font-size: 16px; }
+.machine-panel__recipe-desc { margin-top: 3px; color: rgba(220, 238, 255, .72); font-size: 12px; }
+.machine-panel__line { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.machine-panel__line b { color: #9edfff; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; min-width: 48px; }
+.machine-panel__res { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; color: #eaf6ff; }
+.machine-panel__res i { width: 8px; height: 8px; border-radius: 50%; background: var(--res); box-shadow: 0 0 10px var(--res); }
+.machine-panel__have { color: #ffe48d; font-weight: 900; }
+.machine-panel__recipe-actions { display: flex; flex-direction: column; gap: 7px; align-items: stretch; }
+.machine-panel__time { text-align: center; color: #9edfff; font-size: 12px; font-weight: 800; }
+.machine-panel__recipe-actions button {
+  border: 1px solid rgba(127, 223, 255, .38);
+  border-radius: 9px;
+  padding: 8px 10px;
+  color: #ecfbff;
+  background: rgba(34, 118, 158, .35);
+  font-weight: 900;
+  cursor: pointer;
+}
+.machine-panel__recipe-actions button:disabled { cursor: not-allowed; opacity: .48; }
+.machine-panel__empty { color: rgba(220, 238, 255, .68); padding: 20px; }

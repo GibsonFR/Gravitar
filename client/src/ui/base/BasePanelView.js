@@ -14,7 +14,11 @@ const RESOURCE_LABELS = {
   silicon: 'Silicium',
   refinedFuel: 'Carburant raffiné',
   biofuel: 'Biocarburant',
-  propellant: 'Propergol'
+  propellant: 'Propergol',
+  steelPlate: 'Acier',
+  copperWire: 'Fil de cuivre',
+  siliconWafer: 'Wafer de silicium',
+  carbonFiber: 'Fibre de carbone'
 };
 
 function iconSvg(kind) {
@@ -29,6 +33,7 @@ function iconSvg(kind) {
   if (kind === 'solar_panel') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="18" width="44" height="28" rx="4" fill="rgba(189,233,146,.13)" stroke="currentColor" stroke-width="3"/><path d="M21 18v28M32 18v28M43 18v28M10 32h44M20 10l-4 5M32 7v7M44 10l4 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></svg>`;
   if (kind === 'fuel_generator') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="13" y="16" width="38" height="34" rx="5" fill="rgba(255,183,97,.13)" stroke="currentColor" stroke-width="3"/><path d="M25 42c-3-7 5-10 4-18 7 5 10 10 8 18" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M19 23h8M37 23h8M19 50h26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'fuel_tank') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 13h24l6 8v30H14V21l6-8z" fill="rgba(255,195,111,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 29h20M22 38h20M27 13v-4h10v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".75"/></svg>`;
+  if (kind === 'machine') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="18" width="42" height="32" rx="5" fill="rgba(255,180,110,.12)" stroke="currentColor" stroke-width="3"/><circle cx="25" cy="34" r="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M37 27h8M37 34h8M37 41h8M18 18v-6h28v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'power') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M35 6L16 36h14l-3 22 21-34H34l1-18z" fill="rgba(255,213,95,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
   return '';
 }
@@ -172,6 +177,109 @@ export const BUILD_STRUCTURES = [
     stats: ['Capacité : 240 carburant'],
     cost: { ironOre: 16, copper: 8, aluminiumOre: 8 }
   },
+
+  {
+    type: 'furnace',
+    category: 'industry',
+    title: 'Four basique',
+    subtitle: '2 × 2 cases',
+    icon: 'machine',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyUse: 4,
+    role: 'Transforme les minerais communs.',
+    stats: ['Consommation : 4 énergie'],
+    cost: { ironOre: 18, copper: 4 }
+  },
+  {
+    type: 'high_temp_furnace',
+    category: 'industry',
+    title: 'Four haute température',
+    subtitle: '2 × 2 cases',
+    icon: 'machine',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyUse: 9,
+    role: 'Traite quartz, graphite et matériaux durs.',
+    stats: ['Consommation : 9 énergie'],
+    cost: { steelPlate: 4, copper: 8, aluminiumOre: 8 }
+  },
+  {
+    type: 'chemical_refinery',
+    category: 'industry',
+    title: 'Raffinerie chimique',
+    subtitle: '2 × 2 cases',
+    icon: 'machine',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyUse: 6,
+    role: 'Produit carburants et composants chimiques.',
+    stats: ['Consommation : 6 énergie'],
+    cost: { ironOre: 18, copper: 8, aluminiumOre: 6 }
+  },
+  {
+    type: 'electrolyzer',
+    category: 'industry',
+    title: 'Électrolyseur',
+    subtitle: '2 × 2 cases',
+    icon: 'machine',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyUse: 8,
+    role: 'Sépare et stabilise les volatils.',
+    stats: ['Consommation : 8 énergie'],
+    cost: { aluminiumOre: 14, copper: 10, silicon: 6 }
+  },
+  {
+    type: 'electronics_bench',
+    category: 'industry',
+    title: 'Atelier électronique',
+    subtitle: '2 × 2 cases',
+    icon: 'machine',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyUse: 7,
+    role: 'Produit wafers, transistors et circuits.',
+    stats: ['Consommation : 7 énergie'],
+    cost: { aluminiumOre: 12, copper: 12, silicon: 8 }
+  },
+  {
+    type: 'industrial_press',
+    category: 'industry',
+    title: 'Presse industrielle',
+    subtitle: '2 × 2 cases',
+    icon: 'machine',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyUse: 10,
+    role: 'Assemble pièces mécaniques et blindage.',
+    stats: ['Consommation : 10 énergie'],
+    cost: { steelPlate: 5, copper: 8, aluminiumOre: 8 }
+  },
   {
     type: 'ammo_storage',
     category: 'storage',
@@ -195,6 +303,7 @@ const BUILD_CATEGORIES = [
   { id: 'construction', label: 'Construction de base', icon: 'core' },
   { id: 'storage', label: 'Stockage', icon: 'storage' },
   { id: 'power', label: 'Énergie', icon: 'power' },
+  { id: 'industry', label: 'Industrie', icon: 'machine' },
   { id: 'repair', label: 'Réparer', icon: 'repair' },
   { id: 'demolish', label: 'Démolition', icon: 'demolish' }
 ];
