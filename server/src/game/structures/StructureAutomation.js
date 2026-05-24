@@ -406,7 +406,7 @@ function updateExtractor(state, extractor, timeMs) {
   const map = getOutputMap(extractor);
   if (!map) return false;
 
-  let changed = pushExtractorBuffer(state, extractor, timeMs);
+  let changed = false;
   let deposit = findDepositById(state, extractor.depositId, extractor);
   if (!deposit) {
     deposit = findNearestDeposit(state, extractor);

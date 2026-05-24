@@ -19,7 +19,7 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
 
 async function boot() {
   try {
-    const mod = await import('./src/App.js?v=141');
+    const mod = await import('./src/App.js?v=142');
     mod.startApp();
   } catch (err) {
     showBootError(err, 'Erreur au chargement du jeu');

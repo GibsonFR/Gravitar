@@ -196,7 +196,7 @@ export class MachinePanelView {
                   ${machine.enabled !== false ? 'Arrêter' : 'Activer'}
                 </button>
                 <div class="machine-panel__status ${powerClass}">${escapeHtml(status)}</div>
-                <div class="machine-panel__hint">Pose-le sur un gisement. Sortie automatique vers l’avant ou récupération manuelle du buffer.</div>
+                <div class="machine-panel__hint">Pose-le près d’un gisement. Les bras récupèrent la ressource depuis son buffer.</div>
               </section>
               <section class="machine-panel__box">
                 <h3>Buffer <span>${Math.round(machine.outputUsed || 0)} / ${Math.round(machine.outputCapacity || 0)}</span></h3>

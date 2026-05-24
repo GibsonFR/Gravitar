@@ -1244,9 +1244,6 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
     ctx.globalAlpha *= 0.92;
     drawRobotArmBody(ctx, view, preview, w, h);
     drawDirectionArrow(ctx, view, preview, w, h, true);
-  } else if (preview.type === 'mining_extractor') {
-    ctx.globalAlpha *= 0.92;
-    drawDirectionArrow(ctx, view, preview, w, h, true);
   }
 
   if (!ok) {
