@@ -1,6 +1,7 @@
 import { buildStatBlockSnapshot } from '../../stats/StatBlockSnapshot.js';
 import { buildStatusSnapshot } from '../../status/StatusView.js';
 import { isStructureProtectedByCore, canPlayerDamageStructure } from '../../structures/StructureSystem.js';
+import { RESOURCE_DEFS } from '../../inventory/ResourceDefs.js';
 
 function q(value, decimals = 1) {
   const n = Number(value);
@@ -148,6 +149,23 @@ export function buildAsteroidCombatSnapshots(asteroids, inSector) {
 }
 
 
+
+function firstStructureResourcePreview(structure) {
+  const maps = [];
+  if (structure?.storage?.resources) maps.push(structure.storage.resources);
+  if (structure?.machineInput) maps.push(structure.machineInput);
+  if (structure?.machineOutput) maps.push(structure.machineOutput);
+  for (const map of maps) {
+    const entries = Object.entries(map || {}).filter(([, amount]) => (amount | 0) > 0);
+    if (!entries.length) continue;
+    entries.sort(([a], [b]) => String(a).localeCompare(String(b)));
+    const [key, amount] = entries[0];
+    const def = RESOURCE_DEFS[key] || {};
+    return { key, name: def.name || key, colorHex: def.colorHex || '#d7e5ff', amount: amount | 0 };
+  }
+  return null;
+}
+
 function getAutomationKindSnapshot(structure) {
   if (structure?.type === 'conveyor') return 'conveyor';
   if (structure?.type === 'robot_arm') return 'robot_arm';
@@ -193,6 +211,8 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
         paused: !!structure.machineJob.paused
       } : null,
       storageUsed: structure.storage?.resources ? Object.values(structure.storage.resources).reduce((a, b) => a + (b | 0), 0) : 0,
+      storagePreview: firstStructureResourcePreview(structure),
+      automationItem: structure.automationItem || null,
       automationKind: getAutomationKindSnapshot(structure),
       automationPulse: structure.automationPulse || 0,
       baseCoreId: structure.baseCoreId | 0 || 0,

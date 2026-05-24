@@ -34,6 +34,9 @@ function iconSvg(kind) {
   if (kind === 'fuel_generator') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="13" y="16" width="38" height="34" rx="5" fill="rgba(255,183,97,.13)" stroke="currentColor" stroke-width="3"/><path d="M25 42c-3-7 5-10 4-18 7 5 10 10 8 18" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M19 23h8M37 23h8M19 50h26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'fuel_tank') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 13h24l6 8v30H14V21l6-8z" fill="rgba(255,195,111,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 29h20M22 38h20M27 13v-4h10v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'machine') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="18" width="42" height="32" rx="5" fill="rgba(255,180,110,.12)" stroke="currentColor" stroke-width="3"/><circle cx="25" cy="34" r="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M37 27h8M37 34h8M37 41h8M18 18v-6h28v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".72"/></svg>`;
+  if (kind === 'automation') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 34h34" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M38 24l12 10-12 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="46" r="4" fill="currentColor" opacity=".65"/><circle cx="32" cy="46" r="4" fill="currentColor" opacity=".65"/></svg>`;
+  if (kind === 'conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="22" width="48" height="20" rx="4" fill="rgba(110,215,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M18 32h25M37 24l9 8-9 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="48" r="3" fill="currentColor" opacity=".65"/><circle cx="32" cy="48" r="3" fill="currentColor" opacity=".65"/><circle cx="46" cy="48" r="3" fill="currentColor" opacity=".65"/></svg>`;
+  if (kind === 'robot_arm') return `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="8" fill="rgba(255,210,123,.12)" stroke="currentColor" stroke-width="3"/><path d="M12 32h16M36 32h16M46 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 22l8 8M46 42l-8-8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'power') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M35 6L16 36h14l-3 22 21-34H34l1-18z" fill="rgba(255,213,95,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
   return '';
 }
@@ -305,7 +308,7 @@ export const BUILD_STRUCTURES = [
     title: 'Convoyeur',
     subtitle: '1 × 1 case',
     icon: 'conveyor',
-    orientation: 'h',
+    orientation: 'r',
     rotatable: true,
     tilesX: 1,
     tilesY: 1,
@@ -323,7 +326,7 @@ export const BUILD_STRUCTURES = [
     title: 'Bras robotique',
     subtitle: '1 × 1 case',
     icon: 'robot_arm',
-    orientation: 'h',
+    orientation: 'r',
     rotatable: true,
     tilesX: 1,
     tilesY: 1,
@@ -357,6 +360,24 @@ function formatCost(cost = {}) {
   const entries = Object.entries(cost || {}).filter(([, v]) => Number(v) > 0);
   if (!entries.length) return 'Aucun coût';
   return entries.map(([key, amount]) => `${amount} ${RESOURCE_LABELS[key] || key}`).join(' · ');
+}
+
+function orientationCycle(def, current = 'h') {
+  const o = String(current || 'h').toLowerCase();
+  if (def?.type === 'conveyor' || def?.type === 'robot_arm') {
+    const all = ['r', 'd', 'l', 'u'];
+    return all[(all.indexOf(o) + 1 + all.length) % all.length];
+  }
+  return o === 'v' ? 'h' : 'v';
+}
+
+function orientationLabel(o = 'h') {
+  const v = String(o || 'h').toLowerCase();
+  if (v === 'r' || v === 'h') return 'Droite';
+  if (v === 'd' || v === 'v') return 'Bas';
+  if (v === 'l') return 'Gauche';
+  if (v === 'u') return 'Haut';
+  return 'Horizontal';
 }
 
 function orientedSize(def, orientation = 'h') {
@@ -600,8 +621,8 @@ export class BasePanelView {
     if (!this.activeBuild || this.activeBuild.mode !== 'build') return false;
     const def = structureDef(this.activeBuild.type);
     if (!def?.rotatable) return false;
-    this.activeBuild.orientation = this.activeBuild.orientation === 'v' ? 'h' : 'v';
-    this.status.textContent = this.activeBuild.orientation === 'v' ? 'Vertical' : 'Horizontal';
+    this.activeBuild.orientation = orientationCycle(def, this.activeBuild.orientation);
+    this.status.textContent = `Orientation : ${orientationLabel(this.activeBuild.orientation)}`;
     return true;
   }
 

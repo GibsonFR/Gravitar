@@ -34,7 +34,8 @@ function q(v, fallback = 0) {
 export function createStructure(state, type, sx, sy, x, y, options = {}) {
   const def = getStructureDef(type);
   if (!def) return null;
-  const orientation = String(options.orientation || 'h').toLowerCase() === 'v' ? 'v' : 'h';
+  const rawOrientation = String(options.orientation || 'h').toLowerCase();
+  const orientation = ['h', 'v', 'r', 'd', 'l', 'u'].includes(rawOrientation) ? rawOrientation : 'h';
   const swap = (def.id === 'wall' || def.id === 'door') && orientation === 'v';
   const id = Number.isFinite(options.id) ? (options.id | 0) : newEntityId(state);
   const damageable = def.damageable !== false;

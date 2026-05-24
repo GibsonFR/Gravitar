@@ -7,7 +7,8 @@ function finite(value, fallback) {
 
 export function handleBuildStructure(state, player, msg, timeMs) {
   const type = String(msg.structureType || msg.type || '').toLowerCase();
-  const orientation = String(msg.orientation || 'h').toLowerCase() === 'v' ? 'v' : 'h';
+  const rawOrientation = String(msg.orientation || 'h').toLowerCase();
+  const orientation = ['h', 'v', 'r', 'd', 'l', 'u'].includes(rawOrientation) ? rawOrientation : 'h';
   const x = finite(msg.x, player.x + Math.cos(player.rot || 0) * 170);
   const y = finite(msg.y, player.y + Math.sin(player.rot || 0) * 170);
   const result = placeStructure(state, player, type, x, y, orientation, timeMs);

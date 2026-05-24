@@ -48,7 +48,10 @@ function sameWorld(a, b) {
 
 function dirOf(st) {
   const o = String(st?.orientation || 'h').toLowerCase();
-  return o === 'v' ? { x: 0, y: 1 } : { x: 1, y: 0 };
+  if (o === 'v' || o === 'd') return { x: 0, y: 1 };
+  if (o === 'u') return { x: 0, y: -1 };
+  if (o === 'l') return { x: -1, y: 0 };
+  return { x: 1, y: 0 };
 }
 
 function targetPoint(st, forward = true) {
@@ -113,6 +116,26 @@ function getInputMap(st, key) {
   return null;
 }
 
+function firstResourcePreview(resources = {}) {
+  const entries = Object.entries(clean(resources)).filter(([, amount]) => (amount | 0) > 0);
+  if (!entries.length) return null;
+  entries.sort(([a], [b]) => String(a).localeCompare(String(b)));
+  const key = entries[0][0];
+  const def = RESOURCE_DEFS[key] || {};
+  return { key, name: def.name || key, colorHex: def.colorHex || '#d7e5ff', amount: entries[0][1] | 0 };
+}
+
+function setAutomationVisual(st, key, timeMs, phase = 'move') {
+  const def = RESOURCE_DEFS[key] || {};
+  st.automationItem = {
+    key,
+    name: def.name || key,
+    colorHex: def.colorHex || '#d7e5ff',
+    phase,
+    at: timeMs
+  };
+}
+
 function takeOne(source) {
   const map = getOutputMap(source);
   if (!map) return null;
@@ -141,7 +164,7 @@ function putOne(target, key) {
   return true;
 }
 
-function moveOne(source, target) {
+function moveOne(source, target, timeMs = Date.now()) {
   if (!source || !target) return false;
   const map = getOutputMap(source);
   if (!map) return false;
@@ -153,8 +176,10 @@ function moveOne(source, target) {
     map[key] = (map[key] | 0) - 1;
     clean(map);
     putOne(target, key);
-    source.updatedAt = Date.now();
-    target.updatedAt = Date.now();
+    setAutomationVisual(source, key, timeMs, 'out');
+    setAutomationVisual(target, key, timeMs, 'in');
+    source.updatedAt = timeMs;
+    target.updatedAt = timeMs;
     return true;
   }
   return false;
@@ -166,7 +191,7 @@ function updateConveyor(state, belt, timeMs) {
   if (timeMs - (belt.lastAutomationAt || 0) < interval) return false;
   const target = findStructureAt(state, belt, targetPoint(belt, true));
   if (!target) return false;
-  if (!moveOne(belt, target)) return false;
+  if (!moveOne(belt, target, timeMs)) return false;
   belt.lastAutomationAt = timeMs;
   belt.automationPulse = timeMs;
   return true;
@@ -179,7 +204,7 @@ function updateRobotArm(state, arm, timeMs) {
   const source = findStructureAt(state, arm, targetPoint(arm, false));
   const target = findStructureAt(state, arm, targetPoint(arm, true));
   if (!source || !target) return false;
-  if (!moveOne(source, target)) return false;
+  if (!moveOne(source, target, timeMs)) return false;
   arm.lastAutomationAt = timeMs;
   arm.automationPulse = timeMs;
   return true;

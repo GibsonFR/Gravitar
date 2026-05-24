@@ -5,6 +5,7 @@ import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
 import { SPECIAL_SECTORS } from '../sector/SpecialSectors.js';
 import { PLAYER_PROGRESSION_TUNING } from '../../../../shared/content/progression/PlayerProgressionTuning.js';
 import { createInventoryState } from '../inventory/InventoryState.js';
+import { addResource } from '../inventory/InventorySystem.js';
 import { createEquipmentState } from '../equipment/EquipmentState.js';
 import { STARTER_ITEM_IDS, STARTER_AMMO_LOADOUT } from '../../../../shared/content/items/ItemDefs.js';
 import { createPlayerProgressionState } from '../player/runtime/PlayerProgressionState.js';
@@ -262,6 +263,17 @@ export function queueForNextBattle(state, player, timeMs) {
 }
 
 
+function grantTestResources(player) {
+  if (!player?.inv) return;
+  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 240);
+  const pack = {
+    ironOre: 48, copper: 48, aluminiumOre: 32, titaniumOre: 24, quartz: 32, graphite: 24,
+    silicon: 32, hydrocarbons: 28, biomass: 24, organicLipids: 16, waterIce: 24, methane: 20, ammonia: 20,
+    refinedFuel: 20, biofuel: 12, propellant: 12
+  };
+  for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
+}
+
 function resetNonPersistentModeLoadout(player, options = {}) {
   if (!player) return;
   player.inv = createInventoryState();
@@ -324,6 +336,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   player.dockProg01 = 0;
   player.dockTimer = 0;
   if (player.inv) player.inv.credits = Math.max(player.inv.credits || 0, def.credits | 0 || 0);
+  grantTestResources(player);
   if (player.progression) {
     player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
     player.progression.xp = 0;

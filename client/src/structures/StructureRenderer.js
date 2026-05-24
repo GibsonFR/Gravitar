@@ -24,6 +24,48 @@ function ownerPalette(s) {
   };
 }
 
+
+function dirOf(s) {
+  const o = String(s?.orientation || 'h').toLowerCase();
+  if (o === 'v' || o === 'd') return { x: 0, y: 1, label: 'bas' };
+  if (o === 'u') return { x: 0, y: -1, label: 'haut' };
+  if (o === 'l') return { x: -1, y: 0, label: 'gauche' };
+  return { x: 1, y: 0, label: 'droite' };
+}
+
+function rotateToDir(ctx, s) {
+  const d = dirOf(s);
+  const angle = d.x > 0 ? 0 : d.y > 0 ? Math.PI / 2 : d.x < 0 ? Math.PI : -Math.PI / 2;
+  ctx.rotate(angle);
+}
+
+function drawAutomationItem(ctx, view, s, w, h, t) {
+  const preview = s.automationItem || s.storagePreview || null;
+  const used = Number(s.storageUsed || 0);
+  if (!preview && used <= 0) return;
+  const color = preview?.colorHex || 'rgba(230,245,255,.95)';
+  const dir = dirOf(s);
+  const age = Math.max(0, Math.min(1, (Date.now() - Number(s.automationPulse || preview?.at || 0)) / 520));
+  const phase = s.automationItem ? age : (0.5 + 0.35 * Math.sin(t * 3.0));
+  const px = dir.x * (phase - 0.5) * w * 0.68;
+  const py = dir.y * (phase - 0.5) * h * 0.68;
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8 * view.dpr;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(px, py, Math.max(4, Math.min(w, h) * 0.09), 0, Math.PI * 2);
+  ctx.fill();
+  if (preview?.amount > 1) {
+    ctx.shadowBlur = 0;
+    ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.fillText(String(preview.amount), px, py - Math.min(w, h) * 0.14);
+  }
+  ctx.restore();
+}
+
 function drawStructureBar(ctx, view, s, sx, sy) {
   if (!s?.damageable || !s.vitals) return;
   const hp = s.vitals?.hp ?? 0;
@@ -228,37 +270,26 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     ctx.lineWidth = 1.5 * view.dpr;
     ctx.beginPath();
     if (isConveyor) {
-      const horizontal = (s.orientation || 'h') !== 'v';
+      ctx.save();
+      rotateToDir(ctx, s);
       ctx.rect(-w * 0.38, -h * 0.22, w * 0.76, h * 0.44);
-      if (horizontal) {
-        ctx.moveTo(-w * 0.22, 0); ctx.lineTo(w * 0.22, 0);
-        ctx.moveTo(w * 0.22, 0); ctx.lineTo(w * 0.08, -h * 0.12);
-        ctx.moveTo(w * 0.22, 0); ctx.lineTo(w * 0.08, h * 0.12);
-      } else {
-        ctx.moveTo(0, -h * 0.22); ctx.lineTo(0, h * 0.22);
-        ctx.moveTo(0, h * 0.22); ctx.lineTo(-w * 0.12, h * 0.08);
-        ctx.moveTo(0, h * 0.22); ctx.lineTo(w * 0.12, h * 0.08);
-      }
+      ctx.moveTo(-w * 0.26, 0); ctx.lineTo(w * 0.24, 0);
+      ctx.moveTo(w * 0.24, 0); ctx.lineTo(w * 0.08, -h * 0.13);
+      ctx.moveTo(w * 0.24, 0); ctx.lineTo(w * 0.08, h * 0.13);
       ctx.moveTo(-w * 0.30, h * 0.30); ctx.arc(-w * 0.30, h * 0.30, w * 0.035, 0, Math.PI * 2);
       ctx.moveTo(0, h * 0.30); ctx.arc(0, h * 0.30, w * 0.035, 0, Math.PI * 2);
       ctx.moveTo(w * 0.30, h * 0.30); ctx.arc(w * 0.30, h * 0.30, w * 0.035, 0, Math.PI * 2);
-      if ((s.storageUsed | 0) > 0) {
-        ctx.moveTo(0, 0); ctx.arc(0, 0, w * 0.08, 0, Math.PI * 2);
-      }
+      ctx.restore();
     } else if (isRobotArm) {
-      const vertical = (s.orientation || 'h') === 'v';
+      ctx.save();
+      rotateToDir(ctx, s);
       ctx.arc(0, 0, Math.min(w, h) * 0.16, 0, Math.PI * 2);
-      if (vertical) {
-        ctx.moveTo(0, -h * 0.34); ctx.lineTo(0, h * 0.28);
-        ctx.moveTo(0, h * 0.28); ctx.lineTo(-w * 0.11, h * 0.14);
-        ctx.moveTo(0, h * 0.28); ctx.lineTo(w * 0.11, h * 0.14);
-      } else {
-        ctx.moveTo(-w * 0.34, 0); ctx.lineTo(w * 0.28, 0);
-        ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, -h * 0.11);
-        ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, h * 0.11);
-      }
+      ctx.moveTo(-w * 0.34, 0); ctx.lineTo(w * 0.28, 0);
+      ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, -h * 0.11);
+      ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, h * 0.11);
       ctx.moveTo(-w * 0.30, -h * 0.30); ctx.lineTo(-w * 0.16, -h * 0.16);
       ctx.moveTo(w * 0.30, h * 0.30); ctx.lineTo(w * 0.16, h * 0.16);
+      ctx.restore();
     } else if (isSolar) {
       for (let i = -1; i <= 1; i += 1) {
         const x = i * w * 0.18;
@@ -340,6 +371,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
       ctx.lineTo(0, h * 0.42);
     }
     ctx.stroke();
+    if (isConveyor || isRobotArm) drawAutomationItem(ctx, view, s, w, h, t);
   }
   ctx.restore();
   drawStructureBar(ctx, view, s, p.x, p.y);
