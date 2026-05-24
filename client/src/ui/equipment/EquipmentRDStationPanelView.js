@@ -36,6 +36,14 @@ function statLabel(key) {
   })[key] || key;
 }
 
+function timeLabel(seconds) {
+  const s = Math.max(0, seconds | 0);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r ? `${m}m ${r}s` : `${m}m`;
+}
+
 function formatStat(key, value) {
   const n = Number(value) || 0;
   const sign = n > 0 ? '+' : '';
@@ -152,17 +160,27 @@ export class EquipmentRDStationPanelView {
       return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}<small>tier ${s.tier | 0} · ajouter</small></button>`;
     }).join('');
 
+    const activeProgress = Math.max(0, Math.min(1, active?.progress || 0));
+    const activeRemaining = Math.ceil((active?.remainingMs | 0) / 1000);
+    const activeTotal = Math.max(1, Math.ceil((active?.totalMs | 0) / 1000));
+    const activeSciences = Array.isArray(active?.sciences) ? active.sciences : [];
     const activeHtml = active ? `
-      <div class="equipment-fab__result">
-        <div>
-          <span>En cours</span>
-          <strong>${escapeHtml(active.itemName)}</strong>
-          <small>${Math.ceil((active.remainingMs | 0) / 1000)}s${Array.isArray(active.sciences) && active.sciences.length ? ` · score ${active.scienceScore | 0}` : ''}</small>
+      <div class="equipment-rd__progress-card">
+        <div class="equipment-rd__progress-top">
+          <div>
+            <span>R&D en cours</span>
+            <strong>${escapeHtml(active.itemName || 'Objet')}</strong>
+          </div>
+          <b>${Math.round(activeProgress * 100)}%</b>
         </div>
-        <div>
-          <div class="equipment-fab__bar"><span style="width:${Math.round((active.progress || 0) * 100)}%"></span></div>
-          <button type="button" data-equipment-rd-cancel="1" data-structure="${data.id | 0}">Annuler</button>
+        <div class="equipment-rd__progress-bar"><span style="width:${Math.round(activeProgress * 100)}%"></span></div>
+        <div class="equipment-rd__progress-meta">
+          <span>${timeLabel(activeRemaining)} restant</span>
+          <span>${timeLabel(activeTotal)} total</span>
+          <span>score ${active.scienceScore | 0}</span>
         </div>
+        ${activeSciences.length ? `<div class="equipment-rd__progress-sciences">${activeSciences.map((key) => `<i>${escapeHtml(key.replace('SciencePack', '').replace(/([A-Z])/g, ' $1').trim())}</i>`).join('')}</div>` : ''}
+        <button type="button" data-equipment-rd-cancel="1" data-structure="${data.id | 0}">Annuler</button>
       </div>` : '';
 
     const canStart = !!selected && this.selectedSciences.length > 0 && !active && data.powered;
@@ -180,7 +198,7 @@ export class EquipmentRDStationPanelView {
       <div class="equipment-rd__layout">
         <section>
           <h3>Objet</h3>
-          <div class="equipment-rd__items">${itemCards}</div>
+          <div class="equipment-rd__items ${active ? 'is-busy' : ''}">${itemCards}</div>
           ${selected ? `<div class="equipment-rd__selected"><b>${escapeHtml(selected.name)}</b><div class="equipment-fab__bonus">${bonusList(selected.bonuses || {})}</div></div>` : ''}
         </section>
         <section>
@@ -188,7 +206,7 @@ export class EquipmentRDStationPanelView {
           <div class="equipment-rd__hint">Clique une science pour l’ajouter. Clique un slot rempli pour la retirer.</div>
           <div class="equipment-rd__slots">${scienceSlots}</div>
           <div class="equipment-rd__score">Score science : <b>${scienceScore(this.selectedSciences, data.sciences || [])}</b> · variation finale ±60%</div>
-          <div class="equipment-rd__science-list">${sciences}</div>
+          <div class="equipment-rd__science-list ${active ? 'is-busy' : ''}">${sciences}</div>
           <button class="equipment-rd__start" type="button" data-equipment-rd-start="1" data-structure="${data.id | 0}" ${canStart ? '' : 'disabled'}>Lancer R&D</button>
         </section>
       </div>

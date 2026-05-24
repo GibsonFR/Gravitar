@@ -6621,3 +6621,86 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(92, 58, 130, .58);
   color: rgba(250,245,255,.98);
 }
+
+
+/* v152 — progression claire Station R&D */
+.equipment-rd__progress-card {
+  margin: 14px 18px 0;
+  border: 1px solid rgba(210, 140, 255, .34);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(28, 16, 48, .92), rgba(5, 12, 20, .90));
+  padding: 12px;
+  box-shadow: 0 0 22px rgba(210, 140, 255, .10);
+}
+.equipment-rd__progress-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.equipment-rd__progress-top span {
+  display: block;
+  color: rgba(210, 140, 255, .95);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.equipment-rd__progress-top strong {
+  display: block;
+  margin-top: 3px;
+  color: rgba(245, 252, 255, .98);
+  font-size: 16px;
+}
+.equipment-rd__progress-top b {
+  color: rgba(245, 252, 255, .98);
+  font-size: 20px;
+}
+.equipment-rd__progress-bar {
+  height: 14px;
+  margin: 10px 0 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+}
+.equipment-rd__progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(126,220,255,.95), rgba(210,140,255,.98));
+  box-shadow: 0 0 18px rgba(210,140,255,.42);
+}
+.equipment-rd__progress-meta,
+.equipment-rd__progress-sciences {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.equipment-rd__progress-meta span,
+.equipment-rd__progress-sciences i {
+  border: 1px solid rgba(126,220,255,.14);
+  border-radius: 999px;
+  background: rgba(7, 16, 28, .72);
+  color: rgba(210,235,255,.82);
+  padding: 4px 7px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+.equipment-rd__progress-card button {
+  margin-top: 10px;
+  border: 1px solid rgba(255,120,140,.35);
+  border-radius: 10px;
+  background: rgba(120, 24, 46, .35);
+  color: rgba(255,220,228,.96);
+  padding: 7px 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.equipment-rd__items.is-busy,
+.equipment-rd__science-list.is-busy {
+  opacity: .48;
+  pointer-events: none;
+}
