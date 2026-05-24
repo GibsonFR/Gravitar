@@ -1,5 +1,5 @@
 import { ITEM_CATEGORY_IDS } from '../../../../shared/content/items/ItemCategoryIds.js';
-import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
+import { getPlayerItemDef, pruneMissingCustomEquipmentDefs } from './PlayerEquipmentDefs.js';
 import { buildEquippedCountByCategory } from './EquipmentBonuses.js';
 
 
@@ -9,7 +9,7 @@ function setConverterEnabled(player, itemId, enabled) {
 }
 
 export function isConverterEnabled(player, itemId) {
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!def || def.categoryId !== ITEM_CATEGORY_IDS.CONVERTER) return false;
   if (!isItemEquipped(player, itemId)) return false;
   const table = player?.equipment?.converterEnabledById ?? {};
@@ -17,7 +17,7 @@ export function isConverterEnabled(player, itemId) {
 }
 
 export function setConverterEnabledExplicit(player, itemId, enabled, timeMs = 0) {
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!def || def.categoryId !== ITEM_CATEGORY_IDS.CONVERTER) return false;
   if (!isItemEquipped(player, itemId)) return false;
   setConverterEnabled(player, itemId, !!enabled);
@@ -37,7 +37,7 @@ export function setConverterEnabledExplicit(player, itemId, enabled, timeMs = 0)
 }
 
 export function toggleConverterEnabled(player, itemId, timeMs = 0) {
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!def || def.categoryId !== ITEM_CATEGORY_IDS.CONVERTER) return false;
   if (!isItemEquipped(player, itemId)) return false;
   const next = !isConverterEnabled(player, itemId);
@@ -53,7 +53,7 @@ export function isItemEquipped(player, itemId) {
 }
 
 export function canEquipItem(player, itemId) {
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!def) return { ok: false, reason: 'item_unknown' };
   if (!hasOwnedItem(player, itemId)) return { ok: false, reason: 'item_not_owned' };
   if (isItemEquipped(player, itemId)) return { ok: false, reason: 'item_already_equipped' };
@@ -87,7 +87,7 @@ export function unequipOwnedItem(player, itemId, timeMs = 0) {
   const check = canUnequipItem(player, itemId);
   if (!check.ok) return false;
   player.equipment.equippedItemIds = player.equipment.equippedItemIds.filter((id) => id !== itemId);
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (def?.categoryId === ITEM_CATEGORY_IDS.CONVERTER) setConverterEnabled(player, itemId, false);
   player.equipment.lastChangedAt = timeMs | 0;
   return true;
@@ -102,6 +102,7 @@ export function removeOwnedItem(player, itemId, timeMs = 0) {
   if (!hasOwnedItem(player, itemId)) return false;
   if (isItemEquipped(player, itemId)) return false;
   player.equipment.ownedItemIds = player.equipment.ownedItemIds.filter((id) => id !== itemId);
+  pruneMissingCustomEquipmentDefs(player);
   player.equipment.lastChangedAt = timeMs | 0;
   return true;
 }

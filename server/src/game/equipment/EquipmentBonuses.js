@@ -1,5 +1,5 @@
 import { ITEM_CATEGORY_IDS } from '../../../../shared/content/items/ItemCategoryIds.js';
-import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
+import { getPlayerItemDef } from './PlayerEquipmentDefs.js';
 
 function finite(value, fallback = 0) {
   return Number.isFinite(value) ? value : fallback;
@@ -7,12 +7,12 @@ function finite(value, fallback = 0) {
 
 export function getOwnedEquipmentDefs(player) {
   const ids = player?.equipment?.ownedItemIds ?? [];
-  return ids.map(getItemDef).filter(Boolean);
+  return ids.map((id) => getPlayerItemDef(player, id)).filter(Boolean);
 }
 
 export function getEquippedEquipmentDefs(player) {
   const ids = player?.equipment?.equippedItemIds ?? [];
-  return ids.map(getItemDef).filter(Boolean);
+  return ids.map((id) => getPlayerItemDef(player, id)).filter(Boolean);
 }
 
 export function buildEquippedCountByCategory(player) {

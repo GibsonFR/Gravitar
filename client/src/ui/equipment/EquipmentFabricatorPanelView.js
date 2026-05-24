@@ -64,7 +64,7 @@ export class EquipmentFabricatorPanelView {
             <strong>${escapeHtml(r.name)}</strong>
             <small>${escapeHtml(r.categoryName)} · T${r.tier | 0} · ${r.seconds | 0}s</small>
           </div>
-          <span>${r.owned ? 'Possédé' : r.locked ? 'Verrouillé' : r.canCraft ? 'Prêt' : 'Ressources'}</span>
+          <span>${r.locked ? 'Verrouillé' : r.canCraft ? 'Prêt' : 'Ressources'}</span>
         </div>
         <p>${escapeHtml(r.description || '')}</p>
         <div class="equipment-fab__sub">Coût</div>
@@ -72,9 +72,20 @@ export class EquipmentFabricatorPanelView {
         <div class="equipment-fab__sub">Bonus</div>
         <div class="equipment-fab__bonus">${bonusList(r.bonuses || {})}</div>
         ${r.locked ? `<div class="equipment-fab__lock">Requiert : ${escapeHtml(r.requiredResearchName || r.requiredResearchId || 'recherche')}</div>` : ''}
-        <button type="button" data-equipment-fab-craft="${escapeHtml(r.id)}" data-structure="${data.id | 0}" ${r.canCraft ? '' : 'disabled'}>${r.owned ? 'Déjà possédé' : 'Fabriquer'}</button>
+        <button type="button" data-equipment-fab-craft="${escapeHtml(r.id)}" data-structure="${data.id | 0}" ${r.canCraft ? '' : 'disabled'}>Fabriquer</button>
       </article>
     `).join('');
+
+    const last = store.myState?.equipment?.lastCraftedItem || null;
+    const lastBlock = last ? `
+      <div class="equipment-fab__result">
+        <div>
+          <span>Dernière fabrication</span>
+          <strong>${escapeHtml(last.name || '')}</strong>
+          <small>${escapeHtml(last.categoryName || '')} · T${last.tier | 0}${last.qualityName ? ` · ${escapeHtml(last.qualityName)}` : ''}</small>
+        </div>
+        <div class="equipment-fab__bonus">${bonusList(last.bonuses || {})}</div>
+      </div>` : '';
 
     this.el.innerHTML = `
       <div class="equipment-fab__head">
@@ -85,6 +96,7 @@ export class EquipmentFabricatorPanelView {
         </div>
         <button type="button" class="equipment-fab__close" data-equipment-fab-close="1">×</button>
       </div>
+      ${lastBlock}
       <div class="equipment-fab__grid">${cards}</div>
     `;
   }

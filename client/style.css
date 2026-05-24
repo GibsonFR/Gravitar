@@ -6262,3 +6262,32 @@ button.station-item-icon[draggable="true"]:active,
   color: rgba(181, 140, 255, .98);
   background: linear-gradient(180deg, rgba(52, 32, 86, .86), rgba(13, 10, 30, .94));
 }
+
+
+/* v133 — résultat et rolls d'atelier */
+.equipment-fab__result {
+  margin: 14px 18px 0;
+  border: 1px solid rgba(181, 140, 255, .28);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(64, 44, 110, .36), rgba(7, 14, 24, .72));
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: minmax(180px, .8fr) 1.2fr;
+  gap: 12px;
+  align-items: center;
+}
+.equipment-fab__result span {
+  display: block;
+  color: rgba(181, 140, 255, .95);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: 10px;
+  font-weight: 900;
+}
+.equipment-fab__result strong {
+  display: block;
+  font-size: 16px;
+}
+.equipment-fab__result small {
+  color: rgba(210, 225, 245, .72);
+}

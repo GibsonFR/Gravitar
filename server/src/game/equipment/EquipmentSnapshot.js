@@ -1,5 +1,5 @@
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
-import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
+import { getPlayerItemDef } from './PlayerEquipmentDefs.js';
 import { buildEquippedTagState, buildEquippedSuperTagState, buildEquipmentEffectLines, resolveEquipmentRuntimeBonuses } from './EquipmentEffectResolver.js';
 import { buildEquippedCountByCategory } from './EquipmentBonuses.js';
 import { getRocketAmmoQuantity } from '../rocket/RocketAmmoRules.js';
@@ -29,7 +29,7 @@ function serializePassiveEffects(def) {
 
 function buildItemEntry(player, itemId) {
   const runtime = player?.equipment?.converterRuntimeById?.[itemId] ?? null;
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!def) return null;
   return {
     itemId: def.id,
@@ -62,7 +62,7 @@ function buildItemEntry(player, itemId) {
 }
 
 function buildRocketAmmoEntry(player, itemId, activeRocketSlot) {
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!def?.ammoProfile) return null;
   const slotIds = player?.equipment?.rocketAmmoSlotItemIds || [];
   const assignedSlots = slotIds.map((id, index) => id === itemId ? index : -1).filter((index) => index >= 0);
@@ -156,6 +156,8 @@ export function buildEquipmentSnapshot(player) {
       bonuses: runtimeBonuses
     },
     ownedItems: ownedEntries,
-    equippedItems: equippedEntries
+    equippedItems: equippedEntries,
+    lastCraftedItemId: player.equipment.lastCraftedItemId || '',
+    lastCraftedItem: player.equipment.lastCraftedItemId ? buildItemEntry(player, player.equipment.lastCraftedItemId) : null
   };
 }

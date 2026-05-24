@@ -4,6 +4,8 @@ export function createEquipmentState() {
   return {
     ownedItemIds: [],
     equippedItemIds: [],
+    customItemDefs: {},
+    craftedItemCounter: 0,
     slotCaps: { ...PLAYER_EQUIPMENT_RULES.slotCaps },
     converterRuntimeById: {},
     converterEnabledById: {},

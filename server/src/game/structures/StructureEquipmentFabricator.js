@@ -3,6 +3,8 @@ import { isStructureOwner, distanceSqToStructureRect, findAliveCoreForStructure 
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { removeResource } from '../inventory/InventorySystem.js';
 import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
+import { rollCraftedEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
+import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { EQUIPMENT_FABRICATOR_RECIPES, getEquipmentCraftRecipe } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
 import { getResearchName, isResearchCompleted } from '../../../../shared/content/research/ScienceResearchDefs.js';
@@ -78,7 +80,7 @@ function recipeSnapshot(player, recipe) {
     locked: !researchDone,
     requiredResearchId: recipe.researchId || '',
     requiredResearchName: recipe.researchId ? getResearchName(recipe.researchId) : '',
-    canCraft: !!item && researchDone && affordable && !owned
+    canCraft: !!item && researchDone && affordable
   };
 }
 
@@ -131,10 +133,22 @@ export function craftEquipmentItem(state, player, structureId, recipeId, timeMs 
 
   player.equipment ??= {};
   if (!Array.isArray(player.equipment.ownedItemIds)) player.equipment.ownedItemIds = [];
-  player.equipment.ownedItemIds = [...new Set([...player.equipment.ownedItemIds, recipe.itemId])].sort();
+  player.equipment.craftedItemCounter = Math.max(0, player.equipment.craftedItemCounter | 0) + 1;
+  const crafted = rollCraftedEquipment({
+    baseItemId: recipe.itemId,
+    recipeId: recipe.id,
+    ownerKey: player.accountKey || player.pseudo || player.id || '',
+    craftedIndex: player.equipment.craftedItemCounter,
+    timeMs,
+    qualityBoost: Math.max(0, (player.progression?.level | 0) - 1)
+  });
+  if (!crafted) return { ok: false, error: 'roll_failed' };
+  addCustomEquipmentDef(player, crafted);
+  player.equipment.ownedItemIds = [...new Set([...player.equipment.ownedItemIds, crafted.id])].sort();
+  player.equipment.lastCraftedItemId = crafted.id;
   player.equipment.lastChangedAt = timeMs | 0;
   player.forceFullUiSnapshot = true;
-  player.hint = `Fabriqué : ${snap.name}`;
+  player.hint = `Fabriqué : ${crafted.name}`;
   if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
   return { ok: true };
 }
