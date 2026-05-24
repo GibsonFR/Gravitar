@@ -16,7 +16,7 @@ import { SECTOR_BIOMES } from '../../../../../shared/proc/SectorBiomes.js';
 import { getTestBiomeSector } from '../../sector/SpecialSectors.js';
 import { buildStorageSnapshot } from '../../structures/StructureStorage.js';
 import { buildMachineSnapshot } from '../../structures/StructureMachines.js';
-import { buildResearchStationSnapshot, buildResearchTreeSnapshot } from '../../structures/StructureResearchStation.js';
+import { buildResearchStationSnapshot, buildResearchOverviewSnapshot } from '../../structures/StructureResearchStation.js';
 
 
 function buildCurrentSectorBiomeSnapshot(player, state = null) {
@@ -121,7 +121,7 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     storage: buildStorageSnapshot(state, player),
     machine: buildMachineSnapshot(state, player),
     researchStation: buildResearchStationSnapshot(state, player),
-    researchTree: buildResearchTreeSnapshot(state, player),
+    researchOverview: buildResearchOverviewSnapshot(state, player),
     map: buildPlayerMapSnapshot(player, state, timeMs),
     cooldowns: {
       A: player.cooldownALeft,
@@ -170,7 +170,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
     storage: buildStorageSnapshot(state, player),
     machine: buildMachineSnapshot(state, player),
     researchStation: buildResearchStationSnapshot(state, player),
-    researchTree: buildResearchTreeSnapshot(state, player),
+    researchOverview: buildResearchOverviewSnapshot(state, player),
     cooldowns: {
       A: player.cooldownALeft,
       Z: player.cooldownZLeft,

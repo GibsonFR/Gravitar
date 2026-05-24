@@ -16,13 +16,11 @@ const SCIENCE_CAPACITY = 240;
 const RESEARCH_SAVE_INTERVAL_MS = 5000;
 
 export function ensurePlayerResearch(player) {
-  if (!player.research || typeof player.research !== 'object') player.research = { completed: [], unlocked: [], active: null };
+  if (!player.research || typeof player.research !== 'object') player.research = { completed: [], unlocked: [] };
   if (!Array.isArray(player.research.completed)) player.research.completed = [];
   if (!Array.isArray(player.research.unlocked)) player.research.unlocked = [];
   player.research.completed = player.research.completed.map((v) => String(v || '')).filter((v, i, a) => v && a.indexOf(v) === i);
   player.research.unlocked = player.research.unlocked.map((v) => String(v || '')).filter((v, i, a) => v && a.indexOf(v) === i);
-  if (player.research.active && typeof player.research.active !== 'object') player.research.active = null;
-  if (player.research.active && !getResearchProject(player.research.active.projectId)) player.research.active = null;
   return player.research;
 }
 
@@ -122,7 +120,6 @@ export function canPlayerAccessResearchStation(state, player, station) {
 export function getResearchActiveEnergyUse(station) {
   if (!isResearchStation(station)) return 0;
   if (station.researchEnabled === false) return 0;
-  if (station.globalResearchActive) return Math.max(0, Number(station.globalResearchEnergyUse || getStructureDef(station.type)?.energyUse) || 0);
   const job = station.researchJob || null;
   if (!job?.projectId || Number(job.remainingMs || 0) <= 0) return 0;
   const project = getResearchProject(job.projectId);
@@ -130,183 +127,115 @@ export function getResearchActiveEnergyUse(station) {
 }
 
 
-function sameResearchWorld(a, b) {
-  return String(a?.worldId || 'endless') === String(b?.worldId || 'endless');
-}
-
 function ownedResearchStations(state, player) {
   const arr = [];
-  for (const st of state?.structures?.values?.() || []) {
+  if (!state?.structures || !player) return arr;
+  for (const st of state.structures.values()) {
     if (!isResearchStation(st)) continue;
-    if ((st.ownerId | 0) !== (player?.id | 0)) continue;
-    if (!sameResearchWorld(st, player)) continue;
+    if (!isStructureOwner(player, st)) continue;
     arr.push(st);
   }
   return arr;
 }
 
-function totalScienceInStations(stations) {
+function aggregateScience(stations = []) {
   const out = {};
-  for (const st of stations || []) {
-    const map = scienceInput(st);
-    for (const [key, amount] of Object.entries(map)) {
-      if (!isSciencePack(key)) continue;
-      out[key] = (out[key] | 0) + Math.max(0, amount | 0);
+  for (const st of stations) {
+    const input = scienceInput(st);
+    for (const [key, amount] of Object.entries(input || {})) {
+      if ((amount | 0) > 0) out[key] = (out[key] | 0) + (amount | 0);
     }
   }
   return out;
 }
 
-function consumeScienceFromStations(stations, cost = {}) {
-  const total = totalScienceInStations(stations);
-  if (!mapHas(total, cost)) return false;
-  for (const [key, needRaw] of Object.entries(cost || {})) {
-    let need = Math.max(0, needRaw | 0);
-    for (const st of stations || []) {
-      if (need <= 0) break;
-      const map = scienceInput(st);
-      const have = Math.max(0, map[key] | 0);
-      if (have <= 0) continue;
-      const take = Math.min(have, need);
-      map[key] = have - take;
-      need -= take;
-      cleanMap(map);
-      st.updatedAt = Date.now();
-    }
-  }
-  return true;
+function aggregateActiveJobs(stations = []) {
+  return stations
+    .map((st) => {
+      const job = st.researchJob || null;
+      const project = job?.projectId ? getResearchProject(job.projectId) : null;
+      if (!job || !project) return null;
+      return {
+        stationId: st.id | 0,
+        projectId: project.id,
+        name: project.name,
+        progress: progressOf(st),
+        powered: !!st.powered,
+        paused: !!job.paused,
+        status: st.researchStatus || ''
+      };
+    })
+    .filter(Boolean);
 }
 
-function activeResearchProgress(active) {
-  if (!active?.projectId) return 0;
-  const total = Math.max(1, Number(active.totalMs || 1));
-  const rem = Math.max(0, Number(active.remainingMs || 0));
-  return Math.max(0, Math.min(1, 1 - rem / total));
+function canPayFromStation(station, project) {
+  if (!station || !project) return false;
+  if (station.researchJob?.projectId) return false;
+  return mapHas(scienceInput(station), project.scienceCost || {});
 }
 
-function researchAvailability(project, player, scienceAvailable = {}) {
-  const research = ensurePlayerResearch(player);
-  const completed = research.completed.includes(project.id);
-  const prerequisitesMet = arePrerequisitesMet(project, research.completed);
-  const scienceReady = mapHas(scienceAvailable, project.scienceCost || {});
-  return {
-    completed,
-    available: !completed && prerequisitesMet,
-    locked: !completed && !prerequisitesMet,
-    scienceReady
-  };
+function chooseStationForProject(state, player, project) {
+  const stations = ownedResearchStations(state, player)
+    .filter((st) => st.researchEnabled !== false)
+    .sort((a, b) => {
+      const ap = a.powered ? 0 : 1;
+      const bp = b.powered ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      return (a.id | 0) - (b.id | 0);
+    });
+  return stations.find((st) => canPayFromStation(st, project)) || null;
 }
 
-function globalProjectSnapshot(project, player, scienceAvailable) {
-  const state = researchAvailability(project, player, scienceAvailable);
-  return {
-    ...project,
-    branchName: RESEARCH_BRANCHES.find((b) => b.id === project.branch)?.name || project.branch,
-    ...state
-  };
-}
-
-export function buildResearchTreeSnapshot(state, player) {
-  if (!player) return null;
+export function buildResearchOverviewSnapshot(state, player) {
   const research = ensurePlayerResearch(player);
   const stations = ownedResearchStations(state, player);
-  const scienceAvailable = totalScienceInStations(stations);
-  const active = research.active || null;
-  const activeProject = active?.projectId ? getResearchProject(active.projectId) : null;
-  const poweredStations = stations.filter((st) => st.researchEnabled !== false && !!st.powered);
+  const science = aggregateScience(stations);
+  const active = aggregateActiveJobs(stations);
   return {
     completed: research.completed.slice(),
     unlocked: research.unlocked.slice(),
-    activeProjectId: activeProject?.id || '',
-    activeProjectName: activeProject?.name || '',
-    activeProgress: activeResearchProgress(active),
-    activePaused: !!active?.paused,
-    activeStatus: active?.status || '',
     stationCount: stations.length,
-    poweredStationCount: poweredStations.length,
-    scienceAvailable: resourceList(scienceAvailable),
-    packs: SCIENCE_PACKS,
+    poweredStations: stations.filter((s) => !!s.powered && s.researchEnabled !== false).length,
+    science: resourceList(science),
+    active,
     branches: RESEARCH_BRANCHES,
-    projects: RESEARCH_PROJECTS.map((p) => globalProjectSnapshot(p, player, scienceAvailable))
+    packs: SCIENCE_PACKS,
+    projects: RESEARCH_PROJECTS.map((p) => {
+      const snap = projectSnapshot(p, player);
+      const station = chooseStationForProject(state, player, p);
+      return {
+        ...snap,
+        canStart: !!station && !snap.completed && !snap.locked && active.length === 0,
+        targetStationId: station?.id | 0 || 0
+      };
+    })
   };
 }
 
-export function startGlobalResearchProject(state, player, projectId, timeMs = Date.now()) {
+export function startResearchProjectGlobal(state, player, projectId, timeMs = Date.now()) {
   const project = getResearchProject(projectId);
   if (!project) return { ok: false, error: 'unknown_project' };
   const research = ensurePlayerResearch(player);
-  if (research.active?.projectId) return { ok: false, error: 'busy' };
   if (research.completed.includes(project.id)) return { ok: false, error: 'completed' };
-  if (!arePrerequisitesMet(project, research.completed)) return { ok: false, error: 'locked' };
-  const stations = ownedResearchStations(state, player);
-  if (!stations.length) return { ok: false, error: 'no_station' };
-  if (!consumeScienceFromStations(stations, project.scienceCost || {})) return { ok: false, error: 'science' };
-  research.active = {
-    projectId: project.id,
-    startedAt: timeMs,
-    totalMs: Math.max(1000, Number(project.seconds || 1) * 1000),
-    remainingMs: Math.max(1000, Number(project.seconds || 1) * 1000),
-    paused: false,
-    status: ''
-  };
-  for (const st of stations) {
-    if (st.researchEnabled === false) continue;
-    st.globalResearchActive = true;
-    st.globalResearchEnergyUse = Math.max(0, Number(project.energyUse || getStructureDef(st.type)?.energyUse) || 0);
-  }
-  player.forceFullUiSnapshot = true;
-  return { ok: true };
+  if (!projectAvailable(project, player)) return { ok: false, error: 'locked' };
+  if (aggregateActiveJobs(ownedResearchStations(state, player)).length > 0) return { ok: false, error: 'busy' };
+  const station = chooseStationForProject(state, player, project);
+  if (!station) return { ok: false, error: 'science' };
+  return startResearchProject(state, player, station.id | 0, project.id, timeMs);
 }
 
-export function cancelGlobalResearchProject(state, player) {
-  const research = ensurePlayerResearch(player);
-  if (!research.active?.projectId) return { ok: false, error: 'idle' };
-  research.active = null;
-  player.forceFullUiSnapshot = true;
-  return { ok: true };
-}
-
-export function updateGlobalResearchForPlayer(state, player, timeMs, dtMs) {
-  const research = ensurePlayerResearch(player);
-  const active = research.active || null;
+export function cancelResearchProjectGlobal(state, player, timeMs = Date.now()) {
   const stations = ownedResearchStations(state, player);
+  let changed = false;
   for (const st of stations) {
-    st.globalResearchActive = false;
-    st.globalResearchEnergyUse = 0;
+    if (!st.researchJob?.projectId) continue;
+    st.researchJob = null;
+    st.researchStatus = 'cancelled';
+    st.updatedAt = timeMs;
+    changed = true;
   }
-  if (!active?.projectId) return false;
-  const project = getResearchProject(active.projectId);
-  if (!project) {
-    research.active = null;
-    player.forceFullUiSnapshot = true;
-    return true;
-  }
-  for (const st of stations) {
-    if (st.researchEnabled === false) continue;
-    st.globalResearchActive = true;
-    st.globalResearchEnergyUse = Math.max(0, Number(project.energyUse || getStructureDef(st.type)?.energyUse) || 0);
-  }
-  const powered = stations.filter((st) => st.researchEnabled !== false && !!st.powered);
-  if (!stations.length) {
-    active.paused = true;
-    active.status = 'no_station';
-    return false;
-  }
-  if (!powered.length) {
-    active.paused = true;
-    active.status = 'no_power';
-    return false;
-  }
-  active.paused = false;
-  active.status = '';
-  const speed = Math.max(1, powered.length);
-  active.remainingMs = Math.max(0, Number(active.remainingMs || active.totalMs || 1) - Math.max(0, Number(dtMs) || 0) * speed);
-  if (active.remainingMs > 0) return false;
-  if (!research.completed.includes(project.id)) research.completed.push(project.id);
-  for (const unlock of project.unlocks || []) if (!research.unlocked.includes(unlock)) research.unlocked.push(unlock);
-  research.active = null;
-  player.forceFullUiSnapshot = true;
-  return true;
+  if (changed) player.forceFullUiSnapshot = true;
+  return { ok: changed };
 }
 
 
@@ -428,10 +357,6 @@ export function updateResearchStations(state, timeMs, dtMs) {
   if (!state?.structures) return false;
   let shouldSave = false;
   const stepMs = Math.max(0, Number(dtMs) || 0);
-
-  for (const player of state.players?.values?.() || []) {
-    if (updateGlobalResearchForPlayer(state, player, timeMs, stepMs)) shouldSave ||= String(player.worldId || 'endless') === 'endless';
-  }
 
   for (const station of state.structures.values()) {
     if (!isResearchStation(station)) continue;

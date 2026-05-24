@@ -42,7 +42,7 @@ import { BasePanelView } from './ui/base/BasePanelView.js';
 import { StoragePanelView } from './ui/storage/StoragePanelView.js';
 import { MachinePanelView } from './ui/machine/MachinePanelView.js';
 import { ResearchStationPanelView } from './ui/research/ResearchStationPanelView.js';
-import { ResearchTreePanelView, getResearchIconSvg } from './ui/research/ResearchTreePanelView.js';
+import { ResearchTreePanelView } from './ui/research/ResearchTreePanelView.js';
 import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
 
@@ -201,9 +201,6 @@ export function startApp() {
   const convertersPanel = new ConvertersPanelView(sendCmd);
   dock.registerPanel({ id: 'converters', title: 'Convert.', iconMarkup: getConverterIconSvg(), panelEl: convertersPanel.el, shellClass: 'ui-panel-shell--converters', group: 'game' });
 
-  const researchTreePanel = new ResearchTreePanelView(sendCmd);
-  dock.registerPanel({ id: 'research', title: 'Recherche', iconMarkup: getResearchIconSvg(), panelEl: researchTreePanel.el, shellClass: 'ui-panel-shell--research', group: 'game' });
-
   const optionsPanel = new OptionsPanelView((settings) => {
     audio.applySettings(settings);
     graphicsOptions = { ...graphicsOptions, ...settings };
@@ -222,6 +219,8 @@ export function startApp() {
   uiRoot.appendChild(machinePanel.el);
   const researchStationPanel = new ResearchStationPanelView(sendCmd);
   uiRoot.appendChild(researchStationPanel.el);
+  const researchTreePanel = new ResearchTreePanelView(sendCmd);
+  dock.registerPanel({ id: 'research-tree', title: 'Recherche', iconMarkup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M11 3v6l-5 8a3 3 0 0 0 2.6 4.5h6.8A3 3 0 0 0 18 17l-5-8V3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 16h8M10 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>', panelEl: researchTreePanel.el, shellClass: 'ui-panel-shell--research-tree', group: 'game' });
 
   window.addEventListener('keydown', (ev) => {
     const tag = String(ev.target?.tagName || '').toLowerCase();
@@ -844,7 +843,6 @@ export function startApp() {
     dock.setEnabled('cargo', !isDocked);
 
     convertersPanel.update(store.myState?.equipment);
-    researchTreePanel.update(store);
     const activeConverterCount = Math.max(0, store.myState?.equipment?.converters?.summary?.enabledCount | 0);
     dock.setBadge('converters', activeConverterCount > 0 ? `${activeConverterCount}` : '');
     dock.setEnabled('converters', !!store.myState?.equipment?.converters);
@@ -853,6 +851,7 @@ export function startApp() {
     storagePanel.update(store);
     machinePanel.update(store);
     researchStationPanel.update(store);
+    researchTreePanel.update(store);
     playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
     stationWindow.update(store.myState, store.stations);

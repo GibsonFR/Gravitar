@@ -1,2 +1,2 @@
-import { cancelGlobalResearchProject } from '../structures/StructureResearchStation.js';
-export function handleResearchTreeCancel(state, player) { return cancelGlobalResearchProject(state, player).ok; }
+import { cancelResearchProjectGlobal } from '../structures/StructureResearchStation.js';
+export function handleResearchTreeCancel(state, player, msg, timeMs) { return cancelResearchProjectGlobal(state, player, timeMs).ok; }

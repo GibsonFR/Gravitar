@@ -1120,32 +1120,41 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.moveTo(0, -h * 0.22); ctx.lineTo(0, -h * 0.08);
       ctx.moveTo(0, h * 0.08); ctx.lineTo(0, h * 0.22);
     } else if (isScienceLab) {
-      ctx.fillStyle = 'rgba(24, 46, 68, .42)';
-      ctx.fillRect(-w * 0.30, -h * 0.26, w * 0.60, h * 0.52);
-      ctx.strokeStyle = 'rgba(126,220,255,.82)';
+      ctx.fillStyle = 'rgba(18, 38, 58, .58)';
+      ctx.strokeStyle = 'rgba(126,220,255,.88)';
       ctx.beginPath();
-      ctx.rect(-w * 0.30, -h * 0.26, w * 0.60, h * 0.52);
-      ctx.moveTo(-w * 0.12, -h * 0.14); ctx.lineTo(-w * 0.20, h * 0.16); ctx.lineTo(w * 0.20, h * 0.16); ctx.lineTo(w * 0.12, -h * 0.14);
-      ctx.moveTo(-w * 0.06, -h * 0.02); ctx.lineTo(w * 0.08, -h * 0.02);
-      ctx.arc(w * 0.16, -h * 0.12, w * 0.035, 0, Math.PI * 2);
-      ctx.arc(-w * 0.18, h * 0.26, w * 0.025, 0, Math.PI * 2);
-      ctx.arc(w * 0.22, h * 0.28, w * 0.02, 0, Math.PI * 2);
+      roundedRect(ctx, -w * 0.32, -h * 0.30, w * 0.64, h * 0.60, 10 * view.dpr);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.12, -h * 0.18); ctx.lineTo(-w * 0.12, -h * 0.02);
+      ctx.moveTo(w * 0.12, -h * 0.18); ctx.lineTo(w * 0.12, -h * 0.02);
+      ctx.moveTo(-w * 0.18, -h * 0.18); ctx.lineTo(w * 0.18, -h * 0.18);
+      ctx.moveTo(-w * 0.12, -h * 0.02); ctx.lineTo(-w * 0.24, h * 0.18); ctx.lineTo(w * 0.24, h * 0.18); ctx.lineTo(w * 0.12, -h * 0.02);
+      ctx.moveTo(-w * 0.15, h * 0.06); ctx.lineTo(w * 0.15, h * 0.06);
+      ctx.arc(w * 0.23, -h * 0.17, w * 0.035, 0, Math.PI * 2);
+      ctx.arc(-w * 0.23, h * 0.22, w * 0.025, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(126,220,255,.18)';
+      ctx.fillRect(-w * 0.14, h * 0.06, w * 0.28, h * 0.10);
     } else if (isResearchStation) {
-      ctx.fillStyle = 'rgba(36, 28, 66, .48)';
-      ctx.fillRect(-w * 0.34, -h * 0.25, w * 0.68, h * 0.50);
-      ctx.strokeStyle = 'rgba(181,140,255,.84)';
+      ctx.fillStyle = 'rgba(35, 25, 64, .62)';
+      ctx.strokeStyle = 'rgba(181,140,255,.90)';
       ctx.beginPath();
-      ctx.rect(-w * 0.34, -h * 0.25, w * 0.68, h * 0.50);
+      roundedRect(ctx, -w * 0.38, -h * 0.30, w * 0.76, h * 0.60, 10 * view.dpr);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.rect(-w * 0.28, -h * 0.18, w * 0.38, h * 0.36);
       for (let i = 0; i < 3; i += 1) {
-        const yy = -h * 0.12 + i * h * 0.12;
-        ctx.moveTo(-w * 0.22, yy); ctx.lineTo(w * 0.10, yy);
+        const yy = -h * 0.09 + i * h * 0.09;
+        ctx.moveTo(-w * 0.21, yy); ctx.lineTo(w * 0.02, yy);
       }
-      ctx.arc(w * 0.22, h * 0.08, w * 0.07, 0, Math.PI * 2);
-      ctx.moveTo(w * 0.27, h * 0.13); ctx.lineTo(w * 0.32, h * 0.20);
-      if (s.researchJob || s.machineJob) {
-        ctx.fillStyle = 'rgba(181,140,255,.24)';
-        ctx.fillRect(-w * 0.26, h * 0.30, w * 0.52 * (s.researchProgress || 0), 5 * view.dpr);
-      }
+      ctx.arc(w * 0.22, -h * 0.02, w * 0.095, 0, Math.PI * 2);
+      ctx.moveTo(w * 0.285, h * 0.055); ctx.lineTo(w * 0.34, h * 0.13);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(181,140,255,.18)';
+      ctx.fillRect(-w * 0.28, h * 0.22, w * 0.56 * Math.max(0, Math.min(1, s.researchProgress || 0)), 5 * view.dpr);
     } else if (isPress) {
 
       ctx.fillStyle = 'rgba(66, 74, 82, .28)';
