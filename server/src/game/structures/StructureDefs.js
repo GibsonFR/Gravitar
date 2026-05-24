@@ -331,7 +331,7 @@ export const STRUCTURE_DEFS = {
 [STRUCTURE_TYPES.RESOURCE_DEPOSIT]: {
   id: STRUCTURE_TYPES.RESOURCE_DEPOSIT,
   name: 'Gisement',
-  description: 'Source minérale exploitable par extracteur.',
+  description: 'Source permanente exploitable par extracteur.',
   radius: 58,
   tilesX: 2,
   tilesY: 2,
@@ -344,6 +344,7 @@ export const STRUCTURE_DEFS = {
   solid: false,
   neutral: true,
   mineable: true,
+  infiniteDeposit: true,
   color: '#334a45',
   borderColor: '#9ef0c7',
   cost: {}
@@ -352,7 +353,7 @@ export const STRUCTURE_DEFS = {
 [STRUCTURE_TYPES.MINING_EXTRACTOR]: {
   id: STRUCTURE_TYPES.MINING_EXTRACTOR,
   name: 'Extracteur minier',
-  description: 'Extrait automatiquement le gisement proche et sort les ressources vers l’avant.',
+  description: 'Fore une source permanente. Débit limité par le cycle, le buffer et l’énergie.',
   radius: 48,
   tilesX: 2,
   tilesY: 2,
@@ -370,6 +371,7 @@ export const STRUCTURE_DEFS = {
   extractionIntervalMs: 2200,
   extractionRange: BASE_TILE_SIZE * 2.6,
   extractionYield: 1,
+  energyUse: 18,
   color: '#314759',
   borderColor: '#9fdcff',
   cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }

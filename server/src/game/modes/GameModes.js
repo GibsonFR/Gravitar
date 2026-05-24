@@ -282,12 +282,12 @@ function ensureTestMiningDeposits(state, player, timeMs) {
   ];
   for (const dep of deposits) {
     const defName = {
-      ironOre: 'Minerai de fer',
-      copper: 'Cuivre',
-      aluminiumOre: 'Bauxite',
-      quartz: 'Quartz',
-      graphite: 'Graphite',
-      hydrocarbons: 'Pétrole'
+      ironOre: 'Gisement de fer',
+      copper: 'Veine de cuivre',
+      aluminiumOre: 'Gisement de bauxite',
+      quartz: 'Filon de quartz',
+      graphite: 'Veine de graphite',
+      hydrocarbons: 'Poche de pétrole'
     }[dep.key] || dep.key;
     const st = createStructure(state, 'resource_deposit', sx, sy, dep.x, dep.y, {
       ownerId: player.id | 0,
@@ -302,7 +302,7 @@ function ensureTestMiningDeposits(state, player, timeMs) {
       updatedAt: timeMs
     });
     if (!st) continue;
-    st.name = `Gisement test ${defName}`;
+    st.name = defName;
     state.structures.set(st.id, st);
   }
 }

@@ -335,8 +335,8 @@ export const BUILD_STRUCTURES = [
     h: 128,
     hp: 0,
     storageCapacity: 8,
-    role: 'Extrait une source permanente proche. Le débit dépend du cycle et de l’énergie.',
-    stats: ['Sortie : avant', 'Cycle : 2.2 s', 'Énergie : 18', 'Buffer : 8'],
+    role: 'Fore un gisement permanent. Le débit dépend du cycle, du buffer et de l’énergie.',
+    stats: ['Pose : sur gisement', 'Sortie : avant', 'Cycle : 2.2 s', 'Énergie : 18', 'Buffer : 8'],
     cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
   },
 

@@ -69,6 +69,15 @@ function targetPoint(st, forward = true, tiles = 1) {
   return { x: finite(st?.x) + d.x * step * sign, y: finite(st?.y) + d.y * step * sign };
 }
 
+function frontOutputPoint(st) {
+  const d = dirOf(st);
+  const w = finite(st?.w, finite(st?.radius, 0) * 2) || TILE;
+  const h = finite(st?.h, finite(st?.radius, 0) * 2) || TILE;
+  const halfAlong = Math.abs(d.x) > 0 ? w * 0.5 : h * 0.5;
+  const step = halfAlong + TILE * 0.5;
+  return { x: finite(st?.x) + d.x * step, y: finite(st?.y) + d.y * step };
+}
+
 function pointFromDir(st, d, tiles = 1) {
   const step = TILE * Math.max(1, Number(tiles) || 1);
   return { x: finite(st?.x) + d.x * step, y: finite(st?.y) + d.y * step };
@@ -364,7 +373,7 @@ function findNearestDeposit(state, extractor) {
 }
 
 function extractorOutputTarget(state, extractor, key) {
-  const target = findStructureAt(state, extractor, targetPoint(extractor, true, 1));
+  const target = findStructureAt(state, extractor, frontOutputPoint(extractor));
   return target && canConveyorPut(target, key) ? target : null;
 }
 
@@ -409,6 +418,31 @@ function updateExtractor(state, extractor, timeMs) {
 
   const key = String(deposit.depositResourceKey || 'ironOre');
   extractor.depositResourceKey = key;
+  extractor.depositLabel = deposit.depositLabel || RESOURCE_DEFS[key]?.name || key;
+
+  if (extractor.machineEnabled === false) {
+    extractor.automationStatus = 'disabled';
+    extractor.extractionProgress = 0;
+    extractor.automationItem = null;
+    return changed;
+  }
+
+  const energyUse = Math.max(0, Number(def?.energyUse ?? extractor.energyUse) || 0);
+  if (energyUse > 0 && !extractor.powered) {
+    extractor.automationStatus = 'no_power';
+    extractor.extractionProgress = 0;
+    extractor.automationItem = { ...resourceMeta(key), phase: 'no_power', progress: 0, startedAt: timeMs, totalMs: 1, at: timeMs };
+    return changed;
+  }
+
+  const capacity = extractor.storage?.capacity || def?.storageCapacity || 8;
+  const per = Number(RESOURCE_DEFS[key]?.cargoPerUnit) || 1;
+  if (usedCapacity(map) + per > capacity) {
+    extractor.automationStatus = 'buffer_full';
+    extractor.extractionProgress = 0;
+    return changed;
+  }
+
   const interval = Math.max(250, Number(def?.extractionIntervalMs) || 2200);
   const last = Number(extractor.lastExtractionAt || 0) || 0;
   const elapsed = last > 0 ? timeMs - last : interval;
@@ -417,13 +451,6 @@ function updateExtractor(state, extractor, timeMs) {
 
   if (elapsed < interval) {
     extractor.automationStatus = '';
-    return changed;
-  }
-
-  const capacity = extractor.storage?.capacity || def?.storageCapacity || 8;
-  const per = Number(RESOURCE_DEFS[key]?.cargoPerUnit) || 1;
-  if (usedCapacity(map) + per > capacity) {
-    extractor.automationStatus = 'buffer_full';
     return changed;
   }
 

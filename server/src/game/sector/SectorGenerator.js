@@ -716,6 +716,28 @@ function rollPos(rng) {
 }
 
 export 
+
+function depositDisplayName(resourceKey) {
+  return ({
+    ironOre: 'Gisement de fer',
+    copper: 'Veine de cuivre',
+    aluminiumOre: 'Gisement de bauxite',
+    quartz: 'Filon de quartz',
+    graphite: 'Veine de graphite',
+    hydrocarbons: 'Poche de pétrole',
+    titaniumOre: 'Gisement de titane',
+    nickelOre: 'Gisement de nickel',
+    cobaltOre: 'Gisement de cobalt',
+    silicon: 'Gisement de silicium',
+    waterIce: 'Glace d’eau',
+    methaneIce: 'Glace de méthane',
+    ammoniaIce: 'Glace d’ammoniac',
+    sulfur: 'Gisement de soufre',
+    uraniumOre: 'Gisement d’uranium',
+    thoriumOre: 'Gisement de thorium'
+  })[resourceKey] || RESOURCE_DEFS[resourceKey]?.name || resourceKey;
+}
+
 function hasStructureNear(state, sx, sy, type, x, y, radius = 96, worldId = 'endless') {
   const r2 = radius * radius;
   for (const st of state?.structures?.values?.() || []) {
@@ -741,13 +763,13 @@ function spawnResourceDeposit(state, sx, sy, x, y, resourceKey, amount, seed, wo
     depositResourceKey: resourceKey,
     depositRemaining: -1,
     depositMax: -1,
-    depositLabel: RESOURCE_DEFS[resourceKey]?.name || resourceKey,
+    depositLabel: depositDisplayName(resourceKey),
     depositColorHex: RESOURCE_DEFS[resourceKey]?.colorHex || '#9ef0c7',
     createdAt: Date.now(),
     updatedAt: Date.now()
   });
   if (!st) return null;
-  st.name = `Gisement ${RESOURCE_DEFS[resourceKey]?.name || resourceKey}`;
+  st.name = depositDisplayName(resourceKey);
   st.depositSeed = seed | 0;
   st.color = RESOURCE_DEFS[resourceKey]?.colorHex || st.color;
   st.borderColor = RESOURCE_DEFS[resourceKey]?.colorHex || st.borderColor;

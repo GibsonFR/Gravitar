@@ -9,9 +9,13 @@ const MACHINE_RANGE = 280;
 const MACHINE_INPUT_CAPACITY = 160;
 const MACHINE_OUTPUT_CAPACITY = 160;
 
+function isExtractorStructure(structure) {
+  return String(structure?.type || '').toLowerCase() === 'mining_extractor';
+}
+
 export function isMachineStructure(structure) {
   const def = getStructureDef(structure?.type);
-  return !!def?.machineType;
+  return !!def?.machineType || isExtractorStructure(structure);
 }
 
 function resourceMap(structure, slot) {
@@ -99,6 +103,47 @@ function canBaseStartRecipe(core, structure, recipe) {
   return production > 0 && surplus >= need;
 }
 
+function buildExtractorSnapshot(state, player, st, def, core) {
+  const resources = mapRows(st.storage?.resources || {});
+  const selectedKey = st.depositResourceKey || resources[0]?.key || '';
+  const resDef = RESOURCE_DEFS[selectedKey] || null;
+  const powerLabel = st.machineEnabled === false ? 'Arrêté' : st.powered ? 'Alimenté' : 'Manque d’énergie';
+  const statusMap = {
+    no_deposit: 'Aucun gisement sous ou près de l’extracteur',
+    no_power: 'Manque d’énergie',
+    buffer_full: 'Buffer plein',
+    disabled: 'Arrêté',
+    blocked: 'Sortie bloquée',
+    no_output: 'Sortie absente'
+  };
+  return {
+    id: st.id | 0,
+    type: st.type,
+    name: st.name || def.name || 'Extracteur minier',
+    machineType: 'extractor',
+    powered: !!st.powered,
+    enabled: st.machineEnabled !== false,
+    energyUse: Number(def.energyUse) || 0,
+    baseCoreId: core?.id | 0 || 0,
+    baseEnergy: core?.energyState || null,
+    depositId: st.depositId | 0 || 0,
+    depositResourceKey: selectedKey,
+    depositLabel: st.depositLabel || resDef?.name || selectedKey || '—',
+    extractionProgress: Math.max(0, Math.min(1, Number(st.extractionProgress || st.automationItem?.progress || 0))),
+    automationStatus: st.automationStatus || '',
+    statusLabel: statusMap[st.automationStatus] || powerLabel,
+    output: resources,
+    outputUsed: usedCapacity(st.storage?.resources || {}),
+    outputCapacity: Number(st.storage?.capacity ?? def.storageCapacity) || 8,
+    input: [],
+    recipes: [],
+    selectedRecipe: null,
+    selectedRecipeId: '',
+    canProduce: false,
+    canRun: !!st.powered && st.machineEnabled !== false && !!selectedKey
+  };
+}
+
 function buildJobSnapshot(st) {
   const job = st?.machineJob || null;
   if (!job || Number(job.totalMs) <= 0) return null;
@@ -138,6 +183,7 @@ export function buildMachineSnapshot(state, player) {
   }
   const def = getStructureDef(st.type);
   const core = findAliveCoreForStructure(state, st);
+  if (isExtractorStructure(st)) return buildExtractorSnapshot(state, player, st, def, core);
   const recipes = getRecipesForMachine(def.machineType).map((recipe) => ({
     id: recipe.id,
     name: recipe.name,
@@ -211,6 +257,19 @@ export function transferMachineResource(state, player, structureId, resourceKey,
   const key = String(resourceKey || '');
   if (!RESOURCE_DEFS[key]) return { ok: false, error: 'bad_resource' };
   const n = Math.max(1, Math.min(9999, amount | 0 || 1));
+  if (isExtractorStructure(st)) {
+    if (direction !== 'withdraw') return { ok: false, error: 'extractor_output_only' };
+    const map = st.storage?.resources || {};
+    const take = Math.min(map[key] | 0, n);
+    if (take <= 0 || !canAddResource(player.inv, key, take)) return { ok: false, error: 'cannot_withdraw' };
+    map[key] = (map[key] | 0) - take;
+    addResource(player.inv, key, take);
+    cleanMap(map);
+    st.updatedAt = timeMs;
+    player.forceFullUiSnapshot = true;
+    if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+    return { ok: true };
+  }
   const map = resourceMap(st, slot === 'output' ? 'output' : 'input');
   if (direction === 'withdraw') {
     const take = Math.min(map[key] | 0, n);

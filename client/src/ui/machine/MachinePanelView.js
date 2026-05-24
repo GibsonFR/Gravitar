@@ -15,6 +15,10 @@ function fmtList(entries = [], withHave = false) {
   }).join('');
 }
 
+function extractorRows(entries = [], structureId) {
+  return resourceRows(entries, 'Récupérer', 'withdraw', 'output', structureId, false);
+}
+
 function resourceRows(entries = [], actionLabel, direction, slot, structureId, disabled = false) {
   if (!entries.length) return `<div class="machine-panel__empty">Vide.</div>`;
   return entries.map((r) => {
@@ -142,6 +146,54 @@ export class MachinePanelView {
     const key = JSON.stringify({ machine, tab: this.tab, t: Math.floor(Date.now() / 250) });
     if (key === this.lastKey) return;
     this.lastKey = key;
+
+    if (machine.machineType === 'extractor') {
+      const progressPct = Math.round((Number(machine.extractionProgress) || 0) * 100);
+      const powered = !!machine.powered && machine.enabled !== false;
+      const powerClass = powered ? 'is-powered' : 'is-unpowered';
+      const status = machine.enabled === false ? 'Arrêté' : (machine.statusLabel || (powered ? 'Extraction' : 'Manque d’énergie'));
+      const energy = machine.baseEnergy || null;
+      const energyLine = energy ? `${energy.production || 0} prod · ${energy.consumption || 0} conso · ${energy.surplus || 0} surplus` : 'Aucun noyau alimenté';
+      this.el.innerHTML = `
+        <div class="machine-panel__head">
+          <div>
+            <div class="machine-panel__eyebrow">Industrie</div>
+            <div class="machine-panel__title">${escapeHtml(machine.name || 'Extracteur minier')}</div>
+            <div class="machine-panel__meta ${powerClass}">${escapeHtml(status)} · ${machine.energyUse | 0} énergie active</div>
+          </div>
+          <button class="machine-panel__close" type="button" data-close-machine="1">×</button>
+        </div>
+        <div class="machine-panel__body">
+          <div class="machine-panel__production">
+            <div class="machine-panel__recipe-banner">
+              <div class="machine-panel__recipe-title">Source : ${escapeHtml(machine.depositLabel || 'Aucun gisement')}</div>
+              <div class="machine-panel__recipe-stats">Cycle d’extraction · buffer ${Math.round(machine.outputUsed || 0)} / ${Math.round(machine.outputCapacity || 0)}</div>
+            </div>
+            <div class="machine-panel__progress">
+              <div class="machine-panel__progress-head"><span>${escapeHtml(status)}</span><b>${progressPct}%</b></div>
+              <div class="machine-panel__bar"><span style="width:${progressPct}%"></span></div>
+            </div>
+            <div class="machine-panel__cols">
+              <section class="machine-panel__box">
+                <h3>Énergie</h3>
+                <div class="machine-panel__empty">${escapeHtml(energyLine)}</div>
+              </section>
+              <section class="machine-panel__box machine-panel__center">
+                <button class="machine-panel__produce ${machine.enabled !== false ? 'is-off' : 'is-on'}" type="button" data-machine-toggle="1" data-enabled="${machine.enabled !== false ? '0' : '1'}">
+                  ${machine.enabled !== false ? 'Arrêter' : 'Activer'}
+                </button>
+                <div class="machine-panel__status ${powerClass}">${escapeHtml(status)}</div>
+                <div class="machine-panel__hint">Pose-le sur un gisement. Sortie automatique vers l’avant ou récupération manuelle du buffer.</div>
+              </section>
+              <section class="machine-panel__box">
+                <h3>Buffer <span>${Math.round(machine.outputUsed || 0)} / ${Math.round(machine.outputCapacity || 0)}</span></h3>
+                ${extractorRows(machine.output || [], machine.id)}
+              </section>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
 
     const recipes = Array.isArray(machine.recipes) ? machine.recipes : [];
     const selected = machine.selectedRecipe || null;

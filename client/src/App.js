@@ -322,7 +322,7 @@ export function startApp() {
   }
 
   function tryInteractStructureAt(px, py) {
-    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press');
+    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'mining_extractor');
     if (!st) return false;
     if (st.type === 'storage' || st.type === 'equipment_storage' || st.type === 'ammo_storage' || st.type === 'fuel_tank' || st.type === 'fuel_generator') sendCmd('storage_open', { structureId: st.id | 0 });
     else if (st.type === 'door') sendCmd('toggle_structure', { structureId: st.id | 0 });

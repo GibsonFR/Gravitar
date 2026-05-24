@@ -109,7 +109,31 @@ function smoothstep01(v) {
 }
 
 
+const DEPOSIT_DISPLAY_NAMES = {
+  ironOre: 'Gisement de fer',
+  copper: 'Veine de cuivre',
+  aluminiumOre: 'Bauxite',
+  quartz: 'Cristaux de quartz',
+  graphite: 'Veine de graphite',
+  hydrocarbons: 'Poche de pétrole',
+  titaniumOre: 'Minerai de titane',
+  nickelOre: 'Minerai de nickel',
+  cobaltOre: 'Minerai de cobalt',
+  silicon: 'Silicium',
+  waterIce: 'Glace d’eau',
+  methaneIce: 'Glace de méthane',
+  ammoniaIce: 'Glace d’ammoniac',
+  sulfur: 'Soufre',
+  uraniumOre: 'Minerai d’uranium',
+  thoriumOre: 'Minerai de thorium'
+};
+
+function depositDisplayName(s) {
+  return String(s?.depositLabel || DEPOSIT_DISPLAY_NAMES[s?.depositResourceKey] || s?.depositResourceKey || 'Gisement');
+}
+
 function depositRatio(s) {
+
   if (s?.depositInfinite || Number(s?.depositMax) < 0 || Number(s?.depositRemaining) < 0) return 1;
   const max = Math.max(1, Number(s?.depositMax) || 0);
   const rem = Math.max(0, Number(s?.depositRemaining) || 0);
@@ -649,21 +673,26 @@ function drawResourceDepositBody(ctx, view, s, w, h) {
   }
 
   ctx.shadowBlur = 0;
-  ctx.fillStyle = 'rgba(3, 8, 10, .78)';
-  ctx.fillRect(-w * 0.28, h * 0.36, w * 0.56, 5 * view.dpr);
-  ctx.fillStyle = color;
-  ctx.fillRect(-w * 0.28, h * 0.36, w * 0.56 * ratio, 5 * view.dpr);
-
+  ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,.95)';
   ctx.shadowBlur = 4 * view.dpr;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  const label = depositDisplayName(s);
   ctx.font = `${10 * view.dpr}px system-ui, sans-serif`;
-  ctx.fillStyle = ratio > 0 ? accent : 'rgba(255,150,150,.94)';
-  ctx.fillText(ratio > 0 ? style.code : 'VIDE', 0, -h * 0.32);
+  ctx.fillStyle = accent;
+  const words = label.split(' ');
+  if (label.length > 16 && words.length > 1) {
+    const mid = Math.ceil(words.length / 2);
+    ctx.fillText(words.slice(0, mid).join(' '), 0, -h * 0.43);
+    ctx.fillText(words.slice(mid).join(' '), 0, -h * 0.31);
+  } else {
+    ctx.fillText(label, 0, -h * 0.36);
+  }
   ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
-  ctx.fillStyle = 'rgba(226,245,255,.82)';
-  ctx.fillText(`${Math.max(0, s.depositRemaining | 0)}`, 0, h * 0.49);
+  ctx.fillStyle = 'rgba(210, 238, 225, .78)';
+  ctx.fillText('source permanente', 0, h * 0.43);
+  ctx.restore();
   ctx.restore();
 }
 
@@ -843,22 +872,55 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.beginPath();
     } else if (isExtractor) {
       const progress = Math.max(0, Math.min(1, Number(s.extractionProgress || s.automationItem?.progress || 0)));
-      ctx.fillStyle = 'rgba(18, 30, 42, .70)';
+      const active = s.machineEnabled !== false && s.automationStatus !== 'no_power' && s.automationStatus !== 'buffer_full';
+      ctx.fillStyle = 'rgba(16, 28, 40, .82)';
       ctx.beginPath();
-      roundedRect(ctx, -w * 0.34, -h * 0.30, w * 0.68, h * 0.58, 12 * view.dpr);
+      roundedRect(ctx, -w * 0.36, -h * 0.34, w * 0.72, h * 0.66, 12 * view.dpr);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(159,220,255,.82)';
+      ctx.strokeStyle = active ? 'rgba(159,220,255,.88)' : 'rgba(255,170,120,.78)';
       ctx.lineWidth = 1.8 * view.dpr;
       ctx.beginPath();
-      ctx.rect(-w * 0.24, -h * 0.16, w * 0.48, h * 0.30);
-      ctx.moveTo(-w * 0.18, h * 0.22); ctx.lineTo(-w * 0.04, -h * 0.10); ctx.lineTo(w * 0.10, h * 0.22);
-      ctx.moveTo(-w * 0.20, h * 0.22); ctx.lineTo(w * 0.20, h * 0.22);
-      ctx.moveTo(0, -h * 0.30); ctx.lineTo(0, -h * 0.46);
-      ctx.moveTo(-w * 0.12, -h * 0.42); ctx.lineTo(w * 0.12, -h * 0.42);
+      ctx.rect(-w * 0.26, -h * 0.20, w * 0.52, h * 0.36);
+      ctx.moveTo(-w * 0.26, -h * 0.02); ctx.lineTo(w * 0.26, -h * 0.02);
+      ctx.moveTo(-w * 0.18, h * 0.24); ctx.lineTo(-w * 0.04, -h * 0.11); ctx.lineTo(w * 0.10, h * 0.24);
+      ctx.moveTo(-w * 0.23, h * 0.24); ctx.lineTo(w * 0.23, h * 0.24);
+      ctx.moveTo(0, -h * 0.34); ctx.lineTo(0, -h * 0.50);
+      ctx.moveTo(-w * 0.13, -h * 0.46); ctx.lineTo(w * 0.13, -h * 0.46);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(159,220,255,.28)';
-      ctx.fillRect(-w * 0.20, h * 0.04, w * 0.40 * progress, 5 * view.dpr);
+
+      ctx.fillStyle = 'rgba(159,220,255,.18)';
+      ctx.fillRect(-w * 0.18, -h * 0.12, w * 0.36, h * 0.16);
+      ctx.fillStyle = active ? 'rgba(159,220,255,.34)' : 'rgba(255,170,120,.22)';
+      ctx.fillRect(-w * 0.18, -h * 0.12, w * 0.36 * progress, h * 0.16);
+
+      ctx.strokeStyle = 'rgba(230,245,255,.72)';
+      ctx.lineWidth = 1.5 * view.dpr;
+      ctx.beginPath();
+      const spin = active ? (t * 7) : 0;
+      for (let i = 0; i < 3; i += 1) {
+        const yy = h * (0.02 + i * 0.055);
+        const phase = ((i + spin) % 2) * w * 0.025;
+        ctx.moveTo(-w * 0.08 + phase, yy);
+        ctx.lineTo(w * 0.08 - phase, yy + h * 0.04);
+      }
+      ctx.stroke();
+
       drawDirectionArrow(ctx, view, s, w, h, false);
+      const exStatus = s.automationStatus === 'no_power' ? 'manque énergie'
+        : s.automationStatus === 'buffer_full' ? 'buffer plein'
+          : s.automationStatus === 'no_deposit' ? 'aucun gisement'
+            : s.machineEnabled === false ? 'arrêté' : '';
+      if (exStatus) {
+        ctx.save();
+        ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = s.automationStatus === 'no_power' ? 'rgba(255,185,125,.96)' : 'rgba(220,245,255,.86)';
+        ctx.shadowColor = 'rgba(0,0,0,.9)';
+        ctx.shadowBlur = 3 * view.dpr;
+        ctx.fillText(exStatus, 0, h * 0.42);
+        ctx.restore();
+      }
       ctx.beginPath();
     } else if (isConveyor) {
       drawConveyorMotion(ctx, view, s, w, h, t, structures);
