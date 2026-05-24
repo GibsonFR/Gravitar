@@ -36,6 +36,8 @@ import { handleResearchStationClose } from './ResearchStationCloseCommand.js';
 import { handleResearchStationTransfer } from './ResearchStationTransferCommand.js';
 import { handleResearchStationStart } from './ResearchStationStartCommand.js';
 import { handleResearchStationToggle } from './ResearchStationToggleCommand.js';
+import { handleResearchTreeStart } from './ResearchTreeStartCommand.js';
+import { handleResearchTreeCancel } from './ResearchTreeCancelCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -76,7 +78,9 @@ const HANDLERS = {
   research_station_close: handleResearchStationClose,
   research_station_transfer: handleResearchStationTransfer,
   research_station_start: handleResearchStationStart,
-  research_station_toggle: handleResearchStationToggle
+  research_station_toggle: handleResearchStationToggle,
+  research_tree_start: handleResearchTreeStart,
+  research_tree_cancel: handleResearchTreeCancel
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

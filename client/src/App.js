@@ -42,6 +42,7 @@ import { BasePanelView } from './ui/base/BasePanelView.js';
 import { StoragePanelView } from './ui/storage/StoragePanelView.js';
 import { MachinePanelView } from './ui/machine/MachinePanelView.js';
 import { ResearchStationPanelView } from './ui/research/ResearchStationPanelView.js';
+import { ResearchTreePanelView, getResearchIconSvg } from './ui/research/ResearchTreePanelView.js';
 import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
 
@@ -199,6 +200,9 @@ export function startApp() {
 
   const convertersPanel = new ConvertersPanelView(sendCmd);
   dock.registerPanel({ id: 'converters', title: 'Convert.', iconMarkup: getConverterIconSvg(), panelEl: convertersPanel.el, shellClass: 'ui-panel-shell--converters', group: 'game' });
+
+  const researchTreePanel = new ResearchTreePanelView(sendCmd);
+  dock.registerPanel({ id: 'research', title: 'Recherche', iconMarkup: getResearchIconSvg(), panelEl: researchTreePanel.el, shellClass: 'ui-panel-shell--research', group: 'game' });
 
   const optionsPanel = new OptionsPanelView((settings) => {
     audio.applySettings(settings);
@@ -840,6 +844,7 @@ export function startApp() {
     dock.setEnabled('cargo', !isDocked);
 
     convertersPanel.update(store.myState?.equipment);
+    researchTreePanel.update(store);
     const activeConverterCount = Math.max(0, store.myState?.equipment?.converters?.summary?.enabledCount | 0);
     dock.setBadge('converters', activeConverterCount > 0 ? `${activeConverterCount}` : '');
     dock.setEnabled('converters', !!store.myState?.equipment?.converters);

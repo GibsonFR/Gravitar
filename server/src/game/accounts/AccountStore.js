@@ -65,11 +65,23 @@ function readJsonFile(f) {
 }
 
 function normalizeResearch(research) {
-  if (!research || typeof research !== 'object') return { completed: [], unlocked: [] };
+  if (!research || typeof research !== 'object') return { completed: [], unlocked: [], active: null };
   if (!Array.isArray(research.completed)) research.completed = [];
   if (!Array.isArray(research.unlocked)) research.unlocked = [];
   research.completed = research.completed.map((v) => String(v || '')).filter((v, i, a) => v && a.indexOf(v) === i);
   research.unlocked = research.unlocked.map((v) => String(v || '')).filter((v, i, a) => v && a.indexOf(v) === i);
+  if (research.active && typeof research.active !== 'object') research.active = null;
+  if (research.active) {
+    research.active = {
+      projectId: String(research.active.projectId || ''),
+      startedAt: Number(research.active.startedAt || 0),
+      totalMs: Math.max(1, Number(research.active.totalMs || 1)),
+      remainingMs: Math.max(0, Number(research.active.remainingMs || 0)),
+      paused: !!research.active.paused,
+      status: String(research.active.status || '')
+    };
+    if (!research.active.projectId) research.active = null;
+  } else research.active = null;
   return research;
 }
 
@@ -316,7 +328,7 @@ export function buildEndlessSave(player) {
     inv: player.inv || null,
     equipment: player.equipment || null,
     completedBastionIds: player.completedBastionIds || [],
-    research: player.research || { completed: [], unlocked: [] },
+    research: player.research || { completed: [], unlocked: [], active: null },
     savedAt: Date.now(),
     schemaVersion: 1
   };

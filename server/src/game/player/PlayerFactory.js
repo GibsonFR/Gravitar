@@ -53,7 +53,7 @@ export function createPlayer(id, frameId, timeMs = Date.now()) {
     bastionBuffs: [],
     bastionReturn: null,
     completedBastionIds: [],
-    research: { completed: [], unlocked: [] },
+    research: { completed: [], unlocked: [], active: null },
     gameMode: 'endless',
     worldId: 'setup',
     battleSessionId: '',

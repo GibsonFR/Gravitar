@@ -140,29 +140,8 @@ export class ResearchStationPanelView {
         </section>
       </div>
 
-      <div class="research-station__tree">
-        ${branches.map((branch) => {
-          const branchProjects = projects.filter((p) => p.branch === branch.id);
-          if (!branchProjects.length) return '';
-          return `<section class="research-station__branch" style="--branch:${escapeHtml(branch.colorHex || '#7edcff')}">
-            <h3>${escapeHtml(branch.name)}</h3>
-            <div class="research-station__cards">
-              ${branchProjects.map((p) => {
-                const done = completed.has(p.id);
-                const locked = p.locked;
-                const enoughScience = Object.entries(p.scienceCost || {}).every(([k, n]) => (inputByKey.get(k) || 0) >= (n | 0));
-                const canStart = !busy && !done && !locked && enoughScience;
-                return `<article class="research-station__card ${done ? 'is-done' : locked ? 'is-locked' : ''}">
-                  <div class="research-station__card-title">${escapeHtml(p.name)}</div>
-                  <div class="research-station__card-meta">${p.seconds | 0}s · ${p.energyUse | 0} énergie</div>
-                  <div class="research-station__card-cost">${costHtml(p.scienceCost)}</div>
-                  <div class="research-station__card-unlocks">${(p.unlocks || []).map(escapeHtml).join(' · ')}</div>
-                  <button type="button" data-research-start="1" data-structure="${data.id | 0}" data-project="${escapeHtml(p.id)}" ${canStart ? '' : 'disabled'}>${done ? 'Terminé' : locked ? 'Verrouillé' : enoughScience ? 'Rechercher' : 'Packs manquants'}</button>
-                </article>`;
-              }).join('')}
-            </div>
-          </section>`;
-        }).join('')}
+      <div class="research-station__note">
+        La station sert à stocker les packs et à fournir de la puissance de recherche. Le choix de la technologie se fait dans l’onglet <b>Recherche</b>.
       </div>
     `;
   }
