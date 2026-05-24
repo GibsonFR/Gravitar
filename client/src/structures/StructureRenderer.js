@@ -572,11 +572,17 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   const pal = ownerPalette(s);
   const edge = pal.edge;
   const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press']);
+  const powerTypes = new Set(['solar_panel', 'fuel_generator', 'fuel_tank']);
+  const storageTypes = new Set(['storage', 'equipment_storage', 'ammo_storage']);
   const fill = (s.type === 'wall' || s.type === 'door')
     ? (s.owned ? 'rgba(38, 55, 72, .74)' : 'rgba(72, 34, 40, .70)')
     : machineTypes.has(s.type)
-      ? (s.owned ? 'rgba(42, 54, 64, .34)' : 'rgba(74, 36, 44, .30)')
-      : pal.fill;
+      ? (s.owned ? 'rgba(40, 50, 60, .40)' : 'rgba(74, 36, 44, .32)')
+      : powerTypes.has(s.type)
+        ? (s.owned ? 'rgba(34, 52, 58, .40)' : 'rgba(74, 38, 44, .32)')
+        : storageTypes.has(s.type)
+          ? (s.owned ? 'rgba(34, 52, 50, .42)' : 'rgba(74, 38, 44, .30)')
+          : pal.fill;
 
   ctx.save();
   ctx.translate(p.x, p.y);
@@ -682,83 +688,181 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       drawRobotArmMotion(ctx, view, s, w, h);
       ctx.beginPath();
     } else if (isSolar) {
-      for (let i = -1; i <= 1; i += 1) {
-        const x = i * w * 0.18;
-        ctx.moveTo(x, -h * 0.32); ctx.lineTo(x, h * 0.32);
-      }
-      ctx.moveTo(-w * 0.33, 0); ctx.lineTo(w * 0.33, 0);
-      ctx.moveTo(-w * 0.22, -h * 0.42); ctx.lineTo(-w * 0.30, -h * 0.52);
-      ctx.moveTo(0, -h * 0.45); ctx.lineTo(0, -h * 0.56);
-      ctx.moveTo(w * 0.22, -h * 0.42); ctx.lineTo(w * 0.30, -h * 0.52);
-    } else if (isGenerator) {
-      ctx.arc(0, 0, Math.min(w, h) * 0.24, 0, Math.PI * 2);
-      ctx.moveTo(-w * 0.22, h * 0.30); ctx.lineTo(w * 0.22, h * 0.30);
-      ctx.moveTo(-w * 0.18, -h * 0.12); ctx.quadraticCurveTo(0, -h * 0.34, w * 0.18, -h * 0.12);
-      ctx.moveTo(-w * 0.14, h * 0.10); ctx.quadraticCurveTo(0, -h * 0.02, w * 0.14, h * 0.10);
-    } else if (isFuelTank) {
-      ctx.rect(-w * 0.28, -h * 0.30, w * 0.56, h * 0.60);
-      ctx.moveTo(-w * 0.20, -h * 0.06); ctx.lineTo(w * 0.20, -h * 0.06);
-      ctx.moveTo(-w * 0.20, h * 0.10); ctx.lineTo(w * 0.20, h * 0.10);
-    } else if (isStorage) {
-      ctx.moveTo(-w * 0.30, -h * 0.18);
-      ctx.lineTo(0, -h * 0.34);
-      ctx.lineTo(w * 0.30, -h * 0.18);
-      ctx.lineTo(w * 0.30, h * 0.22);
-      ctx.lineTo(0, h * 0.38);
-      ctx.lineTo(-w * 0.30, h * 0.22);
+
+      ctx.fillStyle = 'rgba(64, 120, 124, .32)';
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.26, -h * 0.10);
+      ctx.lineTo(w * 0.24, -h * 0.22);
+      ctx.lineTo(w * 0.30, h * 0.08);
+      ctx.lineTo(-w * 0.20, h * 0.20);
       ctx.closePath();
-      ctx.moveTo(-w * 0.30, -h * 0.18); ctx.lineTo(0, 0); ctx.lineTo(w * 0.30, -h * 0.18);
-      ctx.moveTo(0, 0); ctx.lineTo(0, h * 0.38);
-      ctx.moveTo(-w * 0.18, h * 0.26); ctx.lineTo(w * 0.18, h * 0.08);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(210,255,150,.76)';
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.26, -h * 0.10);
+      ctx.lineTo(w * 0.24, -h * 0.22);
+      ctx.lineTo(w * 0.30, h * 0.08);
+      ctx.lineTo(-w * 0.20, h * 0.20);
+      ctx.closePath();
+      for (let i = 1; i <= 3; i += 1) {
+        const tt = i / 4;
+        const x1 = -w * 0.26 + (w * 0.50) * tt;
+        const y1 = -h * 0.10 + (-h * 0.12) * tt;
+        const x2 = -w * 0.20 + (w * 0.50) * tt;
+        const y2 = h * 0.20 + (-h * 0.12) * tt;
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      }
+      for (let i = 1; i <= 2; i += 1) {
+        const tt = i / 3;
+        ctx.moveTo(-w * 0.245 + w * 0.515 * tt, -h * 0.13 + h * 0.30 * tt);
+        ctx.lineTo(-w * 0.195 + w * 0.515 * tt, h * 0.17 + h * 0.00 * tt);
+      }
+      ctx.moveTo(0, h * 0.20); ctx.lineTo(0, h * 0.36);
+      ctx.moveTo(-w * 0.12, h * 0.36); ctx.lineTo(w * 0.12, h * 0.36);
+      ctx.moveTo(w * 0.14, -h * 0.36); ctx.lineTo(w * 0.20, -h * 0.46);
+      ctx.moveTo(w * 0.12, -h * 0.41); ctx.lineTo(w * 0.22, -h * 0.41);
+    } else if (isGenerator) {
+
+      ctx.fillStyle = 'rgba(84, 58, 30, .42)';
+      ctx.fillRect(-w * 0.28, -h * 0.24, w * 0.56, h * 0.48);
+      ctx.strokeStyle = 'rgba(255,185,96,.80)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.28, -h * 0.24, w * 0.56, h * 0.48);
+      ctx.moveTo(-w * 0.12, -h * 0.24); ctx.lineTo(-w * 0.12, h * 0.24);
+      ctx.moveTo(w * 0.10, -h * 0.24); ctx.lineTo(w * 0.10, h * 0.24);
+      ctx.moveTo(-w * 0.28, h * 0.28); ctx.lineTo(w * 0.28, h * 0.28);
+      ctx.moveTo(-w * 0.22, -h * 0.30); ctx.lineTo(-w * 0.22, -h * 0.42);
+      ctx.arc(-w * 0.02, 0, Math.min(w, h) * 0.12, 0, Math.PI * 2);
+      ctx.moveTo(w * 0.16, -h * 0.10); ctx.lineTo(w * 0.06, h * 0.02); ctx.lineTo(w * 0.16, h * 0.02); ctx.lineTo(w * 0.06, h * 0.16);
+    } else if (isFuelTank) {
+
+      ctx.fillStyle = 'rgba(80, 60, 30, .30)';
+      ctx.fillRect(-w * 0.26, -h * 0.22, w * 0.52, h * 0.44);
+      ctx.strokeStyle = 'rgba(255,200,118,.72)';
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.18, -h * 0.22); ctx.lineTo(w * 0.18, -h * 0.22);
+      ctx.moveTo(-w * 0.26, -h * 0.08); ctx.quadraticCurveTo(0, -h * 0.18, w * 0.26, -h * 0.08);
+      ctx.moveTo(-w * 0.26, h * 0.08); ctx.quadraticCurveTo(0, h * 0.18, w * 0.26, h * 0.08);
+      ctx.moveTo(-w * 0.18, h * 0.22); ctx.lineTo(w * 0.18, h * 0.22);
+      ctx.moveTo(-w * 0.08, -h * 0.32); ctx.lineTo(-w * 0.08, -h * 0.22);
+      ctx.moveTo(-w * 0.06, -h * 0.02); ctx.lineTo(w * 0.10, -h * 0.02);
+      ctx.moveTo(-w * 0.06, h * 0.10); ctx.lineTo(w * 0.04, h * 0.10);
+      ctx.arc(w * 0.14, h * 0.12, w * 0.055, -Math.PI / 2, Math.PI / 2);
+    } else if (isStorage) {
+
+      ctx.fillStyle = 'rgba(62, 86, 66, .34)';
+      ctx.fillRect(-w * 0.28, -h * 0.16, w * 0.56, h * 0.38);
+      ctx.fillRect(-w * 0.24, -h * 0.28, w * 0.48, h * 0.12);
+      ctx.strokeStyle = 'rgba(118,246,202,.80)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.28, -h * 0.16, w * 0.56, h * 0.38);
+      ctx.rect(-w * 0.24, -h * 0.28, w * 0.48, h * 0.12);
+      ctx.moveTo(-w * 0.10, -h * 0.22); ctx.lineTo(w * 0.10, -h * 0.22);
+      ctx.moveTo(0, -h * 0.16); ctx.lineTo(0, h * 0.22);
+      ctx.rect(-w * 0.06, -h * 0.06, w * 0.12, h * 0.10);
+      ctx.moveTo(-w * 0.18, h * 0.10); ctx.lineTo(w * 0.18, h * 0.10);
     } else if (isEquip) {
-      ctx.rect(-w * 0.30, -h * 0.32, w * 0.60, h * 0.64);
-      ctx.moveTo(-w * 0.20, -h * 0.14); ctx.lineTo(w * 0.20, -h * 0.14);
-      ctx.moveTo(-w * 0.20, h * 0.02); ctx.lineTo(w * 0.20, h * 0.02);
-      ctx.moveTo(-w * 0.20, h * 0.18); ctx.lineTo(w * 0.04, h * 0.18);
-      ctx.moveTo(w * 0.18, -h * 0.26); ctx.lineTo(w * 0.18, h * 0.26);
+
+      ctx.fillStyle = 'rgba(44, 58, 90, .32)';
+      ctx.fillRect(-w * 0.26, -h * 0.30, w * 0.52, h * 0.60);
+      ctx.strokeStyle = 'rgba(150,185,255,.76)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.26, -h * 0.30, w * 0.52, h * 0.60);
+      ctx.moveTo(0, -h * 0.30); ctx.lineTo(0, h * 0.30);
+      ctx.moveTo(-w * 0.18, -h * 0.12); ctx.lineTo(-w * 0.04, -h * 0.12);
+      ctx.moveTo(-w * 0.18, h * 0.04); ctx.lineTo(-w * 0.04, h * 0.04);
+      ctx.moveTo(w * 0.04, -h * 0.14); ctx.lineTo(w * 0.18, -h * 0.14);
+      ctx.moveTo(w * 0.04, 0); ctx.lineTo(w * 0.18, 0);
+      ctx.moveTo(w * 0.04, h * 0.14); ctx.lineTo(w * 0.18, h * 0.14);
+      ctx.rect(-w * 0.16, h * 0.12, w * 0.10, h * 0.10);
     } else if (isAmmo) {
-      ctx.moveTo(-w * 0.24, h * 0.24);
-      ctx.lineTo(0, -h * 0.30);
-      ctx.lineTo(w * 0.24, h * 0.24);
-      ctx.moveTo(-w * 0.12, 0);
-      ctx.lineTo(w * 0.12, 0);
-      ctx.moveTo(-w * 0.30, h * 0.34);
-      ctx.lineTo(w * 0.30, h * 0.34);
+
+      ctx.fillStyle = 'rgba(88, 62, 30, .34)';
+      ctx.fillRect(-w * 0.28, -h * 0.18, w * 0.56, h * 0.34);
+      ctx.strokeStyle = 'rgba(255,197,112,.76)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.28, -h * 0.18, w * 0.56, h * 0.34);
+      ctx.rect(-w * 0.04, -h * 0.22, w * 0.08, h * 0.08);
+      ctx.moveTo(-w * 0.10, h * 0.18); ctx.lineTo(-w * 0.02, -h * 0.06); ctx.lineTo(w * 0.06, h * 0.18);
+      ctx.moveTo(w * 0.08, h * 0.18); ctx.lineTo(w * 0.16, -h * 0.06); ctx.lineTo(w * 0.24, h * 0.18);
+      ctx.moveTo(-w * 0.24, h * 0.26); ctx.lineTo(w * 0.24, h * 0.26);
     } else if (isFurnace || isHighFurnace) {
-      ctx.rect(-w * 0.32, -h * 0.22, w * 0.64, h * 0.46);
-      ctx.moveTo(-w * 0.26, h * 0.24); ctx.lineTo(w * 0.26, h * 0.24);
-      ctx.moveTo(-w * 0.16, -h * 0.02);
-      ctx.quadraticCurveTo(0, -h * (isHighFurnace ? 0.34 : 0.25), w * 0.16, -h * 0.02);
-      ctx.quadraticCurveTo(w * 0.05, h * 0.18, -w * 0.16, -h * 0.02);
+
+      ctx.fillStyle = isHighFurnace ? 'rgba(92, 44, 38, .36)' : 'rgba(88, 58, 30, .34)';
+      ctx.fillRect(-w * 0.28, -h * 0.18, w * 0.56, h * 0.40);
+      ctx.strokeStyle = isHighFurnace ? 'rgba(255,118,92,.82)' : 'rgba(255,178,94,.80)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.28, -h * 0.18, w * 0.56, h * 0.40);
+      ctx.rect(-w * 0.10, -h * 0.04, w * 0.20, h * 0.16);
+      ctx.moveTo(-w * 0.28, h * 0.24); ctx.lineTo(w * 0.28, h * 0.24);
+      ctx.moveTo(-w * 0.18, -h * 0.18); ctx.lineTo(-w * 0.18, -h * (isHighFurnace ? 0.36 : 0.30));
+      ctx.moveTo(w * 0.18, -h * 0.18); ctx.lineTo(w * 0.18, -h * (isHighFurnace ? 0.36 : 0.30));
+      ctx.moveTo(-w * 0.10, h * 0.04); ctx.lineTo(w * 0.10, h * 0.04);
+      ctx.moveTo(-w * 0.06, -h * 0.04); ctx.quadraticCurveTo(0, -h * (isHighFurnace ? 0.18 : 0.12), w * 0.06, -h * 0.04);
       if (isHighFurnace) {
-        ctx.moveTo(-w * 0.30, -h * 0.34); ctx.lineTo(w * 0.30, -h * 0.34);
-        ctx.moveTo(-w * 0.24, -h * 0.42); ctx.lineTo(w * 0.24, -h * 0.42);
+        ctx.moveTo(-w * 0.22, -h * 0.36); ctx.lineTo(-w * 0.14, -h * 0.36);
+        ctx.moveTo(w * 0.14, -h * 0.36); ctx.lineTo(w * 0.22, -h * 0.36);
       }
     } else if (isChem) {
-      ctx.moveTo(-w * 0.24, h * 0.28); ctx.lineTo(-w * 0.08, -h * 0.30);
-      ctx.lineTo(w * 0.08, -h * 0.30); ctx.lineTo(w * 0.24, h * 0.28); ctx.closePath();
-      ctx.moveTo(-w * 0.18, h * 0.05); ctx.lineTo(w * 0.18, h * 0.05);
-      ctx.moveTo(w * 0.30, -h * 0.20); ctx.arc(w * 0.30, -h * 0.20, w * 0.035, 0, Math.PI * 2);
-      ctx.moveTo(w * 0.24, -h * 0.34); ctx.arc(w * 0.24, -h * 0.34, w * 0.026, 0, Math.PI * 2);
+
+      ctx.fillStyle = 'rgba(48, 78, 34, .28)';
+      ctx.fillRect(-w * 0.28, -h * 0.10, w * 0.18, h * 0.32);
+      ctx.fillRect(w * 0.02, -h * 0.22, w * 0.18, h * 0.44);
+      ctx.strokeStyle = 'rgba(150,235,130,.78)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.28, -h * 0.10, w * 0.18, h * 0.32);
+      ctx.rect(w * 0.02, -h * 0.22, w * 0.18, h * 0.44);
+      ctx.moveTo(-w * 0.10, 0); ctx.lineTo(w * 0.02, 0);
+      ctx.lineTo(w * 0.02, -h * 0.10); ctx.lineTo(w * 0.12, -h * 0.10);
+      ctx.moveTo(-w * 0.20, -h * 0.10); ctx.lineTo(-w * 0.20, -h * 0.26);
+      ctx.moveTo(w * 0.12, -h * 0.22); ctx.lineTo(w * 0.12, -h * 0.34);
+      ctx.moveTo(-w * 0.22, h * 0.10); ctx.lineTo(-w * 0.16, h * 0.18); ctx.lineTo(-w * 0.10, h * 0.10);
+      ctx.moveTo(w * 0.24, h * 0.18); ctx.lineTo(w * 0.28, h * 0.24); ctx.lineTo(w * 0.32, h * 0.18);
     } else if (isElectro) {
-      ctx.moveTo(-w * 0.28, -h * 0.22); ctx.lineTo(w * 0.28, -h * 0.22);
-      ctx.moveTo(-w * 0.28, h * 0.22); ctx.lineTo(w * 0.28, h * 0.22);
-      ctx.moveTo(-w * 0.10, -h * 0.34); ctx.lineTo(-w * 0.02, -h * 0.02); ctx.lineTo(-w * 0.14, -h * 0.02); ctx.lineTo(w * 0.08, h * 0.34);
-      ctx.moveTo(w * 0.18, -h * 0.10); ctx.arc(w * 0.18, -h * 0.10, w * 0.05, 0, Math.PI * 2);
-      ctx.moveTo(w * 0.28, h * 0.08); ctx.arc(w * 0.28, h * 0.08, w * 0.035, 0, Math.PI * 2);
+
+      ctx.fillStyle = 'rgba(30, 64, 86, .26)';
+      ctx.fillRect(-w * 0.26, -h * 0.20, w * 0.18, h * 0.40);
+      ctx.fillRect(w * 0.08, -h * 0.20, w * 0.18, h * 0.40);
+      ctx.strokeStyle = 'rgba(120,220,255,.82)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.26, -h * 0.20, w * 0.18, h * 0.40);
+      ctx.rect(w * 0.08, -h * 0.20, w * 0.18, h * 0.40);
+      ctx.moveTo(-w * 0.17, -h * 0.28); ctx.lineTo(-w * 0.17, -h * 0.20);
+      ctx.moveTo(w * 0.17, -h * 0.28); ctx.lineTo(w * 0.17, -h * 0.20);
+      ctx.moveTo(-w * 0.20, 0); ctx.lineTo(-w * 0.14, 0);
+      ctx.moveTo(w * 0.14, -h * 0.04); ctx.lineTo(w * 0.20, -h * 0.04);
+      ctx.moveTo(w * 0.17, -h * 0.08); ctx.lineTo(w * 0.17, 0);
+      ctx.moveTo(-w * 0.02, -h * 0.10); ctx.lineTo(-w * 0.10, h * 0.02); ctx.lineTo(0, h * 0.02); ctx.lineTo(-w * 0.08, h * 0.16);
     } else if (isElectronics) {
-      ctx.rect(-w * 0.30, -h * 0.26, w * 0.60, h * 0.52);
+
+      ctx.fillStyle = 'rgba(32, 46, 82, .28)';
+      ctx.fillRect(-w * 0.28, -h * 0.22, w * 0.56, h * 0.44);
+      ctx.strokeStyle = 'rgba(145,176,255,.80)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.28, -h * 0.22, w * 0.56, h * 0.44);
+      ctx.rect(-w * 0.10, -h * 0.08, w * 0.20, h * 0.16);
       for (let i = -1; i <= 1; i += 1) {
-        const x = i * w * 0.13;
-        ctx.moveTo(x, -h * 0.26); ctx.lineTo(x, h * 0.26);
-        ctx.moveTo(-w * 0.30, x * 0.65); ctx.lineTo(w * 0.30, x * 0.65);
+        const yy = i * h * 0.12;
+        ctx.moveTo(-w * 0.18, yy); ctx.lineTo(-w * 0.10, yy);
+        ctx.moveTo(w * 0.10, yy); ctx.lineTo(w * 0.18, yy);
       }
-      ctx.moveTo(0, 0); ctx.arc(0, 0, w * 0.07, 0, Math.PI * 2);
+      ctx.moveTo(-w * 0.28, -h * 0.04); ctx.lineTo(-w * 0.18, -h * 0.04);
+      ctx.moveTo(w * 0.18, h * 0.04); ctx.lineTo(w * 0.28, h * 0.04);
+      ctx.moveTo(0, -h * 0.22); ctx.lineTo(0, -h * 0.08);
+      ctx.moveTo(0, h * 0.08); ctx.lineTo(0, h * 0.22);
     } else if (isPress) {
-      ctx.rect(-w * 0.30, -h * 0.34, w * 0.60, h * 0.18);
-      ctx.rect(-w * 0.24, h * 0.16, w * 0.48, h * 0.16);
-      ctx.moveTo(0, -h * 0.16); ctx.lineTo(0, h * 0.16);
-      ctx.moveTo(-w * 0.18, -h * 0.02); ctx.lineTo(w * 0.18, -h * 0.02);
+
+      ctx.fillStyle = 'rgba(66, 74, 82, .28)';
+      ctx.fillRect(-w * 0.24, -h * 0.30, w * 0.48, h * 0.12);
+      ctx.fillRect(-w * 0.20, h * 0.14, w * 0.40, h * 0.12);
+      ctx.strokeStyle = 'rgba(220,232,242,.82)';
+      ctx.beginPath();
+      ctx.rect(-w * 0.24, -h * 0.30, w * 0.48, h * 0.12);
+      ctx.rect(-w * 0.20, h * 0.14, w * 0.40, h * 0.12);
+      ctx.moveTo(-w * 0.14, -h * 0.18); ctx.lineTo(-w * 0.14, h * 0.14);
+      ctx.moveTo(w * 0.14, -h * 0.18); ctx.lineTo(w * 0.14, h * 0.14);
+      ctx.moveTo(0, -h * 0.18); ctx.lineTo(0, h * 0.04);
+      ctx.moveTo(-w * 0.10, h * 0.04); ctx.lineTo(w * 0.10, h * 0.04);
     } else {
       ctx.moveTo(-w * 0.34, -h * 0.22);
       ctx.lineTo(0, -h * 0.40);

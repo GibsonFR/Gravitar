@@ -4263,6 +4263,51 @@ button.station-item-icon[draggable="true"]:active,
   color: rgba(255, 215, 130, .96);
   background: linear-gradient(180deg, rgba(72,46,22,.78), rgba(22,16,10,.9));
 }
+
+.base-panel__icon--solar_panel {
+  color: rgba(210, 255, 150, .96);
+  background: linear-gradient(180deg, rgba(38,68,42,.82), rgba(10,20,12,.9));
+}
+.base-panel__icon--fuel_generator {
+  color: rgba(255, 185, 96, .97);
+  background: linear-gradient(180deg, rgba(72,44,24,.82), rgba(18,12,8,.92));
+}
+.base-panel__icon--fuel_tank {
+  color: rgba(255, 208, 132, .96);
+  background: linear-gradient(180deg, rgba(74,56,28,.8), rgba(18,16,10,.92));
+}
+.base-panel__icon--equipment_storage {
+  color: rgba(156, 188, 255, .96);
+  background: linear-gradient(180deg, rgba(28,46,78,.82), rgba(10,16,28,.9));
+}
+.base-panel__icon--ammo_storage {
+  color: rgba(255, 196, 112, .96);
+  background: linear-gradient(180deg, rgba(74,52,24,.82), rgba(20,14,8,.9));
+}
+.base-panel__icon--furnace {
+  color: rgba(255, 178, 94, .97);
+  background: linear-gradient(180deg, rgba(70,42,20,.82), rgba(18,12,8,.92));
+}
+.base-panel__icon--high_temp_furnace {
+  color: rgba(255, 118, 92, .97);
+  background: linear-gradient(180deg, rgba(78,32,24,.82), rgba(22,8,8,.92));
+}
+.base-panel__icon--chemical_refinery {
+  color: rgba(150, 235, 130, .96);
+  background: linear-gradient(180deg, rgba(38,68,28,.8), rgba(12,20,10,.92));
+}
+.base-panel__icon--electrolyzer {
+  color: rgba(120, 220, 255, .97);
+  background: linear-gradient(180deg, rgba(24,60,82,.82), rgba(8,16,26,.92));
+}
+.base-panel__icon--electronics_bench {
+  color: rgba(145, 176, 255, .97);
+  background: linear-gradient(180deg, rgba(26,42,84,.82), rgba(8,14,26,.92));
+}
+.base-panel__icon--industrial_press {
+  color: rgba(220, 232, 242, .97);
+  background: linear-gradient(180deg, rgba(56,64,72,.82), rgba(12,16,20,.92));
+}
 .base-panel__meta { align-items: center; gap: 5px; }
 .base-panel__meta strong { font-size: 14px; }
 .base-panel__meta small { font-size: 11px; }

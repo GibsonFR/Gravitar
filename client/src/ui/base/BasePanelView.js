@@ -39,6 +39,13 @@ function iconSvg(kind) {
   if (kind === 'solar_panel') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="18" width="44" height="28" rx="4" fill="rgba(189,233,146,.13)" stroke="currentColor" stroke-width="3"/><path d="M21 18v28M32 18v28M43 18v28M10 32h44M20 10l-4 5M32 7v7M44 10l4 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></svg>`;
   if (kind === 'fuel_generator') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="13" y="16" width="38" height="34" rx="5" fill="rgba(255,183,97,.13)" stroke="currentColor" stroke-width="3"/><path d="M25 42c-3-7 5-10 4-18 7 5 10 10 8 18" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M19 23h8M37 23h8M19 50h26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'fuel_tank') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 13h24l6 8v30H14V21l6-8z" fill="rgba(255,195,111,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 29h20M22 38h20M27 13v-4h10v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".75"/></svg>`;
+
+if (kind === 'furnace') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="16" width="40" height="36" rx="6" fill="rgba(255,185,96,.13)" stroke="currentColor" stroke-width="3"/><path d="M22 16v-5h20v5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".72"/><path d="M21 40c3-5 4-9 11-15 7 6 8 10 11 15-3 5-8 7-11 7s-8-2-11-7Z" fill="rgba(255,160,74,.18)" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M18 52h28" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity=".68"/></svg>`;
+if (kind === 'high_temp_furnace') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="40" height="34" rx="6" fill="rgba(255,116,86,.13)" stroke="currentColor" stroke-width="3"/><path d="M20 18v-6h7v6M37 18v-6h7v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".8"/><path d="M22 39c2-5 6-9 10-13 4 4 8 8 10 13-2 5-6 8-10 8s-8-3-10-8Z" fill="rgba(255,116,86,.18)" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M17 52h30" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity=".7"/></svg>`;
+if (kind === 'chemical_refinery') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="14" y="16" width="14" height="30" rx="5" fill="rgba(150,235,130,.12)" stroke="currentColor" stroke-width="3"/><rect x="36" y="22" width="14" height="24" rx="5" fill="rgba(150,235,130,.09)" stroke="currentColor" stroke-width="3"/><path d="M28 24h8v-6h6M21 16v-5M43 22v-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/><path d="M19 30h4M41 34h4M20 51c5-6 11-6 16 0" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".78"/></svg>`;
+if (kind === 'electrolyzer') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="16" height="28" rx="5" fill="rgba(120,220,255,.12)" stroke="currentColor" stroke-width="3"/><rect x="36" y="18" width="16" height="28" rx="5" fill="rgba(120,220,255,.08)" stroke="currentColor" stroke-width="3"/><path d="M20 12v8M44 12v8M18 32h4M42 30h4M44 28v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".8"/><path d="M30 22l-5 10h6l-4 10 11-14h-6l4-6" fill="rgba(120,220,255,.16)" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>`;
+if (kind === 'electronics_bench') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="15" width="42" height="34" rx="5" fill="rgba(145,176,255,.12)" stroke="currentColor" stroke-width="3"/><rect x="24" y="25" width="16" height="12" rx="2.5" fill="rgba(145,176,255,.1)" stroke="currentColor" stroke-width="2.6"/><path d="M18 21v6M18 37v6M46 21v6M46 37v6M11 22h7M11 42h7M46 22h7M46 42h7M20 31h4M40 31h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".78"/></svg>`;
+if (kind === 'industrial_press') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="14" y="14" width="36" height="8" rx="3" fill="rgba(220,232,242,.12)" stroke="currentColor" stroke-width="3"/><rect x="18" y="42" width="28" height="8" rx="3" fill="rgba(220,232,242,.10)" stroke="currentColor" stroke-width="3"/><path d="M24 22v12M40 22v12M24 34h16M32 34v8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 54h24" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'machine') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="18" width="42" height="32" rx="5" fill="rgba(255,180,110,.12)" stroke="currentColor" stroke-width="3"/><circle cx="25" cy="34" r="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M37 27h8M37 34h8M37 41h8M18 18v-6h28v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'automation') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 34h34" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M38 24l12 10-12 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="46" r="4" fill="currentColor" opacity=".65"/><circle cx="32" cy="46" r="4" fill="currentColor" opacity=".65"/></svg>`;
   if (kind === 'conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="22" width="48" height="20" rx="4" fill="rgba(110,215,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 28h36M14 36h36" stroke="currentColor" stroke-width="2" opacity=".35"/><path d="M18 32h22M34 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="32" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="46" cy="48" r="3" fill="currentColor" opacity=".5"/></svg>`;
@@ -197,7 +204,7 @@ export const BUILD_STRUCTURES = [
     category: 'industry',
     title: 'Four basique',
     subtitle: '2 × 2 cases',
-    icon: 'machine',
+    icon: 'furnace',
     orientation: 'h',
     tilesX: 2,
     tilesY: 2,
@@ -214,7 +221,7 @@ export const BUILD_STRUCTURES = [
     category: 'industry',
     title: 'Four haute température',
     subtitle: '2 × 2 cases',
-    icon: 'machine',
+    icon: 'high_temp_furnace',
     orientation: 'h',
     tilesX: 2,
     tilesY: 2,
@@ -231,7 +238,7 @@ export const BUILD_STRUCTURES = [
     category: 'industry',
     title: 'Raffinerie chimique',
     subtitle: '2 × 2 cases',
-    icon: 'machine',
+    icon: 'chemical_refinery',
     orientation: 'h',
     tilesX: 2,
     tilesY: 2,
@@ -248,7 +255,7 @@ export const BUILD_STRUCTURES = [
     category: 'industry',
     title: 'Électrolyseur',
     subtitle: '2 × 2 cases',
-    icon: 'machine',
+    icon: 'electrolyzer',
     orientation: 'h',
     tilesX: 2,
     tilesY: 2,
@@ -265,7 +272,7 @@ export const BUILD_STRUCTURES = [
     category: 'industry',
     title: 'Atelier électronique',
     subtitle: '2 × 2 cases',
-    icon: 'machine',
+    icon: 'electronics_bench',
     orientation: 'h',
     tilesX: 2,
     tilesY: 2,
@@ -282,7 +289,7 @@ export const BUILD_STRUCTURES = [
     category: 'industry',
     title: 'Presse industrielle',
     subtitle: '2 × 2 cases',
-    icon: 'machine',
+    icon: 'industrial_press',
     orientation: 'h',
     tilesX: 2,
     tilesY: 2,
