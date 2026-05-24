@@ -139,8 +139,8 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 18,
     energyUse: 26,
     pointCost: { industrialSciencePack: 1, energySciencePack: 1, biologySciencePack: 1, combatSciencePack: 1 },
-    unlockBuildings: [],
-    unlockRecipes: ['Moteur électrique', 'Injecteur carburant', 'Science énergétique', 'Science avancée'],
+    unlockBuildings: ['Atelier d’équipement'],
+    unlockRecipes: ['Moteur électrique', 'Injecteur carburant', 'Science énergétique', 'Science avancée', 'Craft équipement avancé'],
     prereq: ['electronics_processing', 'bio_processing', 'defense_turrets'],
     tier: 4
   },
@@ -186,7 +186,8 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   chemical_refinery: 'advanced_industry',
   electrolyzer: 'advanced_industry',
   electronics_bench: 'electronics_processing',
-  mining_extractor: 'resource_scanning'
+  mining_extractor: 'resource_scanning',
+  equipment_fabricator: 'advanced_research'
 });
 
 export const RECIPE_RESEARCH_REQUIREMENTS = Object.freeze({

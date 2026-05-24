@@ -18,6 +18,7 @@ export const STRUCTURE_TYPES = {
   INDUSTRIAL_PRESS: 'industrial_press',
   SCIENCE_LAB: 'science_lab',
   RESEARCH_STATION: 'research_station',
+  EQUIPMENT_FABRICATOR: 'equipment_fabricator',
   RESOURCE_DEPOSIT: 'resource_deposit',
   MINING_EXTRACTOR: 'mining_extractor',
   CONVEYOR: 'conveyor',
@@ -586,6 +587,25 @@ export const STRUCTURE_DEFS = {
     color: '#4b3a2b',
     borderColor: '#ffc86e',
     cost: { ironOre: 12, copper: 6, aluminiumOre: 5 }
+  }
+,
+  [STRUCTURE_TYPES.EQUIPMENT_FABRICATOR]: {
+    id: STRUCTURE_TYPES.EQUIPMENT_FABRICATOR,
+    name: 'Atelier d’équipement',
+    description: 'Fabrique des armes, boucliers, propulseurs et modules à partir de composants avancés.',
+    radius: 64,
+    tilesX: 3,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 3,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 420,
+    solid: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    color: '#26324f',
+    borderColor: '#b58cff',
+    energyUse: 18,
+    cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 2, advancedSciencePack: 2 }
   }
 
 

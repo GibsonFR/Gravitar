@@ -1,5 +1,5 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel', 'equipment_fabricator_open', 'equipment_fabricator_close', 'equipment_fabricator_craft']);
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -149,6 +149,15 @@ export function sanitizeCommandMessage(raw) {
     if (raw.enabled === true || raw.enabled === false) msg.enabled = !!raw.enabled;
     else if (raw.enabled === 'true' || raw.enabled === '1' || raw.enabled === 1) msg.enabled = true;
     else if (raw.enabled === 'false' || raw.enabled === '0' || raw.enabled === 0) msg.enabled = false;
+  }
+
+
+  if (cmd === 'equipment_fabricator_open' || cmd === 'equipment_fabricator_close' || cmd === 'equipment_fabricator_craft') {
+    const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
+    msg.structureId = Math.max(0, Math.min(2147483647, structureId));
+  }
+  if (cmd === 'equipment_fabricator_craft') {
+    msg.recipeId = cleanWord(raw.recipeId ?? raw.recipe ?? '', 80).toLowerCase();
   }
 
   return msg;

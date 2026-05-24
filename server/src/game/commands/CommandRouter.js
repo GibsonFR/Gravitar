@@ -36,6 +36,9 @@ import { handleResearchStationClose } from './ResearchStationCloseCommand.js';
 import { handleResearchStationTransfer } from './ResearchStationTransferCommand.js';
 import { handleResearchStationStart } from './ResearchStationStartCommand.js';
 import { handleResearchStationToggle } from './ResearchStationToggleCommand.js';
+import { handleEquipmentFabricatorOpen } from './EquipmentFabricatorOpenCommand.js';
+import { handleEquipmentFabricatorClose } from './EquipmentFabricatorCloseCommand.js';
+import { handleEquipmentFabricatorCraft } from './EquipmentFabricatorCraftCommand.js';
 import { handleResearchTreeStart } from './ResearchTreeStartCommand.js';
 import { handleResearchTreeCancel } from './ResearchTreeCancelCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
@@ -82,7 +85,10 @@ const HANDLERS = {
   research_tree_start: handleResearchTreeStart,
   research_tree_cancel: handleResearchTreeCancel,
   research_start: handleResearchTreeStart,
-  research_cancel: handleResearchTreeCancel
+  research_cancel: handleResearchTreeCancel,
+  equipment_fabricator_open: handleEquipmentFabricatorOpen,
+  equipment_fabricator_close: handleEquipmentFabricatorClose,
+  equipment_fabricator_craft: handleEquipmentFabricatorCraft
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

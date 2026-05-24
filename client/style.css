@@ -6106,3 +6106,159 @@ button.station-item-icon[draggable="true"]:active,
 .machine-panel__recipe-card.is-locked em {
   color: rgba(255, 190, 140, .92);
 }
+
+
+/* v132 — Atelier d’équipement */
+.equipment-fab {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(980px, calc(100vw - 48px));
+  max-height: min(760px, calc(100vh - 60px));
+  z-index: 132;
+  pointer-events: auto;
+  color: #eaf6ff;
+  background: rgba(7, 14, 24, .95);
+  border: 1px solid rgba(181, 140, 255, .34);
+  border-radius: 16px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .46), inset 0 0 34px rgba(181, 140, 255, .05);
+  overflow: hidden;
+}
+.equipment-fab[hidden] { display: none !important; }
+.equipment-fab__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid rgba(181, 140, 255, .18);
+}
+.equipment-fab__eyebrow {
+  color: #b58cff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.equipment-fab__title {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.equipment-fab__meta,
+.equipment-fab__card small,
+.equipment-fab__card p {
+  color: rgba(200, 220, 240, .76);
+  font-size: 12px;
+}
+.equipment-fab__close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 120, 120, .42);
+  color: #ffd1d1;
+  background: rgba(120, 36, 45, .45);
+  font-weight: 900;
+  cursor: pointer;
+}
+.equipment-fab__grid {
+  max-height: 640px;
+  overflow: auto;
+  padding: 16px 18px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.equipment-fab__card {
+  border-radius: 14px;
+  border: 1px solid rgba(181, 140, 255, .20);
+  background: rgba(5, 12, 20, .76);
+  padding: 14px;
+  display: grid;
+  gap: 9px;
+}
+.equipment-fab__card.is-locked,
+.equipment-fab__card.is-owned {
+  opacity: .62;
+}
+.equipment-fab__card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.equipment-fab__card-top strong {
+  display: block;
+  font-size: 15px;
+}
+.equipment-fab__card-top span {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-weight: 900;
+  color: rgba(230, 240, 255, .82);
+}
+.equipment-fab__sub {
+  color: rgba(181, 140, 255, .9);
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.equipment-fab__resources,
+.equipment-fab__bonus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.equipment-fab__res,
+.equipment-fab__bonus span,
+.equipment-fab__muted,
+.equipment-fab__lock {
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: rgba(220, 235, 248, .86);
+  background: rgba(255,255,255,.04);
+}
+.equipment-fab__res i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--res, #fff);
+  box-shadow: 0 0 9px var(--res, #fff);
+}
+.equipment-fab__res em {
+  margin-left: 5px;
+  opacity: .62;
+  font-style: normal;
+}
+.equipment-fab__res.is-missing {
+  color: rgba(255, 170, 140, .95);
+  border-color: rgba(255, 120, 90, .22);
+}
+.equipment-fab__lock {
+  color: rgba(255, 205, 150, .92);
+  border-color: rgba(255, 190, 120, .22);
+}
+.equipment-fab__card button {
+  border: 1px solid rgba(181, 140, 255, .34);
+  background: linear-gradient(180deg, rgba(78, 54, 128, .90), rgba(32, 24, 70, .92));
+  color: rgba(245, 242, 255, .97);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.equipment-fab__card button:disabled {
+  opacity: .42;
+  cursor: default;
+}
+.base-panel__icon--equipment_fabricator {
+  color: rgba(181, 140, 255, .98);
+  background: linear-gradient(180deg, rgba(52, 32, 86, .86), rgba(13, 10, 30, .94));
+}

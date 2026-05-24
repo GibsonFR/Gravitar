@@ -42,6 +42,7 @@ import { BasePanelView } from './ui/base/BasePanelView.js';
 import { StoragePanelView } from './ui/storage/StoragePanelView.js';
 import { MachinePanelView } from './ui/machine/MachinePanelView.js';
 import { ResearchStationPanelView } from './ui/research/ResearchStationPanelView.js';
+import { EquipmentFabricatorPanelView } from './ui/equipment/EquipmentFabricatorPanelView.js';
 import { ResearchTreePanelView } from './ui/research/ResearchTreePanelView.js';
 import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
@@ -219,6 +220,8 @@ export function startApp() {
   uiRoot.appendChild(machinePanel.el);
   const researchStationPanel = new ResearchStationPanelView(sendCmd);
   uiRoot.appendChild(researchStationPanel.el);
+  const equipmentFabricatorPanel = new EquipmentFabricatorPanelView(sendCmd);
+  uiRoot.appendChild(equipmentFabricatorPanel.el);
   const researchTreePanel = new ResearchTreePanelView(sendCmd);
   dock.registerPanel({ id: 'research-tree', title: 'Recherche', iconMarkup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M11 3v6l-5 8a3 3 0 0 0 2.6 4.5h6.8A3 3 0 0 0 18 17l-5-8V3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 16h8M10 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>', panelEl: researchTreePanel.el, shellClass: 'ui-panel-shell--research-tree', group: 'game' });
 
@@ -328,11 +331,12 @@ export function startApp() {
   }
 
   function tryInteractStructureAt(px, py) {
-    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'science_lab' || s.type === 'mining_extractor' || s.type === 'research_station');
+    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'science_lab' || s.type === 'mining_extractor' || s.type === 'research_station' || s.type === 'equipment_fabricator');
     if (!st) return false;
     if (st.type === 'storage' || st.type === 'equipment_storage' || st.type === 'ammo_storage' || st.type === 'fuel_tank' || st.type === 'fuel_generator') sendCmd('storage_open', { structureId: st.id | 0 });
     else if (st.type === 'door') sendCmd('toggle_structure', { structureId: st.id | 0 });
     else if (st.type === 'research_station') sendCmd('research_station_open', { structureId: st.id | 0 });
+    else if (st.type === 'equipment_fabricator') sendCmd('equipment_fabricator_open', { structureId: st.id | 0 });
     else sendCmd('machine_open', { structureId: st.id | 0 });
     return true;
   }
@@ -851,6 +855,7 @@ export function startApp() {
     storagePanel.update(store);
     machinePanel.update(store);
     researchStationPanel.update(store);
+    equipmentFabricatorPanel.update(store);
     researchTreePanel.update(store);
     playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
