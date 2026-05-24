@@ -3,7 +3,7 @@ import { isStructureOwner, distanceSqToStructureRect, findAliveCoreForStructure 
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { removeResource } from '../inventory/InventorySystem.js';
 import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
-import { createNeutralCraftedEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
+import { createNeutralCraftedEquipment, getNeutralBaseBonuses } from '../../../../shared/content/equipment/EquipmentRoller.js';
 import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { EQUIPMENT_FABRICATOR_RECIPES, getEquipmentFabricatorRecipe } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
@@ -68,7 +68,7 @@ function recipeSnapshot(player, recipe) {
     description: `Objet neutre Mark ${recipe.mark | 0}. Aucun tag, aucun roll. Compatible avec la R&D.`,
     seconds: recipe.seconds | 0,
     input: Object.entries(recipe.input || {}).map(([key, amount]) => resourceEntry(key, amount | 0, player)),
-    baseBonuses: base?.bonuses ? { ...base.bonuses } : {},
+    baseBonuses: getNeutralBaseBonuses(recipe.baseItemId, recipe.mark),
     locked: !researchDone,
     requiredResearchId,
     requiredResearchName: requiredResearchId ? getResearchName(requiredResearchId) : '',

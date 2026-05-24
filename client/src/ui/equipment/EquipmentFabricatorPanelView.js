@@ -10,6 +10,34 @@ const CATEGORY_LABELS = {
   module: 'Modules'
 };
 
+function statLabel(key) {
+  return ({
+    enginePct: 'engine power',
+    damageMultPct: 'damage',
+    fireRatePct: 'fire rate',
+    critChancePct: 'crit chance',
+    critDamagePct: 'crit damage',
+    armorPenFlat: 'armor pen',
+    hpFlat: 'hull',
+    shieldFlat: 'shield',
+    armorFlat: 'armor',
+    hpPct: 'hull',
+    hullRegenFlat: 'repair',
+    energyRegenFlat: 'energy regen',
+    energyFlat: 'energy',
+    cooldownReductionPct: 'cooldown',
+    cargoFlat: 'cargo'
+  })[key] || key;
+}
+
+function formatStat(key, value) {
+  const n = Number(value) || 0;
+  const sign = n > 0 ? '+' : '';
+  if (String(key).endsWith('Pct')) return `${sign}${Math.round(n * 100)}% ${statLabel(key)}`;
+  if (Math.abs(n) < 1 && !String(key).endsWith('Flat')) return `${sign}${Math.round(n * 100)}% ${statLabel(key)}`;
+  return `${sign}${Math.round(n * 10) / 10} ${statLabel(key)}`;
+}
+
 function resourceList(entries = []) {
   if (!entries.length) return '<span class="equipment-fab__muted">Aucun</span>';
   return entries.map((r) => `<span class="equipment-fab__res ${r.missing > 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)} ×${r.amount | 0}<em>${r.have | 0}</em></span>`).join('');
@@ -18,7 +46,7 @@ function resourceList(entries = []) {
 function bonusList(bonuses = {}) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => Number(v) !== 0);
   if (!entries.length) return '<span class="equipment-fab__muted">Base</span>';
-  return entries.map(([key, value]) => `<span>${escapeHtml(key)} ${Number(value) > 0 ? '+' : ''}${Math.round(Number(value) * 1000) / 10}${Math.abs(Number(value)) < 1 ? '%' : ''}</span>`).join('');
+  return entries.map(([key, value]) => `<span>${escapeHtml(formatStat(key, value))}</span>`).join('');
 }
 
 export class EquipmentFabricatorPanelView {

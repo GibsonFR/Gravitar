@@ -43,7 +43,7 @@ function roundBonus(v) {
   return Math.round(v * 1000) / 1000;
 }
 
-function scaleNeutralBonuses(baseBonuses = {}, mark = 1) {
+export function scaleNeutralBonuses(baseBonuses = {}, mark = 1) {
   const m = Math.max(1, mark | 0 || 1);
   const out = {};
   for (const [key, raw] of Object.entries(baseBonuses || {})) {
@@ -58,6 +58,12 @@ function scaleNeutralBonuses(baseBonuses = {}, mark = 1) {
   if (m >= 4) mergeBonus(out, 'critChancePct', 0.01 * (m - 3));
   if (m >= 5) mergeBonus(out, 'damageMultPct', 0.015 * (m - 4));
   return out;
+}
+
+export function getNeutralBaseBonuses(baseItemId, mark = 1) {
+  const base = getItemDef(baseItemId);
+  if (!base) return {};
+  return scaleNeutralBonuses(base.bonuses || {}, mark);
 }
 
 function mergeBonus(out, key, value) {
@@ -109,9 +115,10 @@ export function rollCraftedEquipment({ baseItemId, recipeId, ownerKey = '', craf
   const base = getItemDef(baseItemId);
   if (!base) return null;
   const rand = rng(`${ownerKey}|${recipeId}|${baseItemId}|${craftedIndex}|${timeMs}`);
+  const effectiveBoost = Math.max(0, Number(qualityBoost) || 0) * (0.4 + rand() * 1.2);
   const adjustedQualities = QUALITY_TABLE.map((q, idx) => ({
     ...q,
-    weight: Math.max(1, q.weight + (idx > 0 ? qualityBoost * idx * 4 : -qualityBoost * 2))
+    weight: Math.max(1, q.weight + (idx > 0 ? effectiveBoost * idx * 4 : -effectiveBoost * 2))
   }));
   const quality = pickWeighted(rand, adjustedQualities);
   const affixPool = baseAffixes(base.categoryId);
@@ -157,7 +164,7 @@ export function createNeutralCraftedEquipment({ baseItemId, recipeId, recipeName
   const base = getItemDef(baseItemId);
   if (!base) return null;
   const id = `neutral-${recipeId}-${craftedIndex}-${hashString(`${ownerKey}|${timeMs}|${baseItemId}|neutral`).toString(36)}`;
-  const baseBonuses = scaleNeutralBonuses(base.bonuses || {}, mark);
+  const baseBonuses = getNeutralBaseBonuses(baseItemId, mark);
   return {
     ...base,
     id,

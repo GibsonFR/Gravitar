@@ -6,10 +6,18 @@ function resourcePill(r) {
   return `<span class="equipment-fab__res ${r.have <= 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)}<em>${r.have | 0}</em></span>`;
 }
 
+
+function scienceScore(sciences = [], scienceDefs = []) {
+  return sciences.reduce((sum, key) => {
+    const def = scienceDefs.find((s) => s.key === key);
+    return sum + (def?.tier | 0);
+  }, 0);
+}
+
 function bonusList(bonuses = {}) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => Number(v) !== 0);
   if (!entries.length) return '<span class="equipment-fab__muted">Base</span>';
-  return entries.map(([key, value]) => `<span>${escapeHtml(key)} ${Number(value) > 0 ? '+' : ''}${Math.round(Number(value) * 1000) / 10}${Math.abs(Number(value)) < 1 ? '%' : ''}</span>`).join('');
+  return entries.map(([key, value]) => `<span>${escapeHtml(formatStat(key, value))}</span>`).join('');
 }
 
 export class EquipmentRDStationPanelView {
@@ -110,7 +118,7 @@ export class EquipmentRDStationPanelView {
     const sciences = (data.sciences || []).map((s) => {
       const countUsed = this.selectedSciences.filter((key) => key === s.key).length;
       const disabled = active || s.have <= countUsed || this.selectedSciences.length >= (data.maxSciences || 3);
-      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(s.key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}<small>ajouter</small></button>`;
+      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(s.key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}<small>tier ${s.tier | 0} · ajouter</small></button>`;
     }).join('');
 
     const activeHtml = active ? `
@@ -148,6 +156,7 @@ export class EquipmentRDStationPanelView {
           <h3>Sciences</h3>
           <div class="equipment-rd__hint">Clique une science pour l’ajouter. Clique un slot rempli pour la retirer.</div>
           <div class="equipment-rd__slots">${scienceSlots}</div>
+          <div class="equipment-rd__score">Score science : <b>${scienceScore(this.selectedSciences, data.sciences || [])}</b> · variation finale ±60%</div>
           <div class="equipment-rd__science-list">${sciences}</div>
           <button class="equipment-rd__start" type="button" data-equipment-rd-start="1" data-structure="${data.id | 0}" ${canStart ? '' : 'disabled'}>Lancer R&D</button>
         </section>

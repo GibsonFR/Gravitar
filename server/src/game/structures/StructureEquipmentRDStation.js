@@ -4,7 +4,7 @@ import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { removeResource } from '../inventory/InventorySystem.js';
 import { getPlayerItemDef, addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
-import { EQUIPMENT_RD_ALLOWED_SCIENCES, EQUIPMENT_RD_MAX_SCIENCES, EQUIPMENT_RD_SECONDS, getEquipmentRDQualityBoost, isEquipmentRDScience } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
+import { EQUIPMENT_RD_ALLOWED_SCIENCES, EQUIPMENT_RD_MAX_SCIENCES, EQUIPMENT_RD_SECONDS, getEquipmentRDQualityBoost, getEquipmentRDScienceScore, getEquipmentRDScienceTier, isEquipmentRDScience } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
 import { rollRDEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
 
 const RD_RANGE = 280;
@@ -30,7 +30,8 @@ function resourceEntry(key, amount, player) {
     amount: amount | 0,
     have,
     missing: Math.max(0, (amount | 0) - have),
-    colorHex: def?.colorHex || '#ffffff'
+    colorHex: def?.colorHex || '#ffffff',
+    tier: getEquipmentRDScienceTier(key)
   };
 }
 
@@ -93,6 +94,7 @@ function activeJobSnapshot(st) {
   return {
     itemName: job.itemDef.name || '',
     sciences: Array.isArray(job.sciences) ? job.sciences : [],
+    scienceScore: getEquipmentRDScienceScore(job.sciences || []),
     progress: Math.max(0, Math.min(1, 1 - remaining / total)),
     remainingMs: remaining,
     totalMs: total
@@ -118,6 +120,7 @@ export function buildEquipmentRDStationSnapshot(state, player) {
     baseEnergy: core?.energyState || null,
     maxSciences: EQUIPMENT_RD_MAX_SCIENCES,
     seconds: EQUIPMENT_RD_SECONDS,
+    scoreHint: 'Score = somme des tiers de sciences, puis variation RNG ±60%',
     activeJob: activeJobSnapshot(st),
     neutralItems: ownedNeutralItems(player).map(itemSnapshot),
     sciences: scienceSnapshot(player),
@@ -159,6 +162,7 @@ export function startEquipmentRDJob(state, player, structureId, itemId, sciences
     ownerKey: player.accountKey || player.pseudo || player.id || '',
     sciences: selectedSciences,
     qualityBoost: getEquipmentRDQualityBoost(selectedSciences),
+    scienceScore: getEquipmentRDScienceScore(selectedSciences),
     startedAt: timeMs,
     totalMs: EQUIPMENT_RD_SECONDS * 1000,
     remainingMs: EQUIPMENT_RD_SECONDS * 1000

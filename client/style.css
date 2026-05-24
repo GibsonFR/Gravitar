@@ -6588,3 +6588,13 @@ button.station-item-icon[draggable="true"]:active,
   font-size: 10px;
   font-weight: 900;
 }
+
+/* v148 — stat labels and R&D score */
+.equipment-rd__score {
+  margin: 0 0 10px;
+  color: rgba(210,235,255,.78);
+  font-size: 12px;
+}
+.equipment-rd__score b {
+  color: rgba(210,140,255,.98);
+}

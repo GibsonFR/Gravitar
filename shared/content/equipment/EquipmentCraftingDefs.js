@@ -225,18 +225,24 @@ export function isEquipmentRDScience(key) {
   return EQUIPMENT_RD_ALLOWED_SCIENCES.includes(String(key || ''));
 }
 
+export function getEquipmentRDScienceTier(key) {
+  return ({
+    basicSciencePack: 1,
+    automationSciencePack: 2,
+    industrialSciencePack: 2,
+    energySciencePack: 2,
+    biologySciencePack: 3,
+    combatSciencePack: 3,
+    advancedSciencePack: 4,
+    anomalySciencePack: 5
+  })[String(key || '')] || 0;
+}
+
+export function getEquipmentRDScienceScore(sciences = []) {
+  return sciences.filter(isEquipmentRDScience).slice(0, EQUIPMENT_RD_MAX_SCIENCES).reduce((sum, key) => sum + getEquipmentRDScienceTier(key), 0);
+}
+
 export function getEquipmentRDQualityBoost(sciences = []) {
-  const list = sciences.filter(isEquipmentRDScience).slice(0, EQUIPMENT_RD_MAX_SCIENCES);
-  let boost = Math.max(0, list.length - 1) * 4;
-  for (const key of list) {
-    if (key === 'advancedSciencePack') boost += 4;
-    else if (key === 'combatSciencePack') boost += 3;
-    else if (key === 'energySciencePack') boost += 2;
-    else if (key === 'industrialSciencePack') boost += 2;
-    else if (key === 'biologySciencePack') boost += 2;
-    else if (key === 'automationSciencePack') boost += 1;
-    else if (key === 'basicSciencePack') boost += 0;
-    else if (key === 'anomalySciencePack') boost += 9;
-  }
-  return boost;
+  const score = getEquipmentRDScienceScore(sciences);
+  return Math.round(score * 2.5);
 }
