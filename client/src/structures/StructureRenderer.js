@@ -47,8 +47,19 @@ function sameSector(a, b) {
   return (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
 }
 
+const CONVEYOR_TYPES = new Set(['conveyor', 'fast_conveyor', 'splitter', 'merger']);
+const ARM_TYPES = new Set(['robot_arm', 'fast_arm', 'long_arm']);
+
+function isConveyorType(type) {
+  return CONVEYOR_TYPES.has(String(type || '').toLowerCase());
+}
+
+function isArmType(type) {
+  return ARM_TYPES.has(String(type || '').toLowerCase());
+}
+
 function isAutomationStructure(st) {
-  return st?.type === 'conveyor' || st?.type === 'robot_arm';
+  return isConveyorType(st?.type) || isArmType(st?.type) || !!st?.automationKind;
 }
 
 function nearOffset(a, b, ox, oy) {
@@ -71,9 +82,10 @@ function findNeighbor(structures, s, dir) {
 
 function canFeedForward(a, b) {
   if (!a || !b) return false;
-  if (a.type === 'robot_arm') return true;
-  if (b.type === 'robot_arm') return true;
-  if (a.type !== 'conveyor' || b.type !== 'conveyor') return true;
+  if (isArmType(a.type)) return true;
+  if (isArmType(b.type)) return true;
+  if (!isConveyorType(a.type) || !isConveyorType(b.type)) return true;
+  if (a.type === 'splitter' || b.type === 'splitter' || a.type === 'merger' || b.type === 'merger') return true;
   const ad = dirOf(a);
   const bd = dirOf(b);
   return ad.x === bd.x && ad.y === bd.y;
@@ -166,7 +178,7 @@ function drawAutomationItem(ctx, view, s, w, h, t) {
   const progress = rawProgress == null
     ? (s.automationItem ? Math.max(0, Math.min(1, (performance.now() - Number(s.automationPulse || 0)) / 700)) : idlePulse)
     : rawProgress;
-  const blocked = preview?.phase === 'blocked' || preview?.phase === 'arm_blocked';
+  const blocked = preview?.phase === 'blocked' || preview?.phase === 'arm_blocked' || s.automationStatus === 'blocked';
   const fadeUntil = Number(preview?._fadeUntil || 0);
   const fade = fadeUntil > 0 ? Math.max(0, Math.min(1, (fadeUntil - performance.now()) / 220)) : 1;
   let phase = blocked ? 1 : progress;
@@ -236,8 +248,36 @@ function drawConveyorBody(ctx, view, s, w, h, t, structures) {
   ctx.fillStyle = 'rgba(115, 230, 255, .30)';
   if (links.back) ctx.fillRect(-w * 0.52, -h * 0.13, w * 0.12, h * 0.26);
   if (links.front) ctx.fillRect(w * 0.40, -h * 0.13, w * 0.12, h * 0.26);
-  if (links.left) ctx.fillRect(-w * 0.10, -h * 0.40, w * 0.20, h * 0.12);
-  if (links.right) ctx.fillRect(-w * 0.10, h * 0.28, w * 0.20, h * 0.12);
+  if (links.left || s.type === 'splitter' || s.type === 'merger') ctx.fillRect(-w * 0.10, -h * 0.40, w * 0.20, h * 0.12);
+  if (links.right || s.type === 'splitter' || s.type === 'merger') ctx.fillRect(-w * 0.10, h * 0.28, w * 0.20, h * 0.12);
+
+  if (s.type === 'fast_conveyor') {
+    ctx.strokeStyle = 'rgba(135, 255, 255, .86)';
+    ctx.lineWidth = 1.4 * view.dpr;
+    for (let y of [-h * 0.23, h * 0.23]) {
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.34, y);
+      ctx.lineTo(w * 0.34, y);
+      ctx.stroke();
+    }
+  } else if (s.type === 'splitter') {
+    ctx.strokeStyle = 'rgba(255, 248, 176, .72)';
+    ctx.lineWidth = 1.9 * view.dpr;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(w * 0.25, -h * 0.28);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(w * 0.25, h * 0.28);
+    ctx.stroke();
+  } else if (s.type === 'merger') {
+    ctx.strokeStyle = 'rgba(255, 248, 176, .72)';
+    ctx.lineWidth = 1.9 * view.dpr;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.25, -h * 0.28);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(-w * 0.25, h * 0.28);
+    ctx.stroke();
+  }
 
   ctx.strokeStyle = 'rgba(255, 248, 176, .96)';
   ctx.fillStyle = 'rgba(255, 248, 176, .96)';
@@ -269,6 +309,8 @@ function drawRobotArmBody(ctx, view, s, w, h) {
   const preview = s.automationItem || null;
   const p = preview ? localAutomationProgress(preview) : null;
   const phase = preview?.phase === 'arm' ? smoothstep01(p ?? 0) : (preview?.phase === 'arm_blocked' ? 1 : 0.5);
+  const reachScale = s.type === 'long_arm' ? 1.15 : 1;
+  const fastScale = s.type === 'fast_arm' ? 1.12 : 1;
   ctx.save();
   rotateToDir(ctx, s);
 
@@ -296,10 +338,10 @@ function drawRobotArmBody(ctx, view, s, w, h) {
   ctx.strokeStyle = 'rgba(255, 225, 126, .82)';
   ctx.stroke();
 
-  const clawX = (phase - 0.5) * w * 0.84;
+  const clawX = (phase - 0.5) * w * 0.84 * reachScale;
   const jointX = clawX * 0.45;
   ctx.strokeStyle = 'rgba(255, 221, 145, .88)';
-  ctx.lineWidth = 4.2 * view.dpr;
+  ctx.lineWidth = 4.2 * view.dpr * (s.type === 'long_arm' ? 0.82 : 1);
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(0, 0);
@@ -314,6 +356,14 @@ function drawRobotArmBody(ctx, view, s, w, h) {
   ctx.moveTo(clawX, 0);
   ctx.lineTo(clawX - w * 0.075, h * 0.09);
   ctx.stroke();
+
+  if (s.type === 'fast_arm') {
+    ctx.strokeStyle = 'rgba(255, 245, 170, .55)';
+    ctx.lineWidth = 1.2 * view.dpr;
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(w, h) * 0.26 * fastScale, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   ctx.fillStyle = 'rgba(120, 255, 220, .60)';
   ctx.beginPath();
@@ -558,8 +608,8 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     const isElectro = s.type === 'electrolyzer';
     const isElectronics = s.type === 'electronics_bench';
     const isPress = s.type === 'industrial_press';
-    const isConveyor = s.type === 'conveyor';
-    const isRobotArm = s.type === 'robot_arm';
+    const isConveyor = isConveyorType(s.type);
+    const isRobotArm = isArmType(s.type);
     ctx.strokeStyle = isHighFurnace ? 'rgba(255,118,92,.74)'
       : isFurnace ? 'rgba(255,178,94,.72)'
       : isChem ? 'rgba(150,235,130,.68)'
@@ -734,11 +784,11 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
   ctx.stroke();
   ctx.setLineDash([]);
   drawFootprintCells(ctx, view, w, h, preview.tilesX || 1, preview.tilesY || 1);
-  if (preview.type === 'conveyor') {
+  if (isConveyorType(preview.type)) {
     ctx.globalAlpha *= 0.92;
     drawConveyorBody(ctx, view, preview, w, h, t, null);
     drawDirectionArrow(ctx, view, preview, w, h, true);
-  } else if (preview.type === 'robot_arm') {
+  } else if (isArmType(preview.type)) {
     ctx.globalAlpha *= 0.92;
     drawRobotArmBody(ctx, view, preview, w, h);
     drawDirectionArrow(ctx, view, preview, w, h, true);

@@ -2,6 +2,7 @@ import { buildStatBlockSnapshot } from '../../stats/StatBlockSnapshot.js';
 import { buildStatusSnapshot } from '../../status/StatusView.js';
 import { isStructureProtectedByCore, canPlayerDamageStructure } from '../../structures/StructureSystem.js';
 import { RESOURCE_DEFS } from '../../inventory/ResourceDefs.js';
+import { getStructureDef } from '../../structures/StructureDefs.js';
 
 function q(value, decimals = 1) {
   const n = Number(value);
@@ -167,8 +168,14 @@ function firstStructureResourcePreview(structure) {
 }
 
 function getAutomationKindSnapshot(structure) {
-  if (structure?.type === 'conveyor') return 'conveyor';
-  if (structure?.type === 'robot_arm') return 'robot_arm';
+  return getStructureDef(structure?.type)?.automationKind || '';
+}
+
+function getAutomationStatusSnapshot(structure) {
+  const status = String(structure?.automationStatus || '');
+  if (status) return status;
+  const phase = String(structure?.automationItem?.phase || '');
+  if (phase.includes('blocked')) return 'blocked';
   return '';
 }
 
@@ -183,7 +190,8 @@ export function buildStructureAutomationSnapshots(structures, inSector) {
       storagePreview: firstStructureResourcePreview(structure),
       automationItem: structure.automationItem || null,
       automationKind: getAutomationKindSnapshot(structure),
-      automationPulse: structure.automationPulse || 0
+      automationPulse: structure.automationPulse || 0,
+      automationStatus: getAutomationStatusSnapshot(structure)
     }));
 }
 
@@ -230,6 +238,7 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       automationItem: structure.automationItem || null,
       automationKind: getAutomationKindSnapshot(structure),
       automationPulse: structure.automationPulse || 0,
+      automationStatus: getAutomationStatusSnapshot(structure),
       baseCoreId: structure.baseCoreId | 0 || 0,
       protectedByCore: isStructureProtectedByCore({ structures }, structure),
       attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false

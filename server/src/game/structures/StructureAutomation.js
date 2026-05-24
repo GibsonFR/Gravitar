@@ -54,10 +54,24 @@ function dirOf(st) {
   return { x: 1, y: 0, label: 'right' };
 }
 
-function targetPoint(st, forward = true) {
+function leftOf(d) {
+  return { x: -d.y, y: d.x, label: 'left' };
+}
+
+function rightOf(d) {
+  return { x: d.y, y: -d.x, label: 'right' };
+}
+
+function targetPoint(st, forward = true, tiles = 1) {
   const d = dirOf(st);
   const sign = forward ? 1 : -1;
-  return { x: finite(st?.x) + d.x * TILE * sign, y: finite(st?.y) + d.y * TILE * sign };
+  const step = TILE * Math.max(1, Number(tiles) || 1);
+  return { x: finite(st?.x) + d.x * step * sign, y: finite(st?.y) + d.y * step * sign };
+}
+
+function pointFromDir(st, d, tiles = 1) {
+  const step = TILE * Math.max(1, Number(tiles) || 1);
+  return { x: finite(st?.x) + d.x * step, y: finite(st?.y) + d.y * step };
 }
 
 function findStructureAt(state, origin, point) {
@@ -120,16 +134,22 @@ function getInputMap(st, key) {
   return null;
 }
 
-function takeOne(source) {
+function resourceEntries(map) {
+  return Object.entries(clean(map || {}))
+    .filter(([, amount]) => (amount | 0) > 0)
+    .sort(([a], [b]) => String(a).localeCompare(String(b)));
+}
+
+function takeOneMatching(source, predicate = null) {
   const map = getOutputMap(source);
   if (!map) return null;
-  const entries = Object.entries(clean(map)).filter(([, amount]) => (amount | 0) > 0);
-  if (!entries.length) return null;
-  entries.sort(([a], [b]) => String(a).localeCompare(String(b)));
-  const key = entries[0][0];
-  map[key] = (map[key] | 0) - 1;
-  clean(map);
-  return key;
+  for (const [key] of resourceEntries(map)) {
+    if (predicate && !predicate(key)) continue;
+    map[key] = (map[key] | 0) - 1;
+    clean(map);
+    return key;
+  }
+  return null;
 }
 
 function canPut(target, key) {
@@ -148,15 +168,14 @@ function putOne(target, key) {
   return true;
 }
 
-function hasOutput(source) {
+function hasOutput(source, predicate = null) {
   const map = getOutputMap(source);
-  return !!Object.entries(clean(map || {})).find(([, amount]) => (amount | 0) > 0);
+  return !!resourceEntries(map).find(([key]) => !predicate || predicate(key));
 }
 
 function firstResourcePreview(resources = {}) {
-  const entries = Object.entries(clean(resources)).filter(([, amount]) => (amount | 0) > 0);
+  const entries = resourceEntries(resources);
   if (!entries.length) return null;
-  entries.sort(([a], [b]) => String(a).localeCompare(String(b)));
   const [key, amount] = entries[0];
   return { ...resourceMeta(key), amount: amount | 0 };
 }
@@ -167,11 +186,31 @@ function conveyorItem(belt) {
   return preview?.key || '';
 }
 
+function conveyorTargets(state, belt, key) {
+  const def = getStructureDef(belt?.type);
+  const d = dirOf(belt);
+  const dirs = [];
+  for (const slot of def?.automationOutputs || ['front']) {
+    if (slot === 'left') dirs.push(leftOf(d));
+    else if (slot === 'right') dirs.push(rightOf(d));
+    else dirs.push(d);
+  }
+  const start = Math.max(0, belt.automationOutputIndex | 0);
+  const ordered = dirs.map((_, i) => dirs[(start + i) % dirs.length]);
+  const targets = [];
+  for (const outDir of ordered) {
+    const target = findStructureAt(state, belt, pointFromDir(belt, outDir, 1));
+    if (target && canPut(target, key)) targets.push({ target, outDir });
+  }
+  return targets;
+}
+
 function updateConveyorVisual(belt, timeMs) {
   const key = conveyorItem(belt);
   if (!key) {
     belt.automationItem = null;
     belt.automationMoving = null;
+    belt.automationStatus = '';
     return;
   }
   if (!belt.automationMoving || belt.automationMoving.key !== key) {
@@ -180,7 +219,7 @@ function updateConveyorVisual(belt, timeMs) {
   }
   const totalMs = Math.max(1, Number(belt.automationMoving.totalMs) || 700);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(belt.automationMoving.startedAt || timeMs)) / totalMs));
-  belt.automationItem = { ...resourceMeta(key), phase: 'belt', progress, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
+  belt.automationItem = { ...resourceMeta(key), phase: belt.automationStatus === 'blocked' ? 'blocked' : 'belt', progress, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
 }
 
 function updateConveyor(state, belt, timeMs) {
@@ -190,20 +229,27 @@ function updateConveyor(state, belt, timeMs) {
   const totalMs = Math.max(1, Number(belt.automationMoving?.totalMs) || Number(getStructureDef(belt.type)?.automationIntervalMs) || 700);
   const elapsed = timeMs - Number(belt.automationMoving?.startedAt || timeMs);
   if (elapsed < totalMs) return false;
-  const target = findStructureAt(state, belt, targetPoint(belt, true));
-  if (!target || !canPut(target, key)) {
+  const targets = conveyorTargets(state, belt, key);
+  if (!targets.length) {
+    belt.automationStatus = 'blocked';
+    belt.automationBlockedAt = timeMs;
     belt.automationMoving.startedAt = timeMs - totalMs;
     belt.automationItem = { ...resourceMeta(key), phase: 'blocked', progress: 1, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
     return false;
   }
+  const chosen = targets[0];
   const map = getOutputMap(belt);
   map[key] = (map[key] | 0) - 1;
   clean(map);
-  putOne(target, key);
+  putOne(chosen.target, key);
+  const def = getStructureDef(belt.type);
+  const outputs = def?.automationOutputs || ['front'];
+  if (outputs.length > 1) belt.automationOutputIndex = ((belt.automationOutputIndex | 0) + 1) % outputs.length;
   belt.automationMoving = null;
+  belt.automationStatus = '';
   belt.automationPulse = timeMs;
   belt.updatedAt = timeMs;
-  target.updatedAt = timeMs;
+  chosen.target.updatedAt = timeMs;
   return true;
 }
 
@@ -214,18 +260,22 @@ function ensureArmVisual(arm, timeMs) {
   }
   const totalMs = Math.max(1, Number(arm.automationJob.totalMs) || 900);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(arm.automationJob.startedAt || timeMs)) / totalMs));
-  arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase: 'arm', progress, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
+  const phase = arm.automationStatus === 'blocked' ? 'arm_blocked' : 'arm';
+  arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase, progress, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
 }
 
 function updateRobotArm(state, arm, timeMs) {
   const def = getStructureDef(arm.type);
   const totalMs = Number(def?.automationIntervalMs) || 900;
+  const reach = Math.max(1, Number(def?.automationReachTiles) || 1);
   if (arm.automationJob?.key) {
     ensureArmVisual(arm, timeMs);
     const elapsed = timeMs - Number(arm.automationJob.startedAt || timeMs);
     if (elapsed < totalMs) return false;
-    const target = findStructureAt(state, arm, targetPoint(arm, true));
+    const target = findStructureAt(state, arm, targetPoint(arm, true, reach));
     if (!target || !canPut(target, arm.automationJob.key)) {
+      arm.automationStatus = 'blocked';
+      arm.automationBlockedAt = timeMs;
       arm.automationJob.startedAt = timeMs - totalMs;
       arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase: 'arm_blocked', progress: 1, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
       return false;
@@ -233,23 +283,27 @@ function updateRobotArm(state, arm, timeMs) {
     putOne(target, arm.automationJob.key);
     arm.automationJob = null;
     arm.automationItem = null;
+    arm.automationStatus = '';
     arm.automationPulse = timeMs;
     arm.updatedAt = timeMs;
     target.updatedAt = timeMs;
     return true;
   }
-  if (timeMs - (arm.lastAutomationAt || 0) < Math.max(150, totalMs * 0.25)) return false;
-  const source = findStructureAt(state, arm, targetPoint(arm, false));
-  const target = findStructureAt(state, arm, targetPoint(arm, true));
-  if (!source || !target || !hasOutput(source)) return false;
-  const key = takeOne(source);
-  if (!key) return false;
-  if (!canPut(target, key)) {
-    putOne(source, key);
-    arm.lastAutomationAt = timeMs;
+  if (timeMs - (arm.lastAutomationAt || 0) < Math.max(120, totalMs * 0.22)) return false;
+  const source = findStructureAt(state, arm, targetPoint(arm, false, reach));
+  const target = findStructureAt(state, arm, targetPoint(arm, true, reach));
+  if (!source || !target) {
+    arm.automationStatus = !source ? 'no_input' : 'no_output';
     return false;
   }
+  if (!hasOutput(source, (key) => canPut(target, key))) {
+    arm.automationStatus = hasOutput(source) ? 'blocked' : 'no_input';
+    return false;
+  }
+  const key = takeOneMatching(source, (candidate) => canPut(target, candidate));
+  if (!key) return false;
   arm.automationJob = { key, startedAt: timeMs, totalMs };
+  arm.automationStatus = '';
   arm.lastAutomationAt = timeMs;
   ensureArmVisual(arm, timeMs);
   source.updatedAt = timeMs;

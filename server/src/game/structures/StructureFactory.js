@@ -81,6 +81,8 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     automationJob: options.automationJob && typeof options.automationJob === 'object' ? { ...options.automationJob } : null,
     automationMoving: options.automationMoving && typeof options.automationMoving === 'object' ? { ...options.automationMoving } : null,
     automationItem: options.automationItem && typeof options.automationItem === 'object' ? { ...options.automationItem } : null,
+    automationOutputIndex: options.automationOutputIndex | 0 || 0,
+    automationStatus: String(options.automationStatus || ''),
     createdAt: options.createdAt || Date.now(),
     updatedAt: options.updatedAt || Date.now()
   };
@@ -114,6 +116,8 @@ export function serializeStructure(structure) {
     automationJob: structure.automationJob || null,
     automationMoving: structure.automationMoving || null,
     automationItem: structure.automationItem || null,
+    automationOutputIndex: structure.automationOutputIndex | 0 || 0,
+    automationStatus: structure.automationStatus || '',
     createdAt: structure.createdAt || Date.now(),
     updatedAt: Date.now()
   };
@@ -139,6 +143,8 @@ export function hydrateStructure(state, saved) {
     open: !!s.open,
     fuelBufferSeconds: s.fuelBufferSeconds ?? s.energyBuffer ?? 0,
     energyState: s.energyState || null,
+    automationOutputIndex: s.automationOutputIndex | 0 || 0,
+    automationStatus: s.automationStatus || '',
     createdAt: s.createdAt,
     updatedAt: s.updatedAt
   });

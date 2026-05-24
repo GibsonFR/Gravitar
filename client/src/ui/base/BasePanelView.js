@@ -21,6 +21,12 @@ const RESOURCE_LABELS = {
   carbonFiber: 'Fibre de carbone'
 };
 
+const AUTOMATION_DIRECTIONAL_TYPES = new Set(['conveyor', 'fast_conveyor', 'splitter', 'merger', 'robot_arm', 'fast_arm', 'long_arm']);
+
+function isDirectionalAutomation(type) {
+  return AUTOMATION_DIRECTIONAL_TYPES.has(String(type || '').toLowerCase());
+}
+
 function iconSvg(kind) {
   if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7l21 12v26L32 57 11 45V19L32 7z" fill="rgba(101,215,255,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="32" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity=".85"/><path d="M32 12v8M32 44v8M14 22l7 4M43 38l7 4M14 42l7-4M43 26l7-4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="22" width="52" height="20" rx="3" fill="rgba(120,190,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 22v20M24 22v20M34 22v20M44 22v20M54 22v20" stroke="currentColor" stroke-width="2" opacity=".72"/><path d="M10 32h44" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>`;
@@ -315,10 +321,64 @@ export const BUILD_STRUCTURES = [
     w: 64,
     h: 64,
     hp: 0,
-    storageCapacity: 80,
+    storageCapacity: 1,
     role: 'Déplace les ressources dans son sens.',
-    stats: ['Buffer : 80'],
+    stats: ['Vitesse : normale', 'Buffer : 1'],
     cost: { ironOre: 6, copper: 2 }
+  },
+  {
+    type: 'fast_conveyor',
+    category: 'automation',
+    title: 'Convoyeur rapide',
+    subtitle: '1 × 1 case',
+    icon: 'conveyor',
+    orientation: 'r',
+    rotatable: true,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 0,
+    storageCapacity: 1,
+    role: 'Déplace les ressources plus vite.',
+    stats: ['Vitesse : rapide', 'Buffer : 1'],
+    cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
+  },
+  {
+    type: 'splitter',
+    category: 'automation',
+    title: 'Répartiteur',
+    subtitle: '1 entrée · 3 sorties',
+    icon: 'conveyor',
+    orientation: 'r',
+    rotatable: true,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 0,
+    storageCapacity: 1,
+    role: 'Répartit vers avant, gauche et droite.',
+    stats: ['Sorties : 3', 'Priorité alternée'],
+    cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
+  },
+  {
+    type: 'merger',
+    category: 'automation',
+    title: 'Fusionneur',
+    subtitle: '3 entrées · 1 sortie',
+    icon: 'conveyor',
+    orientation: 'r',
+    rotatable: true,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 0,
+    storageCapacity: 1,
+    role: 'Regroupe plusieurs lignes vers l’avant.',
+    stats: ['Sortie : avant', 'Buffer : 1'],
+    cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
   },
   {
     type: 'robot_arm',
@@ -334,8 +394,42 @@ export const BUILD_STRUCTURES = [
     h: 64,
     hp: 0,
     role: 'Transfère des ressources entre deux bâtiments adjacents.',
-    stats: ['Entrée arrière → sortie avant'],
+    stats: ['Portée : 1 case', 'Entrée arrière → sortie avant'],
     cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
+  },
+  {
+    type: 'fast_arm',
+    category: 'automation',
+    title: 'Bras rapide',
+    subtitle: '1 × 1 case',
+    icon: 'robot_arm',
+    orientation: 'r',
+    rotatable: true,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 0,
+    role: 'Transfert court plus rapide.',
+    stats: ['Portée : 1 case', 'Cycle rapide'],
+    cost: { ironOre: 10, copper: 6, aluminiumOre: 3 }
+  },
+  {
+    type: 'long_arm',
+    category: 'automation',
+    title: 'Bras long',
+    subtitle: 'Portée 2 cases',
+    icon: 'robot_arm',
+    orientation: 'r',
+    rotatable: true,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 0,
+    role: 'Transfère par-dessus une case.',
+    stats: ['Portée : 2 cases', 'Cycle lent'],
+    cost: { ironOre: 12, copper: 6, aluminiumOre: 5 }
   }];
 
 const BUILD_CATEGORIES = [
@@ -364,7 +458,7 @@ function formatCost(cost = {}) {
 
 function orientationCycle(def, current = 'h') {
   const o = String(current || 'h').toLowerCase();
-  if (def?.type === 'conveyor' || def?.type === 'robot_arm') {
+  if (isDirectionalAutomation(def?.type)) {
     const all = ['r', 'd', 'l', 'u'];
     return all[(all.indexOf(o) + 1 + all.length) % all.length];
   }

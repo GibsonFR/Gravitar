@@ -311,7 +311,8 @@ export class WorldStore {
         automationItem: normalized.automationItem ?? null,
         _automationFadeItem: normalized._automationFadeItem ?? null,
         automationKind: normalized.automationKind ?? current.automationKind,
-        automationPulse: normalized.automationPulse ?? current.automationPulse
+        automationPulse: normalized.automationPulse ?? current.automationPulse,
+        automationStatus: normalized.automationStatus ?? current.automationStatus
       });
     }
   }
