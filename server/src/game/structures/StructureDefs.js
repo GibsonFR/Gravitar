@@ -19,6 +19,7 @@ export const STRUCTURE_TYPES = {
   SCIENCE_LAB: 'science_lab',
   RESEARCH_STATION: 'research_station',
   EQUIPMENT_FABRICATOR: 'equipment_fabricator',
+  EQUIPMENT_RD_STATION: 'equipment_rd_station',
   RESOURCE_DEPOSIT: 'resource_deposit',
   MINING_EXTRACTOR: 'mining_extractor',
   CONVEYOR: 'conveyor',
@@ -606,6 +607,25 @@ export const STRUCTURE_DEFS = {
     borderColor: '#b58cff',
     energyUse: 18,
     cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 2, advancedSciencePack: 2 }
+  }
+,
+  [STRUCTURE_TYPES.EQUIPMENT_RD_STATION]: {
+    id: STRUCTURE_TYPES.EQUIPMENT_RD_STATION,
+    name: 'Station R&D',
+    description: 'Améliore un objet neutre avec 1 à 3 sciences pour générer des stats, passifs et tags procéduraux.',
+    radius: 64,
+    tilesX: 3,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 3,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 420,
+    solid: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    color: '#2e244f',
+    borderColor: '#d28cff',
+    energyUse: 24,
+    cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3, advancedSciencePack: 3 }
   }
 
 

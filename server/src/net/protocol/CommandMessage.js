@@ -1,5 +1,5 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel', 'equipment_fabricator_open', 'equipment_fabricator_close', 'equipment_fabricator_craft']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel', 'equipment_fabricator_open', 'equipment_fabricator_close', 'equipment_fabricator_craft', 'equipment_rd_open', 'equipment_rd_close', 'equipment_rd_start', 'equipment_rd_cancel']);
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -152,7 +152,7 @@ export function sanitizeCommandMessage(raw) {
   }
 
 
-  if (cmd === 'equipment_fabricator_open' || cmd === 'equipment_fabricator_close' || cmd === 'equipment_fabricator_craft') {
+  if (cmd === 'equipment_fabricator_open' || cmd === 'equipment_fabricator_close' || cmd === 'equipment_fabricator_craft' || cmd === 'equipment_rd_open' || cmd === 'equipment_rd_close' || cmd === 'equipment_rd_start' || cmd === 'equipment_rd_cancel') {
     const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
     msg.structureId = Math.max(0, Math.min(2147483647, structureId));
   }

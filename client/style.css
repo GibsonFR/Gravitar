@@ -6354,3 +6354,89 @@ button.station-item-icon[draggable="true"]:active,
   font-size: 11px;
   line-height: 1.25;
 }
+
+/* v145 — Atelier neutre + Station R&D */
+.equipment-fab__notice {
+  margin: 14px 18px 0;
+  border: 1px solid rgba(126, 220, 255, .16);
+  border-radius: 12px;
+  background: rgba(8, 20, 34, .58);
+  padding: 10px 12px;
+  color: rgba(210, 230, 245, .82);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.equipment-fab__bar {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,.08);
+  margin-bottom: 8px;
+}
+.equipment-fab__bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(126,220,255,.96), rgba(210,140,255,.96));
+}
+.equipment-rd {
+  border-color: rgba(210, 140, 255, .38);
+}
+.equipment-rd__layout {
+  display: grid;
+  grid-template-columns: 310px 1fr;
+  gap: 14px;
+  padding: 16px 18px 20px;
+  max-height: 610px;
+  overflow: auto;
+}
+.equipment-rd__layout section {
+  border: 1px solid rgba(126,220,255,.14);
+  border-radius: 14px;
+  background: rgba(5, 12, 20, .62);
+  padding: 12px;
+}
+.equipment-rd__layout h3 {
+  margin: 0 0 10px;
+  color: rgba(210,235,255,.88);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+.equipment-rd__items,
+.equipment-rd__programs {
+  display: grid;
+  gap: 9px;
+}
+.equipment-rd__programs {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.equipment-rd__item {
+  border: 1px solid rgba(126,220,255,.20);
+  border-radius: 12px;
+  background: rgba(7, 16, 28, .88);
+  color: rgba(235,248,255,.96);
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.equipment-rd__item.is-selected {
+  outline: 2px solid rgba(210,140,255,.8);
+  border-color: rgba(210,140,255,.6);
+}
+.equipment-rd__item strong,
+.equipment-rd__item small {
+  display: block;
+}
+.equipment-rd__item small {
+  color: rgba(190,215,232,.72);
+  margin-top: 3px;
+}
+.equipment-rd__selected {
+  margin-top: 12px;
+  border-top: 1px solid rgba(126,220,255,.10);
+  padding-top: 10px;
+}
+.base-panel__icon--equipment_rd_station {
+  color: rgba(210, 140, 255, .98);
+  background: linear-gradient(180deg, rgba(70, 38, 100, .86), rgba(18, 10, 36, .94));
+}

@@ -1,85 +1,95 @@
 import { ITEM_CATEGORY_IDS } from '../items/ItemCategoryIds.js';
 
-export const EQUIPMENT_CRAFT_MODES = Object.freeze([
-  {
-    id: 'standard',
-    name: 'Standard',
-    description: 'Fabrication normale. Peu coûteuse, forte chance de qualité standard.',
-    qualityBoost: 0,
-    extraInput: {},
-    requiresResearchId: ''
-  },
-  {
-    id: 'calibrated',
-    name: 'Calibré',
-    description: 'Ajoute de la science avancée pour stabiliser la fabrication.',
-    qualityBoost: 5,
-    extraInput: { advancedSciencePack: 1 },
-    requiresResearchId: 'advanced_research'
-  },
-  {
-    id: 'experimental',
-    name: 'Expérimental',
-    description: 'Ajoute de la science anomalie. Plus cher, mais meilleures chances de rareté.',
-    qualityBoost: 13,
-    extraInput: { anomalySciencePack: 1 },
-    requiresResearchId: 'alien_anomaly_analysis'
-  }
-]);
-
-export function getEquipmentCraftMode(id) {
-  return EQUIPMENT_CRAFT_MODES.find((mode) => mode.id === id) || EQUIPMENT_CRAFT_MODES[0];
-}
-
-export function mergeRecipeInputs(base = {}, extra = {}) {
-  const out = { ...(base || {}) };
-  for (const [key, amount] of Object.entries(extra || {})) out[key] = (out[key] | 0) + (amount | 0);
-  return out;
-}
-
 export const EQUIPMENT_FABRICATOR_RECIPES = Object.freeze([
   {
-    id: 'craft_vector_thruster_vanes',
-    itemId: 'vector-thruster-vanes',
-    name: 'Ailettes de poussée vectorielle',
+    id: 'fab_thruster_mk1',
+    baseItemId: 'vector-thruster-vanes',
+    name: 'Propulseur Mark I',
     categoryId: ITEM_CATEGORY_IDS.ENGINE,
-    tier: 1,
+    mark: 1,
     seconds: 18,
     researchId: 'advanced_research',
     input: { electricMotor: 1, aluminiumIngot: 4, copperWire: 6, energySciencePack: 1 }
   },
   {
-    id: 'craft_compact_shield_array',
-    itemId: 'compact-shield-array',
-    name: 'Réseau de bouclier compact',
+    id: 'fab_shield_mk1',
+    baseItemId: 'compact-shield-array',
+    name: 'Bouclier Mark I',
     categoryId: ITEM_CATEGORY_IDS.DEFENSE,
-    tier: 1,
+    mark: 1,
     seconds: 20,
     researchId: 'defense_turrets',
     input: { compositeArmor: 1, controlCircuit: 1, copperWire: 6, combatSciencePack: 1 }
   },
   {
-    id: 'craft_needle_array_mk1',
-    itemId: 'needle-array-mk1',
-    name: 'Array Needle Mk.I',
+    id: 'fab_weapon_mk1',
+    baseItemId: 'needle-array-mk1',
+    name: 'Arme cinétique Mark I',
     categoryId: ITEM_CATEGORY_IDS.WEAPON,
-    tier: 1,
+    mark: 1,
     seconds: 22,
     researchId: 'advanced_research',
     input: { microprocessor: 1, laserLens: 1, steelPlate: 3, advancedSciencePack: 1 }
   },
   {
-    id: 'craft_cargo_overmesh',
-    itemId: 'cargo-overmesh',
-    name: 'Maillage de soute extensif',
+    id: 'fab_module_mk1',
+    baseItemId: 'cargo-overmesh',
+    name: 'Module utilitaire Mark I',
     categoryId: ITEM_CATEGORY_IDS.MODULE,
-    tier: 1,
+    mark: 1,
     seconds: 16,
     researchId: 'advanced_research',
     input: { carbonFiber: 2, steelPlate: 2, printedCircuit: 1, industrialSciencePack: 1 }
+  },
+  {
+    id: 'fab_thruster_mk2',
+    baseItemId: 'vector-thruster-vanes',
+    name: 'Propulseur Mark II',
+    categoryId: ITEM_CATEGORY_IDS.ENGINE,
+    mark: 2,
+    seconds: 28,
+    researchId: 'alien_anomaly_analysis',
+    input: { electricMotor: 2, fuelInjector: 1, titaniumPlate: 4, advancedSciencePack: 2 }
   }
 ]);
 
-export function getEquipmentCraftRecipe(id) {
+export const EQUIPMENT_RD_PROGRAMS = Object.freeze([
+  {
+    id: 'rd_basic',
+    name: 'Infusion contrôlée',
+    seconds: 60,
+    qualityBoost: 0,
+    scienceInput: { advancedSciencePack: 1 },
+    maxSciencePacks: 1,
+    requiresResearchId: 'advanced_research',
+    description: 'Ajoute des bonus procéduraux légers et un tag passif.'
+  },
+  {
+    id: 'rd_dual',
+    name: 'Synthèse croisée',
+    seconds: 60,
+    qualityBoost: 6,
+    scienceInput: { advancedSciencePack: 1, combatSciencePack: 1 },
+    maxSciencePacks: 2,
+    requiresResearchId: 'advanced_research',
+    description: 'Deux sciences, meilleurs rolls et affixes plus stables.'
+  },
+  {
+    id: 'rd_anomaly',
+    name: 'Imprégnation anomalie',
+    seconds: 60,
+    qualityBoost: 16,
+    scienceInput: { advancedSciencePack: 1, combatSciencePack: 1, anomalySciencePack: 1 },
+    maxSciencePacks: 3,
+    requiresResearchId: 'alien_anomaly_analysis',
+    description: 'Trois sciences, chances fortes de rareté et tags puissants.'
+  }
+]);
+
+export function getEquipmentFabricatorRecipe(id) {
   return EQUIPMENT_FABRICATOR_RECIPES.find((recipe) => recipe.id === id) || null;
+}
+
+export function getEquipmentRDProgram(id) {
+  return EQUIPMENT_RD_PROGRAMS.find((program) => program.id === id) || EQUIPMENT_RD_PROGRAMS[0];
 }

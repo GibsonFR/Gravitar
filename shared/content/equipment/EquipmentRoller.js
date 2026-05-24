@@ -134,3 +134,56 @@ export function rollCraftedEquipment({ baseItemId, recipeId, ownerKey = '', craf
 export function getQualityName(id) {
   return QUALITY_TABLE.find((q) => q.id === id)?.name || 'Standard';
 }
+
+
+export function createNeutralCraftedEquipment({ baseItemId, recipeId, recipeName = '', mark = 1, ownerKey = '', craftedIndex = 0, timeMs = Date.now() }) {
+  const base = getItemDef(baseItemId);
+  if (!base) return null;
+  const id = `neutral-${recipeId}-${craftedIndex}-${hashString(`${ownerKey}|${timeMs}|${baseItemId}|neutral`).toString(36)}`;
+  const baseBonuses = { ...(base.bonuses || {}) };
+  return {
+    ...base,
+    id,
+    baseItemId: base.id,
+    neutralBase: true,
+    rdEnhanced: false,
+    crafted: true,
+    mark: mark | 0 || 1,
+    qualityId: 'neutral',
+    qualityName: 'Neutre',
+    name: recipeName || `${base.name} Mark ${mark | 0 || 1}`,
+    shortName: recipeName || `${base.shortName || base.name} Mk.${mark | 0 || 1}`,
+    shopOffer: false,
+    tags: [],
+    bonuses: baseBonuses,
+    rollLines: [],
+    description: `Objet neutre Mark ${mark | 0 || 1}. Peut être amélioré dans une station R&D avec des sciences.`
+  };
+}
+
+export function rollRDEquipment({ neutralItemDef, programId = 'rd_basic', ownerKey = '', craftedIndex = 0, timeMs = Date.now(), qualityBoost = 0 }) {
+  if (!neutralItemDef) return null;
+  const baseItemId = neutralItemDef.baseItemId || neutralItemDef.id;
+  const rolled = rollCraftedEquipment({
+    baseItemId,
+    recipeId: programId,
+    ownerKey,
+    craftedIndex,
+    timeMs,
+    qualityBoost
+  });
+  if (!rolled) return null;
+  return {
+    ...rolled,
+    id: `rd-${programId}-${craftedIndex}-${hashString(`${ownerKey}|${timeMs}|${neutralItemDef.id}|rd`).toString(36)}`,
+    baseItemId,
+    neutralSourceId: neutralItemDef.id,
+    neutralBase: false,
+    rdEnhanced: true,
+    crafted: true,
+    mark: neutralItemDef.mark || 1,
+    name: `${neutralItemDef.name} ${rolled.qualityName}`,
+    shortName: `${neutralItemDef.shortName || neutralItemDef.name} ${rolled.qualityName}`,
+    description: `${neutralItemDef.name} amélioré par R&D. ${rolled.description || ''}`.trim()
+  };
+}

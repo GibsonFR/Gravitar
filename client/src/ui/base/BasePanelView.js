@@ -85,6 +85,7 @@ if (kind === 'industrial_press') return `<svg viewBox="0 0 64 64" aria-hidden="t
   if (kind === 'science_lab') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M24 12v14l-10 18a6 6 0 0 0 5.2 9h25.6A6 6 0 0 0 50 44L40 26V12" fill="rgba(126,220,255,.10)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 22h20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".75"/><path d="M24 40c4-3 8-3 12 0 4 3 8 3 12 0" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/><circle cx="30" cy="34" r="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="38" cy="37" r="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>`;
   if (kind === 'research_station') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 10l18 10v24L32 54 14 44V20l18-10Z" fill="rgba(181,140,255,.08)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M32 10v44M14 20l18 10 18-10M14 44l18-10 18 10" fill="none" stroke="currentColor" stroke-width="2.2" opacity=".8"/><circle cx="32" cy="32" r="6" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>`;
   if (kind === 'equipment_fabricator') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="40" height="32" rx="6" fill="rgba(181,140,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M22 34h20M32 24v20M23 45h18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="22" cy="26" r="3" fill="currentColor" opacity=".75"/><circle cx="42" cy="26" r="3" fill="currentColor" opacity=".75"/></svg>`;
+  if (kind === 'equipment_rd_station') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="40" height="32" rx="6" fill="rgba(210,140,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M21 42h22M26 24v12l-5 8M38 24v12l5 8M26 24h12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="40" r="4" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>`;
   if (kind === 'automation') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 34h34" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M38 24l12 10-12 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="46" r="4" fill="currentColor" opacity=".65"/><circle cx="32" cy="46" r="4" fill="currentColor" opacity=".65"/></svg>`;
   if (kind === 'conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="22" width="48" height="20" rx="4" fill="rgba(110,215,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 28h36M14 36h36" stroke="currentColor" stroke-width="2" opacity=".35"/><path d="M18 32h22M34 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="32" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="46" cy="48" r="3" fill="currentColor" opacity=".5"/></svg>`;
   if (kind === 'fast_conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="18" width="48" height="28" rx="5" fill="rgba(120,255,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M14 24h36M14 40h36" stroke="currentColor" stroke-width="2.5" opacity=".7"/><path d="M16 32h14M28 25l8 7-8 7M38 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -388,6 +389,23 @@ export const BUILD_STRUCTURES = [
     role: 'Fabrique des armes, boucliers, propulseurs et modules avancés.',
     stats: ['Consommation : 18 énergie', 'Craft équipement'],
     cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 2, advancedSciencePack: 2 }
+  },
+  {
+    type: 'equipment_rd_station',
+    category: 'industry',
+    title: 'Station R&D',
+    subtitle: '',
+    icon: 'equipment_rd_station',
+    orientation: 'h',
+    tilesX: 3,
+    tilesY: 2,
+    w: 192,
+    h: 128,
+    hp: 420,
+    energyUse: 24,
+    role: 'Améliore des objets neutres avec 1 à 3 sciences.',
+    stats: ['Consommation : 24 énergie', 'R&D équipement : 60s'],
+    cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3, advancedSciencePack: 3 }
   },
   {
     type: 'ammo_storage',

@@ -16,6 +16,7 @@ import { updateLoots } from './loot/LootSystem.js';
 import { updateSectors } from './sector/SectorSystem.js';
 import { updateStructures } from './structures/StructureSystem.js';
 import { updateResearchStations } from './structures/StructureResearchStation.js';
+import { updateEquipmentRDStations } from './structures/StructureEquipmentRDStation.js';
 import { createPlayer } from './player/PlayerFactory.js';
 import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
@@ -127,6 +128,7 @@ export function createGameServer() {
     updateStations(state, dt, timeMs);
     updateStructures(state, dt, timeMs);
     updateResearchStations(state, timeMs, Math.round(dt * 1000));
+    updateEquipmentRDStations(state, timeMs, Math.round(dt * 1000));
     updateTestEffectZones(state, dt, timeMs);
     updateStatuses(state, dt, timeMs);
     for (const p of state.players.values()) updatePlayer(state, p, dt, timeMs);

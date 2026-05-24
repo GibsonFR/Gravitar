@@ -365,7 +365,8 @@ export function ensureTestEquipmentBench(state, player, timeMs) {
     };
     station.researchEnabled = true;
   }
-  ensureTestStructure(state, worldId, 'equipment_fabricator', sx, sy, 384, 96, owner);
+  ensureTestStructure(state, worldId, 'equipment_fabricator', sx, sy, 320, 96, owner);
+  ensureTestStructure(state, worldId, 'equipment_rd_station', sx, sy, 576, 96, owner);
   ensureTestStructure(state, worldId, 'equipment_storage', sx, sy, 640, 96, owner);
   ensureTestStructure(state, worldId, 'storage', sx, sy, 640, -96, owner);
 }
@@ -382,8 +383,8 @@ function grantTestResources(player) {
     siliconWafer: 18, microTransistor: 10, printedCircuit: 8, controlCircuit: 4,
     titaniumPlate: 10, carbonFiber: 8, opticalGlass: 8, lithiumBattery: 4, fuelCell: 4,
     basicSciencePack: 20, automationSciencePack: 10, industrialSciencePack: 10, energySciencePack: 12,
-    biologySciencePack: 10, combatSciencePack: 10, advancedSciencePack: 12, anomalySciencePack: 8,
-    electricMotor: 6, compositeArmor: 4, laserLens: 4, microprocessor: 6, thermalCeramic: 6,
+    biologySciencePack: 10, combatSciencePack: 10, advancedSciencePack: 30, anomalySciencePack: 18,
+    electricMotor: 12, compositeArmor: 8, laserLens: 8, microprocessor: 12, thermalCeramic: 6,
     fuelInjector: 4, hydrogen: 20, lithiumBattery: 8, fuelCell: 8
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
