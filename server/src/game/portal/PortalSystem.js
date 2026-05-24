@@ -66,11 +66,11 @@ function grantTestEquipmentPortalLoadout(state, player, timeMs) {
     biologySciencePack: 10, combatSciencePack: 10, advancedSciencePack: 30, anomalySciencePack: 18,
     precursorNanomaterial: 12, unknownTechFragment: 10, titaniumPlate: 36, ancientSuperconductor: 4,
     electricMotor: 12, compositeArmor: 8, laserLens: 8, microprocessor: 12, thermalCeramic: 6,
-    fuelInjector: 4, hydrogen: 20
+    fuelInjector: 4, hydrogen: 20, biocarbure: 12
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
   player.research = player.research || { completed: [], unlocked: [] };
-  const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'alien_anomaly_analysis']);
+  const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'equipment_rd_station', 'equipment_mark_ii', 'equipment_mark_iii', 'equipment_mark_iv', 'equipment_mark_v', 'alien_anomaly_analysis']);
   player.research.completed = [...completed];
   ensureTestEquipmentBench(state, player, timeMs);
 }

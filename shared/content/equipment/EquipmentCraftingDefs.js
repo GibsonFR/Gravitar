@@ -1,206 +1,83 @@
 import { ITEM_CATEGORY_IDS } from '../items/ItemCategoryIds.js';
 
+const COMMON_SCIENCES = Object.freeze({
+  mk1: 'advanced_research',
+  mk2: 'equipment_mark_ii',
+  mk3: 'equipment_mark_iii',
+  mk4: 'equipment_mark_iv',
+  mk5: 'equipment_mark_v'
+});
+
+function markRecipe({ id, baseItemId, name, categoryId, mark, seconds, input }) {
+  return {
+    id,
+    baseItemId,
+    name: `${name} Mark ${['', 'I', 'II', 'III', 'IV', 'V'][mark] || mark}`,
+    categoryId,
+    mark,
+    seconds,
+    researchId: COMMON_SCIENCES[`mk${mark}`],
+    input
+  };
+}
+
+const PROPULSERS = Object.freeze([
+  markRecipe({ id: 'fab_thruster_mk1', baseItemId: 'vector-thruster-vanes', name: 'Propulseur', categoryId: ITEM_CATEGORY_IDS.ENGINE, mark: 1, seconds: 18, input: { electricMotor: 1, aluminiumIngot: 4, copperWire: 6, energySciencePack: 1 } }),
+  markRecipe({ id: 'fab_thruster_mk2', baseItemId: 'vector-thruster-vanes', name: 'Propulseur', categoryId: ITEM_CATEGORY_IDS.ENGINE, mark: 2, seconds: 28, input: { electricMotor: 2, fuelInjector: 1, titaniumPlate: 4, advancedSciencePack: 1 } }),
+  markRecipe({ id: 'fab_thruster_mk3', baseItemId: 'vector-thruster-vanes', name: 'Propulseur', categoryId: ITEM_CATEGORY_IDS.ENGINE, mark: 3, seconds: 40, input: { electricMotor: 3, fuelInjector: 2, thermalCeramic: 3, advancedSciencePack: 2 } }),
+  markRecipe({ id: 'fab_thruster_mk4', baseItemId: 'vector-thruster-vanes', name: 'Propulseur', categoryId: ITEM_CATEGORY_IDS.ENGINE, mark: 4, seconds: 54, input: { electricMotor: 4, fuelInjector: 3, thermalCeramic: 5, precursorNanomaterial: 2, anomalySciencePack: 1 } }),
+  markRecipe({ id: 'fab_thruster_mk5', baseItemId: 'vector-thruster-vanes', name: 'Propulseur', categoryId: ITEM_CATEGORY_IDS.ENGINE, mark: 5, seconds: 72, input: { electricMotor: 5, fuelInjector: 4, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 } })
+]);
+
+const SHIELDS = Object.freeze([
+  markRecipe({ id: 'fab_shield_mk1', baseItemId: 'compact-shield-array', name: 'Bouclier', categoryId: ITEM_CATEGORY_IDS.DEFENSE, mark: 1, seconds: 20, input: { compositeArmor: 1, controlCircuit: 1, copperWire: 6, combatSciencePack: 1 } }),
+  markRecipe({ id: 'fab_shield_mk2', baseItemId: 'compact-shield-array', name: 'Bouclier', categoryId: ITEM_CATEGORY_IDS.DEFENSE, mark: 2, seconds: 30, input: { compositeArmor: 2, titaniumPlate: 4, controlCircuit: 2, combatSciencePack: 1 } }),
+  markRecipe({ id: 'fab_shield_mk3', baseItemId: 'compact-shield-array', name: 'Bouclier', categoryId: ITEM_CATEGORY_IDS.DEFENSE, mark: 3, seconds: 42, input: { compositeArmor: 3, titaniumPlate: 6, controlCircuit: 3, advancedSciencePack: 2 } }),
+  markRecipe({ id: 'fab_shield_mk4', baseItemId: 'compact-shield-array', name: 'Bouclier', categoryId: ITEM_CATEGORY_IDS.DEFENSE, mark: 4, seconds: 56, input: { compositeArmor: 4, thermalCeramic: 5, precursorNanomaterial: 2, anomalySciencePack: 1 } }),
+  markRecipe({ id: 'fab_shield_mk5', baseItemId: 'compact-shield-array', name: 'Bouclier', categoryId: ITEM_CATEGORY_IDS.DEFENSE, mark: 5, seconds: 74, input: { compositeArmor: 5, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 } })
+]);
+
+const WEAPONS = Object.freeze([
+  markRecipe({ id: 'fab_weapon_mk1', baseItemId: 'needle-array-mk1', name: 'Arme cinétique', categoryId: ITEM_CATEGORY_IDS.WEAPON, mark: 1, seconds: 22, input: { microprocessor: 1, laserLens: 1, steelPlate: 3, advancedSciencePack: 1 } }),
+  markRecipe({ id: 'fab_weapon_mk2', baseItemId: 'needle-array-mk1', name: 'Arme cinétique', categoryId: ITEM_CATEGORY_IDS.WEAPON, mark: 2, seconds: 32, input: { microprocessor: 2, laserLens: 2, titaniumPlate: 3, combatSciencePack: 1 } }),
+  markRecipe({ id: 'fab_weapon_mk3', baseItemId: 'needle-array-mk1', name: 'Arme cinétique', categoryId: ITEM_CATEGORY_IDS.WEAPON, mark: 3, seconds: 44, input: { microprocessor: 3, laserLens: 3, thermalCeramic: 2, advancedSciencePack: 2 } }),
+  markRecipe({ id: 'fab_weapon_mk4', baseItemId: 'needle-array-mk1', name: 'Arme cinétique', categoryId: ITEM_CATEGORY_IDS.WEAPON, mark: 4, seconds: 58, input: { microprocessor: 4, laserLens: 4, thermalCeramic: 4, unknownTechFragment: 2, anomalySciencePack: 1 } }),
+  markRecipe({ id: 'fab_weapon_mk5', baseItemId: 'needle-array-mk1', name: 'Arme cinétique', categoryId: ITEM_CATEGORY_IDS.WEAPON, mark: 5, seconds: 76, input: { microprocessor: 5, laserLens: 5, ancientSuperconductor: 1, unknownTechFragment: 3, anomalySciencePack: 3 } })
+]);
+
+function moduleSeries(prefix, baseItemId, label, focusInput = {}) {
+  return Object.freeze([
+    markRecipe({ id: `fab_module_${prefix}_mk1`, baseItemId, name: label, categoryId: ITEM_CATEGORY_IDS.MODULE, mark: 1, seconds: 16, input: { steelPlate: 2, printedCircuit: 1, industrialSciencePack: 1, ...focusInput.mk1 } }),
+    markRecipe({ id: `fab_module_${prefix}_mk2`, baseItemId, name: label, categoryId: ITEM_CATEGORY_IDS.MODULE, mark: 2, seconds: 26, input: { titaniumPlate: 2, controlCircuit: 1, industrialSciencePack: 1, ...focusInput.mk2 } }),
+    markRecipe({ id: `fab_module_${prefix}_mk3`, baseItemId, name: label, categoryId: ITEM_CATEGORY_IDS.MODULE, mark: 3, seconds: 38, input: { titaniumPlate: 4, microprocessor: 1, advancedSciencePack: 1, ...focusInput.mk3 } }),
+    markRecipe({ id: `fab_module_${prefix}_mk4`, baseItemId, name: label, categoryId: ITEM_CATEGORY_IDS.MODULE, mark: 4, seconds: 52, input: { microprocessor: 2, precursorNanomaterial: 1, anomalySciencePack: 1, ...focusInput.mk4 } }),
+    markRecipe({ id: `fab_module_${prefix}_mk5`, baseItemId, name: label, categoryId: ITEM_CATEGORY_IDS.MODULE, mark: 5, seconds: 70, input: { microprocessor: 3, ancientSuperconductor: 1, precursorNanomaterial: 2, anomalySciencePack: 2, ...focusInput.mk5 } })
+  ]);
+}
+
+const MODULES = Object.freeze([
+  ...moduleSeries('cargo', 'cargo-overmesh', 'Module soute', {
+    mk1: { carbonFiber: 2 }, mk2: { carbonFiber: 4 }, mk3: { carbonFiber: 5 }, mk4: { carbonFiber: 7 }, mk5: { carbonFiber: 9 }
+  }),
+  ...moduleSeries('damage', 'reaver-gyro-stabilizer', 'Module dégâts', {
+    mk1: { laserLens: 1 }, mk2: { laserLens: 2 }, mk3: { laserLens: 3 }, mk4: { unknownTechFragment: 1 }, mk5: { unknownTechFragment: 2 }
+  }),
+  ...moduleSeries('energy', 'surge-capacitor-bank', 'Module énergie', {
+    mk1: { copperWire: 6 }, mk2: { lithiumBattery: 2 }, mk3: { lithiumBattery: 4 }, mk4: { fuelCell: 2 }, mk5: { fuelCell: 4 }
+  }),
+  ...moduleSeries('repair', 'siphon-repair-weave', 'Module réparation', {
+    mk1: { biomass: 4 }, mk2: { organicLipids: 2 }, mk3: { organicLipids: 4 }, mk4: { biocarbure: 2 }, mk5: { biocarbure: 4 }
+  }),
+  ...moduleSeries('targeting', 'siege-target-matrix', 'Module ciblage', {
+    mk1: { quartz: 4 }, mk2: { opticalGlass: 2 }, mk3: { opticalGlass: 4 }, mk4: { unknownTechFragment: 1 }, mk5: { unknownTechFragment: 2 }
+  })
+]);
+
 export const EQUIPMENT_FABRICATOR_RECIPES = Object.freeze([
-  {
-    id: 'fab_thruster_mk1',
-    baseItemId: 'vector-thruster-vanes',
-    name: 'Propulseur Mark I',
-    categoryId: ITEM_CATEGORY_IDS.ENGINE,
-    mark: 1,
-    seconds: 18,
-    researchId: 'advanced_research',
-    input: { electricMotor: 1, aluminiumIngot: 4, copperWire: 6, energySciencePack: 1 }
-  },
-  {
-    id: 'fab_thruster_mk2',
-    baseItemId: 'vector-thruster-vanes',
-    name: 'Propulseur Mark II',
-    categoryId: ITEM_CATEGORY_IDS.ENGINE,
-    mark: 2,
-    seconds: 28,
-    researchId: 'alien_anomaly_analysis',
-    input: { electricMotor: 2, fuelInjector: 1, titaniumPlate: 4, advancedSciencePack: 2 }
-  },
-  {
-    id: 'fab_thruster_mk3',
-    baseItemId: 'vector-thruster-vanes',
-    name: 'Propulseur Mark III',
-    categoryId: ITEM_CATEGORY_IDS.ENGINE,
-    mark: 3,
-    seconds: 40,
-    researchId: 'alien_anomaly_analysis',
-    input: { electricMotor: 3, fuelInjector: 2, thermalCeramic: 3, precursorNanomaterial: 1, anomalySciencePack: 1 }
-  },
-  {
-    id: 'fab_thruster_mk4',
-    baseItemId: 'vector-thruster-vanes',
-    name: 'Propulseur Mark IV',
-    categoryId: ITEM_CATEGORY_IDS.ENGINE,
-    mark: 4,
-    seconds: 54,
-    researchId: 'equipment_mark_iv',
-    input: { electricMotor: 4, fuelInjector: 3, thermalCeramic: 5, precursorNanomaterial: 2, anomalySciencePack: 2 }
-  },
-  {
-    id: 'fab_thruster_mk5',
-    baseItemId: 'vector-thruster-vanes',
-    name: 'Propulseur Mark V',
-    categoryId: ITEM_CATEGORY_IDS.ENGINE,
-    mark: 5,
-    seconds: 72,
-    researchId: 'equipment_mark_v',
-    input: { electricMotor: 5, fuelInjector: 4, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 }
-  },
-  {
-    id: 'fab_shield_mk1',
-    baseItemId: 'compact-shield-array',
-    name: 'Bouclier Mark I',
-    categoryId: ITEM_CATEGORY_IDS.DEFENSE,
-    mark: 1,
-    seconds: 20,
-    researchId: 'defense_turrets',
-    input: { compositeArmor: 1, controlCircuit: 1, copperWire: 6, combatSciencePack: 1 }
-  },
-  {
-    id: 'fab_shield_mk2',
-    baseItemId: 'compact-shield-array',
-    name: 'Bouclier Mark II',
-    categoryId: ITEM_CATEGORY_IDS.DEFENSE,
-    mark: 2,
-    seconds: 30,
-    researchId: 'advanced_research',
-    input: { compositeArmor: 2, titaniumPlate: 4, controlCircuit: 2, combatSciencePack: 2 }
-  },
-  {
-    id: 'fab_shield_mk3',
-    baseItemId: 'compact-shield-array',
-    name: 'Bouclier Mark III',
-    categoryId: ITEM_CATEGORY_IDS.DEFENSE,
-    mark: 3,
-    seconds: 42,
-    researchId: 'alien_anomaly_analysis',
-    input: { compositeArmor: 3, thermalCeramic: 3, precursorNanomaterial: 1, anomalySciencePack: 1 }
-  },
-  {
-    id: 'fab_shield_mk4',
-    baseItemId: 'compact-shield-array',
-    name: 'Bouclier Mark IV',
-    categoryId: ITEM_CATEGORY_IDS.DEFENSE,
-    mark: 4,
-    seconds: 56,
-    researchId: 'equipment_mark_iv',
-    input: { compositeArmor: 4, thermalCeramic: 5, precursorNanomaterial: 2, anomalySciencePack: 2 }
-  },
-  {
-    id: 'fab_shield_mk5',
-    baseItemId: 'compact-shield-array',
-    name: 'Bouclier Mark V',
-    categoryId: ITEM_CATEGORY_IDS.DEFENSE,
-    mark: 5,
-    seconds: 74,
-    researchId: 'equipment_mark_v',
-    input: { compositeArmor: 5, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 }
-  },
-  {
-    id: 'fab_weapon_mk1',
-    baseItemId: 'needle-array-mk1',
-    name: 'Arme cinétique Mark I',
-    categoryId: ITEM_CATEGORY_IDS.WEAPON,
-    mark: 1,
-    seconds: 22,
-    researchId: 'advanced_research',
-    input: { microprocessor: 1, laserLens: 1, steelPlate: 3, advancedSciencePack: 1 }
-  },
-  {
-    id: 'fab_weapon_mk2',
-    baseItemId: 'needle-array-mk1',
-    name: 'Arme cinétique Mark II',
-    categoryId: ITEM_CATEGORY_IDS.WEAPON,
-    mark: 2,
-    seconds: 32,
-    researchId: 'advanced_research',
-    input: { microprocessor: 2, laserLens: 2, titaniumPlate: 3, combatSciencePack: 2 }
-  },
-  {
-    id: 'fab_weapon_mk3',
-    baseItemId: 'needle-array-mk1',
-    name: 'Arme cinétique Mark III',
-    categoryId: ITEM_CATEGORY_IDS.WEAPON,
-    mark: 3,
-    seconds: 44,
-    researchId: 'alien_anomaly_analysis',
-    input: { microprocessor: 3, laserLens: 3, thermalCeramic: 2, unknownTechFragment: 1, anomalySciencePack: 1 }
-  },
-  {
-    id: 'fab_weapon_mk4',
-    baseItemId: 'needle-array-mk1',
-    name: 'Arme cinétique Mark IV',
-    categoryId: ITEM_CATEGORY_IDS.WEAPON,
-    mark: 4,
-    seconds: 58,
-    researchId: 'equipment_mark_iv',
-    input: { microprocessor: 4, laserLens: 4, thermalCeramic: 4, unknownTechFragment: 2, anomalySciencePack: 2 }
-  },
-  {
-    id: 'fab_weapon_mk5',
-    baseItemId: 'needle-array-mk1',
-    name: 'Arme cinétique Mark V',
-    categoryId: ITEM_CATEGORY_IDS.WEAPON,
-    mark: 5,
-    seconds: 76,
-    researchId: 'equipment_mark_v',
-    input: { microprocessor: 5, laserLens: 5, ancientSuperconductor: 1, unknownTechFragment: 3, anomalySciencePack: 3 }
-  },
-  {
-    id: 'fab_module_mk1',
-    baseItemId: 'cargo-overmesh',
-    name: 'Module utilitaire Mark I',
-    categoryId: ITEM_CATEGORY_IDS.MODULE,
-    mark: 1,
-    seconds: 16,
-    researchId: 'advanced_research',
-    input: { carbonFiber: 2, steelPlate: 2, printedCircuit: 1, industrialSciencePack: 1 }
-  },
-  {
-    id: 'fab_module_mk2',
-    baseItemId: 'cargo-overmesh',
-    name: 'Module utilitaire Mark II',
-    categoryId: ITEM_CATEGORY_IDS.MODULE,
-    mark: 2,
-    seconds: 26,
-    researchId: 'advanced_research',
-    input: { carbonFiber: 4, titaniumPlate: 2, controlCircuit: 1, industrialSciencePack: 2 }
-  },
-  {
-    id: 'fab_module_mk3',
-    baseItemId: 'cargo-overmesh',
-    name: 'Module utilitaire Mark III',
-    categoryId: ITEM_CATEGORY_IDS.MODULE,
-    mark: 3,
-    seconds: 38,
-    researchId: 'alien_anomaly_analysis',
-    input: { carbonFiber: 5, microprocessor: 2, precursorNanomaterial: 1, anomalySciencePack: 1 }
-  },
-  {
-    id: 'fab_module_mk4',
-    baseItemId: 'cargo-overmesh',
-    name: 'Module utilitaire Mark IV',
-    categoryId: ITEM_CATEGORY_IDS.MODULE,
-    mark: 4,
-    seconds: 52,
-    researchId: 'equipment_mark_iv',
-    input: { carbonFiber: 7, microprocessor: 3, precursorNanomaterial: 2, anomalySciencePack: 2 }
-  },
-  {
-    id: 'fab_module_mk5',
-    baseItemId: 'cargo-overmesh',
-    name: 'Module utilitaire Mark V',
-    categoryId: ITEM_CATEGORY_IDS.MODULE,
-    mark: 5,
-    seconds: 70,
-    researchId: 'equipment_mark_v',
-    input: { carbonFiber: 9, microprocessor: 4, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 }
-  }
+  ...PROPULSERS,
+  ...WEAPONS,
+  ...SHIELDS,
+  ...MODULES
 ]);
 
 export const EQUIPMENT_RD_ALLOWED_SCIENCES = Object.freeze([

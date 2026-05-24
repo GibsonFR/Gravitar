@@ -43,7 +43,7 @@ function roundBonus(v) {
   return Math.round(v * 1000) / 1000;
 }
 
-export function scaleNeutralBonuses(baseBonuses = {}, mark = 1) {
+export function scaleNeutralBonuses(baseBonuses = {}, mark = 1, categoryId = '') {
   const m = Math.max(1, mark | 0 || 1);
   const out = {};
   for (const [key, raw] of Object.entries(baseBonuses || {})) {
@@ -53,17 +53,29 @@ export function scaleNeutralBonuses(baseBonuses = {}, mark = 1) {
     if (String(key).endsWith('Pct')) mult = 1 + (m - 1) * 0.28;
     out[key] = roundBonus(value * mult);
   }
-  if (m >= 2) mergeBonus(out, 'energyFlat', 6 * (m - 1));
-  if (m >= 3) mergeBonus(out, 'cooldownReductionPct', 0.01 * (m - 2));
+
+  if (categoryId === ITEM_CATEGORY_IDS.WEAPON) {
+    mergeBonus(out, 'damageMultPct', 0.06 + (m - 1) * 0.045);
+    mergeBonus(out, 'fireRatePct', 0.02 + (m - 1) * 0.018);
+    if (m >= 3) mergeBonus(out, 'armorPenFlat', 3 * (m - 2));
+  } else if (categoryId === ITEM_CATEGORY_IDS.ENGINE) {
+    if (m >= 2) mergeBonus(out, 'energyFlat', 6 * (m - 1));
+    if (m >= 3) mergeBonus(out, 'cooldownReductionPct', 0.01 * (m - 2));
+  } else if (categoryId === ITEM_CATEGORY_IDS.DEFENSE) {
+    if (m >= 2) mergeBonus(out, 'armorFlat', 3 * (m - 1));
+    if (m >= 4) mergeBonus(out, 'hpPct', 0.025 * (m - 3));
+  } else if (categoryId === ITEM_CATEGORY_IDS.MODULE) {
+    if (m >= 3) mergeBonus(out, 'cooldownReductionPct', 0.006 * (m - 2));
+  }
+
   if (m >= 4) mergeBonus(out, 'critChancePct', 0.01 * (m - 3));
-  if (m >= 5) mergeBonus(out, 'damageMultPct', 0.015 * (m - 4));
   return out;
 }
 
 export function getNeutralBaseBonuses(baseItemId, mark = 1) {
   const base = getItemDef(baseItemId);
   if (!base) return {};
-  return scaleNeutralBonuses(base.bonuses || {}, mark);
+  return scaleNeutralBonuses(base.bonuses || {}, mark, base.categoryId);
 }
 
 function mergeBonus(out, key, value) {
