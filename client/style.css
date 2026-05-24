@@ -6833,3 +6833,19 @@ button.station-item-icon[draggable="true"]:active,
   font-weight: 900;
   cursor: pointer;
 }
+
+
+/* v154 — hotfix clic R&D */
+.equipment-fab__close {
+  position: relative;
+  z-index: 20;
+  pointer-events: auto;
+}
+.equipment-rd__progress-card {
+  position: relative;
+  z-index: 2;
+}
+.equipment-rd__start[disabled] {
+  opacity: .65;
+  cursor: wait;
+}

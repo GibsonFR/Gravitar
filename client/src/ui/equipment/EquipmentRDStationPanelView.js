@@ -154,9 +154,11 @@ export class EquipmentRDStationPanelView {
       if (start) {
         this.sendCmd('equipment_rd_start', {
           structureId: start.dataset.structure | 0,
-          itemId: data.inputItem?.itemId || '',
+          itemId: start.dataset.item || '',
           sciences: this.selectedSciences.slice(0, 3)
         });
+        start.setAttribute('disabled', 'disabled');
+        start.textContent = 'Lancement…';
         ev.preventDefault();
         return;
       }
@@ -180,13 +182,25 @@ export class EquipmentRDStationPanelView {
     if (!items.some((it) => it.itemId === this.selectedItemId)) this.selectedItemId = items[0]?.itemId || '';
     this.selectedSciences = this.selectedSciences.filter((key) => (data.sciences || []).some((s) => s.key === key && (s.stored | 0) > 0)).slice(0, data.maxSciences || 3);
 
-    const key = JSON.stringify({ data, selected: this.selectedItemId, sciences: this.selectedSciences });
+    const key = JSON.stringify({
+      id: data.id,
+      powered: data.powered,
+      inputItem: data.inputItem?.itemId || '',
+      outputItem: data.outputItem?.itemId || '',
+      activeRemaining: data.activeJob?.remainingMs | 0,
+      activeProgress: Math.round((data.activeJob?.progress || 0) * 1000),
+      scienceInput: data.scienceInput || [],
+      sciences: data.sciences || [],
+      selected: this.selectedItemId,
+      selectedSciences: this.selectedSciences
+    });
     if (key === this.lastKey) return;
     this.lastKey = key;
     this.el.hidden = false;
 
     const selected = items.find((it) => it.itemId === this.selectedItemId) || null;
     const active = data.activeJob || null;
+    if (active && Array.isArray(active.sciences)) this.selectedSciences = active.sciences.slice(0, data.maxSciences || 3);
 
     const itemCards = items.map((it) => `
       <button type="button" class="equipment-rd__item ${it.itemId === this.selectedItemId ? 'is-selected' : ''}" data-equipment-rd-select="${escapeHtml(it.itemId)}" data-structure="${data.id | 0}">
@@ -267,7 +281,7 @@ export class EquipmentRDStationPanelView {
           <div class="equipment-rd__slots">${scienceSlots}</div>
           <div class="equipment-rd__score">Score science : <b>${scienceScore(this.selectedSciences, data.sciences || [])}</b> · variation finale ±60%</div>
           <div class="equipment-rd__science-list ${active ? 'is-busy' : ''}">${sciences}</div>
-          <button class="equipment-rd__start" type="button" data-equipment-rd-start="1" data-structure="${data.id | 0}" ${canStart ? '' : 'disabled'}>Lancer R&D</button>
+          <button class="equipment-rd__start" type="button" data-equipment-rd-start="1" data-structure="${data.id | 0}" data-item="${escapeHtml(data.inputItem?.itemId || '')}" ${canStart ? '' : 'disabled'}>Lancer R&D</button>
         </section>
       </div>
     `;
