@@ -334,6 +334,111 @@ function updateRobotArm(state, arm, timeMs) {
   return true;
 }
 
+
+function isDeposit(st) {
+  return String(st?.type || '').toLowerCase() === 'resource_deposit';
+}
+
+function findDepositById(state, id, origin = null) {
+  const wanted = id | 0;
+  if (!wanted) return null;
+  const st = state?.structures?.get?.(wanted) || null;
+  if (!st || !isDeposit(st)) return null;
+  if (origin && !sameWorld(origin, st)) return null;
+  return st;
+}
+
+function findNearestDeposit(state, extractor) {
+  const range = Number(getStructureDef(extractor?.type)?.extractionRange) || TILE * 2.5;
+  let best = null;
+  let bestD2 = range * range;
+  for (const st of state?.structures?.values?.() || []) {
+    if (!st || !isDeposit(st) || !sameWorld(extractor, st)) continue;
+    if ((st.depositRemaining | 0) <= 0) continue;
+    const dx = finite(st.x) - finite(extractor.x);
+    const dy = finite(st.y) - finite(extractor.y);
+    const d2 = dx * dx + dy * dy;
+    if (d2 <= bestD2) { best = st; bestD2 = d2; }
+  }
+  return best;
+}
+
+function extractorOutputTarget(state, extractor, key) {
+  const target = findStructureAt(state, extractor, targetPoint(extractor, true, 1));
+  return target && canConveyorPut(target, key) ? target : null;
+}
+
+function pushExtractorBuffer(state, extractor, timeMs) {
+  const map = getOutputMap(extractor);
+  const entries = resourceEntries(map);
+  if (!entries.length) return false;
+  for (const [key] of entries) {
+    const target = extractorOutputTarget(state, extractor, key);
+    if (!target) continue;
+    if (!putOne(target, key)) continue;
+    map[key] = (map[key] | 0) - 1;
+    clean(map);
+    extractor.automationItem = { ...resourceMeta(key), phase: 'extractor_out', progress: 1, startedAt: timeMs - 160, totalMs: 260, at: timeMs };
+    extractor.automationStatus = '';
+    extractor.updatedAt = timeMs;
+    target.updatedAt = timeMs;
+    return true;
+  }
+  return false;
+}
+
+function updateExtractor(state, extractor, timeMs) {
+  const def = getStructureDef(extractor?.type);
+  const map = getOutputMap(extractor);
+  if (!map) return false;
+
+  let changed = pushExtractorBuffer(state, extractor, timeMs);
+  let deposit = findDepositById(state, extractor.depositId, extractor);
+  if (!deposit || (deposit.depositRemaining | 0) <= 0) {
+    deposit = findNearestDeposit(state, extractor);
+    extractor.depositId = deposit?.id | 0 || 0;
+  }
+
+  if (!deposit) {
+    extractor.automationStatus = 'no_deposit';
+    extractor.depositResourceKey = '';
+    extractor.extractionProgress = 0;
+    extractor.automationItem = null;
+    return changed;
+  }
+
+  const key = String(deposit.depositResourceKey || 'ironOre');
+  extractor.depositResourceKey = key;
+  const interval = Math.max(250, Number(def?.extractionIntervalMs) || 2200);
+  const last = Number(extractor.lastExtractionAt || 0) || 0;
+  const elapsed = last > 0 ? timeMs - last : interval;
+  extractor.extractionProgress = Math.max(0, Math.min(1, elapsed / interval));
+  extractor.automationItem = { ...resourceMeta(key), phase: 'extracting', progress: extractor.extractionProgress, startedAt: timeMs - Math.max(0, elapsed), totalMs: interval, at: timeMs };
+
+  if (elapsed < interval) {
+    extractor.automationStatus = '';
+    return changed;
+  }
+
+  const capacity = extractor.storage?.capacity || def?.storageCapacity || 8;
+  const per = Number(RESOURCE_DEFS[key]?.cargoPerUnit) || 1;
+  if (usedCapacity(map) + per > capacity) {
+    extractor.automationStatus = 'buffer_full';
+    return changed;
+  }
+
+  const amount = Math.max(1, Number(def?.extractionYield) || 1);
+  map[key] = (map[key] | 0) + amount;
+  if (deposit.depositRemaining > 0) deposit.depositRemaining = Math.max(0, (deposit.depositRemaining | 0) - amount);
+  extractor.lastExtractionAt = timeMs;
+  extractor.extractionProgress = 0;
+  extractor.automationStatus = '';
+  extractor.updatedAt = timeMs;
+  deposit.updatedAt = timeMs;
+  return true;
+}
+
+
 export function updateStructureAutomation(state, dt, timeMs = Date.now()) {
   if (!state?.structures) return false;
   let changed = false;
@@ -342,6 +447,7 @@ export function updateStructureAutomation(state, dt, timeMs = Date.now()) {
     if (!def?.automationKind) continue;
     if (def.automationKind === 'conveyor') changed = updateConveyor(state, st, timeMs) || changed;
     else if (def.automationKind === 'robot_arm') changed = updateRobotArm(state, st, timeMs) || changed;
+    else if (def.automationKind === 'extractor') changed = updateExtractor(state, st, timeMs) || changed;
   }
   if (changed && timeMs - (state.lastAutomationSaveAt || 0) > AUTOMATION_SAVE_INTERVAL_MS) {
     state.lastAutomationSaveAt = timeMs;

@@ -191,7 +191,12 @@ export function buildStructureAutomationSnapshots(structures, inSector) {
       automationItem: structure.automationItem || null,
       automationKind: getAutomationKindSnapshot(structure),
       automationPulse: structure.automationPulse || 0,
-      automationStatus: getAutomationStatusSnapshot(structure)
+      automationStatus: getAutomationStatusSnapshot(structure),
+      depositResourceKey: structure.depositResourceKey || '',
+      depositRemaining: structure.depositRemaining | 0 || 0,
+      depositMax: structure.depositMax | 0 || 0,
+      depositId: structure.depositId | 0 || 0,
+      extractionProgress: Math.max(0, Math.min(1, Number(structure.extractionProgress || 0)))
     }));
 }
 
@@ -239,6 +244,11 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       automationKind: getAutomationKindSnapshot(structure),
       automationPulse: structure.automationPulse || 0,
       automationStatus: getAutomationStatusSnapshot(structure),
+      depositResourceKey: structure.depositResourceKey || '',
+      depositRemaining: structure.depositRemaining | 0 || 0,
+      depositMax: structure.depositMax | 0 || 0,
+      depositId: structure.depositId | 0 || 0,
+      extractionProgress: Math.max(0, Math.min(1, Number(structure.extractionProgress || 0))),
       baseCoreId: structure.baseCoreId | 0 || 0,
       protectedByCore: isStructureProtectedByCore({ structures }, structure),
       attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false

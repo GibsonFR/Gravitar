@@ -6,6 +6,7 @@ import { SPECIAL_SECTORS } from '../sector/SpecialSectors.js';
 import { PLAYER_PROGRESSION_TUNING } from '../../../../shared/content/progression/PlayerProgressionTuning.js';
 import { createInventoryState } from '../inventory/InventoryState.js';
 import { addResource } from '../inventory/InventorySystem.js';
+import { createStructure } from '../structures/StructureFactory.js';
 import { createEquipmentState } from '../equipment/EquipmentState.js';
 import { STARTER_ITEM_IDS, STARTER_AMMO_LOADOUT } from '../../../../shared/content/items/ItemDefs.js';
 import { createPlayerProgressionState } from '../player/runtime/PlayerProgressionState.js';
@@ -263,6 +264,41 @@ export function queueForNextBattle(state, player, timeMs) {
 }
 
 
+
+function ensureTestMiningDeposits(state, player, timeMs) {
+  if (!state?.structures || !player) return;
+  const worldId = String(player.worldId || '');
+  const sx = player.sx | 0;
+  const sy = player.sy | 0;
+  const exists = [...state.structures.values()].some((st) => st?.type === 'resource_deposit' && String(st.worldId || '') === worldId && (st.sx | 0) === sx && (st.sy | 0) === sy);
+  if (exists) return;
+  const deposits = [
+    { x: -420, y: -220, key: 'ironOre', amount: 420 },
+    { x: -160, y: -420, key: 'copper', amount: 360 },
+    { x: 180, y: -260, key: 'aluminiumOre', amount: 320 },
+    { x: 460, y: -80, key: 'quartz', amount: 280 },
+    { x: 360, y: 260, key: 'graphite', amount: 260 },
+    { x: -380, y: 260, key: 'hydrocarbons', amount: 300 }
+  ];
+  for (const dep of deposits) {
+    const st = createStructure(state, 'resource_deposit', sx, sy, dep.x, dep.y, {
+      ownerId: player.id | 0,
+      ownerKey: 'test',
+      ownerName: 'Gisement test',
+      worldId,
+      depositResourceKey: dep.key,
+      depositRemaining: dep.amount,
+      depositMax: dep.amount,
+      createdAt: timeMs,
+      updatedAt: timeMs
+    });
+    if (!st) continue;
+    st.name = `Gisement test ${dep.key}`;
+    state.structures.set(st.id, st);
+  }
+}
+
+
 function grantTestResources(player) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 240);
@@ -337,6 +373,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   player.dockTimer = 0;
   if (player.inv) player.inv.credits = Math.max(player.inv.credits || 0, def.credits | 0 || 0);
   grantTestResources(player);
+  ensureTestMiningDeposits(state, player, timeMs);
   if (player.progression) {
     player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
     player.progression.xp = 0;

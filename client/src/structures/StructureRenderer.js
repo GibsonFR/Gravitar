@@ -108,6 +108,13 @@ function smoothstep01(v) {
   return x * x * (3 - 2 * x);
 }
 
+
+function depositRatio(s) {
+  const max = Math.max(1, Number(s?.depositMax) || 0);
+  const rem = Math.max(0, Number(s?.depositRemaining) || 0);
+  return Math.max(0, Math.min(1, rem / max));
+}
+
 function localAutomationProgress(preview) {
   if (!preview || typeof preview !== 'object') return null;
   const totalMs = Math.max(1, Number(preview.totalMs) || 0);
@@ -574,6 +581,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press']);
   const powerTypes = new Set(['solar_panel', 'fuel_generator', 'fuel_tank']);
   const storageTypes = new Set(['storage', 'equipment_storage', 'ammo_storage']);
+  const depositTypes = new Set(['resource_deposit']);
   const fill = (s.type === 'wall' || s.type === 'door')
     ? (s.owned ? 'rgba(38, 55, 72, .74)' : 'rgba(72, 34, 40, .70)')
     : machineTypes.has(s.type)
@@ -663,6 +671,8 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     const isElectro = s.type === 'electrolyzer';
     const isElectronics = s.type === 'electronics_bench';
     const isPress = s.type === 'industrial_press';
+    const isDeposit = s.type === 'resource_deposit';
+    const isExtractor = s.type === 'mining_extractor';
     const isConveyor = isConveyorType(s.type);
     const isRobotArm = isArmType(s.type);
     ctx.strokeStyle = isHighFurnace ? 'rgba(255,118,92,.74)'
@@ -671,6 +681,8 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       : isElectro ? 'rgba(120,220,255,.72)'
       : isElectronics ? 'rgba(145,176,255,.72)'
       : isPress ? 'rgba(220,232,242,.70)'
+      : isExtractor ? 'rgba(159,220,255,.78)'
+      : isDeposit ? 'rgba(158,240,199,.76)'
       : isConveyor ? 'rgba(110,215,255,.72)'
       : isRobotArm ? 'rgba(255,210,123,.72)'
       : isSolar ? 'rgba(210,255,150,.62)'
@@ -681,7 +693,58 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       : (s.owned ? 'rgba(145,255,220,.32)' : 'rgba(255,130,130,.30)');
     ctx.lineWidth = 1.5 * view.dpr;
     ctx.beginPath();
-    if (isConveyor) {
+    if (isDeposit) {
+      const ratio = depositRatio(s);
+      const color = s.color || s.borderColor || '#9ef0c7';
+      ctx.fillStyle = 'rgba(18, 28, 22, .64)';
+      ctx.beginPath();
+      roundedRect(ctx, -w * 0.36, -h * 0.26, w * 0.72, h * 0.52, 16 * view.dpr);
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.6 * view.dpr;
+      ctx.beginPath();
+      ctx.ellipse(0, h * 0.05, w * 0.28, h * 0.16, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.24, h * 0.04);
+      ctx.lineTo(-w * 0.10, -h * 0.18);
+      ctx.lineTo(w * 0.02, h * 0.02);
+      ctx.lineTo(w * 0.16, -h * 0.20);
+      ctx.lineTo(w * 0.26, h * 0.06);
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.globalAlpha *= 0.22 + ratio * 0.48;
+      ctx.beginPath();
+      ctx.arc(-w * 0.10, -h * 0.04, w * 0.055, 0, Math.PI * 2);
+      ctx.arc(w * 0.10, -h * 0.02, w * 0.05, 0, Math.PI * 2);
+      ctx.arc(w * 0.00, h * 0.12, w * 0.045, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha /= Math.max(0.01, 0.22 + ratio * 0.48);
+      ctx.fillStyle = 'rgba(5, 12, 18, .78)';
+      ctx.fillRect(-w * 0.28, h * 0.34, w * 0.56, 5 * view.dpr);
+      ctx.fillStyle = color;
+      ctx.fillRect(-w * 0.28, h * 0.34, w * 0.56 * ratio, 5 * view.dpr);
+      ctx.beginPath();
+    } else if (isExtractor) {
+      const progress = Math.max(0, Math.min(1, Number(s.extractionProgress || s.automationItem?.progress || 0)));
+      ctx.fillStyle = 'rgba(18, 30, 42, .70)';
+      ctx.beginPath();
+      roundedRect(ctx, -w * 0.34, -h * 0.30, w * 0.68, h * 0.58, 12 * view.dpr);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(159,220,255,.82)';
+      ctx.lineWidth = 1.8 * view.dpr;
+      ctx.beginPath();
+      ctx.rect(-w * 0.24, -h * 0.16, w * 0.48, h * 0.30);
+      ctx.moveTo(-w * 0.18, h * 0.22); ctx.lineTo(-w * 0.04, -h * 0.10); ctx.lineTo(w * 0.10, h * 0.22);
+      ctx.moveTo(-w * 0.20, h * 0.22); ctx.lineTo(w * 0.20, h * 0.22);
+      ctx.moveTo(0, -h * 0.30); ctx.lineTo(0, -h * 0.46);
+      ctx.moveTo(-w * 0.12, -h * 0.42); ctx.lineTo(w * 0.12, -h * 0.42);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(159,220,255,.28)';
+      ctx.fillRect(-w * 0.20, h * 0.04, w * 0.40 * progress, 5 * view.dpr);
+      drawDirectionArrow(ctx, view, s, w, h, false);
+      ctx.beginPath();
+    } else if (isConveyor) {
       drawConveyorMotion(ctx, view, s, w, h, t, structures);
       ctx.beginPath();
     } else if (isRobotArm) {
@@ -878,7 +941,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.lineTo(0, h * 0.42);
     }
     ctx.stroke();
-    if (isConveyor || isRobotArm) {
+    if (isConveyor || isRobotArm || isExtractor) {
       drawAutomationItem(ctx, view, s, w, h, t);
     }
   }

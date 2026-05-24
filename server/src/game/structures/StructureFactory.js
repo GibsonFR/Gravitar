@@ -84,6 +84,12 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     automationItem: options.automationItem && typeof options.automationItem === 'object' ? { ...options.automationItem } : null,
     automationOutputIndex: options.automationOutputIndex | 0 || 0,
     automationStatus: String(options.automationStatus || ''),
+    depositResourceKey: String(options.depositResourceKey || options.resourceKey || ''),
+    depositRemaining: Number.isFinite(Number(options.depositRemaining)) ? Math.max(0, Number(options.depositRemaining) | 0) : 0,
+    depositMax: Number.isFinite(Number(options.depositMax)) ? Math.max(0, Number(options.depositMax) | 0) : 0,
+    depositId: options.depositId | 0 || 0,
+    extractionProgress: 0,
+    lastExtractionAt: Number(options.lastExtractionAt || 0) || 0,
     createdAt: options.createdAt || Date.now(),
     updatedAt: options.updatedAt || Date.now()
   };
@@ -119,6 +125,11 @@ export function serializeStructure(structure) {
     automationItem: structure.automationItem || null,
     automationOutputIndex: structure.automationOutputIndex | 0 || 0,
     automationStatus: structure.automationStatus || '',
+    depositResourceKey: structure.depositResourceKey || '',
+    depositRemaining: Math.max(0, structure.depositRemaining | 0 || 0),
+    depositMax: Math.max(0, structure.depositMax | 0 || 0),
+    depositId: structure.depositId | 0 || 0,
+    lastExtractionAt: Number(structure.lastExtractionAt || 0) || 0,
     createdAt: structure.createdAt || Date.now(),
     updatedAt: Date.now()
   };
@@ -149,6 +160,11 @@ export function hydrateStructure(state, saved) {
     automationItem: s.automationItem || null,
     automationOutputIndex: s.automationOutputIndex | 0 || 0,
     automationStatus: s.automationStatus || '',
+    depositResourceKey: s.depositResourceKey || '',
+    depositRemaining: s.depositRemaining | 0 || 0,
+    depositMax: s.depositMax | 0 || 0,
+    depositId: s.depositId | 0 || 0,
+    lastExtractionAt: s.lastExtractionAt || 0,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt
   });

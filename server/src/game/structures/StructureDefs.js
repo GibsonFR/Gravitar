@@ -16,6 +16,8 @@ export const STRUCTURE_TYPES = {
   ELECTROLYZER: 'electrolyzer',
   ELECTRONICS_BENCH: 'electronics_bench',
   INDUSTRIAL_PRESS: 'industrial_press',
+  RESOURCE_DEPOSIT: 'resource_deposit',
+  MINING_EXTRACTOR: 'mining_extractor',
   CONVEYOR: 'conveyor',
   FAST_CONVEYOR: 'fast_conveyor',
   SPLITTER: 'splitter',
@@ -325,6 +327,54 @@ export const STRUCTURE_DEFS = {
     cost: { steelPlate: 5, copper: 8, aluminiumOre: 8 }
   }
 ,
+
+[STRUCTURE_TYPES.RESOURCE_DEPOSIT]: {
+  id: STRUCTURE_TYPES.RESOURCE_DEPOSIT,
+  name: 'Gisement',
+  description: 'Source minérale exploitable par extracteur.',
+  radius: 58,
+  tilesX: 2,
+  tilesY: 2,
+  w: BASE_TILE_SIZE * 2,
+  h: BASE_TILE_SIZE * 2,
+  maxHp: 0,
+  damageable: false,
+  buildRange: 1100,
+  gridSize: BASE_TILE_SIZE,
+  solid: true,
+  neutral: true,
+  mineable: true,
+  color: '#334a45',
+  borderColor: '#9ef0c7',
+  cost: {}
+},
+
+[STRUCTURE_TYPES.MINING_EXTRACTOR]: {
+  id: STRUCTURE_TYPES.MINING_EXTRACTOR,
+  name: 'Extracteur minier',
+  description: 'Extrait automatiquement le gisement proche et sort les ressources vers l’avant.',
+  radius: 48,
+  tilesX: 2,
+  tilesY: 2,
+  w: BASE_TILE_SIZE * 2,
+  h: BASE_TILE_SIZE * 2,
+  maxHp: 0,
+  damageable: false,
+  buildRange: 1100,
+  gridSize: BASE_TILE_SIZE,
+  solid: false,
+  rotatable: true,
+  storageKind: 'conveyor',
+  storageCapacity: 8,
+  automationKind: 'extractor',
+  extractionIntervalMs: 2200,
+  extractionRange: BASE_TILE_SIZE * 2.6,
+  extractionYield: 1,
+  color: '#314759',
+  borderColor: '#9fdcff',
+  cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
+},
+
   [STRUCTURE_TYPES.CONVEYOR]: {
     id: STRUCTURE_TYPES.CONVEYOR,
     name: 'Convoyeur',

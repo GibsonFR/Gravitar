@@ -10,6 +10,7 @@ import { spawnPortal } from '../portal/PortalFactory.js';
 import { asteroidKey } from '../asteroid/AsteroidKey.js';
 import { spawnSectorMobs } from '../mob/MobSpawnDirector.js';
 import { spawnMob } from '../mob/MobFactory.js';
+import { createStructure } from '../structures/StructureFactory.js';
 import { newEntityId } from '../state/GameState.js';
 import { createStatBlock } from '../stats/StatBlockFactory.js';
 import { FACTIONS } from '../constants.js';
@@ -698,7 +699,55 @@ function rollPos(rng) {
   return min + rng.nextDouble() * (max - min);
 }
 
-export function generateSectorContent(state, sx, sy, timeMs) {
+export 
+function hasStructureNear(state, sx, sy, type, x, y, radius = 96, worldId = 'endless') {
+  const r2 = radius * radius;
+  for (const st of state?.structures?.values?.() || []) {
+    if (!st || st.type !== type) continue;
+    if ((st.sx | 0) !== (sx | 0) || (st.sy | 0) !== (sy | 0)) continue;
+    if (String(st.worldId || 'endless') !== String(worldId || 'endless')) continue;
+    const dx = (Number(st.x) || 0) - x;
+    const dy = (Number(st.y) || 0) - y;
+    if (dx * dx + dy * dy <= r2) return true;
+  }
+  return false;
+}
+
+function spawnResourceDeposit(state, sx, sy, x, y, resourceKey, amount, seed, worldId = 'endless', ownerId = 0) {
+  if (hasStructureNear(state, sx, sy, 'resource_deposit', x, y, 128, worldId)) return null;
+  const st = createStructure(state, 'resource_deposit', sx, sy, x, y, {
+    ownerId,
+    ownerKey: 'world',
+    ownerName: 'Gisement',
+    worldId,
+    depositResourceKey: resourceKey,
+    depositRemaining: amount,
+    depositMax: amount,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  });
+  if (!st) return null;
+  st.name = `Gisement ${RESOURCE_DEFS[resourceKey]?.name || resourceKey}`;
+  st.depositSeed = seed | 0;
+  st.color = RESOURCE_DEFS[resourceKey]?.colorHex || st.color;
+  state.structures.set(st.id, st);
+  return st;
+}
+
+function spawnSectorResourceDeposits(state, sx, sy, rng, h, mapLevel, worldId = 'endless', ownerId = 0) {
+  const count = 2 + Math.min(2, Math.floor(Math.max(0, mapLevel) / 12));
+  for (let i = 0; i < count; i += 1) {
+    const x = Math.max(-1500, Math.min(1500, rollPos(rng)));
+    const y = Math.max(-1500, Math.min(1500, rollPos(rng)));
+    const key = rollResourceKeyForSector(rng, mapLevel, sx, sy, state.seed | 0);
+    const rarity = getResourceRarityScore(key);
+    const amount = 160 + Math.floor(rng.nextDouble() * 140) + Math.max(0, rarity | 0) * 20;
+    spawnResourceDeposit(state, sx, sy, x, y, key, amount, h ^ (i * 2654435761), worldId, ownerId);
+  }
+}
+
+
+function generateSectorContent(state, sx, sy, timeMs) {
   const seed = state.seed | 0;
   const h = hash2D_Mix(seed, sx, sy);
   const rng = new DotNetRandom(h);
@@ -773,6 +822,8 @@ export function generateSectorContent(state, sx, sy, timeMs) {
     generateBastionExteriorContent(state, sx, sy, timeMs, h, bastion);
     return;
   }
+
+  spawnSectorResourceDeposits(state, sx, sy, rng, h, mapLevel, 'endless', 0);
 
   // --- Asteroids ---
   const asteroidCount = 16 + rng.nextMax(12) + Math.min(15, Math.floor(mapLevel / 3));

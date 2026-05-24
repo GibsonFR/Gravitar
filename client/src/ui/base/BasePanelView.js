@@ -47,6 +47,7 @@ if (kind === 'electrolyzer') return `<svg viewBox="0 0 64 64" aria-hidden="true"
 if (kind === 'electronics_bench') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="15" width="42" height="34" rx="5" fill="rgba(145,176,255,.12)" stroke="currentColor" stroke-width="3"/><rect x="24" y="25" width="16" height="12" rx="2.5" fill="rgba(145,176,255,.1)" stroke="currentColor" stroke-width="2.6"/><path d="M18 21v6M18 37v6M46 21v6M46 37v6M11 22h7M11 42h7M46 22h7M46 42h7M20 31h4M40 31h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".78"/></svg>`;
 if (kind === 'industrial_press') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="14" y="14" width="36" height="8" rx="3" fill="rgba(220,232,242,.12)" stroke="currentColor" stroke-width="3"/><rect x="18" y="42" width="28" height="8" rx="3" fill="rgba(220,232,242,.10)" stroke="currentColor" stroke-width="3"/><path d="M24 22v12M40 22v12M24 34h16M32 34v8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 54h24" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'machine') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="18" width="42" height="32" rx="5" fill="rgba(255,180,110,.12)" stroke="currentColor" stroke-width="3"/><circle cx="25" cy="34" r="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M37 27h8M37 34h8M37 41h8M18 18v-6h28v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".72"/></svg>`;
+  if (kind === 'mining_extractor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="40" height="30" rx="5" fill="rgba(159,220,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M20 48l8-18h8l8 18M24 38h16M32 18v-7M24 12h16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M44 32h9M49 27l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   if (kind === 'automation') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 34h34" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M38 24l12 10-12 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="46" r="4" fill="currentColor" opacity=".65"/><circle cx="32" cy="46" r="4" fill="currentColor" opacity=".65"/></svg>`;
   if (kind === 'conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="22" width="48" height="20" rx="4" fill="rgba(110,215,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 28h36M14 36h36" stroke="currentColor" stroke-width="2" opacity=".35"/><path d="M18 32h22M34 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="32" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="46" cy="48" r="3" fill="currentColor" opacity=".5"/></svg>`;
   if (kind === 'fast_conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="18" width="48" height="28" rx="5" fill="rgba(120,255,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M14 24h36M14 40h36" stroke="currentColor" stroke-width="2.5" opacity=".7"/><path d="M16 32h14M28 25l8 7-8 7M38 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -319,6 +320,25 @@ export const BUILD_STRUCTURES = [
     cost: { ironOre: 16, copper: 6, aluminiumOre: 6 }
   }
 ,
+
+  {
+    type: 'mining_extractor',
+    category: 'automation',
+    title: 'Extracteur minier',
+    subtitle: '',
+    icon: 'mining_extractor',
+    orientation: 'r',
+    rotatable: true,
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    storageCapacity: 8,
+    role: 'Extrait un gisement proche et sort la ressource vers l’avant.',
+    stats: ['Sortie : avant', 'Cycle : 2.2 s', 'Buffer : 8'],
+    cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
+  },
 
   {
     type: 'conveyor',

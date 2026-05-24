@@ -312,7 +312,12 @@ export class WorldStore {
         _automationFadeItem: normalized._automationFadeItem ?? null,
         automationKind: normalized.automationKind ?? current.automationKind,
         automationPulse: normalized.automationPulse ?? current.automationPulse,
-        automationStatus: normalized.automationStatus ?? current.automationStatus
+        automationStatus: normalized.automationStatus ?? current.automationStatus,
+        depositResourceKey: normalized.depositResourceKey ?? current.depositResourceKey,
+        depositRemaining: normalized.depositRemaining ?? current.depositRemaining,
+        depositMax: normalized.depositMax ?? current.depositMax,
+        depositId: normalized.depositId ?? current.depositId,
+        extractionProgress: normalized.extractionProgress ?? current.extractionProgress
       });
     }
   }

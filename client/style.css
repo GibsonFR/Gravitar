@@ -4244,6 +4244,11 @@ button.station-item-icon[draggable="true"]:active,
   color: rgba(118, 246, 202, .95);
   background: linear-gradient(180deg, rgba(30,72,64,.76), rgba(6, 18, 18, .84));
 }
+
+.base-panel__icon--mining_extractor {
+  color: rgba(159, 220, 255, .98);
+  background: linear-gradient(180deg, rgba(28,54,78,.84), rgba(8,16,28,.92));
+}
 .base-panel__icon--conveyor {
   color: rgba(118, 223, 255, .95);
   background: linear-gradient(180deg, rgba(20,60,82,.76), rgba(7,18,28,.88));
