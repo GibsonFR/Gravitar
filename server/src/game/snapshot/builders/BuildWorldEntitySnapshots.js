@@ -148,6 +148,12 @@ export function buildAsteroidCombatSnapshots(asteroids, inSector) {
 }
 
 
+function getAutomationKindSnapshot(structure) {
+  if (structure?.type === 'conveyor') return 'conveyor';
+  if (structure?.type === 'robot_arm') return 'robot_arm';
+  return '';
+}
+
 export function buildStructureSnapshots(structures, inSector, player = null) {
   const playerOwner = String(player?.accountKey || player?.accountName || player?.pseudo || `guest-${player?.id | 0}`).toLowerCase();
   const playerWorld = String(player?.worldId || 'endless');
@@ -186,6 +192,9 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
         progress: Math.max(0, Math.min(1, 1 - ((Number(structure.machineJob.remainingMs) || 0) / Math.max(1, Number(structure.machineJob.totalMs) || 1)))),
         paused: !!structure.machineJob.paused
       } : null,
+      storageUsed: structure.storage?.resources ? Object.values(structure.storage.resources).reduce((a, b) => a + (b | 0), 0) : 0,
+      automationKind: getAutomationKindSnapshot(structure),
+      automationPulse: structure.automationPulse || 0,
       baseCoreId: structure.baseCoreId | 0 || 0,
       protectedByCore: isStructureProtectedByCore({ structures }, structure),
       attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false

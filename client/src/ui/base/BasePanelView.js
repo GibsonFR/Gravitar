@@ -297,13 +297,50 @@ export const BUILD_STRUCTURES = [
     stats: ['Capacité : 260 roquettes'],
     cost: { ironOre: 16, copper: 6, aluminiumOre: 6 }
   }
-];
+,
+
+  {
+    type: 'conveyor',
+    category: 'automation',
+    title: 'Convoyeur',
+    subtitle: '1 × 1 case',
+    icon: 'conveyor',
+    orientation: 'h',
+    rotatable: true,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 0,
+    storageCapacity: 80,
+    role: 'Déplace les ressources dans son sens.',
+    stats: ['Buffer : 80'],
+    cost: { ironOre: 6, copper: 2 }
+  },
+  {
+    type: 'robot_arm',
+    category: 'automation',
+    title: 'Bras robotique',
+    subtitle: '1 × 1 case',
+    icon: 'robot_arm',
+    orientation: 'h',
+    rotatable: true,
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 0,
+    role: 'Transfère des ressources entre deux bâtiments adjacents.',
+    stats: ['Entrée arrière → sortie avant'],
+    cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
+  }];
 
 const BUILD_CATEGORIES = [
   { id: 'construction', label: 'Construction de base', icon: 'core' },
   { id: 'storage', label: 'Stockage', icon: 'storage' },
   { id: 'power', label: 'Énergie', icon: 'power' },
   { id: 'industry', label: 'Industrie', icon: 'machine' },
+  { id: 'automation', label: 'Automatisation', icon: 'automation' },
   { id: 'repair', label: 'Réparer', icon: 'repair' },
   { id: 'demolish', label: 'Démolition', icon: 'demolish' }
 ];

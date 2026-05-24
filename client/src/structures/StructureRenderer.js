@@ -209,12 +209,16 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     const isElectro = s.type === 'electrolyzer';
     const isElectronics = s.type === 'electronics_bench';
     const isPress = s.type === 'industrial_press';
+    const isConveyor = s.type === 'conveyor';
+    const isRobotArm = s.type === 'robot_arm';
     ctx.strokeStyle = isHighFurnace ? 'rgba(255,118,92,.74)'
       : isFurnace ? 'rgba(255,178,94,.72)'
       : isChem ? 'rgba(150,235,130,.68)'
       : isElectro ? 'rgba(120,220,255,.72)'
       : isElectronics ? 'rgba(145,176,255,.72)'
       : isPress ? 'rgba(220,232,242,.70)'
+      : isConveyor ? 'rgba(110,215,255,.72)'
+      : isRobotArm ? 'rgba(255,210,123,.72)'
       : isSolar ? 'rgba(210,255,150,.62)'
       : isGenerator ? 'rgba(255,185,96,.64)'
       : isFuelTank ? 'rgba(255,200,118,.56)'
@@ -223,7 +227,39 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
       : (s.owned ? 'rgba(145,255,220,.32)' : 'rgba(255,130,130,.30)');
     ctx.lineWidth = 1.5 * view.dpr;
     ctx.beginPath();
-    if (isSolar) {
+    if (isConveyor) {
+      const horizontal = (s.orientation || 'h') !== 'v';
+      ctx.rect(-w * 0.38, -h * 0.22, w * 0.76, h * 0.44);
+      if (horizontal) {
+        ctx.moveTo(-w * 0.22, 0); ctx.lineTo(w * 0.22, 0);
+        ctx.moveTo(w * 0.22, 0); ctx.lineTo(w * 0.08, -h * 0.12);
+        ctx.moveTo(w * 0.22, 0); ctx.lineTo(w * 0.08, h * 0.12);
+      } else {
+        ctx.moveTo(0, -h * 0.22); ctx.lineTo(0, h * 0.22);
+        ctx.moveTo(0, h * 0.22); ctx.lineTo(-w * 0.12, h * 0.08);
+        ctx.moveTo(0, h * 0.22); ctx.lineTo(w * 0.12, h * 0.08);
+      }
+      ctx.moveTo(-w * 0.30, h * 0.30); ctx.arc(-w * 0.30, h * 0.30, w * 0.035, 0, Math.PI * 2);
+      ctx.moveTo(0, h * 0.30); ctx.arc(0, h * 0.30, w * 0.035, 0, Math.PI * 2);
+      ctx.moveTo(w * 0.30, h * 0.30); ctx.arc(w * 0.30, h * 0.30, w * 0.035, 0, Math.PI * 2);
+      if ((s.storageUsed | 0) > 0) {
+        ctx.moveTo(0, 0); ctx.arc(0, 0, w * 0.08, 0, Math.PI * 2);
+      }
+    } else if (isRobotArm) {
+      const vertical = (s.orientation || 'h') === 'v';
+      ctx.arc(0, 0, Math.min(w, h) * 0.16, 0, Math.PI * 2);
+      if (vertical) {
+        ctx.moveTo(0, -h * 0.34); ctx.lineTo(0, h * 0.28);
+        ctx.moveTo(0, h * 0.28); ctx.lineTo(-w * 0.11, h * 0.14);
+        ctx.moveTo(0, h * 0.28); ctx.lineTo(w * 0.11, h * 0.14);
+      } else {
+        ctx.moveTo(-w * 0.34, 0); ctx.lineTo(w * 0.28, 0);
+        ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, -h * 0.11);
+        ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, h * 0.11);
+      }
+      ctx.moveTo(-w * 0.30, -h * 0.30); ctx.lineTo(-w * 0.16, -h * 0.16);
+      ctx.moveTo(w * 0.30, h * 0.30); ctx.lineTo(w * 0.16, h * 0.16);
+    } else if (isSolar) {
       for (let i = -1; i <= 1; i += 1) {
         const x = i * w * 0.18;
         ctx.moveTo(x, -h * 0.32); ctx.lineTo(x, h * 0.32);

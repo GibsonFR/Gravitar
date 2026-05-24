@@ -7,6 +7,10 @@ import { getStructureDef } from './StructureDefs.js';
 function buildStructureStorage(def, saved = null) {
   const kind = def?.storageKind || '';
   if (!kind) return saved || { resources: {} };
+  if (kind === 'conveyor') {
+    const resources = saved?.resources && typeof saved.resources === 'object' ? { ...saved.resources } : {};
+    return { kind, resources, capacity: saved?.capacity || def.storageCapacity || 0 };
+  }
   if (kind === 'fuel') {
     const resources = saved?.resources && typeof saved.resources === 'object' ? { ...saved.resources } : {};
     return { kind, resources, capacity: saved?.capacity || def.fuelCapacity || 0 };

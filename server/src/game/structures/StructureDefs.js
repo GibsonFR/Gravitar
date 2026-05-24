@@ -15,7 +15,9 @@ export const STRUCTURE_TYPES = {
   CHEMICAL_REFINERY: 'chemical_refinery',
   ELECTROLYZER: 'electrolyzer',
   ELECTRONICS_BENCH: 'electronics_bench',
-  INDUSTRIAL_PRESS: 'industrial_press'
+  INDUSTRIAL_PRESS: 'industrial_press',
+  CONVEYOR: 'conveyor',
+  ROBOT_ARM: 'robot_arm'
 };
 
 export const STRUCTURE_DEFS = {
@@ -317,6 +319,52 @@ export const STRUCTURE_DEFS = {
     borderColor: '#b6c8dc',
     cost: { steelPlate: 5, copper: 8, aluminiumOre: 8 }
   }
+,
+  [STRUCTURE_TYPES.CONVEYOR]: {
+    id: STRUCTURE_TYPES.CONVEYOR,
+    name: 'Convoyeur',
+    description: 'Transporte automatiquement les ressources dans son sens.',
+    radius: 32,
+    tilesX: 1,
+    tilesY: 1,
+    w: BASE_TILE_SIZE,
+    h: BASE_TILE_SIZE,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    rotatable: true,
+    storageKind: 'conveyor',
+    storageCapacity: 80,
+    automationKind: 'conveyor',
+    automationIntervalMs: 450,
+    color: '#253f4a',
+    borderColor: '#6ed7ff',
+    cost: { ironOre: 6, copper: 2 }
+  },
+  [STRUCTURE_TYPES.ROBOT_ARM]: {
+    id: STRUCTURE_TYPES.ROBOT_ARM,
+    name: 'Bras robotique',
+    description: 'Déplace les ressources entre coffre, machine et convoyeur.',
+    radius: 32,
+    tilesX: 1,
+    tilesY: 1,
+    w: BASE_TILE_SIZE,
+    h: BASE_TILE_SIZE,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    rotatable: true,
+    automationKind: 'robot_arm',
+    automationIntervalMs: 850,
+    color: '#443a2c',
+    borderColor: '#ffd27b',
+    cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
+  }
+
 
 };
 
