@@ -180,6 +180,8 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
         : (structure.ownerId | 0) === (player?.id | 0),
       claimRadius: q(structure.claimRadius || 0),
       powered: !!structure.powered,
+      energy: structure.energyState || null,
+      baseCoreId: structure.baseCoreId | 0 || 0,
       protectedByCore: isStructureProtectedByCore({ structures }, structure),
       attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false
     }));

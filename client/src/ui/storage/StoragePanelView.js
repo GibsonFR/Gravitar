@@ -139,7 +139,9 @@ export class StoragePanelView {
       ? (storage.owned ? 'Coffre d’équipement' : 'Équipement non claim')
       : kind === 'ammo'
         ? (storage.owned ? 'Coffre de roquettes' : 'Roquettes non claim')
-        : (storage.owned ? 'Coffre de ressources' : 'Ressources non claim');
+        : kind === 'fuel'
+          ? (storage.owned ? 'Stockage carburant' : 'Carburant non claim')
+          : (storage.owned ? 'Coffre de ressources' : 'Ressources non claim');
     const used = Number(storage.used) || 0;
     const cap = Number(storage.capacity) || 0;
     const fill = Math.max(0, Math.min(1, Number(storage.fill01) || (cap > 0 ? used / cap : 0)));
@@ -158,6 +160,11 @@ export class StoragePanelView {
       rightTitle = 'Roquettes stockées';
       leftRows = itemRows(storage.cargoAmmo || [], 'Stocker', 'deposit', storage.id, 'ammo');
       rightRows = itemRows(storage.ammo || [], 'Reprendre', 'withdraw', storage.id, 'ammo');
+    } else if (kind === 'fuel') {
+      leftTitle = 'Carburant cargo';
+      rightTitle = 'Carburant stocké';
+      leftRows = resourceRows(storage.cargoResources || [], 'Déposer', 'deposit', storage.id);
+      rightRows = resourceRows(storage.resources || [], 'Retirer', 'withdraw', storage.id);
     } else {
       leftRows = resourceRows(cargoRows, 'Déposer', 'deposit', storage.id);
       rightRows = resourceRows(storage.resources || [], 'Retirer', 'withdraw', storage.id);

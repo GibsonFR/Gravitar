@@ -1,5 +1,5 @@
 import { STRUCTURE_TYPES } from './StructureDefs.js';
-import { hasStorageItems } from './StructureStorage.js';
+import { hasStorageItems, isStorageStructure } from './StructureStorage.js';
 import { getStructureClaimRect, getStructureRect } from './StructureSystem.js';
 
 function ownerKey(player) {
@@ -43,7 +43,7 @@ export function removeStructure(state, player, structureId, _timeMs = Date.now()
     ? String(st.ownerKey || '').toLowerCase() === ownerKey(player)
     : (st.ownerId | 0) === (player.id | 0);
   if (!owned) return { ok: false, error: 'not_owner' };
-  if (st.type === STRUCTURE_TYPES.STORAGE && hasStorageItems(st)) return { ok: false, error: 'storage_not_empty' };
+  if (isStorageStructure(st) && hasStorageItems(st)) return { ok: false, error: 'storage_not_empty' };
   if (st.type === STRUCTURE_TYPES.BASE_CORE && coreProtectsAnyStructure(state, st)) return { ok: false, error: 'core_has_structures' };
   const d = Math.hypot((st.x || 0) - (player.x || 0), (st.y || 0) - (player.y || 0));
   if (d > 1400) return { ok: false, error: 'too_far' };

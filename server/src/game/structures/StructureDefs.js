@@ -6,7 +6,10 @@ export const STRUCTURE_TYPES = {
   DOOR: 'door',
   STORAGE: 'storage',
   EQUIPMENT_STORAGE: 'equipment_storage',
-  AMMO_STORAGE: 'ammo_storage'
+  AMMO_STORAGE: 'ammo_storage',
+  SOLAR_PANEL: 'solar_panel',
+  FUEL_GENERATOR: 'fuel_generator',
+  FUEL_TANK: 'fuel_tank'
 };
 
 export const STRUCTURE_DEFS = {
@@ -105,6 +108,68 @@ export const STRUCTURE_DEFS = {
     borderColor: '#8bb8ff',
     cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
   },
+  [STRUCTURE_TYPES.SOLAR_PANEL]: {
+    id: STRUCTURE_TYPES.SOLAR_PANEL,
+    name: 'Panneau solaire',
+    description: 'Produit une énergie faible mais gratuite.',
+    radius: 64,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    energyOutput: 8,
+    color: '#3f594f',
+    borderColor: '#bde992',
+    cost: { silicon: 12, copper: 8, aluminiumOre: 8 }
+  },
+  [STRUCTURE_TYPES.FUEL_GENERATOR]: {
+    id: STRUCTURE_TYPES.FUEL_GENERATOR,
+    name: 'Générateur thermique',
+    description: 'Produit beaucoup d’énergie en consommant du carburant.',
+    radius: 64,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    storageKind: 'fuel',
+    fuelCapacity: 80,
+    energyOutput: 34,
+    fuelUsePerSecond: 0.025,
+    color: '#5d4632',
+    borderColor: '#ffb761',
+    cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
+  },
+  [STRUCTURE_TYPES.FUEL_TANK]: {
+    id: STRUCTURE_TYPES.FUEL_TANK,
+    name: 'Réservoir de carburant',
+    description: 'Stocke le carburant de la base.',
+    radius: 64,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    storageKind: 'fuel',
+    fuelCapacity: 240,
+    color: '#5b4932',
+    borderColor: '#ffc36f',
+    cost: { ironOre: 16, copper: 8, aluminiumOre: 8 }
+  }
+,
   [STRUCTURE_TYPES.AMMO_STORAGE]: {
     id: STRUCTURE_TYPES.AMMO_STORAGE,
     name: 'Coffre de roquettes',

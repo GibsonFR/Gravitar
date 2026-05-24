@@ -7,6 +7,10 @@ import { getStructureDef } from './StructureDefs.js';
 function buildStructureStorage(def, saved = null) {
   const kind = def?.storageKind || '';
   if (!kind) return saved || { resources: {} };
+  if (kind === 'fuel') {
+    const resources = saved?.resources && typeof saved.resources === 'object' ? { ...saved.resources } : {};
+    return { kind, resources, capacity: saved?.capacity || def.fuelCapacity || 0 };
+  }
   if (kind === 'equipment') {
     const items = Array.isArray(saved?.items) ? saved.items.map((id) => String(id || '')).filter(Boolean) : [];
     return { kind, items, itemCapacity: def.itemCapacity || 0 };
@@ -59,6 +63,11 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     color: def.color || '#526274',
     borderColor: def.borderColor || '#9fcfff',
     powered: false,
+    energyOutput: Number(def.energyOutput) || 0,
+    energyUse: Number(def.energyUse) || 0,
+    fuelUsePerSecond: Number(def.fuelUsePerSecond) || 0,
+    fuelBufferSeconds: Number(options.fuelBufferSeconds ?? options.energyBuffer ?? 0) || 0,
+    energyState: options.energyState || null,
     createdAt: options.createdAt || Date.now(),
     updatedAt: options.updatedAt || Date.now()
   };
@@ -82,6 +91,8 @@ export function serializeStructure(structure) {
     maxHp: Math.max(0, Math.round(structure.stats?.maxHp ?? 0)),
     storage: structure.storage || { resources: {} },
     open: !!structure.open,
+    fuelBufferSeconds: Math.max(0, Math.round((Number(structure.fuelBufferSeconds) || 0) * 10) / 10),
+    energyState: structure.energyState || null,
     createdAt: structure.createdAt || Date.now(),
     updatedAt: Date.now()
   };
@@ -100,6 +111,8 @@ export function hydrateStructure(state, saved) {
     maxHp: s.maxHp,
     storage: s.storage,
     open: !!s.open,
+    fuelBufferSeconds: s.fuelBufferSeconds ?? s.energyBuffer ?? 0,
+    energyState: s.energyState || null,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt
   });

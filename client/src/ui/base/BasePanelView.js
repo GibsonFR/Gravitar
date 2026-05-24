@@ -10,7 +10,11 @@ const RESOURCE_LABELS = {
   aluminiumOre: 'Minerai d’aluminium',
   titaniumOre: 'Minerai de titane',
   steelPlate: 'Acier',
-  copperWire: 'Fil de cuivre'
+  copperWire: 'Fil de cuivre',
+  silicon: 'Silicium',
+  refinedFuel: 'Carburant raffiné',
+  biofuel: 'Biocarburant',
+  propellant: 'Propergol'
 };
 
 function iconSvg(kind) {
@@ -22,6 +26,9 @@ function iconSvg(kind) {
   if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 21l19-10 19 10v22L32 53 13 43V21z" fill="rgba(111,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M13 21l19 11 19-11M32 32v21" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".82"/><path d="M22 26l19-10M22 39l20-11" stroke="currentColor" stroke-width="2" opacity=".28"/></svg>`;
   if (kind === 'repair') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M39 12l13 13-7 7-5-5-18 18-10 3 3-10 18-18-5-5 11-3z" fill="rgba(112,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M18 49h30" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'demolish') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 16h24l-2 34H22L20 16z" fill="rgba(255,120,120,.10)" stroke="currentColor" stroke-width="3"/><path d="M17 16h30M26 16l2-5h8l2 5M27 25v17M37 25v17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
+  if (kind === 'solar_panel') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="18" width="44" height="28" rx="4" fill="rgba(189,233,146,.13)" stroke="currentColor" stroke-width="3"/><path d="M21 18v28M32 18v28M43 18v28M10 32h44M20 10l-4 5M32 7v7M44 10l4 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></svg>`;
+  if (kind === 'fuel_generator') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="13" y="16" width="38" height="34" rx="5" fill="rgba(255,183,97,.13)" stroke="currentColor" stroke-width="3"/><path d="M25 42c-3-7 5-10 4-18 7 5 10 10 8 18" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M19 23h8M37 23h8M19 50h26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".72"/></svg>`;
+  if (kind === 'fuel_tank') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 13h24l6 8v30H14V21l6-8z" fill="rgba(255,195,111,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 29h20M22 38h20M27 13v-4h10v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'power') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M35 6L16 36h14l-3 22 21-34H34l1-18z" fill="rgba(255,213,95,.13)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
   return '';
 }
@@ -114,6 +121,58 @@ export const BUILD_STRUCTURES = [
     cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
   },
   {
+    type: 'solar_panel',
+    category: 'power',
+    title: 'Panneau solaire',
+    subtitle: '+8 énergie',
+    icon: 'solar_panel',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyOutput: 8,
+    role: 'Produit une énergie stable sans carburant.',
+    stats: ['Production : +8 énergie'],
+    cost: { silicon: 12, copper: 8, aluminiumOre: 8 }
+  },
+  {
+    type: 'fuel_generator',
+    category: 'power',
+    title: 'Générateur thermique',
+    subtitle: '+34 énergie',
+    icon: 'fuel_generator',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyOutput: 34,
+    fuelCapacity: 80,
+    role: 'Produit beaucoup d’énergie avec du carburant.',
+    stats: ['Production : +34 énergie', 'Stock carburant : 80'],
+    cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
+  },
+  {
+    type: 'fuel_tank',
+    category: 'power',
+    title: 'Réservoir carburant',
+    subtitle: '240 carburant',
+    icon: 'fuel_tank',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    fuelCapacity: 240,
+    role: 'Stocke le carburant de la base.',
+    stats: ['Capacité : 240 carburant'],
+    cost: { ironOre: 16, copper: 8, aluminiumOre: 8 }
+  },
+  {
     type: 'ammo_storage',
     category: 'storage',
     title: 'Coffre de roquettes',
@@ -135,7 +194,7 @@ export const BUILD_STRUCTURES = [
 const BUILD_CATEGORIES = [
   { id: 'construction', label: 'Construction de base', icon: 'core' },
   { id: 'storage', label: 'Stockage', icon: 'storage' },
-  { id: 'power', label: 'Énergie', icon: 'power', disabled: true },
+  { id: 'power', label: 'Énergie', icon: 'power' },
   { id: 'repair', label: 'Réparer', icon: 'repair' },
   { id: 'demolish', label: 'Démolition', icon: 'demolish' }
 ];
@@ -435,6 +494,10 @@ export class BasePanelView {
       `<div class="base-panel__details-section"><strong>Taille</strong><span>${def.tilesX} × ${def.tilesY} cases</span></div>`
     ];
     if (def.storageCapacity) sections.push(`<div class="base-panel__details-section"><strong>Capacité</strong><span>${def.storageCapacity} unités</span></div>`);
+    if (def.itemCapacity) sections.push(`<div class="base-panel__details-section"><strong>Capacité</strong><span>${def.itemCapacity} objets</span></div>`);
+    if (def.ammoCapacity) sections.push(`<div class="base-panel__details-section"><strong>Capacité</strong><span>${def.ammoCapacity} roquettes</span></div>`);
+    if (def.fuelCapacity) sections.push(`<div class="base-panel__details-section"><strong>Carburant</strong><span>${def.fuelCapacity} unités</span></div>`);
+    if (def.energyOutput) sections.push(`<div class="base-panel__details-section"><strong>Énergie</strong><span>+${def.energyOutput}</span></div>`);
     if (def.hp) sections.push(`<div class="base-panel__details-section"><strong>Résistance</strong><span>${def.hp} PV</span></div>`);
     sections.push(`<div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>`);
     this.details.innerHTML = `

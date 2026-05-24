@@ -1,4 +1,5 @@
 import { STRUCTURE_TYPES } from './StructureDefs.js';
+import { updateBaseEnergy } from './StructureEnergy.js';
 
 const CORE_REGEN_HP_PER_SEC = 8;
 const CORE_REGEN_SAVE_INTERVAL_MS = 5000;
@@ -133,6 +134,7 @@ export function updateStructures(state, dt, timeMs = Date.now()) {
   if (!state?.structures) return;
   let shouldSave = false;
   const regen = Math.max(0, Number(dt) || 0) * CORE_REGEN_HP_PER_SEC;
+  updateBaseEnergy(state, dt, timeMs);
   if (regen <= 0) return;
   for (const st of state.structures.values()) {
     if (st.type !== STRUCTURE_TYPES.BASE_CORE) continue;

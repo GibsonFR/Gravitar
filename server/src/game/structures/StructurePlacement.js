@@ -174,6 +174,10 @@ export function placeStructure(state, player, type, x, y, orientation = 'h', tim
     createdAt: timeMs,
     updatedAt: timeMs
   });
+  if (isTestPlayer(player) && st.storage?.kind === 'fuel') {
+    st.storage.resources ??= {};
+    st.storage.resources.refinedFuel = Math.max(st.storage.resources.refinedFuel | 0, st.type === 'fuel_generator' ? 12 : 30);
+  }
   state.structures.set(st.id, st);
   if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
   return { ok: true, structure: st };

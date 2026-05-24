@@ -1,4 +1,5 @@
 import { STRUCTURE_TYPES, getStructureDef } from './StructureDefs.js';
+import { FUEL_RESOURCE_KEYS } from './StructureEnergy.js';
 import { findAliveCoreForStructure, isStructureOwner, distanceSqToStructureRect } from './StructureSystem.js';
 import { addResource, removeResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS, RESOURCE_KEYS_ORDER } from '../inventory/ResourceDefs.js';
@@ -9,7 +10,9 @@ const STORAGE_RANGE = 260;
 const STORAGE_TYPES = new Set([
   STRUCTURE_TYPES.STORAGE,
   STRUCTURE_TYPES.EQUIPMENT_STORAGE,
-  STRUCTURE_TYPES.AMMO_STORAGE
+  STRUCTURE_TYPES.AMMO_STORAGE,
+  STRUCTURE_TYPES.FUEL_TANK,
+  STRUCTURE_TYPES.FUEL_GENERATOR
 ]);
 
 export function isStorageStructure(structure) {
@@ -33,6 +36,7 @@ export function getStorageCapacity(structure) {
   const def = getStructureDef(structure?.type);
   const kind = getStorageKind(structure);
   if (kind === 'equipment') return Math.max(0, Number(structure?.storage?.itemCapacity ?? def?.itemCapacity ?? 0) || 0);
+  if (kind === 'fuel') return Math.max(0, Number(structure?.storage?.capacity ?? def?.fuelCapacity ?? 0) || 0);
   if (kind === 'ammo') return Math.max(0, Number(structure?.storage?.ammoCapacity ?? def?.ammoCapacity ?? 0) || 0);
   return Math.max(0, Number(structure?.storage?.capacity ?? def?.storageCapacity ?? 0) || 0);
 }
@@ -40,6 +44,7 @@ export function getStorageCapacity(structure) {
 export function getStorageUsed(structure) {
   const kind = getStorageKind(structure);
   if (kind === 'equipment') return (structure?.storage?.items || []).filter(Boolean).length;
+  if (kind === 'fuel') return Object.values(structure?.storage?.resources || {}).reduce((sum, v) => sum + Math.max(0, v | 0), 0);
   if (kind === 'ammo') return Object.values(structure?.storage?.ammo || {}).reduce((sum, v) => sum + Math.max(0, v | 0), 0);
   const resources = structure?.storage?.resources || {};
   let used = 0;
@@ -161,6 +166,12 @@ export function buildStorageSnapshot(state, player) {
   if (kind === 'ammo') {
     return { ...base, cargoAmmo: buildCargoAmmo(player), ammo: buildStoredAmmo(st) };
   }
+  if (kind === 'fuel') {
+    const fuelSet = new Set(FUEL_RESOURCE_KEYS);
+    const cargoResources = buildResourceEntries(player.inv?.resources || {}).filter((e) => fuelSet.has(e.key));
+    const resources = buildResourceEntries(st.storage?.resources || {}).filter((e) => fuelSet.has(e.key));
+    return { ...base, fuelBufferSeconds: Math.round((Number(st.fuelBufferSeconds) || 0) * 10) / 10, cargoResources, resources };
+  }
   return { ...base, resources: buildResourceEntries(st.storage?.resources || {}) };
 }
 
@@ -185,10 +196,12 @@ function saveAfterTransfer(state, player, st) {
 export function transferStorageResource(state, player, structureId, resourceKey, amount, direction, timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canPlayerAccessStorage(state, player, st)) return { ok: false, error: 'storage_locked' };
-  if (getStorageKind(st) !== 'resources') return { ok: false, error: 'wrong_storage_type' };
+  const storageKind = getStorageKind(st);
+  if (storageKind !== 'resources' && storageKind !== 'fuel') return { ok: false, error: 'wrong_storage_type' };
   const key = String(resourceKey || '');
   const def = RESOURCE_DEFS[key];
   if (!def) return { ok: false, error: 'invalid_resource' };
+  if (storageKind === 'fuel' && !FUEL_RESOURCE_KEYS.includes(key)) return { ok: false, error: 'not_fuel' };
   let qty = Math.max(1, Math.min(999999, Math.floor(Number(amount) || 0)));
   st.storage ??= { kind: 'resources', resources: {} };
   st.storage.resources ??= {};

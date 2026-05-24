@@ -195,10 +195,31 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     ctx.shadowBlur = 0;
     const isEquip = s.type === 'equipment_storage';
     const isAmmo = s.type === 'ammo_storage';
-    ctx.strokeStyle = isAmmo ? 'rgba(255,197,112,.58)' : isEquip ? 'rgba(150,185,255,.58)' : (s.owned ? 'rgba(145,255,220,.32)' : 'rgba(255,130,130,.30)');
+    const isSolar = s.type === 'solar_panel';
+    const isGenerator = s.type === 'fuel_generator';
+    const isFuelTank = s.type === 'fuel_tank';
+    ctx.strokeStyle = isSolar ? 'rgba(210,255,150,.62)' : isGenerator ? 'rgba(255,185,96,.64)' : isFuelTank ? 'rgba(255,200,118,.56)' : isAmmo ? 'rgba(255,197,112,.58)' : isEquip ? 'rgba(150,185,255,.58)' : (s.owned ? 'rgba(145,255,220,.32)' : 'rgba(255,130,130,.30)');
     ctx.lineWidth = 1.5 * view.dpr;
     ctx.beginPath();
-    if (isEquip) {
+    if (isSolar) {
+      for (let i = -1; i <= 1; i += 1) {
+        const x = i * w * 0.18;
+        ctx.moveTo(x, -h * 0.32); ctx.lineTo(x, h * 0.32);
+      }
+      ctx.moveTo(-w * 0.33, 0); ctx.lineTo(w * 0.33, 0);
+      ctx.moveTo(-w * 0.22, -h * 0.42); ctx.lineTo(-w * 0.30, -h * 0.52);
+      ctx.moveTo(0, -h * 0.45); ctx.lineTo(0, -h * 0.56);
+      ctx.moveTo(w * 0.22, -h * 0.42); ctx.lineTo(w * 0.30, -h * 0.52);
+    } else if (isGenerator) {
+      ctx.arc(0, 0, Math.min(w, h) * 0.24, 0, Math.PI * 2);
+      ctx.moveTo(-w * 0.22, h * 0.30); ctx.lineTo(w * 0.22, h * 0.30);
+      ctx.moveTo(-w * 0.18, -h * 0.12); ctx.quadraticCurveTo(0, -h * 0.34, w * 0.18, -h * 0.12);
+      ctx.moveTo(-w * 0.14, h * 0.10); ctx.quadraticCurveTo(0, -h * 0.02, w * 0.14, h * 0.10);
+    } else if (isFuelTank) {
+      ctx.rect(-w * 0.28, -h * 0.30, w * 0.56, h * 0.60);
+      ctx.moveTo(-w * 0.20, -h * 0.06); ctx.lineTo(w * 0.20, -h * 0.06);
+      ctx.moveTo(-w * 0.20, h * 0.10); ctx.lineTo(w * 0.20, h * 0.10);
+    } else if (isEquip) {
       ctx.rect(-w * 0.28, -h * 0.28, w * 0.56, h * 0.56);
       ctx.moveTo(-w * 0.18, -h * 0.10); ctx.lineTo(w * 0.18, -h * 0.10);
       ctx.moveTo(-w * 0.18, h * 0.04); ctx.lineTo(w * 0.18, h * 0.04);
@@ -229,6 +250,17 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
   }
   ctx.restore();
   drawStructureBar(ctx, view, s, p.x, p.y);
+  if (s.energy && (s.type === 'base_core' || s.type === 'solar_panel' || s.type === 'fuel_generator')) {
+    const label = s.type === 'base_core'
+      ? `${Math.round(Number(s.energy.production) || 0)} / ${Math.round(Number(s.energy.consumption) || 0)} ⚡`
+      : `${Math.round(Number(s.energy.output) || 0)} ⚡`;
+    ctx.save();
+    ctx.font = `${10 * view.dpr}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(225,245,255,.82)';
+    ctx.fillText(label, p.x, p.y + ((s.h || s.radius * 2 || 80) * 0.5 + 18) * view.dpr);
+    ctx.restore();
+  }
 }
 
 export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0) {
