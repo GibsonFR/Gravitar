@@ -24,8 +24,13 @@ const NODE_POS = {
   bio_processing: [630, 390],
   defense_turrets: [630, 550],
   advanced_research: [930, 270],
-  pirate_reverse_engineering: [930, 485],
-  alien_anomaly_analysis: [1240, 360]
+  equipment_mark_ii: [1120, 150],
+  equipment_rd_station: [1320, 150],
+  equipment_mark_iii: [1520, 150],
+  alien_anomaly_analysis: [1720, 230],
+  equipment_mark_iv: [1920, 150],
+  equipment_mark_v: [2120, 150],
+  pirate_reverse_engineering: [1240, 485]
 };
 
 function packCost(cost = {}) {

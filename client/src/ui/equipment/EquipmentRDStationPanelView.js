@@ -10,8 +10,38 @@ function resourcePill(r) {
 function scienceScore(sciences = [], scienceDefs = []) {
   return sciences.reduce((sum, key) => {
     const def = scienceDefs.find((s) => s.key === key);
-    return sum + (def?.tier | 0);
+    return sum + ((def?.tier ?? 0) | 0);
   }, 0);
+}
+
+function statLabel(key) {
+  return ({
+    damageFlat: 'attack damage',
+    enginePct: 'engine power',
+    damageMultPct: 'damage',
+    fireRatePct: 'fire rate',
+    critChancePct: 'crit chance',
+    critDamagePct: 'crit damage',
+    armorPenFlat: 'armor pen',
+    hpFlat: 'hull',
+    shieldFlat: 'shield',
+    armorFlat: 'armor',
+    hpPct: 'hull',
+    shieldPenPct: 'shield pen',
+    hullRegenFlat: 'repair',
+    energyRegenFlat: 'energy regen',
+    energyFlat: 'energy',
+    cooldownReductionPct: 'cooldown',
+    cargoFlat: 'cargo'
+  })[key] || key;
+}
+
+function formatStat(key, value) {
+  const n = Number(value) || 0;
+  const sign = n > 0 ? '+' : '';
+  if (String(key).endsWith('Pct')) return `${sign}${Math.round(n * 100)}% ${statLabel(key)}`;
+  if (Math.abs(n) < 1 && !String(key).endsWith('Flat')) return `${sign}${Math.round(n * 100)}% ${statLabel(key)}`;
+  return `${sign}${Math.round(n * 10) / 10} ${statLabel(key)}`;
 }
 
 function bonusList(bonuses = {}) {
@@ -115,10 +145,11 @@ export class EquipmentRDStationPanelView {
       </button>`;
     }).join('');
 
-    const sciences = (data.sciences || []).map((s) => {
-      const countUsed = this.selectedSciences.filter((key) => key === s.key).length;
-      const disabled = active || s.have <= countUsed || this.selectedSciences.length >= (data.maxSciences || 3);
-      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(s.key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}<small>tier ${s.tier | 0} · ajouter</small></button>`;
+    const sciences = (Array.isArray(data.sciences) ? data.sciences : []).filter(Boolean).map((s) => {
+      const key = String(s.key || '');
+      const countUsed = this.selectedSciences.filter((k) => k === key).length;
+      const disabled = !!active || ((s.have | 0) <= countUsed) || this.selectedSciences.length >= (data.maxSciences || 3);
+      return `<button type="button" class="equipment-rd__science" data-equipment-rd-science="${escapeHtml(key)}" ${disabled ? 'disabled' : ''}>${resourcePill({ ...s, have: Math.max(0, (s.have | 0) - countUsed) })}<small>tier ${s.tier | 0} · ajouter</small></button>`;
     }).join('');
 
     const activeHtml = active ? `
@@ -126,7 +157,7 @@ export class EquipmentRDStationPanelView {
         <div>
           <span>En cours</span>
           <strong>${escapeHtml(active.itemName)}</strong>
-          <small>${Math.ceil((active.remainingMs | 0) / 1000)}s</small>
+          <small>${Math.ceil((active.remainingMs | 0) / 1000)}s${Array.isArray(active.sciences) && active.sciences.length ? ` · score ${active.scienceScore | 0}` : ''}</small>
         </div>
         <div>
           <div class="equipment-fab__bar"><span style="width:${Math.round((active.progress || 0) * 100)}%"></span></div>
