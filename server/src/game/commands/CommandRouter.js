@@ -80,7 +80,9 @@ const HANDLERS = {
   research_station_start: handleResearchStationStart,
   research_station_toggle: handleResearchStationToggle,
   research_tree_start: handleResearchTreeStart,
-  research_tree_cancel: handleResearchTreeCancel
+  research_tree_cancel: handleResearchTreeCancel,
+  research_start: handleResearchTreeStart,
+  research_cancel: handleResearchTreeCancel
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {
