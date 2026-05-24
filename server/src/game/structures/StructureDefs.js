@@ -3,8 +3,10 @@ export const BASE_TILE_SIZE = 64;
 export const STRUCTURE_TYPES = {
   BASE_CORE: 'base_core',
   WALL: 'wall',
+  DOOR: 'door',
   STORAGE: 'storage',
-  DOOR: 'door'
+  EQUIPMENT_STORAGE: 'equipment_storage',
+  AMMO_STORAGE: 'ammo_storage'
 };
 
 export const STRUCTURE_DEFS = {
@@ -44,7 +46,6 @@ export const STRUCTURE_DEFS = {
     borderColor: '#73d4ff',
     cost: { ironOre: 12, copper: 2 }
   },
-
   [STRUCTURE_TYPES.DOOR]: {
     id: STRUCTURE_TYPES.DOOR,
     name: 'Porte renforcée',
@@ -65,7 +66,7 @@ export const STRUCTURE_DEFS = {
   },
   [STRUCTURE_TYPES.STORAGE]: {
     id: STRUCTURE_TYPES.STORAGE,
-    name: 'Coffre spatial',
+    name: 'Coffre de ressources',
     description: 'Stockage local de ressources.',
     radius: 64,
     tilesX: 2,
@@ -77,11 +78,52 @@ export const STRUCTURE_DEFS = {
     buildRange: 1100,
     gridSize: BASE_TILE_SIZE,
     solid: false,
+    storageKind: 'resources',
     storageSlots: 12,
     storageCapacity: 420,
     color: '#30544b',
     borderColor: '#70f0c5',
     cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
+  },
+  [STRUCTURE_TYPES.EQUIPMENT_STORAGE]: {
+    id: STRUCTURE_TYPES.EQUIPMENT_STORAGE,
+    name: 'Coffre d’équipement',
+    description: 'Stockage local pour armes, lance-roquettes et modules.',
+    radius: 64,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    storageKind: 'equipment',
+    itemCapacity: 18,
+    color: '#30425e',
+    borderColor: '#8bb8ff',
+    cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
+  },
+  [STRUCTURE_TYPES.AMMO_STORAGE]: {
+    id: STRUCTURE_TYPES.AMMO_STORAGE,
+    name: 'Coffre de roquettes',
+    description: 'Stockage local pour munitions de lance-roquettes.',
+    radius: 64,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    storageKind: 'ammo',
+    ammoCapacity: 260,
+    color: '#5a4030',
+    borderColor: '#ffc16f',
+    cost: { ironOre: 16, copper: 6, aluminiumOre: 6 }
   }
 };
 

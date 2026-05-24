@@ -193,23 +193,38 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     ctx.stroke();
     drawFootprintCells(ctx, view, w, h, 2, 2);
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = s.owned ? 'rgba(145,255,220,.32)' : 'rgba(255,130,130,.30)';
-    ctx.lineWidth = 1.4 * view.dpr;
+    const isEquip = s.type === 'equipment_storage';
+    const isAmmo = s.type === 'ammo_storage';
+    ctx.strokeStyle = isAmmo ? 'rgba(255,197,112,.58)' : isEquip ? 'rgba(150,185,255,.58)' : (s.owned ? 'rgba(145,255,220,.32)' : 'rgba(255,130,130,.30)');
+    ctx.lineWidth = 1.5 * view.dpr;
     ctx.beginPath();
-    ctx.moveTo(-w * 0.34, -h * 0.22);
-    ctx.lineTo(0, -h * 0.40);
-    ctx.lineTo(w * 0.34, -h * 0.22);
-    ctx.lineTo(w * 0.34, h * 0.24);
-    ctx.lineTo(0, h * 0.42);
-    ctx.lineTo(-w * 0.34, h * 0.24);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-w * 0.34, -h * 0.22);
-    ctx.lineTo(0, 0);
-    ctx.lineTo(w * 0.34, -h * 0.22);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, h * 0.42);
+    if (isEquip) {
+      ctx.rect(-w * 0.28, -h * 0.28, w * 0.56, h * 0.56);
+      ctx.moveTo(-w * 0.18, -h * 0.10); ctx.lineTo(w * 0.18, -h * 0.10);
+      ctx.moveTo(-w * 0.18, h * 0.04); ctx.lineTo(w * 0.18, h * 0.04);
+      ctx.moveTo(-w * 0.18, h * 0.18); ctx.lineTo(w * 0.04, h * 0.18);
+    } else if (isAmmo) {
+      ctx.moveTo(-w * 0.24, h * 0.24);
+      ctx.lineTo(0, -h * 0.30);
+      ctx.lineTo(w * 0.24, h * 0.24);
+      ctx.moveTo(-w * 0.12, 0);
+      ctx.lineTo(w * 0.12, 0);
+      ctx.moveTo(-w * 0.30, h * 0.34);
+      ctx.lineTo(w * 0.30, h * 0.34);
+    } else {
+      ctx.moveTo(-w * 0.34, -h * 0.22);
+      ctx.lineTo(0, -h * 0.40);
+      ctx.lineTo(w * 0.34, -h * 0.22);
+      ctx.lineTo(w * 0.34, h * 0.24);
+      ctx.lineTo(0, h * 0.42);
+      ctx.lineTo(-w * 0.34, h * 0.24);
+      ctx.closePath();
+      ctx.moveTo(-w * 0.34, -h * 0.22);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(w * 0.34, -h * 0.22);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, h * 0.42);
+    }
     ctx.stroke();
   }
   ctx.restore();

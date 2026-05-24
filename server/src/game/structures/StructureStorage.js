@@ -2,24 +2,45 @@ import { STRUCTURE_TYPES, getStructureDef } from './StructureDefs.js';
 import { findAliveCoreForStructure, isStructureOwner, distanceSqToStructureRect } from './StructureSystem.js';
 import { addResource, removeResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS, RESOURCE_KEYS_ORDER } from '../inventory/ResourceDefs.js';
+import { ITEM_CATEGORY_IDS, getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
+import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
 
 const STORAGE_RANGE = 260;
+const STORAGE_TYPES = new Set([
+  STRUCTURE_TYPES.STORAGE,
+  STRUCTURE_TYPES.EQUIPMENT_STORAGE,
+  STRUCTURE_TYPES.AMMO_STORAGE
+]);
 
 export function isStorageStructure(structure) {
-  return !!structure && structure.type === STRUCTURE_TYPES.STORAGE;
+  return !!structure && STORAGE_TYPES.has(structure.type);
+}
+
+export function getStorageKind(structure) {
+  const def = getStructureDef(structure?.type);
+  return String(structure?.storage?.kind || def?.storageKind || 'resources');
 }
 
 export function hasStorageItems(structure) {
-  const resources = structure?.storage?.resources || {};
-  return Object.values(resources).some((v) => (v | 0) > 0);
+  if (!structure) return false;
+  const kind = getStorageKind(structure);
+  if (kind === 'equipment') return (structure.storage?.items || []).some(Boolean);
+  if (kind === 'ammo') return Object.values(structure.storage?.ammo || {}).some((v) => (v | 0) > 0);
+  return Object.values(structure.storage?.resources || {}).some((v) => (v | 0) > 0);
 }
 
 export function getStorageCapacity(structure) {
   const def = getStructureDef(structure?.type);
+  const kind = getStorageKind(structure);
+  if (kind === 'equipment') return Math.max(0, Number(structure?.storage?.itemCapacity ?? def?.itemCapacity ?? 0) || 0);
+  if (kind === 'ammo') return Math.max(0, Number(structure?.storage?.ammoCapacity ?? def?.ammoCapacity ?? 0) || 0);
   return Math.max(0, Number(structure?.storage?.capacity ?? def?.storageCapacity ?? 0) || 0);
 }
 
 export function getStorageUsed(structure) {
+  const kind = getStorageKind(structure);
+  if (kind === 'equipment') return (structure?.storage?.items || []).filter(Boolean).length;
+  if (kind === 'ammo') return Object.values(structure?.storage?.ammo || {}).reduce((sum, v) => sum + Math.max(0, v | 0), 0);
   const resources = structure?.storage?.resources || {};
   let used = 0;
   for (const [key, amount] of Object.entries(resources)) {
@@ -45,6 +66,74 @@ export function canPlayerAccessStorage(state, player, structure) {
   return !findAliveCoreForStructure(state, structure);
 }
 
+function itemEntry(itemId, amount = 1) {
+  const def = getItemDef(itemId);
+  if (!def) return null;
+  return {
+    itemId: def.id,
+    name: def.name || def.id,
+    shortName: def.shortName || def.name || def.id,
+    categoryId: def.categoryId || '',
+    categoryName: getItemCategoryName(def.categoryId),
+    tier: def.tier || 1,
+    amount: Math.max(1, amount | 0)
+  };
+}
+
+function buildResourceEntries(resources = {}) {
+  return RESOURCE_KEYS_ORDER.map((key) => {
+    const def = RESOURCE_DEFS[key];
+    return {
+      key,
+      name: def?.name || key,
+      amount: Math.max(0, resources?.[key] | 0),
+      cargoPerUnit: def?.cargoPerUnit || 1,
+      colorHex: def?.colorHex || '#d0d7e4'
+    };
+  }).filter((e) => e.amount > 0);
+}
+
+function buildCargoEquipment(player) {
+  const equipped = new Set(player?.equipment?.equippedItemIds || []);
+  const out = [];
+  for (const itemId of player?.equipment?.ownedItemIds || []) {
+    if (equipped.has(itemId)) continue;
+    const def = getItemDef(itemId);
+    if (!def || def.categoryId === ITEM_CATEGORY_IDS.AMMO) continue;
+    const entry = itemEntry(itemId, 1);
+    if (entry) out.push(entry);
+  }
+  return out.sort((a, b) => (a.tier | 0) - (b.tier | 0) || a.name.localeCompare(b.name));
+}
+
+function buildCargoAmmo(player) {
+  const out = [];
+  const counts = player?.equipment?.rocketAmmoCountsById || {};
+  for (const [itemId, amount] of Object.entries(counts)) {
+    const qty = Math.max(0, amount | 0);
+    if (qty <= 0) continue;
+    const def = getItemDef(itemId);
+    if (!def || def.categoryId !== ITEM_CATEGORY_IDS.AMMO || !def.ammoProfile) continue;
+    const entry = itemEntry(itemId, qty);
+    if (entry) out.push(entry);
+  }
+  return out.sort((a, b) => (a.tier | 0) - (b.tier | 0) || a.name.localeCompare(b.name));
+}
+
+function buildStoredEquipment(structure) {
+  return (structure?.storage?.items || []).map((itemId) => itemEntry(itemId, 1)).filter(Boolean);
+}
+
+function buildStoredAmmo(structure) {
+  const out = [];
+  for (const [itemId, amount] of Object.entries(structure?.storage?.ammo || {})) {
+    if ((amount | 0) <= 0) continue;
+    const entry = itemEntry(itemId, amount | 0);
+    if (entry) out.push(entry);
+  }
+  return out.sort((a, b) => (a.tier | 0) - (b.tier | 0) || a.name.localeCompare(b.name));
+}
+
 export function buildStorageSnapshot(state, player) {
   const id = player?.openStorageId | 0;
   if (!id) return null;
@@ -53,28 +142,26 @@ export function buildStorageSnapshot(state, player) {
     if (player) player.openStorageId = 0;
     return null;
   }
-  const resources = RESOURCE_KEYS_ORDER.map((key) => {
-    const def = RESOURCE_DEFS[key];
-    return {
-      key,
-      name: def?.name || key,
-      amount: Math.max(0, st.storage?.resources?.[key] | 0),
-      cargoPerUnit: def?.cargoPerUnit || 1,
-      colorHex: def?.colorHex || '#d0d7e4'
-    };
-  }).filter((e) => e.amount > 0);
+  const kind = getStorageKind(st);
   const capacity = getStorageCapacity(st);
   const used = getStorageUsed(st);
-  return {
+  const base = {
     id: st.id | 0,
     name: st.name || 'Coffre',
+    kind,
     owned: isStructureOwner(player, st),
     unclaimed: !findAliveCoreForStructure(state, st),
     capacity,
     used,
-    fill01: capacity > 0 ? Math.max(0, Math.min(1, used / capacity)) : 0,
-    resources
+    fill01: capacity > 0 ? Math.max(0, Math.min(1, used / capacity)) : 0
   };
+  if (kind === 'equipment') {
+    return { ...base, cargoItems: buildCargoEquipment(player), items: buildStoredEquipment(st) };
+  }
+  if (kind === 'ammo') {
+    return { ...base, cargoAmmo: buildCargoAmmo(player), ammo: buildStoredAmmo(st) };
+  }
+  return { ...base, resources: buildResourceEntries(st.storage?.resources || {}) };
 }
 
 export function findAccessibleStorageNearPlayer(state, player) {
@@ -89,14 +176,21 @@ export function findAccessibleStorageNearPlayer(state, player) {
   return best;
 }
 
+function saveAfterTransfer(state, player, st) {
+  st.updatedAt = Date.now();
+  player.forceFullUiSnapshot = true;
+  if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+}
+
 export function transferStorageResource(state, player, structureId, resourceKey, amount, direction, timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canPlayerAccessStorage(state, player, st)) return { ok: false, error: 'storage_locked' };
+  if (getStorageKind(st) !== 'resources') return { ok: false, error: 'wrong_storage_type' };
   const key = String(resourceKey || '');
   const def = RESOURCE_DEFS[key];
   if (!def) return { ok: false, error: 'invalid_resource' };
   let qty = Math.max(1, Math.min(999999, Math.floor(Number(amount) || 0)));
-  st.storage ??= { resources: {} };
+  st.storage ??= { kind: 'resources', resources: {} };
   st.storage.resources ??= {};
   if (direction === 'deposit') {
     const unit = Number(def.cargoPerUnit) || 1;
@@ -116,8 +210,66 @@ export function transferStorageResource(state, player, structureId, resourceKey,
   } else {
     return { ok: false, error: 'invalid_direction' };
   }
-  st.updatedAt = timeMs;
-  player.forceFullUiSnapshot = true;
-  if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+  saveAfterTransfer(state, player, st);
+  return { ok: true };
+}
+
+export function transferStorageItem(state, player, structureId, itemId, amount, direction, timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canPlayerAccessStorage(state, player, st)) return { ok: false, error: 'storage_locked' };
+  const kind = getStorageKind(st);
+  const id = String(itemId || '').toLowerCase();
+  const def = getItemDef(id);
+  if (!def) return { ok: false, error: 'invalid_item' };
+  const qty = Math.max(1, Math.min(999999, Math.floor(Number(amount) || 1)));
+  const eq = player?.equipment;
+  if (!eq) return { ok: false, error: 'missing_equipment' };
+
+  if (kind === 'equipment') {
+    if (def.categoryId === ITEM_CATEGORY_IDS.AMMO) return { ok: false, error: 'wrong_storage_type' };
+    st.storage.items ??= [];
+    if (direction === 'deposit') {
+      if ((st.storage.items || []).length >= getStorageCapacity(st)) return { ok: false, error: 'storage_full' };
+      if (!(eq.ownedItemIds || []).includes(id)) return { ok: false, error: 'item_not_owned' };
+      if ((eq.equippedItemIds || []).includes(id)) return { ok: false, error: 'item_equipped' };
+      eq.ownedItemIds = (eq.ownedItemIds || []).filter((x) => x !== id);
+      st.storage.items.push(id);
+    } else if (direction === 'withdraw') {
+      const idx = (st.storage.items || []).indexOf(id);
+      if (idx < 0) return { ok: false, error: 'empty_storage' };
+      if ((eq.ownedItemIds || []).includes(id)) return { ok: false, error: 'already_owned' };
+      st.storage.items.splice(idx, 1);
+      eq.ownedItemIds = [...(eq.ownedItemIds || []), id];
+    } else return { ok: false, error: 'invalid_direction' };
+  } else if (kind === 'ammo') {
+    if (def.categoryId !== ITEM_CATEGORY_IDS.AMMO || !def.ammoProfile) return { ok: false, error: 'wrong_storage_type' };
+    st.storage.ammo ??= {};
+    eq.rocketAmmoCountsById ??= {};
+    if (direction === 'deposit') {
+      const have = Math.max(0, eq.rocketAmmoCountsById[id] | 0);
+      const free = Math.max(0, getStorageCapacity(st) - getStorageUsed(st));
+      const moved = Math.max(0, Math.min(have, qty, free));
+      if (moved <= 0) return { ok: false, error: free <= 0 ? 'storage_full' : 'empty_cargo' };
+      eq.rocketAmmoCountsById[id] = have - moved;
+      st.storage.ammo[id] = (st.storage.ammo[id] | 0) + moved;
+      if (eq.rocketAmmoCountsById[id] <= 0) {
+        for (let i = 0; i < (eq.rocketAmmoSlotItemIds || []).length; i += 1) {
+          if (eq.rocketAmmoSlotItemIds[i] === id) eq.rocketAmmoSlotItemIds[i] = '';
+        }
+      }
+    } else if (direction === 'withdraw') {
+      const have = Math.max(0, st.storage.ammo[id] | 0);
+      const moved = Math.max(0, Math.min(have, qty));
+      if (moved <= 0) return { ok: false, error: 'empty_storage' };
+      st.storage.ammo[id] = have - moved;
+      eq.rocketAmmoCountsById[id] = (eq.rocketAmmoCountsById[id] | 0) + moved;
+      if (!eq.rocketAmmoSlotItemIds?.[0]) eq.rocketAmmoSlotItemIds[0] = id;
+      else if (!eq.rocketAmmoSlotItemIds?.[1] && eq.rocketAmmoSlotItemIds[0] !== id) eq.rocketAmmoSlotItemIds[1] = id;
+    } else return { ok: false, error: 'invalid_direction' };
+  } else {
+    return { ok: false, error: 'wrong_storage_type' };
+  }
+  eq.lastChangedAt = timeMs | 0;
+  saveAfterTransfer(state, player, st);
   return { ok: true };
 }

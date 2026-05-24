@@ -4472,3 +4472,15 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(135,217,255,.11);
   color: #9de4ff;
 }
+
+.storage-panel__row--item .storage-panel__name {
+  min-width: 0;
+}
+.storage-panel__item-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, rgba(125,220,255,.95), rgba(255,202,118,.85));
+  box-shadow: 0 0 10px rgba(123,220,255,.35);
+  flex: 0 0 auto;
+}

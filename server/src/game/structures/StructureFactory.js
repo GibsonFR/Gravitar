@@ -3,6 +3,22 @@ import { createStatBlock } from '../stats/StatBlockFactory.js';
 import { newEntityId } from '../state/GameState.js';
 import { getStructureDef } from './StructureDefs.js';
 
+
+function buildStructureStorage(def, saved = null) {
+  const kind = def?.storageKind || '';
+  if (!kind) return saved || { resources: {} };
+  if (kind === 'equipment') {
+    const items = Array.isArray(saved?.items) ? saved.items.map((id) => String(id || '')).filter(Boolean) : [];
+    return { kind, items, itemCapacity: def.itemCapacity || 0 };
+  }
+  if (kind === 'ammo') {
+    const ammo = saved?.ammo && typeof saved.ammo === 'object' ? { ...saved.ammo } : {};
+    return { kind, ammo, ammoCapacity: def.ammoCapacity || 0 };
+  }
+  const resources = saved?.resources && typeof saved.resources === 'object' ? { ...saved.resources } : {};
+  return { kind: 'resources', resources, capacity: saved?.capacity || def.storageCapacity || 0 };
+}
+
 function q(v, fallback = 0) {
   return Number.isFinite(v) ? v : fallback;
 }
@@ -39,7 +55,7 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     openable: !!def.openable,
     solid: !!def.solid && !options.open,
     claimRadius: def.claimRadius || 0,
-    storage: def.id === 'storage' ? (options.storage || { resources: {}, capacity: def.storageCapacity || 0 }) : (options.storage || { resources: {} }),
+    storage: buildStructureStorage(def, options.storage),
     color: def.color || '#526274',
     borderColor: def.borderColor || '#9fcfff',
     powered: false,

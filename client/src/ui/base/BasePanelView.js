@@ -17,6 +17,8 @@ function iconSvg(kind) {
   if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7l21 12v26L32 57 11 45V19L32 7z" fill="rgba(101,215,255,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="32" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity=".85"/><path d="M32 12v8M32 44v8M14 22l7 4M43 38l7 4M14 42l7-4M43 26l7-4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="22" width="52" height="20" rx="3" fill="rgba(120,190,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 22v20M24 22v20M34 22v20M44 22v20M54 22v20" stroke="currentColor" stroke-width="2" opacity=".72"/><path d="M10 32h44" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>`;
   if (kind === 'door') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="7" y="19" width="50" height="26" rx="4" fill="rgba(135,217,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M18 22v20M46 22v20" stroke="currentColor" stroke-width="2.4" opacity=".75"/><path d="M24 32h16M40 32l-5-5M40 32l-5 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  if (kind === 'equipment_storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 16h36v34H14V16z" fill="rgba(139,184,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M22 24h20M22 32h20M22 40h12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="45" cy="43" r="6" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>`;
+  if (kind === 'ammo_storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M15 18h34v28H15V18z" fill="rgba(255,193,111,.12)" stroke="currentColor" stroke-width="3"/><path d="M22 39l9-18 9 18M26 33h10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 48h40" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".65"/></svg>`;
   if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 21l19-10 19 10v22L32 53 13 43V21z" fill="rgba(111,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M13 21l19 11 19-11M32 32v21" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".82"/><path d="M22 26l19-10M22 39l20-11" stroke="currentColor" stroke-width="2" opacity=".28"/></svg>`;
   if (kind === 'repair') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M39 12l13 13-7 7-5-5-18 18-10 3 3-10 18-18-5-5 11-3z" fill="rgba(112,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M18 49h30" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'demolish') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 16h24l-2 34H22L20 16z" fill="rgba(255,120,120,.10)" stroke="currentColor" stroke-width="3"/><path d="M17 16h30M26 16l2-5h8l2 5M27 25v17M37 25v17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
@@ -80,7 +82,7 @@ export const BUILD_STRUCTURES = [
   {
     type: 'storage',
     category: 'storage',
-    title: 'Coffre spatial',
+    title: 'Coffre de ressources',
     subtitle: '2 × 2 cases',
     icon: 'storage',
     orientation: 'h',
@@ -90,9 +92,43 @@ export const BUILD_STRUCTURES = [
     h: 128,
     hp: 0,
     storageCapacity: 420,
-    role: 'Stocke les ressources de la base.',
-    stats: [],
+    role: 'Stocke les minerais et matériaux.',
+    stats: ['Capacité : 420'],
     cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
+  },
+  {
+    type: 'equipment_storage',
+    category: 'storage',
+    title: 'Coffre d’équipement',
+    subtitle: '18 objets',
+    icon: 'equipment_storage',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    itemCapacity: 18,
+    role: 'Stocke armes, lance-roquettes et modules.',
+    stats: ['Capacité : 18 objets'],
+    cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
+  },
+  {
+    type: 'ammo_storage',
+    category: 'storage',
+    title: 'Coffre de roquettes',
+    subtitle: '260 roquettes',
+    icon: 'ammo_storage',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    ammoCapacity: 260,
+    role: 'Stocke uniquement les roquettes.',
+    stats: ['Capacité : 260 roquettes'],
+    cost: { ironOre: 16, copper: 6, aluminiumOre: 6 }
   }
 ];
 
