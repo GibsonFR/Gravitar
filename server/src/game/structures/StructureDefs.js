@@ -373,15 +373,16 @@ export const STRUCTURE_DEFS = {
     borderColor: '#79f1ff',
     cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
   },
+
   [STRUCTURE_TYPES.SPLITTER]: {
     id: STRUCTURE_TYPES.SPLITTER,
     name: 'Répartiteur',
-    description: 'Répartit les ressources vers deux sorties.',
+    description: 'Une entrée, deux sorties.',
     radius: 48,
-    tilesX: 2,
-    tilesY: 1,
-    w: BASE_TILE_SIZE * 2,
-    h: BASE_TILE_SIZE,
+    tilesX: 1,
+    tilesY: 2,
+    w: BASE_TILE_SIZE,
+    h: BASE_TILE_SIZE * 2,
     maxHp: 0,
     damageable: false,
     buildRange: 1100,
@@ -392,20 +393,22 @@ export const STRUCTURE_DEFS = {
     storageCapacity: 1,
     automationKind: 'conveyor',
     automationIntervalMs: 760,
-    automationOutputs: ['left', 'right'],
-    color: '#264454',
-    borderColor: '#99e6ff',
+    automationOutputs: ['upper', 'lower'],
+    color: '#263f55',
+    borderColor: '#a2ebff',
     cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
   },
+
+
   [STRUCTURE_TYPES.MERGER]: {
     id: STRUCTURE_TYPES.MERGER,
     name: 'Fusionneur',
-    description: 'Combine plusieurs lignes vers une sortie.',
+    description: 'Deux entrées, une sortie.',
     radius: 48,
-    tilesX: 2,
-    tilesY: 1,
-    w: BASE_TILE_SIZE * 2,
-    h: BASE_TILE_SIZE,
+    tilesX: 1,
+    tilesY: 2,
+    w: BASE_TILE_SIZE,
+    h: BASE_TILE_SIZE * 2,
     maxHp: 0,
     damageable: false,
     buildRange: 1100,
@@ -416,11 +419,12 @@ export const STRUCTURE_DEFS = {
     storageCapacity: 1,
     automationKind: 'conveyor',
     automationIntervalMs: 700,
-    automationOutputs: ['front'],
+    automationOutputs: ['upper'],
     color: '#2a3f50',
-    borderColor: '#8bcfff',
+    borderColor: '#ffd98a',
     cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
   },
+
   [STRUCTURE_TYPES.ROBOT_ARM]: {
     id: STRUCTURE_TYPES.ROBOT_ARM,
     name: 'Bras robotique',

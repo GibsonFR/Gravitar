@@ -213,107 +213,116 @@ function drawConveyorBody(ctx, view, s, w, h, t, structures) {
   const isFast = s.type === 'fast_conveyor';
   const isSplitter = s.type === 'splitter';
   const isMerger = s.type === 'merger';
-  const laneFill = isFast ? 'rgba(28, 92, 106, .88)' : 'rgba(29, 65, 80, .88)';
-  const laneStroke = isFast ? 'rgba(154, 255, 255, .92)' : 'rgba(112, 225, 255, .88)';
+  const laneStroke = isMerger ? 'rgba(255, 217, 138, .92)' : isFast ? 'rgba(154, 255, 255, .92)' : 'rgba(112, 225, 255, .88)';
+  const laneFill = isMerger ? 'rgba(82, 58, 30, .86)' : isFast ? 'rgba(28, 92, 106, .88)' : 'rgba(29, 65, 80, .88)';
 
-  ctx.fillStyle = 'rgba(12, 21, 30, .82)';
+  ctx.fillStyle = 'rgba(12, 21, 30, .84)';
   ctx.strokeStyle = laneStroke;
   ctx.lineWidth = 1.8 * view.dpr;
   ctx.beginPath();
-  roundedRect(ctx, -w * 0.46, -h * 0.32, w * 0.92, h * 0.64, rr);
+  roundedRect(ctx, -w * 0.46, -h * 0.46, w * 0.92, h * 0.92, rr);
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = laneFill;
   ctx.beginPath();
-  roundedRect(ctx, -w * 0.38, -h * 0.22, w * 0.76, h * 0.44, 6 * view.dpr);
+  roundedRect(ctx, -w * 0.34, -h * 0.40, w * 0.68, h * 0.80, 7 * view.dpr);
   ctx.fill();
+
+  const portR = 4.5 * view.dpr;
+  const portStroke = isMerger ? 'rgba(255, 235, 176, .95)' : 'rgba(185, 248, 255, .95)';
+  ctx.strokeStyle = portStroke;
+  ctx.lineWidth = 1.4 * view.dpr;
+  function port(x, y, fill = 'rgba(4,12,18,.75)') {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(x, y, portR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  if (isSplitter) {
+    port(-w * 0.48, -h * 0.25, 'rgba(84,255,210,.22)');
+    port(w * 0.48, -h * 0.25, 'rgba(255,232,142,.24)');
+    port(w * 0.48, h * 0.25, 'rgba(255,232,142,.24)');
+  } else if (isMerger) {
+    port(-w * 0.48, -h * 0.25, 'rgba(84,255,210,.22)');
+    port(-w * 0.48, h * 0.25, 'rgba(84,255,210,.22)');
+    port(w * 0.48, -h * 0.25, 'rgba(255,232,142,.24)');
+  } else {
+    if (links.back) port(-w * 0.48, 0, 'rgba(84,255,210,.20)');
+    if (links.front) port(w * 0.48, 0, 'rgba(255,232,142,.22)');
+  }
 
   ctx.strokeStyle = isFast ? 'rgba(214, 255, 255, .30)' : 'rgba(185, 245, 255, .18)';
   ctx.lineWidth = 1 * view.dpr;
   if (isFast) {
-    for (const y of [-h * 0.12, h * 0.12]) {
+    for (const y of [-h * 0.16, h * 0.16]) {
       ctx.beginPath();
-      ctx.moveTo(-w * 0.30, y);
-      ctx.lineTo(w * 0.30, y);
+      ctx.moveTo(-w * 0.26, y);
+      ctx.lineTo(w * 0.26, y);
       ctx.stroke();
     }
-  } else {
-    const step = Math.max(w * 0.10, 12 * view.dpr);
+  } else if (!isSplitter && !isMerger) {
+    const step = Math.max(w * 0.11, 10 * view.dpr);
     for (let x = -w * 0.28; x <= w * 0.28; x += step) {
       ctx.beginPath();
-      ctx.moveTo(x, -h * 0.16);
-      ctx.lineTo(x + w * 0.04, h * 0.16);
+      ctx.moveTo(x, -h * 0.18);
+      ctx.lineTo(x + w * 0.05, h * 0.18);
       ctx.stroke();
     }
   }
 
-  ctx.fillStyle = isFast ? 'rgba(150, 255, 255, .34)' : 'rgba(115, 230, 255, .26)';
-  if (links.back) ctx.fillRect(-w * 0.54, -h * 0.12, w * 0.12, h * 0.24);
-  if (links.front) ctx.fillRect(w * 0.42, -h * 0.12, w * 0.12, h * 0.24);
-  if (links.left || isSplitter || isMerger) ctx.fillRect(-w * 0.08, -h * 0.40, w * 0.16, h * 0.12);
-  if (links.right || isSplitter || isMerger) ctx.fillRect(-w * 0.08, h * 0.28, w * 0.16, h * 0.12);
-
-  const span = Math.max(12 * view.dpr, w * (isFast ? 0.16 : 0.22));
+  const span = Math.max(12 * view.dpr, Math.min(w, h) * (isFast ? 0.28 : 0.36));
   const speed = isFast ? 132 : 80;
   const offset = ((t * speed * view.dpr) % span) - span;
-  ctx.strokeStyle = isFast ? 'rgba(168, 255, 255, .96)' : 'rgba(110, 223, 255, .74)';
+  ctx.strokeStyle = isMerger ? 'rgba(255, 217, 138, .90)' : isFast ? 'rgba(168, 255, 255, .96)' : 'rgba(110, 223, 255, .74)';
   ctx.lineWidth = isFast ? 2.6 * view.dpr : 2.2 * view.dpr;
   ctx.lineCap = 'round';
-  for (let x = -w * 0.42 + offset; x < w * 0.52; x += span) {
-    ctx.beginPath();
-    ctx.moveTo(x - w * 0.04, -h * 0.10);
-    ctx.lineTo(x + w * (isFast ? 0.07 : 0.05), 0);
-    ctx.lineTo(x - w * 0.04, h * 0.10);
-    ctx.stroke();
-    if (isFast) {
+
+  if (!isSplitter && !isMerger) {
+    for (let x = -w * 0.34 + offset; x < w * 0.44; x += span) {
       ctx.beginPath();
-      ctx.moveTo(x - w * 0.06, -h * 0.18);
-      ctx.lineTo(x + w * 0.05, -h * 0.12);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x - w * 0.06, h * 0.18);
-      ctx.lineTo(x + w * 0.05, h * 0.12);
+      ctx.moveTo(x - w * 0.04, -h * 0.10);
+      ctx.lineTo(x + w * (isFast ? 0.07 : 0.05), 0);
+      ctx.lineTo(x - w * 0.04, h * 0.10);
       ctx.stroke();
     }
   }
 
   ctx.strokeStyle = 'rgba(255, 244, 170, .96)';
   ctx.fillStyle = 'rgba(255, 244, 170, .96)';
-  ctx.lineWidth = 2.2 * view.dpr;
+  ctx.lineWidth = 2.4 * view.dpr;
+
   if (isSplitter) {
     ctx.beginPath();
-    ctx.moveTo(-w * 0.26, 0);
-    ctx.lineTo(-w * 0.04, 0);
-    ctx.moveTo(-w * 0.02, 0);
-    ctx.lineTo(w * 0.18, -h * 0.18);
-    ctx.moveTo(-w * 0.02, 0);
-    ctx.lineTo(w * 0.18, h * 0.18);
+    ctx.moveTo(-w * 0.46, -h * 0.25);
+    ctx.lineTo(-w * 0.06, -h * 0.25);
+    ctx.lineTo(w * 0.24, -h * 0.25);
+    ctx.moveTo(-w * 0.06, -h * 0.25);
+    ctx.lineTo(w * 0.24, h * 0.25);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(w * 0.24, -h * 0.18);
-    ctx.lineTo(w * 0.12, -h * 0.27);
-    ctx.lineTo(w * 0.12, -h * 0.09);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(w * 0.24, h * 0.18);
-    ctx.lineTo(w * 0.12, h * 0.09);
-    ctx.lineTo(w * 0.12, h * 0.27);
-    ctx.closePath();
-    ctx.fill();
+    for (const y of [-h * 0.25, h * 0.25]) {
+      ctx.beginPath();
+      ctx.moveTo(w * 0.34, y);
+      ctx.lineTo(w * 0.18, y - h * 0.08);
+      ctx.lineTo(w * 0.18, y + h * 0.08);
+      ctx.closePath();
+      ctx.fill();
+    }
   } else if (isMerger) {
     ctx.beginPath();
-    ctx.moveTo(-w * 0.24, -h * 0.18);
-    ctx.lineTo(-w * 0.02, 0);
-    ctx.lineTo(-w * 0.24, h * 0.18);
-    ctx.moveTo(-w * 0.02, 0);
-    ctx.lineTo(w * 0.18, 0);
+    ctx.moveTo(-w * 0.46, -h * 0.25);
+    ctx.lineTo(-w * 0.10, -h * 0.25);
+    ctx.moveTo(-w * 0.46, h * 0.25);
+    ctx.lineTo(-w * 0.10, h * 0.25);
+    ctx.lineTo(w * 0.20, -h * 0.25);
+    ctx.lineTo(w * 0.34, -h * 0.25);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(w * 0.24, 0);
-    ctx.lineTo(w * 0.10, -h * 0.12);
-    ctx.lineTo(w * 0.10, h * 0.12);
+    ctx.moveTo(w * 0.40, -h * 0.25);
+    ctx.lineTo(w * 0.24, -h * 0.33);
+    ctx.lineTo(w * 0.24, -h * 0.17);
     ctx.closePath();
     ctx.fill();
   } else {
@@ -332,7 +341,7 @@ function drawConveyorBody(ctx, view, s, w, h, t, structures) {
   if (s.automationItem?.phase === 'blocked') {
     ctx.strokeStyle = 'rgba(255, 106, 106, .95)';
     ctx.lineWidth = 2 * view.dpr;
-    ctx.strokeRect(w * 0.29, -h * 0.20, w * 0.12, h * 0.40);
+    ctx.strokeRect(w * 0.24, -h * 0.36, w * 0.18, h * 0.28);
   }
   ctx.restore();
 }
@@ -688,11 +697,23 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.rect(-w * 0.28, -h * 0.30, w * 0.56, h * 0.60);
       ctx.moveTo(-w * 0.20, -h * 0.06); ctx.lineTo(w * 0.20, -h * 0.06);
       ctx.moveTo(-w * 0.20, h * 0.10); ctx.lineTo(w * 0.20, h * 0.10);
+    } else if (isStorage) {
+      ctx.moveTo(-w * 0.30, -h * 0.18);
+      ctx.lineTo(0, -h * 0.34);
+      ctx.lineTo(w * 0.30, -h * 0.18);
+      ctx.lineTo(w * 0.30, h * 0.22);
+      ctx.lineTo(0, h * 0.38);
+      ctx.lineTo(-w * 0.30, h * 0.22);
+      ctx.closePath();
+      ctx.moveTo(-w * 0.30, -h * 0.18); ctx.lineTo(0, 0); ctx.lineTo(w * 0.30, -h * 0.18);
+      ctx.moveTo(0, 0); ctx.lineTo(0, h * 0.38);
+      ctx.moveTo(-w * 0.18, h * 0.26); ctx.lineTo(w * 0.18, h * 0.08);
     } else if (isEquip) {
-      ctx.rect(-w * 0.28, -h * 0.28, w * 0.56, h * 0.56);
-      ctx.moveTo(-w * 0.18, -h * 0.10); ctx.lineTo(w * 0.18, -h * 0.10);
-      ctx.moveTo(-w * 0.18, h * 0.04); ctx.lineTo(w * 0.18, h * 0.04);
-      ctx.moveTo(-w * 0.18, h * 0.18); ctx.lineTo(w * 0.04, h * 0.18);
+      ctx.rect(-w * 0.30, -h * 0.32, w * 0.60, h * 0.64);
+      ctx.moveTo(-w * 0.20, -h * 0.14); ctx.lineTo(w * 0.20, -h * 0.14);
+      ctx.moveTo(-w * 0.20, h * 0.02); ctx.lineTo(w * 0.20, h * 0.02);
+      ctx.moveTo(-w * 0.20, h * 0.18); ctx.lineTo(w * 0.04, h * 0.18);
+      ctx.moveTo(w * 0.18, -h * 0.26); ctx.lineTo(w * 0.18, h * 0.26);
     } else if (isAmmo) {
       ctx.moveTo(-w * 0.24, h * 0.24);
       ctx.lineTo(0, -h * 0.30);

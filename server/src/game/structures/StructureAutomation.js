@@ -74,6 +74,36 @@ function pointFromDir(st, d, tiles = 1) {
   return { x: finite(st?.x) + d.x * step, y: finite(st?.y) + d.y * step };
 }
 
+function portPoint(st, forwardTiles = 1, sideTiles = 0) {
+  const d = dirOf(st);
+  const side = rightOf(d);
+  return {
+    x: finite(st?.x) + d.x * TILE * forwardTiles + side.x * TILE * sideTiles,
+    y: finite(st?.y) + d.y * TILE * forwardTiles + side.y * TILE * sideTiles
+  };
+}
+
+function isConveyorNetwork(st) {
+  const t = String(st?.type || '').toLowerCase();
+  return t === 'conveyor' || t === 'fast_conveyor' || t === 'splitter' || t === 'merger';
+}
+
+function conveyorOutputPoints(st) {
+  const type = String(st?.type || '').toLowerCase();
+  if (type === 'splitter') {
+    return [
+      { slot: 'upper', point: portPoint(st, 1, -0.5) },
+      { slot: 'lower', point: portPoint(st, 1, 0.5) }
+    ];
+  }
+  if (type === 'merger') return [{ slot: 'upper', point: portPoint(st, 1, -0.5) }];
+  return [{ slot: 'front', point: targetPoint(st, true, 1) }];
+}
+
+function canConveyorPut(target, key) {
+  return isConveyorNetwork(target) && canPut(target, key);
+}
+
 function findStructureAt(state, origin, point) {
   let best = null;
   let bestD2 = Infinity;
@@ -187,20 +217,13 @@ function conveyorItem(belt) {
 }
 
 function conveyorTargets(state, belt, key) {
-  const def = getStructureDef(belt?.type);
-  const d = dirOf(belt);
-  const dirs = [];
-  for (const slot of def?.automationOutputs || ['front']) {
-    if (slot === 'left') dirs.push(leftOf(d));
-    else if (slot === 'right') dirs.push(rightOf(d));
-    else dirs.push(d);
-  }
+  const ports = conveyorOutputPoints(belt);
   const start = Math.max(0, belt.automationOutputIndex | 0);
-  const ordered = dirs.map((_, i) => dirs[(start + i) % dirs.length]);
+  const ordered = ports.map((_, i) => ports[(start + i) % ports.length]);
   const targets = [];
-  for (const outDir of ordered) {
-    const target = findStructureAt(state, belt, pointFromDir(belt, outDir, 1));
-    if (target && canPut(target, key)) targets.push({ target, outDir });
+  for (const port of ordered) {
+    const target = findStructureAt(state, belt, port.point);
+    if (target && canConveyorPut(target, key)) targets.push({ target, outDir: null, slot: port.slot });
   }
   return targets;
 }
