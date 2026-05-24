@@ -791,7 +791,7 @@ export function startApp() {
     if (me) drawGroundMarker(ctx, view, me, camX, camY, t);
 
     for (const s of store.stations.values()) drawStation(ctx, view, s, camX, camY, t);
-    for (const st of store.structures.values()) drawStructure(ctx, view, st, camX, camY, t);
+    for (const st of store.structures.values()) drawStructure(ctx, view, st, camX, camY, t, store.structures);
     drawStructureBuildPreview(ctx, view, basePanel.getPreview(store, mouseWorld), camX, camY, t);
     drawPortals(ctx, view, store, camX, camY);
     for (const a of store.asteroids.values()) drawAsteroid(ctx, view, a, camX, camY);

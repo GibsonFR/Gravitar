@@ -12,6 +12,7 @@ export class WorldStore {
     this.asteroids = new Map();
     this.stations = new Map();
     this.structures = new Map();
+    this.automationVisuals = new Map();
     this.portals = new Map();
     this.projectiles = new Map();
     this.areaEffects = new Map();
@@ -251,14 +252,24 @@ export class WorldStore {
     return this.lastServerTime + Math.max(0, performance.now() - this.lastServerTimeAt);
   }
 
-  _normalizeAutomationItem(item, serverNow) {
+  _automationVisualKey(item) {
+    if (!item || typeof item !== 'object') return '';
+    return `${item.key || ''}:${item.phase || ''}:${Number(item.startedAt) || 0}:${Number(item.totalMs) || 0}`;
+  }
+
+  _normalizeAutomationItem(item, serverNow, previous = null) {
     if (!item || typeof item !== 'object') return item || null;
     const totalMs = Math.max(1, Number(item.totalMs) || 0);
     const startedAt = Number(item.startedAt);
     if (!Number.isFinite(startedAt) || !Number.isFinite(totalMs) || totalMs <= 0) return { ...item };
     const elapsed = Math.max(0, serverNow - startedAt);
-    const localStartedAt = performance.now() - elapsed;
-    const progress = Math.max(0, Math.min(1, elapsed / totalMs));
+    const previousKey = this._automationVisualKey(previous);
+    const nextKey = this._automationVisualKey(item);
+    let localStartedAt = performance.now() - elapsed;
+    if (previousKey && previousKey === nextKey && Number.isFinite(Number(previous?._localStartedAt))) {
+      localStartedAt = Number(previous._localStartedAt);
+    }
+    const progress = Math.max(0, Math.min(1, (performance.now() - localStartedAt) / totalMs));
     return {
       ...item,
       totalMs,
@@ -269,10 +280,21 @@ export class WorldStore {
     };
   }
 
-  _normalizeStructureSnapshot(st, serverNow) {
+  _normalizeStructureSnapshot(st, serverNow, previous = null) {
     if (!st || typeof st !== 'object') return st;
-    if (!st.automationItem) return st;
-    return { ...st, automationItem: this._normalizeAutomationItem(st.automationItem, serverNow) };
+    const out = { ...st };
+    if (st.automationItem) {
+      out.automationItem = this._normalizeAutomationItem(st.automationItem, serverNow, previous?.automationItem || null);
+    }
+    const previousItem = previous?.automationItem || null;
+    if (!out.automationItem && previousItem && isFinite(Number(previousItem._localStartedAt))) {
+      out._automationFadeItem = { ...previousItem, _fadeUntil: performance.now() + 220 };
+    } else if (previous?._automationFadeItem && Number(previous._automationFadeItem._fadeUntil) > performance.now()) {
+      out._automationFadeItem = previous._automationFadeItem;
+    } else {
+      out._automationFadeItem = null;
+    }
+    return out;
   }
 
   _applyStructureAutomationSnapshots(arr, serverNow) {
@@ -281,12 +303,13 @@ export class WorldStore {
       const id = snap?.id;
       if (!id || !this.structures.has(id)) continue;
       const current = this.structures.get(id);
-      const normalized = this._normalizeStructureSnapshot(snap, serverNow);
+      const normalized = this._normalizeStructureSnapshot(snap, serverNow, current);
       this.structures.set(id, {
         ...current,
         storageUsed: normalized.storageUsed ?? current.storageUsed,
         storagePreview: normalized.storagePreview ?? null,
         automationItem: normalized.automationItem ?? null,
+        _automationFadeItem: normalized._automationFadeItem ?? null,
         automationKind: normalized.automationKind ?? current.automationKind,
         automationPulse: normalized.automationPulse ?? current.automationPulse
       });
@@ -477,7 +500,7 @@ export class WorldStore {
     if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
     const structureServerNow = this._estimateServerNow();
     if (Array.isArray(msg.structures)) {
-      this._syncMap(this.structures, msg.structures.map((st) => this._normalizeStructureSnapshot(st, structureServerNow)));
+      this._syncMap(this.structures, msg.structures.map((st) => this._normalizeStructureSnapshot(st, structureServerNow, this.structures.get(st?.id))));
     }
     if (Array.isArray(msg.structureAutomation)) this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);

@@ -39,6 +39,58 @@ function rotateToDir(ctx, s) {
   ctx.rotate(angle);
 }
 
+function oppositeDir(d) {
+  return { x: -d.x, y: -d.y };
+}
+
+function sameSector(a, b) {
+  return (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
+}
+
+function isAutomationStructure(st) {
+  return st?.type === 'conveyor' || st?.type === 'robot_arm';
+}
+
+function nearOffset(a, b, ox, oy) {
+  const dx = (Number(b?.x) || 0) - ((Number(a?.x) || 0) + ox);
+  const dy = (Number(b?.y) || 0) - ((Number(a?.y) || 0) + oy);
+  return dx * dx + dy * dy < 22 * 22;
+}
+
+function findNeighbor(structures, s, dir) {
+  if (!structures?.values) return null;
+  const ox = dir.x * 64;
+  const oy = dir.y * 64;
+  for (const other of structures.values()) {
+    if (!other || other.id === s.id || !sameSector(s, other)) continue;
+    if (!isAutomationStructure(other) && !other.storagePreview && !other.machineJob && !other.machineEnabled) continue;
+    if (nearOffset(s, other, ox, oy)) return other;
+  }
+  return null;
+}
+
+function canFeedForward(a, b) {
+  if (!a || !b) return false;
+  if (a.type === 'robot_arm') return true;
+  if (b.type === 'robot_arm') return true;
+  if (a.type !== 'conveyor' || b.type !== 'conveyor') return true;
+  const ad = dirOf(a);
+  const bd = dirOf(b);
+  return ad.x === bd.x && ad.y === bd.y;
+}
+
+function automationLinks(structures, s) {
+  const d = dirOf(s);
+  const front = findNeighbor(structures, s, d);
+  const back = findNeighbor(structures, s, oppositeDir(d));
+  return {
+    front: !!front && canFeedForward(s, front),
+    back: !!back,
+    left: !!findNeighbor(structures, s, { x: -d.y, y: d.x }),
+    right: !!findNeighbor(structures, s, { x: d.y, y: -d.x })
+  };
+}
+
 function smoothstep01(v) {
   const x = Math.max(0, Math.min(1, Number(v) || 0));
   return x * x * (3 - 2 * x);
@@ -65,24 +117,30 @@ function drawResourceChip(ctx, view, color, x, y, radius, dir, amount = 1) {
   ctx.translate(x, y);
   ctx.rotate(angle);
   ctx.shadowColor = color;
-  ctx.shadowBlur = 10 * view.dpr;
+  ctx.shadowBlur = 12 * view.dpr;
   ctx.fillStyle = color;
-  ctx.strokeStyle = 'rgba(255,255,255,.78)';
-  ctx.lineWidth = 1 * view.dpr;
+  ctx.strokeStyle = 'rgba(255,255,255,.86)';
+  ctx.lineWidth = 1.15 * view.dpr;
   ctx.beginPath();
-  ctx.moveTo(radius * 1.35, 0);
-  ctx.lineTo(radius * 0.22, radius * 0.95);
-  ctx.lineTo(-radius * 1.05, radius * 0.62);
-  ctx.lineTo(-radius * 1.05, -radius * 0.62);
-  ctx.lineTo(radius * 0.22, -radius * 0.95);
+  ctx.moveTo(radius * 1.28, 0);
+  ctx.lineTo(radius * 0.34, radius * 0.92);
+  ctx.lineTo(-radius * 0.92, radius * 0.62);
+  ctx.lineTo(-radius * 1.18, 0);
+  ctx.lineTo(-radius * 0.92, -radius * 0.62);
+  ctx.lineTo(radius * 0.34, -radius * 0.92);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = 'rgba(15,25,35,.38)';
+  ctx.fillStyle = 'rgba(255,255,255,.42)';
+  ctx.beginPath();
+  ctx.ellipse(radius * 0.12, -radius * 0.22, radius * 0.46, radius * 0.18, -0.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(10,18,28,.35)';
+  ctx.lineWidth = 0.9 * view.dpr;
   ctx.beginPath();
   ctx.moveTo(-radius * 0.58, 0);
-  ctx.lineTo(radius * 0.55, 0);
+  ctx.lineTo(radius * 0.54, 0);
   ctx.stroke();
   ctx.restore();
 
@@ -98,76 +156,189 @@ function drawResourceChip(ctx, view, color, x, y, radius, dir, amount = 1) {
 }
 
 function drawAutomationItem(ctx, view, s, w, h, t) {
-  const preview = s.automationItem || s.storagePreview || null;
+  const preview = s.automationItem || s._automationFadeItem || s.storagePreview || null;
   const used = Number(s.storageUsed || 0);
   if (!preview && used <= 0) return;
   const color = preview?.colorHex || 'rgba(230,245,255,.95)';
   const dir = dirOf(s);
   const rawProgress = localAutomationProgress(preview);
+  const idlePulse = 0.5 + 0.18 * Math.sin(t * 3.0 + (s.id | 0));
   const progress = rawProgress == null
-    ? (s.automationItem ? Math.max(0, Math.min(1, (performance.now() - Number(s.automationPulse || 0)) / 700)) : (0.5 + 0.35 * Math.sin(t * 3.0)))
+    ? (s.automationItem ? Math.max(0, Math.min(1, (performance.now() - Number(s.automationPulse || 0)) / 700)) : idlePulse)
     : rawProgress;
   const blocked = preview?.phase === 'blocked' || preview?.phase === 'arm_blocked';
+  const fadeUntil = Number(preview?._fadeUntil || 0);
+  const fade = fadeUntil > 0 ? Math.max(0, Math.min(1, (fadeUntil - performance.now()) / 220)) : 1;
   let phase = blocked ? 1 : progress;
   if (preview?.phase === 'arm') phase = smoothstep01(progress);
-  const travel = preview?.phase === 'arm' || preview?.phase === 'arm_blocked' ? 0.88 : 0.74;
+  const travel = preview?.phase === 'arm' || preview?.phase === 'arm_blocked' ? 0.90 : 0.86;
   const px = dir.x * (phase - 0.5) * w * travel;
   const py = dir.y * (phase - 0.5) * h * travel;
-  drawResourceChip(ctx, view, color, px, py, Math.max(4, Math.min(w, h) * 0.10), dir, preview?.amount | 0 || 1);
+  ctx.save();
+  ctx.globalAlpha *= fade;
+  drawResourceChip(ctx, view, color, px, py, Math.max(5, Math.min(w, h) * 0.105), dir, preview?.amount | 0 || 1);
+  ctx.restore();
   if (blocked) {
     ctx.save();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(255,120,120,.95)';
-    ctx.lineWidth = 2 * view.dpr;
+    ctx.lineWidth = 2.2 * view.dpr;
     ctx.beginPath();
-    ctx.moveTo(px - 6 * view.dpr, py - 6 * view.dpr);
-    ctx.lineTo(px + 6 * view.dpr, py + 6 * view.dpr);
-    ctx.moveTo(px + 6 * view.dpr, py - 6 * view.dpr);
-    ctx.lineTo(px - 6 * view.dpr, py + 6 * view.dpr);
+    ctx.moveTo(px - 7 * view.dpr, py - 7 * view.dpr);
+    ctx.lineTo(px + 7 * view.dpr, py + 7 * view.dpr);
+    ctx.moveTo(px + 7 * view.dpr, py - 7 * view.dpr);
+    ctx.lineTo(px - 7 * view.dpr, py + 7 * view.dpr);
     ctx.stroke();
     ctx.restore();
   }
 }
 
-function drawConveyorMotion(ctx, view, s, w, h, t) {
+function drawConveyorBody(ctx, view, s, w, h, t, structures) {
+  const links = automationLinks(structures, s);
   ctx.save();
   rotateToDir(ctx, s);
-  ctx.strokeStyle = 'rgba(145,230,255,.42)';
-  ctx.lineWidth = 2 * view.dpr;
-  ctx.lineCap = 'round';
-  const span = w * 0.22;
-  const offset = ((t * 70 * view.dpr) % span) - span;
-  for (let x = -w * 0.42 + offset; x < w * 0.48; x += span) {
+  const rr = 8 * view.dpr;
+  ctx.fillStyle = 'rgba(13, 25, 34, .78)';
+  ctx.strokeStyle = 'rgba(112, 225, 255, .88)';
+  ctx.lineWidth = 1.8 * view.dpr;
+  ctx.beginPath();
+  roundedRect(ctx, -w * 0.43, -h * 0.30, w * 0.86, h * 0.60, rr);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(31, 70, 84, .86)';
+  ctx.beginPath();
+  roundedRect(ctx, -w * 0.35, -h * 0.19, w * 0.70, h * 0.38, 5 * view.dpr);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(185, 245, 255, .22)';
+  ctx.lineWidth = 1 * view.dpr;
+  for (let x = -w * 0.28; x <= w * 0.28; x += w * 0.14) {
     ctx.beginPath();
-    ctx.moveTo(x - w * 0.035, -h * 0.11);
-    ctx.lineTo(x + w * 0.045, 0);
-    ctx.lineTo(x - w * 0.035, h * 0.11);
+    ctx.moveTo(x, -h * 0.18);
+    ctx.lineTo(x + w * 0.05, h * 0.18);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(95, 205, 255, .56)';
+  ctx.lineWidth = 2.4 * view.dpr;
+  ctx.lineCap = 'round';
+  const span = Math.max(10 * view.dpr, w * 0.20);
+  const offset = ((t * 84 * view.dpr) % span) - span;
+  for (let x = -w * 0.42 + offset; x < w * 0.50; x += span) {
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.04, -h * 0.10);
+    ctx.lineTo(x + w * 0.055, 0);
+    ctx.lineTo(x - w * 0.04, h * 0.10);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = 'rgba(115, 230, 255, .30)';
+  if (links.back) ctx.fillRect(-w * 0.52, -h * 0.13, w * 0.12, h * 0.26);
+  if (links.front) ctx.fillRect(w * 0.40, -h * 0.13, w * 0.12, h * 0.26);
+  if (links.left) ctx.fillRect(-w * 0.10, -h * 0.40, w * 0.20, h * 0.12);
+  if (links.right) ctx.fillRect(-w * 0.10, h * 0.28, w * 0.20, h * 0.12);
+
+  ctx.strokeStyle = 'rgba(255, 248, 176, .96)';
+  ctx.fillStyle = 'rgba(255, 248, 176, .96)';
+  ctx.lineWidth = 2.2 * view.dpr;
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.18, 0);
+  ctx.lineTo(w * 0.17, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(w * 0.25, 0);
+  ctx.lineTo(w * 0.10, -h * 0.12);
+  ctx.lineTo(w * 0.10, h * 0.12);
+  ctx.closePath();
+  ctx.fill();
+
+  if (s.automationItem?.phase === 'blocked') {
+    ctx.strokeStyle = 'rgba(255, 106, 106, .95)';
+    ctx.lineWidth = 2 * view.dpr;
+    ctx.strokeRect(w * 0.29, -h * 0.20, w * 0.12, h * 0.40);
+  }
+  ctx.restore();
+}
+
+function drawConveyorMotion(ctx, view, s, w, h, t, structures) {
+  drawConveyorBody(ctx, view, s, w, h, t, structures);
+}
+
+function drawRobotArmBody(ctx, view, s, w, h) {
+  const preview = s.automationItem || null;
+  const p = preview ? localAutomationProgress(preview) : null;
+  const phase = preview?.phase === 'arm' ? smoothstep01(p ?? 0) : (preview?.phase === 'arm_blocked' ? 1 : 0.5);
+  ctx.save();
+  rotateToDir(ctx, s);
+
+  ctx.fillStyle = 'rgba(35, 26, 16, .86)';
+  ctx.strokeStyle = 'rgba(255, 211, 118, .86)';
+  ctx.lineWidth = 1.8 * view.dpr;
+  ctx.beginPath();
+  roundedRect(ctx, -w * 0.26, -h * 0.24, w * 0.52, h * 0.48, 8 * view.dpr);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(255, 230, 160, .28)';
+  ctx.lineWidth = 1.3 * view.dpr;
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.44, 0);
+  ctx.lineTo(-w * 0.30, 0);
+  ctx.moveTo(w * 0.30, 0);
+  ctx.lineTo(w * 0.44, 0);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255, 225, 126, .22)';
+  ctx.beginPath();
+  ctx.arc(0, 0, Math.min(w, h) * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 225, 126, .82)';
+  ctx.stroke();
+
+  const clawX = (phase - 0.5) * w * 0.84;
+  const jointX = clawX * 0.45;
+  ctx.strokeStyle = 'rgba(255, 221, 145, .88)';
+  ctx.lineWidth = 4.2 * view.dpr;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(jointX, Math.sin(phase * Math.PI) * -h * 0.11);
+  ctx.lineTo(clawX, 0);
+  ctx.stroke();
+
+  ctx.lineWidth = 2.2 * view.dpr;
+  ctx.beginPath();
+  ctx.moveTo(clawX, 0);
+  ctx.lineTo(clawX - w * 0.075, -h * 0.09);
+  ctx.moveTo(clawX, 0);
+  ctx.lineTo(clawX - w * 0.075, h * 0.09);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(120, 255, 220, .60)';
+  ctx.beginPath();
+  ctx.arc(-w * 0.42, 0, 3.2 * view.dpr, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255, 205, 115, .72)';
+  ctx.beginPath();
+  ctx.arc(w * 0.42, 0, 3.2 * view.dpr, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (preview?.phase === 'arm_blocked') {
+    ctx.strokeStyle = 'rgba(255, 106, 106, .95)';
+    ctx.lineWidth = 2 * view.dpr;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.31, -h * 0.18);
+    ctx.lineTo(w * 0.43, h * 0.18);
+    ctx.moveTo(w * 0.43, -h * 0.18);
+    ctx.lineTo(w * 0.31, h * 0.18);
     ctx.stroke();
   }
   ctx.restore();
 }
 
 function drawRobotArmMotion(ctx, view, s, w, h) {
-  const preview = s.automationItem || null;
-  const p = preview ? localAutomationProgress(preview) : null;
-  const phase = preview?.phase === 'arm' ? smoothstep01(p ?? 0) : (preview?.phase === 'arm_blocked' ? 1 : 0.5);
-  ctx.save();
-  rotateToDir(ctx, s);
-  ctx.strokeStyle = 'rgba(255,220,145,.54)';
-  ctx.fillStyle = 'rgba(255,220,145,.20)';
-  ctx.lineWidth = 3 * view.dpr;
-  ctx.lineCap = 'round';
-  const clawX = (phase - 0.5) * w * 0.78;
-  ctx.beginPath();
-  ctx.arc(0, 0, Math.min(w, h) * 0.11, 0, Math.PI * 2);
-  ctx.moveTo(0, 0);
-  ctx.lineTo(clawX, 0);
-  ctx.moveTo(clawX, 0);
-  ctx.lineTo(clawX - w * 0.055, -h * 0.075);
-  ctx.moveTo(clawX, 0);
-  ctx.lineTo(clawX - w * 0.055, h * 0.075);
-  ctx.stroke();
-  ctx.restore();
+  drawRobotArmBody(ctx, view, s, w, h);
 }
 
 function drawDirectionArrow(ctx, view, s, w, h, label = false) {
@@ -296,7 +467,7 @@ function drawFootprintCells(ctx, view, w, h, tilesX, tilesY) {
   ctx.restore();
 }
 
-export function drawStructure(ctx, view, s, camX, camY, t = 0) {
+export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null) {
   if (!s) return;
   if (s.type === 'base_core') drawClaimSquare(ctx, view, s, camX, camY);
   const p = worldToScreen(view, s.x || 0, s.y || 0, camX, camY);
@@ -406,31 +577,10 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
     ctx.lineWidth = 1.5 * view.dpr;
     ctx.beginPath();
     if (isConveyor) {
-      ctx.save();
-      rotateToDir(ctx, s);
-      ctx.beginPath();
-      ctx.rect(-w * 0.38, -h * 0.22, w * 0.76, h * 0.44);
-      ctx.moveTo(-w * 0.26, 0); ctx.lineTo(w * 0.24, 0);
-      ctx.moveTo(w * 0.24, 0); ctx.lineTo(w * 0.08, -h * 0.13);
-      ctx.moveTo(w * 0.24, 0); ctx.lineTo(w * 0.08, h * 0.13);
-      ctx.moveTo(-w * 0.30, h * 0.30); ctx.arc(-w * 0.30, h * 0.30, w * 0.035, 0, Math.PI * 2);
-      ctx.moveTo(0, h * 0.30); ctx.arc(0, h * 0.30, w * 0.035, 0, Math.PI * 2);
-      ctx.moveTo(w * 0.30, h * 0.30); ctx.arc(w * 0.30, h * 0.30, w * 0.035, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      drawConveyorMotion(ctx, view, s, w, h, t, structures);
       ctx.beginPath();
     } else if (isRobotArm) {
-      ctx.save();
-      rotateToDir(ctx, s);
-      ctx.beginPath();
-      ctx.arc(0, 0, Math.min(w, h) * 0.16, 0, Math.PI * 2);
-      ctx.moveTo(-w * 0.34, 0); ctx.lineTo(w * 0.28, 0);
-      ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, -h * 0.11);
-      ctx.moveTo(w * 0.28, 0); ctx.lineTo(w * 0.14, h * 0.11);
-      ctx.moveTo(-w * 0.30, -h * 0.30); ctx.lineTo(-w * 0.16, -h * 0.16);
-      ctx.moveTo(w * 0.30, h * 0.30); ctx.lineTo(w * 0.16, h * 0.16);
-      ctx.stroke();
-      ctx.restore();
+      drawRobotArmMotion(ctx, view, s, w, h);
       ctx.beginPath();
     } else if (isSolar) {
       for (let i = -1; i <= 1; i += 1) {
@@ -513,11 +663,8 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0) {
       ctx.lineTo(0, h * 0.42);
     }
     ctx.stroke();
-    if (isConveyor) drawConveyorMotion(ctx, view, s, w, h, t);
-    if (isRobotArm) drawRobotArmMotion(ctx, view, s, w, h);
     if (isConveyor || isRobotArm) {
       drawAutomationItem(ctx, view, s, w, h, t);
-      drawDirectionArrow(ctx, view, s, w, h, false);
     }
   }
   ctx.restore();
@@ -587,7 +734,13 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
   ctx.stroke();
   ctx.setLineDash([]);
   drawFootprintCells(ctx, view, w, h, preview.tilesX || 1, preview.tilesY || 1);
-  if (preview.type === 'conveyor' || preview.type === 'robot_arm') {
+  if (preview.type === 'conveyor') {
+    ctx.globalAlpha *= 0.92;
+    drawConveyorBody(ctx, view, preview, w, h, t, null);
+    drawDirectionArrow(ctx, view, preview, w, h, true);
+  } else if (preview.type === 'robot_arm') {
+    ctx.globalAlpha *= 0.92;
+    drawRobotArmBody(ctx, view, preview, w, h);
     drawDirectionArrow(ctx, view, preview, w, h, true);
   }
 
