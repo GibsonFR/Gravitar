@@ -7,17 +7,25 @@ function fmt(n) {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
+function normalizeAmount(v) {
+  const n = Number(v) || 0;
+  return Math.max(0, Math.floor(n));
+}
+
 function resourceRows(resources = [], actionLabel, action, structureId) {
   if (!resources.length) return `<div class="storage-panel__empty">Vide.</div>`;
-  return resources.map((r) => `
-    <div class="storage-panel__row" data-resource="${esc(r.key)}" data-amount="${r.amount | 0}" data-structure="${structureId | 0}">
-      <span class="storage-panel__swatch" style="background:${esc(r.colorHex || '#d0d7e4')}"></span>
-      <span class="storage-panel__name">${esc(r.name || r.key)}</span>
-      <span class="storage-panel__qty">${r.amount | 0}</span>
-      <button class="ui-btn ui-btn--ghost storage-panel__mini" data-act="${action}" data-amount="1" type="button">1</button>
-      <button class="ui-btn storage-panel__main" data-act="${action}" data-amount="all" type="button">${actionLabel}</button>
-    </div>
-  `).join('');
+  return resources.map((r) => {
+    const amount = normalizeAmount(r.amount);
+    return `
+      <div class="storage-panel__row" data-resource="${esc(r.key)}" data-amount="${amount}" data-structure="${structureId | 0}">
+        <span class="storage-panel__swatch" style="background:${esc(r.colorHex || '#d0d7e4')}"></span>
+        <span class="storage-panel__name" title="${esc(r.name || r.key)}">${esc(r.name || r.key)}</span>
+        <span class="storage-panel__qty">${amount}</span>
+        <button class="ui-btn ui-btn--ghost storage-panel__mini" data-storage-act="${action}" data-amount="1" type="button">1</button>
+        <button class="ui-btn storage-panel__main" data-storage-act="${action}" data-amount="all" type="button">${actionLabel}</button>
+      </div>
+    `;
+  }).join('');
 }
 
 export class StoragePanelView {
@@ -27,37 +35,51 @@ export class StoragePanelView {
     this.el = document.createElement('section');
     this.el.className = 'storage-panel';
     this.el.innerHTML = '';
+
+    const stopUiEvent = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+    };
+
     this.el.addEventListener('pointerdown', (ev) => {
-      if (ev.target.closest('[data-close-storage], button[data-act]')) {
-        ev.preventDefault();
-        ev.stopPropagation();
-      }
-    });
-    this.el.addEventListener('click', (ev) => {
-      const close = ev.target.closest('[data-close-storage]');
+      const target = ev.target;
+      if (!(target instanceof Element)) return;
+      const close = target.closest('[data-close-storage]');
       if (close) {
-        ev.preventDefault();
-        ev.stopPropagation();
+        stopUiEvent(ev);
         this.closeLocal();
         return;
       }
-      const btn = ev.target.closest('button[data-act]');
-      if (!btn) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      const row = btn.closest('[data-resource]');
-      const key = row?.dataset?.resource || '';
-      const structureId = row?.dataset?.structure | 0;
-      const rowAmount = Math.max(0, row?.dataset?.amount | 0);
-      const amount = btn.dataset.amount === 'all' ? rowAmount : 1;
-      const act = btn.dataset.act;
-      if (!key || !structureId || amount <= 0) return;
-      this.sendCmd?.('storage_transfer', {
-        structureId,
-        resourceKey: key,
-        amount,
-        direction: act === 'withdraw' ? 'withdraw' : 'deposit'
-      });
+      const btn = target.closest('button[data-storage-act]');
+      if (btn) {
+        stopUiEvent(ev);
+        this.transferFromButton(btn);
+      }
+    }, { capture: true });
+
+    this.el.addEventListener('click', (ev) => {
+      const target = ev.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-close-storage], button[data-storage-act]')) {
+        stopUiEvent(ev);
+      }
+    }, { capture: true });
+  }
+
+  transferFromButton(btn) {
+    const row = btn.closest('[data-resource]');
+    const key = row?.dataset?.resource || '';
+    const structureId = row?.dataset?.structure | 0;
+    const rowAmount = normalizeAmount(row?.dataset?.amount);
+    const amount = btn.dataset.amount === 'all' ? rowAmount : Math.min(1, rowAmount);
+    const act = btn.dataset.storageAct;
+    if (!key || !structureId || amount <= 0) return;
+    this.sendCmd?.('storage_transfer', {
+      structureId,
+      resourceKey: key,
+      amount,
+      direction: act === 'withdraw' ? 'withdraw' : 'deposit'
     });
   }
 
@@ -80,7 +102,7 @@ export class StoragePanelView {
     const title = storage.owned ? 'Coffre' : 'Coffre non claim';
     const used = Number(storage.used) || 0;
     const cap = Number(storage.capacity) || 0;
-    const fill = Math.max(0, Math.min(1, Number(storage.fill01) || 0));
+    const fill = Math.max(0, Math.min(1, Number(storage.fill01) || (cap > 0 ? used / cap : 0)));
     this.el.innerHTML = `
       <div class="storage-panel__head">
         <div>
