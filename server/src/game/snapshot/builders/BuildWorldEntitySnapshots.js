@@ -181,6 +181,11 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       claimRadius: q(structure.claimRadius || 0),
       powered: !!structure.powered,
       energy: structure.energyState || null,
+      machineEnabled: structure.machineEnabled !== false,
+      machineJob: structure.machineJob ? {
+        progress: Math.max(0, Math.min(1, 1 - ((Number(structure.machineJob.remainingMs) || 0) / Math.max(1, Number(structure.machineJob.totalMs) || 1)))),
+        paused: !!structure.machineJob.paused
+      } : null,
       baseCoreId: structure.baseCoreId | 0 || 0,
       protectedByCore: isStructureProtectedByCore({ structures }, structure),
       attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false

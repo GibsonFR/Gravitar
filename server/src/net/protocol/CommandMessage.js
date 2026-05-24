@@ -1,5 +1,5 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle']);
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -71,7 +71,7 @@ export function sanitizeCommandMessage(raw) {
     if (Number.isFinite(y)) msg.y = Math.max(-4000, Math.min(4000, y));
   }
 
-  if (cmd === 'remove_structure' || cmd === 'repair_structure' || cmd === 'storage_open' || cmd === 'toggle_structure' || cmd === 'machine_open') {
+  if (cmd === 'remove_structure' || cmd === 'repair_structure' || cmd === 'storage_open' || cmd === 'toggle_structure' || cmd === 'machine_open' || cmd === 'machine_toggle') {
     const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
     msg.structureId = Math.max(0, Math.min(2147483647, structureId));
   }
@@ -95,6 +95,12 @@ export function sanitizeCommandMessage(raw) {
     msg.direction = dir === 'withdraw' ? 'withdraw' : 'deposit';
     const slot = cleanWord(raw.slot || 'input', 16).toLowerCase();
     msg.slot = slot === 'output' ? 'output' : 'input';
+  }
+
+  if (cmd === 'machine_toggle') {
+    if (raw.enabled === true || raw.enabled === false) msg.enabled = !!raw.enabled;
+    else if (raw.enabled === 'true' || raw.enabled === '1' || raw.enabled === 1) msg.enabled = true;
+    else if (raw.enabled === 'false' || raw.enabled === '0' || raw.enabled === 0) msg.enabled = false;
   }
 
   if (cmd === 'machine_process') {

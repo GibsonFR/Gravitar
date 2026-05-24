@@ -151,17 +151,18 @@ export function buildMachineSnapshot(state, player) {
   const input = resourceMap(st, 'input');
   const output = resourceMap(st, 'output');
   const job = buildJobSnapshot(st);
-  const canProduce = !!selectedRecipe
-    && !job?.active
+  const canRun = !!selectedRecipe
     && canBaseStartRecipe(core, st, selectedRecipe)
     && hasMachineInputs(st, selectedRecipe, 1)
     && canFitMachineOutput(st, selectedRecipe, 1);
+  const canProduce = canRun && !job?.active;
   return {
     id: st.id | 0,
     type: st.type,
     name: st.name || def.name || 'Machine',
     machineType: def.machineType,
     powered: !!st.powered,
+    enabled: st.machineEnabled !== false,
     energyUse: Number(def.energyUse) || 0,
     baseCoreId: core?.id | 0 || 0,
     baseEnergy: core?.energyState || null,
@@ -173,7 +174,8 @@ export function buildMachineSnapshot(state, player) {
       energyUse: getRecipeEnergyUse(st, selectedRecipe),
       input: recipeEntries(selectedRecipe.input).map(([key, amount]) => resourceEntry(key, amount | 0, { stored: input[key] | 0, have: player?.inv?.resources?.[key] | 0 })),
       output: recipeEntries(selectedRecipe.output).map(([key, amount]) => resourceEntry(key, amount | 0)),
-      canProduce
+      canProduce,
+      canRun
     } : null,
     recipes,
     input: mapRows(input),
@@ -184,7 +186,8 @@ export function buildMachineSnapshot(state, player) {
     outputUsed: usedCapacity(output),
     outputCapacity: MACHINE_OUTPUT_CAPACITY,
     job,
-    canProduce
+    canProduce,
+    canRun
   };
 }
 
@@ -205,7 +208,6 @@ export function selectMachineRecipe(state, player, structureId, recipeId, timeMs
 export function transferMachineResource(state, player, structureId, resourceKey, direction = 'deposit', slot = 'input', amount = 1, timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canPlayerAccessMachine(state, player, st)) return { ok: false, error: 'machine_locked' };
-  if (slot === 'input' && direction !== 'withdraw' && isMachineJobActive(st)) return { ok: false, error: 'machine_busy' };
   const key = String(resourceKey || '');
   if (!RESOURCE_DEFS[key]) return { ok: false, error: 'bad_resource' };
   const n = Math.max(1, Math.min(9999, amount | 0 || 1));
@@ -237,30 +239,23 @@ export function transferMachineResource(state, player, structureId, resourceKey,
 export function processMachineRecipe(state, player, structureId, recipeId = '', batches = 1, timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canPlayerAccessMachine(state, player, st)) return { ok: false, error: 'machine_locked' };
-  if (isMachineJobActive(st)) return { ok: false, error: 'machine_busy' };
   const def = getStructureDef(st.type);
   const recipe = getMachineRecipe(recipeId || st.machineRecipeId || '');
   if (!recipe || recipe.machineType !== def.machineType) return { ok: false, error: 'bad_recipe' };
-  const count = Math.max(1, Math.min(5, batches | 0 || 1));
-  const core = findAliveCoreForStructure(state, st);
-  if (!canBaseStartRecipe(core, st, recipe)) return { ok: false, error: 'no_power' };
-  if (!hasMachineInputs(st, recipe, count)) return { ok: false, error: 'missing_input' };
-  if (!canFitMachineOutput(st, recipe, count)) return { ok: false, error: 'output_full' };
-  const input = resourceMap(st, 'input');
-  for (const [key, amount] of recipeEntries(recipe.input)) {
-    input[key] = (input[key] | 0) - (amount | 0) * count;
-  }
-  cleanMap(input);
-  const totalMs = Math.max(250, Math.round((Number(recipe.seconds) || 1) * 1000 * count));
   st.machineRecipeId = recipe.id;
-  st.machineJob = {
-    recipeId: recipe.id,
-    batches: count,
-    totalMs,
-    remainingMs: totalMs,
-    startedAt: timeMs,
-    paused: false
-  };
+  st.machineEnabled = true;
+  st.updatedAt = timeMs;
+  player.forceFullUiSnapshot = true;
+  if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+  return { ok: true };
+}
+
+export function toggleMachine(state, player, structureId, enabled = null, timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canPlayerAccessMachine(state, player, st)) return { ok: false, error: 'machine_locked' };
+  const next = enabled === null || enabled === undefined ? !(st.machineEnabled !== false) : !!enabled;
+  st.machineEnabled = next;
+  if (!next && st.machineJob) st.machineJob.paused = true;
   st.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
   if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);

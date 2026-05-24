@@ -30,6 +30,7 @@ import { handleMachineClose } from './MachineCloseCommand.js';
 import { handleMachineProcess } from './MachineProcessCommand.js';
 import { handleMachineSelectRecipe } from './MachineSelectRecipeCommand.js';
 import { handleMachineTransfer } from './MachineTransferCommand.js';
+import { handleMachineToggle } from './MachineToggleCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -64,7 +65,8 @@ const HANDLERS = {
   machine_close: handleMachineClose,
   machine_process: handleMachineProcess,
   machine_select_recipe: handleMachineSelectRecipe,
-  machine_transfer: handleMachineTransfer
+  machine_transfer: handleMachineTransfer,
+  machine_toggle: handleMachineToggle
 };
 
 export function applyCommand(state, player, rawMsg, timeMs) {

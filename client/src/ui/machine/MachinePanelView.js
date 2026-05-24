@@ -78,13 +78,21 @@ export class MachinePanelView {
         if (!transfer.disabled) this.transferFromButton(transfer);
         return true;
       }
+      const toggle = target.closest('[data-machine-toggle]');
+      if (toggle) {
+        stopUiEvent(ev);
+        if (!toggle.disabled && this.currentId) {
+          const enabled = toggle.dataset.enabled === '1';
+          this.sendCmd('machine_toggle', { structureId: this.currentId, enabled });
+        }
+        return true;
+      }
       const produce = target.closest('[data-produce-machine]');
       if (produce) {
         stopUiEvent(ev);
         if (!produce.disabled) {
           const recipeId = produce.dataset.recipe || '';
-          const amount = produce.dataset.amount | 0 || 1;
-          if (this.currentId && recipeId) this.sendCmd('machine_process', { structureId: this.currentId, recipeId, amount });
+          if (this.currentId && recipeId) this.sendCmd('machine_process', { structureId: this.currentId, recipeId, amount: 1 });
         }
         return true;
       }
@@ -138,8 +146,9 @@ export class MachinePanelView {
     const recipes = Array.isArray(machine.recipes) ? machine.recipes : [];
     const selected = machine.selectedRecipe || null;
     const job = machine.job || null;
-    const powerLabel = machine.powered ? 'Alimentée' : 'Sans énergie';
-    const powerClass = machine.powered ? 'is-powered' : 'is-unpowered';
+    const enabled = machine.enabled !== false;
+    const powerLabel = enabled ? (machine.powered ? 'Alimentée' : 'Sans énergie') : 'Arrêtée';
+    const powerClass = enabled && machine.powered ? 'is-powered' : 'is-unpowered';
     const activeTab = this.tab === 'select' ? 'select' : 'production';
     const busy = !!job?.active;
 
@@ -180,13 +189,11 @@ export class MachinePanelView {
             ${resourceRows(machine.input || [], 'Reprendre', 'withdraw', 'input', machine.id, false)}
           </section>
           <section class="machine-panel__box machine-panel__center">
-            <button class="machine-panel__produce" type="button" data-produce-machine="1" data-recipe="${escapeHtml(selected.id)}" data-amount="1" ${machine.canProduce ? '' : 'disabled'}>
-              Démarrer
+            <button class="machine-panel__produce ${enabled ? 'is-off' : 'is-on'}" type="button" data-machine-toggle="1" data-enabled="${enabled ? '0' : '1'}">
+              ${enabled ? 'Arrêter' : 'Activer'}
             </button>
-            <button class="machine-panel__produce is-secondary" type="button" data-produce-machine="1" data-recipe="${escapeHtml(selected.id)}" data-amount="5" ${machine.canProduce ? '' : 'disabled'}>
-              ×5
-            </button>
-            <div class="machine-panel__status ${powerClass}">${escapeHtml(busy && job.paused ? 'En attente d’énergie' : powerLabel)}</div>
+            <div class="machine-panel__status ${powerClass}">${escapeHtml(!enabled ? 'Machine arrêtée' : (busy && job.paused ? 'En attente d’énergie' : powerLabel))}</div>
+            <div class="machine-panel__hint">Production continue tant que l’entrée et la sortie le permettent.</div>
           </section>
           <section class="machine-panel__box">
             <h3>Sortie <span>${fmt(machine.outputUsed)} / ${fmt(machine.outputCapacity)}</span></h3>

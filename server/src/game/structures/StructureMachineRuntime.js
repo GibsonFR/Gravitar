@@ -1,7 +1,10 @@
 import { getStructureDef } from './StructureDefs.js';
 import { getMachineRecipe } from '../../../../shared/content/crafting/MachineRecipes.js';
+import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 
 const MACHINE_SAVE_INTERVAL_MS = 5000;
+const MACHINE_INPUT_CAPACITY = 160;
+const MACHINE_OUTPUT_CAPACITY = 160;
 
 function recipeEntries(obj) {
   return Object.entries(obj || {}).filter(([, amount]) => (amount | 0) > 0);
@@ -20,10 +23,47 @@ function cleanMap(resources = {}) {
   return resources;
 }
 
-function addRecipeOutput(structure, recipe, batches = 1) {
+function usedCapacity(resources = {}) {
+  let used = 0;
+  for (const [key, amount] of Object.entries(resources || {})) {
+    const n = amount | 0;
+    if (n <= 0) continue;
+    const def = RESOURCE_DEFS[key];
+    used += (Number(def?.cargoPerUnit) || 1) * n;
+  }
+  return used;
+}
+
+function canFitRecipeOutput(structure, recipe) {
+  const output = resourceMap(structure, 'output');
+  let used = usedCapacity(output);
+  for (const [key, amount] of recipeEntries(recipe.output)) {
+    const def = RESOURCE_DEFS[key];
+    used += (Number(def?.cargoPerUnit) || 1) * (amount | 0);
+  }
+  return used <= MACHINE_OUTPUT_CAPACITY;
+}
+
+function hasRecipeInputs(structure, recipe) {
+  const input = resourceMap(structure, 'input');
+  for (const [key, amount] of recipeEntries(recipe.input)) {
+    if ((input[key] | 0) < (amount | 0)) return false;
+  }
+  return true;
+}
+
+function consumeRecipeInputs(structure, recipe) {
+  const input = resourceMap(structure, 'input');
+  for (const [key, amount] of recipeEntries(recipe.input)) {
+    input[key] = (input[key] | 0) - (amount | 0);
+  }
+  cleanMap(input);
+}
+
+function addRecipeOutput(structure, recipe) {
   const output = resourceMap(structure, 'output');
   for (const [key, amount] of recipeEntries(recipe.output)) {
-    output[key] = (output[key] | 0) + (amount | 0) * batches;
+    output[key] = (output[key] | 0) + (amount | 0);
   }
   cleanMap(output);
 }
@@ -35,10 +75,44 @@ export function isMachineJobActive(structure) {
 
 export function getMachineActiveEnergyUse(structure) {
   if (!isMachineJobActive(structure)) return 0;
+  if (structure.machineEnabled === false) return 0;
   const def = getStructureDef(structure.type);
   if (!def?.machineType) return 0;
   const recipe = getMachineRecipe(structure.machineJob.recipeId || structure.machineRecipeId || '');
   return Math.max(0, Number(recipe?.energyUse ?? def.energyUse) || 0);
+}
+
+function getSelectedRecipe(structure) {
+  const def = getStructureDef(structure?.type);
+  if (!def?.machineType) return null;
+  const recipe = getMachineRecipe(structure.machineRecipeId || '');
+  if (!recipe || recipe.machineType !== def.machineType) return null;
+  return recipe;
+}
+
+function canStartNextJob(structure, recipe) {
+  if (!structure?.machineEnabled) return false;
+  if (!recipe) return false;
+  if (isMachineJobActive(structure)) return false;
+  if (!structure.powered) return false;
+  if (!hasRecipeInputs(structure, recipe)) return false;
+  if (!canFitRecipeOutput(structure, recipe)) return false;
+  return true;
+}
+
+function startNextJob(structure, recipe, timeMs) {
+  consumeRecipeInputs(structure, recipe);
+  const totalMs = Math.max(250, Math.round((Number(recipe.seconds) || 1) * 1000));
+  structure.machineJob = {
+    recipeId: recipe.id,
+    batches: 1,
+    totalMs,
+    remainingMs: totalMs,
+    startedAt: timeMs,
+    paused: false
+  };
+  structure.updatedAt = timeMs;
+  return true;
 }
 
 export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
@@ -49,10 +123,26 @@ export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
 
   for (const st of state.structures.values()) {
     const def = getStructureDef(st?.type);
-    if (!def?.machineType || !st.machineJob) continue;
+    if (!def?.machineType) continue;
+
+    let recipe = getSelectedRecipe(st);
+    if (!recipe && st.machineRecipeId) {
+      st.machineRecipeId = '';
+      st.machineJob = null;
+      st.updatedAt = timeMs;
+      shouldSave ||= String(st.worldId || 'endless') === 'endless';
+      continue;
+    }
+
+    if (!isMachineJobActive(st) && canStartNextJob(st, recipe)) {
+      startNextJob(st, recipe, timeMs);
+      shouldSave ||= String(st.worldId || 'endless') === 'endless';
+    }
+
+    if (!st.machineJob) continue;
 
     const job = st.machineJob;
-    const recipe = getMachineRecipe(job.recipeId || st.machineRecipeId || '');
+    recipe = getMachineRecipe(job.recipeId || st.machineRecipeId || '');
     if (!recipe || recipe.machineType !== def.machineType) {
       st.machineJob = null;
       st.updatedAt = timeMs;
@@ -66,7 +156,7 @@ export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
       continue;
     }
 
-    if (!st.powered) {
+    if (st.machineEnabled === false || !st.powered) {
       job.paused = true;
       continue;
     }
@@ -76,9 +166,13 @@ export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
     st.updatedAt = timeMs;
 
     if (job.remainingMs <= 0) {
-      addRecipeOutput(st, recipe, Math.max(1, job.batches | 0 || 1));
+      addRecipeOutput(st, recipe);
       st.machineJob = null;
       shouldSave ||= String(st.worldId || 'endless') === 'endless';
+      const nextRecipe = getSelectedRecipe(st);
+      if (canStartNextJob(st, nextRecipe)) {
+        startNextJob(st, nextRecipe, timeMs);
+      }
     } else if (String(st.worldId || 'endless') === 'endless' && timeMs - (st.lastMachineSaveAt || 0) > MACHINE_SAVE_INTERVAL_MS) {
       st.lastMachineSaveAt = timeMs;
       shouldSave = true;

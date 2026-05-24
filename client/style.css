@@ -4770,3 +4770,19 @@ button.station-item-icon[draggable="true"]:active,
   box-shadow: 0 0 14px rgba(90, 236, 214, .28);
   transition: width .18s linear;
 }
+
+/* v115 — machines continues */
+.machine-panel__produce.is-off {
+  border-color: rgba(255, 151, 128, .48);
+  background: rgba(120, 42, 36, .34);
+}
+.machine-panel__produce.is-on {
+  border-color: rgba(98, 230, 215, .58);
+  background: rgba(28, 132, 130, .38);
+}
+.machine-panel__hint {
+  color: rgba(220, 238, 255, .58);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
+}
