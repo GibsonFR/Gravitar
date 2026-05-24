@@ -140,7 +140,6 @@ export class MachinePanelView {
         ${recipes.map((r) => `
           <button type="button" class="machine-panel__recipe-card ${r.id === machine.selectedRecipeId ? 'is-selected' : ''}" data-select-recipe="${escapeHtml(r.id)}">
             <strong>${escapeHtml(r.name)}</strong>
-            <span>${escapeHtml(r.description || '')}</span>
             <em>${r.seconds | 0}s · ${r.energyUse | 0} énergie</em>
             <div class="machine-panel__line"><b>Entrée</b>${fmtList(r.input, false)}</div>
             <div class="machine-panel__line"><b>Sortie</b>${fmtList(r.output, false)}</div>
@@ -152,7 +151,6 @@ export class MachinePanelView {
         <div class="machine-panel__recipe-banner">
           <div>
             <div class="machine-panel__recipe-title">${escapeHtml(selected.name)}</div>
-            <div class="machine-panel__recipe-desc">${escapeHtml(selected.description || '')}</div>
           </div>
           <div class="machine-panel__recipe-stats">${selected.seconds | 0}s · ${selected.energyUse | 0} énergie</div>
         </div>
