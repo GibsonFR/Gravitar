@@ -341,7 +341,7 @@ export const STRUCTURE_DEFS = {
   damageable: false,
   buildRange: 1100,
   gridSize: BASE_TILE_SIZE,
-  solid: true,
+  solid: false,
   neutral: true,
   mineable: true,
   color: '#334a45',

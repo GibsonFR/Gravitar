@@ -543,6 +543,10 @@ function sameSector(a, b) {
   return (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
 }
 
+function canPreviewOverlapStructure(def, st) {
+  return def?.type === 'mining_extractor' && st?.type === 'resource_deposit';
+}
+
 function claimRect(core) {
   const half = Math.max(1, Number(core?.claimRadius) || BASE_TILE * 8);
   return { left: (core?.x || 0) - half, right: (core?.x || 0) + half, top: (core?.y || 0) - half, bottom: (core?.y || 0) + half, w: half * 2, h: half * 2 };
@@ -596,7 +600,9 @@ function validatePreview(store, me, def, x, y, orientation) {
 
   for (const st of store?.structures?.values?.() || []) {
     if (!sameSector(st, me)) continue;
-    if (rectsOverlap(r, entityRect(st), 0)) return { ok: false, reason: 'Occupé' };
+    if (!rectsOverlap(r, entityRect(st), 0)) continue;
+    if (canPreviewOverlapStructure(def, st)) continue;
+    return { ok: false, reason: 'Occupé' };
   }
   for (const a of store?.asteroids?.values?.() || []) {
     if (!sameSector(a, me)) continue;

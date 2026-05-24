@@ -75,6 +75,26 @@ function inSameWorld(st, player) {
   return String(st.worldId || 'endless') === String(player.worldId || 'endless');
 }
 
+function isResourceDepositEntity(st) {
+  return String(st?.type || '').toLowerCase() === 'resource_deposit';
+}
+
+function canOverlapStructure(def, st) {
+  if (!def || !st) return false;
+  if (def.id === 'mining_extractor' && isResourceDepositEntity(st)) return true;
+  return false;
+}
+
+function findOverlappedDeposit(state, player, rect) {
+  for (const st of state?.structures?.values?.() || []) {
+    if (!isResourceDepositEntity(st)) continue;
+    if (!inSameWorld(st, player)) continue;
+    if ((st.sx | 0) !== (player.sx | 0) || (st.sy | 0) !== (player.sy | 0)) continue;
+    if (rectsOverlap(rect, entityRect(st), 0)) return st;
+  }
+  return null;
+}
+
 function hasResources(inv, cost) {
   for (const [key, amount] of Object.entries(cost || {})) {
     if (!RESOURCE_DEFS[key]) return false;
@@ -141,10 +161,16 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   }
 
 
+  let overlappedDeposit = null;
   for (const st of state.structures.values()) {
     if (!inSameWorld(st, player)) continue;
     if ((st.sx | 0) !== sx || (st.sy | 0) !== sy) continue;
-    if (rectsOverlap(r, entityRect(st), 0)) return { ok: false, error: 'blocked_by_structure' };
+    if (!rectsOverlap(r, entityRect(st), 0)) continue;
+    if (canOverlapStructure(def, st)) {
+      if (isResourceDepositEntity(st)) overlappedDeposit = st;
+      continue;
+    }
+    return { ok: false, error: 'blocked_by_structure' };
   }
   for (const wall of state.asteroids.values()) {
     if (!wall.solid && !wall.bastionWall) continue;
@@ -157,7 +183,7 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
     if (d < (station.radius || 80) + Math.max(def.w || def.radius * 2, def.h || def.radius * 2) * 0.5 + 80) return { ok: false, error: 'too_close_to_station' };
   }
   if (!isTestPlayer(player) && !hasResources(player.inv, def.cost)) return { ok: false, error: 'missing_resources' };
-  return { ok: true, def };
+  return { ok: true, def, overlappedDeposit };
 }
 
 export function placeStructure(state, player, type, x, y, orientation = 'h', timeMs = Date.now()) {
@@ -166,12 +192,16 @@ export function placeStructure(state, player, type, x, y, orientation = 'h', tim
   const def = check.def;
   if (!isTestPlayer(player)) payResources(player.inv, def.cost);
   const snapped = snapPlacement(def, x, y, orientation);
+  const r = rectFor(def, snapped.x, snapped.y, orientation);
+  const deposit = def.id === 'mining_extractor' ? (check.overlappedDeposit || findOverlappedDeposit(state, player, r)) : null;
   const st = createStructure(state, def.id, player.sx | 0, player.sy | 0, snapped.x, snapped.y, {
     ownerId: player.id | 0,
     ownerKey: ownerKey(player),
     ownerName: player.pseudo || player.accountName || 'Pilote',
     worldId: player.worldId || 'endless',
     orientation,
+    depositId: deposit?.id | 0 || 0,
+    depositResourceKey: deposit?.depositResourceKey || '',
     createdAt: timeMs,
     updatedAt: timeMs
   });

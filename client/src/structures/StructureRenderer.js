@@ -569,6 +569,103 @@ function drawFootprintCells(ctx, view, w, h, tilesX, tilesY) {
   ctx.restore();
 }
 
+
+function depositStyleFor(key, fallback = '#9ef0c7') {
+  const k = String(key || '').toLowerCase();
+  if (k === 'ironore') return { color: '#c76f52', accent: '#f0b28f', code: 'Fe', mode: 'ore' };
+  if (k === 'copper') return { color: '#d98238', accent: '#66d49b', code: 'Cu', mode: 'vein' };
+  if (k === 'aluminiumore') return { color: '#cfd7dd', accent: '#ffffff', code: 'Al', mode: 'shards' };
+  if (k === 'quartz') return { color: '#91d9ff', accent: '#f2fbff', code: 'Qz', mode: 'crystal' };
+  if (k === 'graphite') return { color: '#555b66', accent: '#a0a8b4', code: 'Gr', mode: 'slabs' };
+  if (k === 'hydrocarbons') return { color: '#3c2a1f', accent: '#c28a53', code: 'Oil', mode: 'pool' };
+  return { color: fallback || '#9ef0c7', accent: '#e8fff4', code: String(key || '?').slice(0, 3), mode: 'ore' };
+}
+
+function drawResourceDepositBody(ctx, view, s, w, h) {
+  const ratio = depositRatio(s);
+  const style = depositStyleFor(s.depositResourceKey, s.depositColorHex || s.borderColor || s.color);
+  const color = style.color;
+  const accent = style.accent;
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 10 * view.dpr;
+  ctx.globalAlpha *= ratio > 0 ? 1 : 0.42;
+
+  ctx.fillStyle = 'rgba(8, 15, 12, .48)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.4 * view.dpr;
+  ctx.beginPath();
+  ctx.ellipse(0, h * 0.10, w * 0.38, h * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.shadowBlur = 4 * view.dpr;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1.2 * view.dpr;
+
+  if (style.mode === 'crystal') {
+    const crystals = [[-0.18, 0.02, 0.34], [0, -0.08, 0.46], [0.18, 0.04, 0.30]];
+    for (const [cx, cy, sz] of crystals) {
+      ctx.beginPath();
+      ctx.moveTo(w * cx, h * (cy - sz * 0.44));
+      ctx.lineTo(w * (cx + sz * 0.16), h * cy);
+      ctx.lineTo(w * cx, h * (cy + sz * 0.36));
+      ctx.lineTo(w * (cx - sz * 0.16), h * cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else if (style.mode === 'pool') {
+    ctx.fillStyle = 'rgba(28, 18, 12, .88)';
+    ctx.strokeStyle = accent;
+    for (const [cx, cy, rx, ry] of [[0,0.04,.25,.12],[-.16,.1,.14,.07],[.18,.12,.13,.06]]) {
+      ctx.beginPath();
+      ctx.ellipse(w * cx, h * cy, w * rx, h * ry, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+  } else if (style.mode === 'slabs') {
+    for (const [cx, cy, ww, hh, rot] of [[-.16,-.02,.20,.09,-.25],[.05,.02,.26,.10,.16],[.18,-.10,.18,.08,-.1],[-.02,.13,.22,.08,.08]]) {
+      ctx.save(); ctx.translate(w*cx,h*cy); ctx.rotate(rot); ctx.fillRect(-w*ww/2,-h*hh/2,w*ww,h*hh); ctx.strokeRect(-w*ww/2,-h*hh/2,w*ww,h*hh); ctx.restore();
+    }
+  } else {
+    const rocks = [[-.20,.04,.12],[-.05,-.06,.16],[.13,.02,.14],[.25,.10,.09],[.02,.15,.10]];
+    for (const [cx, cy, r] of rocks) {
+      ctx.beginPath();
+      ctx.moveTo(w*(cx-r), h*cy);
+      ctx.lineTo(w*(cx-r*.35), h*(cy-r*.8));
+      ctx.lineTo(w*(cx+r*.6), h*(cy-r*.55));
+      ctx.lineTo(w*(cx+r), h*(cy+r*.15));
+      ctx.lineTo(w*(cx+r*.20), h*(cy+r*.75));
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+    if (style.mode === 'vein') {
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2 * view.dpr;
+      ctx.beginPath(); ctx.moveTo(-w*.24,h*.10); ctx.lineTo(-w*.03,-h*.08); ctx.lineTo(w*.20,h*.06); ctx.stroke();
+    }
+  }
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(3, 8, 10, .78)';
+  ctx.fillRect(-w * 0.28, h * 0.36, w * 0.56, 5 * view.dpr);
+  ctx.fillStyle = color;
+  ctx.fillRect(-w * 0.28, h * 0.36, w * 0.56 * ratio, 5 * view.dpr);
+
+  ctx.shadowColor = 'rgba(0,0,0,.95)';
+  ctx.shadowBlur = 4 * view.dpr;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `${10 * view.dpr}px system-ui, sans-serif`;
+  ctx.fillStyle = ratio > 0 ? accent : 'rgba(255,150,150,.94)';
+  ctx.fillText(ratio > 0 ? style.code : 'VIDE', 0, -h * 0.32);
+  ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+  ctx.fillStyle = 'rgba(226,245,255,.82)';
+  ctx.fillText(`${Math.max(0, s.depositRemaining | 0)}`, 0, h * 0.49);
+  ctx.restore();
+}
+
 export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null) {
   if (!s) return;
   if (s.type === 'base_core') drawClaimSquare(ctx, view, s, camX, camY);
@@ -594,6 +691,11 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
 
   ctx.save();
   ctx.translate(p.x, p.y);
+  if (s.type === 'resource_deposit') {
+    drawResourceDepositBody(ctx, view, s, w, h);
+    ctx.restore();
+    return;
+  }
   ctx.shadowColor = edge;
   ctx.shadowBlur = (s.type === 'wall' || s.type === 'door') ? 5 * view.dpr : 8 * view.dpr;
   ctx.fillStyle = fill;

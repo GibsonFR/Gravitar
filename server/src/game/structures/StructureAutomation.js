@@ -109,6 +109,7 @@ function findStructureAt(state, origin, point) {
   let bestD2 = Infinity;
   for (const st of state?.structures?.values?.() || []) {
     if (!st || st.id === origin.id) continue;
+    if (String(st.type || '') === 'resource_deposit') continue;
     if (!sameWorld(origin, st)) continue;
     if (!pointInside(st, point.x, point.y, 8)) continue;
     const dx = finite(st.x) - point.x;
@@ -430,6 +431,10 @@ function updateExtractor(state, extractor, timeMs) {
   const amount = Math.max(1, Number(def?.extractionYield) || 1);
   map[key] = (map[key] | 0) + amount;
   if (deposit.depositRemaining > 0) deposit.depositRemaining = Math.max(0, (deposit.depositRemaining | 0) - amount);
+  if ((deposit.depositRemaining | 0) <= 0) {
+    deposit.depletedAt = timeMs;
+    extractor.depositId = 0;
+  }
   extractor.lastExtractionAt = timeMs;
   extractor.extractionProgress = 0;
   extractor.automationStatus = '';
