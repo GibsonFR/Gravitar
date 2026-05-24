@@ -158,6 +158,7 @@ export function sanitizeCommandMessage(raw) {
   }
   if (cmd === 'equipment_fabricator_craft') {
     msg.recipeId = cleanWord(raw.recipeId ?? raw.recipe ?? '', 80).toLowerCase();
+    msg.mode = cleanWord(raw.mode ?? raw.craftMode ?? 'standard', 32).toLowerCase();
   }
 
   return msg;

@@ -7,6 +7,25 @@ function resourceList(entries = []) {
   return entries.map((r) => `<span class="equipment-fab__res ${r.missing > 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)} ×${r.amount | 0}<em>${r.have | 0}</em></span>`).join('');
 }
 
+
+function modeList(recipe, structureId) {
+  const modes = recipe.craftModes || [];
+  if (!modes.length) return '';
+  return `<div class="equipment-fab__modes">${modes.map((mode) => `
+    <button type="button"
+      class="equipment-fab__mode ${mode.locked ? 'is-locked' : ''}"
+      data-equipment-fab-craft="${escapeHtml(recipe.id)}"
+      data-mode="${escapeHtml(mode.id)}"
+      data-structure="${structureId | 0}"
+      ${recipe.locked || !mode.canCraft ? 'disabled' : ''}>
+      <strong>${escapeHtml(mode.name)}</strong>
+      <span>${mode.qualityBoost > 0 ? `+${mode.qualityBoost} qualité` : 'base'}</span>
+      <small>${mode.locked ? `Requiert : ${escapeHtml(mode.requiredResearchName || mode.requiredResearchId || 'recherche')}` : resourceList(mode.extraInput || [])}</small>
+    </button>
+  `).join('')}</div>`;
+}
+
+
 function bonusList(bonuses = {}) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => Number(v) !== 0);
   if (!entries.length) return '<span class="equipment-fab__muted">Aucun bonus passif</span>';
@@ -38,7 +57,8 @@ export class EquipmentFabricatorPanelView {
       if (craft) {
         this.sendCmd('equipment_fabricator_craft', {
           structureId: craft.dataset.structure | 0,
-          recipeId: craft.dataset.equipmentFabCraft || ''
+          recipeId: craft.dataset.equipmentFabCraft || '',
+          mode: craft.dataset.mode || 'standard'
         });
         ev.preventDefault();
       }
@@ -72,7 +92,8 @@ export class EquipmentFabricatorPanelView {
         <div class="equipment-fab__sub">Bonus</div>
         <div class="equipment-fab__bonus">${bonusList(r.bonuses || {})}</div>
         ${r.locked ? `<div class="equipment-fab__lock">Requiert : ${escapeHtml(r.requiredResearchName || r.requiredResearchId || 'recherche')}</div>` : ''}
-        <button type="button" data-equipment-fab-craft="${escapeHtml(r.id)}" data-structure="${data.id | 0}" ${r.canCraft ? '' : 'disabled'}>Fabriquer</button>
+        <div class="equipment-fab__sub">Mode de fabrication</div>
+        ${modeList(r, data.id)}
       </article>
     `).join('');
 
@@ -84,7 +105,10 @@ export class EquipmentFabricatorPanelView {
           <strong>${escapeHtml(last.name || '')}</strong>
           <small>${escapeHtml(last.categoryName || '')} · T${last.tier | 0}${last.qualityName ? ` · ${escapeHtml(last.qualityName)}` : ''}</small>
         </div>
-        <div class="equipment-fab__bonus">${bonusList(last.bonuses || {})}</div>
+        <div>
+          <div class="equipment-fab__bonus">${bonusList(last.bonuses || {})}</div>
+          ${(last.rollLines || []).length ? `<div class="equipment-fab__roll-lines">${last.rollLines.map((line) => `<span>${escapeHtml(line.label || line.key)} ${Number(line.value) > 0 ? '+' : ''}${escapeHtml(String(line.value))}</span>`).join('')}</div>` : ''}
+        </div>
       </div>` : '';
 
     this.el.innerHTML = `

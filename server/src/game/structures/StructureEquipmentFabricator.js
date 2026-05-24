@@ -6,7 +6,7 @@ import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
 import { rollCraftedEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
 import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
-import { EQUIPMENT_FABRICATOR_RECIPES, getEquipmentCraftRecipe } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
+import { EQUIPMENT_CRAFT_MODES, EQUIPMENT_FABRICATOR_RECIPES, getEquipmentCraftMode, getEquipmentCraftRecipe, mergeRecipeInputs } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
 import { getResearchName, isResearchCompleted } from '../../../../shared/content/research/ScienceResearchDefs.js';
 
 const FABRICATOR_RANGE = 280;
@@ -57,11 +57,40 @@ function completed(player) {
   return Array.isArray(player?.research?.completed) ? player.research.completed : [];
 }
 
+function combinedInput(recipe, mode) {
+  return mergeRecipeInputs(recipe?.input || {}, mode?.extraInput || {});
+}
+
+function modeUnlocked(player, mode) {
+  return !mode?.requiresResearchId || isResearchCompleted(completed(player), mode.requiresResearchId);
+}
+
+function modeSnapshot(player, recipe, mode) {
+  const input = combinedInput(recipe, mode);
+  const unlocked = modeUnlocked(player, mode);
+  return {
+    id: mode.id,
+    name: mode.name,
+    description: mode.description || '',
+    qualityBoost: mode.qualityBoost | 0,
+    input: Object.entries(input).map(([key, amount]) => resourceEntry(key, amount | 0, player)),
+    extraInput: Object.entries(mode.extraInput || {}).map(([key, amount]) => resourceEntry(key, amount | 0, player)),
+    locked: !unlocked,
+    requiredResearchId: mode.requiresResearchId || '',
+    requiredResearchName: mode.requiresResearchId ? getResearchName(mode.requiresResearchId) : '',
+    affordable: hasResources(player, input),
+    canCraft: unlocked && hasResources(player, input)
+  };
+}
+
 function recipeSnapshot(player, recipe) {
   const item = getItemDef(recipe.itemId);
   const researchDone = isResearchCompleted(completed(player), recipe.researchId);
-  const affordable = hasResources(player, recipe.input);
+  const standardMode = getEquipmentCraftMode('standard');
+  const standardInput = combinedInput(recipe, standardMode);
+  const affordable = hasResources(player, standardInput);
   const owned = ownsItem(player, recipe.itemId);
+  const modes = EQUIPMENT_CRAFT_MODES.map((mode) => modeSnapshot(player, recipe, mode));
   return {
     id: recipe.id,
     itemId: recipe.itemId,
@@ -77,10 +106,11 @@ function recipeSnapshot(player, recipe) {
     tags: (item?.tags || []).map((tag) => ({ ...tag })),
     owned,
     affordable,
+    craftModes: modes,
     locked: !researchDone,
     requiredResearchId: recipe.researchId || '',
     requiredResearchName: recipe.researchId ? getResearchName(recipe.researchId) : '',
-    canCraft: !!item && researchDone && affordable
+    canCraft: !!item && researchDone && modes.some((mode) => mode.canCraft)
   };
 }
 
@@ -120,16 +150,18 @@ export function closeEquipmentFabricator(player) {
   return true;
 }
 
-export function craftEquipmentItem(state, player, structureId, recipeId, timeMs = Date.now()) {
+export function craftEquipmentItem(state, player, structureId, recipeId, modeId = 'standard', timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canAccess(state, player, st)) return { ok: false, error: 'access' };
   if (!st.powered) return { ok: false, error: 'no_power' };
   const recipe = getEquipmentCraftRecipe(recipeId);
   if (!recipe) return { ok: false, error: 'bad_recipe' };
   const snap = recipeSnapshot(player, recipe);
-  if (snap.locked) return { ok: false, error: 'research_required' };
-  if (snap.owned) return { ok: false, error: 'already_owned' };
-  if (!payResources(player, recipe.input)) return { ok: false, error: 'missing_resources' };
+  const mode = getEquipmentCraftMode(modeId || 'standard');
+  const selectedMode = snap.craftModes?.find((m) => m.id === mode.id) || snap.craftModes?.[0];
+  const input = combinedInput(recipe, mode);
+  if (snap.locked || selectedMode?.locked) return { ok: false, error: 'research_required' };
+  if (!selectedMode?.affordable || !payResources(player, input)) return { ok: false, error: 'missing_resources' };
 
   player.equipment ??= {};
   if (!Array.isArray(player.equipment.ownedItemIds)) player.equipment.ownedItemIds = [];
@@ -140,12 +172,13 @@ export function craftEquipmentItem(state, player, structureId, recipeId, timeMs 
     ownerKey: player.accountKey || player.pseudo || player.id || '',
     craftedIndex: player.equipment.craftedItemCounter,
     timeMs,
-    qualityBoost: Math.max(0, (player.progression?.level | 0) - 1)
+    qualityBoost: (mode.qualityBoost | 0) + Math.max(0, (player.progression?.level | 0) - 1)
   });
   if (!crafted) return { ok: false, error: 'roll_failed' };
   addCustomEquipmentDef(player, crafted);
   player.equipment.ownedItemIds = [...new Set([...player.equipment.ownedItemIds, crafted.id])].sort();
   player.equipment.lastCraftedItemId = crafted.id;
+  player.equipment.lastCraftedModeId = mode.id;
   player.equipment.lastChangedAt = timeMs | 0;
   player.forceFullUiSnapshot = true;
   player.hint = `Fabriqué : ${crafted.name}`;

@@ -94,7 +94,7 @@ export function rollCraftedEquipment({ baseItemId, recipeId, ownerKey = '', craf
   const rand = rng(`${ownerKey}|${recipeId}|${baseItemId}|${craftedIndex}|${timeMs}`);
   const adjustedQualities = QUALITY_TABLE.map((q, idx) => ({
     ...q,
-    weight: Math.max(1, q.weight + (idx > 0 ? qualityBoost * idx * 3 : 0))
+    weight: Math.max(1, q.weight + (idx > 0 ? qualityBoost * idx * 4 : -qualityBoost * 2))
   }));
   const quality = pickWeighted(rand, adjustedQualities);
   const affixPool = baseAffixes(base.categoryId);
