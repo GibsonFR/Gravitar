@@ -10,7 +10,7 @@ import { drawGroundMarker } from './render/GroundMarkerRenderer.js';
 import { drawSelectionRing } from './render/SelectionRenderer.js';
 
 import { drawStation } from './station/StationRenderer.js';
-import { drawStructure, drawStructureBuildPreview, drawStructureFlowOverlay } from './structures/StructureRenderer.js';
+import { drawStructure, drawStructureBuildPreview } from './structures/StructureRenderer.js';
 import { drawPortals } from './portal/PortalRenderer.js';
 import { drawAsteroid } from './asteroid/AsteroidRenderer.js';
 import { drawProjectile } from './projectile/ProjectileRenderer.js';
@@ -170,7 +170,6 @@ export function startApp() {
   store.inputRef = input;
   const audio = new AudioSystem();
   let graphicsOptions = { starDensity: 1, showGrid: true, showFx: true, renderScale: 1 };
-  let logisticsOverlayEnabled = false;
   const fxStore = new VisualFxStore();
   const uiRoot = document.getElementById('ui-root');
   const dock = new TopRightDock(uiRoot);
@@ -280,17 +279,6 @@ export function startApp() {
     onRocketSlotSwitch: (slot) => sendCmd('switch_rocket_slot', { slot }),
     onPrimaryDown: handlePrimaryDown
   });
-
-  window.addEventListener('keydown', (ev) => {
-    const tag = String(ev.target?.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || ev.target?.isContentEditable || ev.repeat) return;
-    if (ev.key.toLowerCase() === 'l') {
-      logisticsOverlayEnabled = !logisticsOverlayEnabled;
-      statusEl.textContent = logisticsOverlayEnabled ? 'Overlay logistique activé' : 'Overlay logistique désactivé';
-      ev.preventDefault();
-    }
-  });
-
   audio.installUnlock(canvas);
 
   // Le clic droit est traité directement dans InputController.onPrimaryDown.
@@ -802,11 +790,9 @@ export function startApp() {
 
     if (me) drawGroundMarker(ctx, view, me, camX, camY, t);
 
-    const structurePreview = basePanel.getPreview(store, mouseWorld);
     for (const s of store.stations.values()) drawStation(ctx, view, s, camX, camY, t);
-    drawStructureFlowOverlay(ctx, view, store.structures, camX, camY, t, logisticsOverlayEnabled || !!structurePreview);
     for (const st of store.structures.values()) drawStructure(ctx, view, st, camX, camY, t, store.structures);
-    drawStructureBuildPreview(ctx, view, structurePreview, camX, camY, t, store.structures);
+    drawStructureBuildPreview(ctx, view, basePanel.getPreview(store, mouseWorld), camX, camY, t);
     drawPortals(ctx, view, store, camX, camY);
     for (const a of store.asteroids.values()) drawAsteroid(ctx, view, a, camX, camY);
     for (const mob of store.mobs.values()) drawMob(ctx, view, mob, camX, camY, t);

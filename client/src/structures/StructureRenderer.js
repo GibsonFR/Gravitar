@@ -39,78 +39,6 @@ function rotateToDir(ctx, s) {
   ctx.rotate(angle);
 }
 
-function rightOf(d) {
-  return { x: -d.y, y: d.x };
-}
-
-function portWorldPoint(s, forwardTiles = 0, sideTiles = 0) {
-  const d = dirOf(s);
-  const r = rightOf(d);
-  return {
-    x: (Number(s?.x) || 0) + d.x * 64 * forwardTiles + r.x * 64 * sideTiles,
-    y: (Number(s?.y) || 0) + d.y * 64 * forwardTiles + r.y * 64 * sideTiles
-  };
-}
-
-function drawPortDot(ctx, view, x, y, kind = 'input', alpha = 1, dir = { x: 1, y: 0 }, label = '') {
-  const isOutput = kind === 'output';
-  const isPower = kind === 'power';
-  const color = isOutput
-    ? 'rgba(255, 223, 128, 1)'
-    : isPower
-      ? 'rgba(126, 218, 255, 1)'
-      : 'rgba(112, 255, 210, 1)';
-  const text = label || (isPower ? '⚡' : isOutput ? 'OUT' : 'IN');
-  const ux = Number(dir?.x) || 0;
-  const uy = Number(dir?.y) || 0;
-  const horizontal = Math.abs(ux) >= Math.abs(uy);
-  const bw = (horizontal ? 24 : 28) * view.dpr;
-  const bh = (horizontal ? 13 : 14) * view.dpr;
-  const nx = ux || (isOutput ? 1 : -1);
-  const ny = uy || 0;
-
-  ctx.save();
-  ctx.globalAlpha *= alpha;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 9 * view.dpr;
-  ctx.fillStyle = 'rgba(5, 12, 18, .92)';
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.45 * view.dpr;
-
-  ctx.beginPath();
-  roundedRect(ctx, x - bw * 0.5, y - bh * 0.5, bw, bh, 5 * view.dpr);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = color;
-  ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, x, y + 0.5 * view.dpr);
-
-  if (!isPower) {
-    const ax = x + nx * (bw * 0.36);
-    const ay = y + ny * (bh * 0.36);
-    ctx.beginPath();
-    ctx.moveTo(ax + nx * 5 * view.dpr, ay + ny * 5 * view.dpr);
-    ctx.lineTo(ax - nx * 2 * view.dpr - ny * 3 * view.dpr, ay - ny * 2 * view.dpr + nx * 3 * view.dpr);
-    ctx.lineTo(ax - nx * 2 * view.dpr + ny * 3 * view.dpr, ay - ny * 2 * view.dpr - nx * 3 * view.dpr);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-function drawLocalPort(ctx, view, x, y, kind = 'input', alpha = 1, dir = { x: 1, y: 0 }, label = '') {
-  drawPortDot(ctx, view, x, y, kind, alpha, dir, label);
-}
-
-function drawWorldPort(ctx, view, point, camX, camY, kind = 'input', alpha = 1, dir = { x: 1, y: 0 }, label = '') {
-  const p = worldToScreen(view, point.x, point.y, camX, camY);
-  drawPortDot(ctx, view, p.x, p.y, kind, alpha, dir, label);
-}
-
 function oppositeDir(d) {
   return { x: -d.x, y: -d.y };
 }
@@ -649,11 +577,11 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   const fill = (s.type === 'wall' || s.type === 'door')
     ? (s.owned ? 'rgba(38, 55, 72, .74)' : 'rgba(72, 34, 40, .70)')
     : machineTypes.has(s.type)
-      ? (s.owned ? 'rgba(36, 48, 58, .62)' : 'rgba(74, 36, 44, .32)')
+      ? (s.owned ? 'rgba(40, 50, 60, .40)' : 'rgba(74, 36, 44, .32)')
       : powerTypes.has(s.type)
-        ? (s.owned ? 'rgba(30, 50, 56, .60)' : 'rgba(74, 38, 44, .32)')
+        ? (s.owned ? 'rgba(34, 52, 58, .40)' : 'rgba(74, 38, 44, .32)')
         : storageTypes.has(s.type)
-          ? (s.owned ? 'rgba(30, 54, 48, .62)' : 'rgba(74, 38, 44, .30)')
+          ? (s.owned ? 'rgba(34, 52, 50, .42)' : 'rgba(74, 38, 44, .30)')
           : pal.fill;
 
   ctx.save();
@@ -950,48 +878,6 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.lineTo(0, h * 0.42);
     }
     ctx.stroke();
-    if (!isConveyor && !isRobotArm) {
-      const typeLabel = isStorage ? 'RES'
-        : isEquip ? 'GEAR'
-        : isAmmo ? 'AMMO'
-        : isSolar ? 'SOLAR'
-        : isGenerator ? 'GEN'
-        : isFuelTank ? 'FUEL'
-        : isFurnace ? 'FURN'
-        : isHighFurnace ? 'HOT'
-        : isChem ? 'CHEM'
-        : isElectro ? 'ELEC'
-        : isElectronics ? 'CHIP'
-        : isPress ? 'PRESS'
-        : '';
-      if (typeLabel) {
-        ctx.save();
-        ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(225, 245, 255, .66)';
-        ctx.shadowColor = 'rgba(0,0,0,.9)';
-        ctx.shadowBlur = 3 * view.dpr;
-        ctx.fillText(typeLabel, 0, h * 0.34);
-        ctx.restore();
-      }
-
-      if (isStorage || isEquip || isAmmo) {
-        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .96, { x: -1, y: 0 }, 'IN');
-      } else if (isSolar) {
-        drawLocalPort(ctx, view, w * 0.50, 0, 'power', .96, { x: 1, y: 0 }, '⚡');
-      } else if (isGenerator) {
-        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .92, { x: -1, y: 0 }, 'FUEL');
-        drawLocalPort(ctx, view, w * 0.50, 0, 'power', .96, { x: 1, y: 0 }, '⚡');
-      } else if (isFuelTank) {
-        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .92, { x: -1, y: 0 }, 'IN');
-        drawLocalPort(ctx, view, w * 0.50, 0, 'output', .92, { x: 1, y: 0 }, 'OUT');
-      } else if (isFurnace || isHighFurnace || isChem || isElectro || isElectronics || isPress) {
-        drawLocalPort(ctx, view, -w * 0.50, 0, 'input', .92, { x: -1, y: 0 }, 'IN');
-        drawLocalPort(ctx, view, w * 0.50, 0, 'output', .92, { x: 1, y: 0 }, 'OUT');
-        drawLocalPort(ctx, view, 0, h * 0.50, 'power', .86, { x: 0, y: 1 }, '⚡');
-      }
-    }
     if (isConveyor || isRobotArm) {
       drawAutomationItem(ctx, view, s, w, h, t);
     }
@@ -1011,179 +897,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   }
 }
 
-
-function isMachineLikeStructure(s) {
-  const t = String(s?.type || '').toLowerCase();
-  return t === 'furnace' || t === 'high_temp_furnace' || t === 'chemical_refinery' || t === 'electrolyzer' || t === 'electronics_bench' || t === 'industrial_press';
-}
-
-function isStorageLikeStructure(s) {
-  const t = String(s?.type || '').toLowerCase();
-  return t === 'storage' || t === 'equipment_storage' || t === 'ammo_storage';
-}
-
-function structureInputPorts(s) {
-  const t = String(s?.type || '').toLowerCase();
-  if (t === 'merger') return [portWorldPoint(s, -0.5, -0.5), portWorldPoint(s, -0.5, 0.5)];
-  if (t === 'splitter') return [portWorldPoint(s, -0.5, -0.5)];
-  if (isStorageLikeStructure(s) || isMachineLikeStructure(s) || t === 'fuel_generator' || t === 'fuel_tank') return [portWorldPoint(s, -0.5, 0)];
-  if (isConveyorType(t) || isArmType(t)) return [portWorldPoint(s, -0.5, 0)];
-  return [];
-}
-
-function structureOutputPorts(s) {
-  const t = String(s?.type || '').toLowerCase();
-  if (t === 'splitter') return [portWorldPoint(s, 0.5, -0.5), portWorldPoint(s, 0.5, 0.5)];
-  if (t === 'merger') return [portWorldPoint(s, 0.5, -0.5)];
-  if (t === 'fuel_tank' || isMachineLikeStructure(s) || isConveyorType(t) || isArmType(t)) return [portWorldPoint(s, 0.5, 0)];
-  if (t === 'solar_panel' || t === 'fuel_generator') return [portWorldPoint(s, 0.5, 0)];
-  return [];
-}
-
-function nearestStructureAtPort(structures, source, point) {
-  if (!structures?.values) return null;
-  let best = null;
-  let bestD2 = Infinity;
-  for (const st of structures.values()) {
-    if (!st || st.id === source?.id || !sameSector(source, st)) continue;
-    const dx = (Number(st.x) || 0) - point.x;
-    const dy = (Number(st.y) || 0) - point.y;
-    const halfW = Math.max(36, Number(st.w || st.radius * 2 || 64) * 0.52);
-    const halfH = Math.max(36, Number(st.h || st.radius * 2 || 64) * 0.52);
-    if (Math.abs(dx) > halfW + 10 || Math.abs(dy) > halfH + 10) continue;
-    const d2 = dx * dx + dy * dy;
-    if (d2 < bestD2) { best = st; bestD2 = d2; }
-  }
-  return best;
-}
-
-function drawFlowLine(ctx, view, a, b, camX, camY, t, blocked = false) {
-  const pa = worldToScreen(view, a.x, a.y, camX, camY);
-  const pb = worldToScreen(view, b.x, b.y, camX, camY);
-  const dx = pb.x - pa.x;
-  const dy = pb.y - pa.y;
-  const len = Math.hypot(dx, dy);
-  if (len < 1) return;
-  const ux = dx / len;
-  const uy = dy / len;
-  const pulse = ((t * 75 * view.dpr) % 18);
-  ctx.save();
-  ctx.globalAlpha *= blocked ? .80 : .62;
-  ctx.strokeStyle = blocked ? 'rgba(255, 112, 112, .82)' : 'rgba(126, 244, 255, .58)';
-  ctx.lineWidth = blocked ? 2.2 * view.dpr : 1.6 * view.dpr;
-  ctx.setLineDash([10 * view.dpr, 8 * view.dpr]);
-  ctx.lineDashOffset = -pulse;
-  ctx.beginPath();
-  ctx.moveTo(pa.x, pa.y);
-  ctx.lineTo(pb.x, pb.y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = blocked ? 'rgba(255, 112, 112, .92)' : 'rgba(255, 226, 128, .92)';
-  ctx.beginPath();
-  const ax = pb.x - ux * 9 * view.dpr;
-  const ay = pb.y - uy * 9 * view.dpr;
-  ctx.moveTo(pb.x, pb.y);
-  ctx.lineTo(ax - uy * 4 * view.dpr, ay + ux * 4 * view.dpr);
-  ctx.lineTo(ax + uy * 4 * view.dpr, ay - ux * 4 * view.dpr);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-
-function drawFlowLegend(ctx, view) {
-  const x = 18 * view.dpr;
-  const y = 126 * view.dpr;
-  const w = 240 * view.dpr;
-  const h = 84 * view.dpr;
-  ctx.save();
-  ctx.fillStyle = 'rgba(4, 9, 15, .78)';
-  ctx.strokeStyle = 'rgba(126, 220, 255, .28)';
-  ctx.lineWidth = 1 * view.dpr;
-  ctx.beginPath();
-  roundedRect(ctx, x, y, w, h, 10 * view.dpr);
-  ctx.fill();
-  ctx.stroke();
-  ctx.font = `${10 * view.dpr}px system-ui, sans-serif`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(226, 245, 255, .92)';
-  ctx.fillText('Logistique', x + 12 * view.dpr, y + 14 * view.dpr);
-  const rows = [
-    ['IN', 'entrée bras / machine / coffre', 'rgba(112,255,210,1)'],
-    ['OUT', 'sortie production / transport', 'rgba(255,223,128,1)'],
-    ['⚡', 'énergie', 'rgba(126,218,255,1)']
-  ];
-  rows.forEach((row, i) => {
-    const yy = y + (34 + i * 16) * view.dpr;
-    drawPortDot(ctx, view, x + 22 * view.dpr, yy, row[0] === 'OUT' ? 'output' : row[0] === '⚡' ? 'power' : 'input', .95, { x: 1, y: 0 }, row[0]);
-    ctx.fillStyle = row[2];
-    ctx.font = `${9 * view.dpr}px system-ui, sans-serif`;
-    ctx.fillText(row[1], x + 46 * view.dpr, yy);
-  });
-  ctx.restore();
-}
-
-function drawPreviewConnections(ctx, view, preview, structures, camX, camY, t = 0) {
-  if (!preview || preview.mode !== 'build' || !structures?.values) return;
-  const alpha = preview.ok ? .92 : .45;
-  ctx.save();
-  ctx.globalAlpha *= alpha;
-  for (const input of structureInputPorts(preview)) {
-    const source = nearestStructureAtPort(structures, preview, input);
-    if (source) drawFlowLine(ctx, view, { x: source.x, y: source.y }, input, camX, camY, t, false);
-    drawWorldPort(ctx, view, input, camX, camY, 'input', .90, { x: -1, y: 0 }, 'IN');
-  }
-  for (const output of structureOutputPorts(preview)) {
-    const target = nearestStructureAtPort(structures, preview, output);
-    const isPower = String(preview.type || '') === 'solar_panel' || String(preview.type || '') === 'fuel_generator';
-    if (target) drawFlowLine(ctx, view, output, { x: target.x, y: target.y }, camX, camY, t, false);
-    else {
-      const d = dirOf(preview);
-      drawFlowLine(ctx, view, output, { x: output.x + d.x * 32, y: output.y + d.y * 32 }, camX, camY, t, true);
-    }
-    drawWorldPort(ctx, view, output, camX, camY, isPower ? 'power' : 'output', .94, { x: 1, y: 0 }, isPower ? '⚡' : 'OUT');
-  }
-  if (blocked) {
-    ctx.font = `${9 * view.dpr}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(255, 196, 196, .92)';
-    ctx.shadowColor = 'rgba(0,0,0,.9)';
-    ctx.shadowBlur = 3 * view.dpr;
-    ctx.fillText('bloqué', (pa.x + pb.x) * 0.5, (pa.y + pb.y) * 0.5 - 10 * view.dpr);
-  }
-  ctx.restore();
-}
-
-export function drawStructureFlowOverlay(ctx, view, structures, camX, camY, t = 0, active = false) {
-  if (!active || !structures?.values) return;
-  ctx.save();
-  for (const st of structures.values()) {
-    if (!st || !st.owned) continue;
-    const outputs = structureOutputPorts(st);
-    const blocked = st.automationStatus === 'blocked';
-    for (const out of outputs) {
-      const target = nearestStructureAtPort(structures, st, out);
-      if (target) drawFlowLine(ctx, view, out, { x: target.x, y: target.y }, camX, camY, t, blocked);
-      else if (isAutomationStructure(st) || isMachineLikeStructure(st) || String(st.type).includes('fuel')) {
-        const d = dirOf(st);
-        drawFlowLine(ctx, view, out, { x: out.x + d.x * 30, y: out.y + d.y * 30 }, camX, camY, t, true);
-      }
-    }
-  }
-  for (const st of structures.values()) {
-    if (!st || !st.owned) continue;
-    for (const p of structureInputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, 'input', .74, { x: -1, y: 0 }, 'IN');
-    const type = String(st.type || '').toLowerCase();
-    const power = type === 'solar_panel' || type === 'fuel_generator';
-    for (const p of structureOutputPorts(st)) drawWorldPort(ctx, view, p, camX, camY, power ? 'power' : 'output', .78, { x: 1, y: 0 }, power ? '⚡' : 'OUT');
-  }
-  drawFlowLegend(ctx, view);
-  ctx.restore();
-}
-
-export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0, structures = null) {
+export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0) {
   if (!preview) return;
   drawBuildGrid(ctx, view, camX, camY, preview.gridSize || 64);
   const p = worldToScreen(view, preview.x || 0, preview.y || 0, camX, camY);
@@ -1257,8 +971,6 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0,
     ctx.stroke();
   }
   ctx.restore();
-
-  drawPreviewConnections(ctx, view, preview, structures, camX, camY, t);
 
   ctx.save();
   ctx.font = `${11 * view.dpr}px system-ui, sans-serif`;
