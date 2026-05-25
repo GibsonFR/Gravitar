@@ -176,6 +176,16 @@ export class RocketWorkshopPanelView {
             <div class="rocket-workshop__out">Sortie : <b>${out ? `${out.amount | 0} ${escapeHtml(out.name || out.shortName || 'roquettes')}` : '—'}</b></div>
           </div>
         </section>
+        <div class="rocket-workshop__inline-actions">
+          <div>
+            <div class="rocket-workshop__inline-title">Contrôle de production</div>
+            <div class="rocket-workshop__inline-sub">Lance ou arrête l’atelier sans descendre en bas du panneau.</div>
+          </div>
+          <div class="rocket-workshop__inline-buttons">
+            <button class="rocket-workshop__produce ${workshop.enabled !== false ? 'is-off' : 'is-on'}" type="button" data-rocket-toggle="1" data-enabled="${workshop.enabled !== false ? '0' : '1'}">${workshop.enabled !== false ? 'Arrêter' : 'Activer'}</button>
+            <button class="rocket-workshop__produce" type="button" data-rocket-start="1" ${workshop.canRun ? '' : 'disabled'}>Lancer production</button>
+          </div>
+        </div>
         <div class="rocket-workshop__progress">
           <div class="rocket-workshop__progress-head"><span>${escapeHtml(status)}</span><b>${job ? `${progressPct}% · ${fmt(job.remainingSeconds)}s` : '—'}</b></div>
           <div class="rocket-workshop__bar"><span style="width:${progressPct}%"></span></div>

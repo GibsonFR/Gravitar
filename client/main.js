@@ -1,4 +1,4 @@
-// build v180 rocket-free-mixing
+// build v181 rocket-free-mixing
 function showBootError(error, title = 'Erreur au chargement du jeu') {
   const message = error?.stack || error?.message || String(error || 'Erreur inconnue');
   console.error('[Gravitar boot]', error);

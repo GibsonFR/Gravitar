@@ -7830,6 +7830,25 @@ button.station-item-icon[draggable="true"]:active,
 .rocket-workshop__chip.is-missing { color: rgba(255,184,155,.96); }
 .rocket-workshop__out { margin-top: 10px; font-size: 12px; color: rgba(255,220,170,.9); }
 
+.rocket-workshop__inline-actions {
+  position: sticky;
+  top: -16px;
+  z-index: 3;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,184,92,.20);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(18, 15, 22, .98), rgba(10, 12, 18, .96));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.26);
+}
+.rocket-workshop__inline-title { font-size: 12px; font-weight: 800; color: rgba(255,224,178,.96); text-transform: uppercase; letter-spacing: .08em; }
+.rocket-workshop__inline-sub { margin-top: 2px; font-size: 11px; color: rgba(181,202,224,.76); }
+.rocket-workshop__inline-buttons { display: flex; gap: 8px; flex: 0 0 auto; }
+
 .rocket-workshop__preview {
   display: flex;
   flex-wrap: wrap;
@@ -7878,7 +7897,7 @@ button.station-item-icon[draggable="true"]:active,
 .rocket-workshop__empty { color: rgba(160,180,210,.68); font-size: 12px; padding: 8px 0; }
 .rocket-workshop__muted { color: rgba(160,180,210,.68); }
 .rocket-workshop__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
-@media (max-width: 780px) { .rocket-workshop__cols { grid-template-columns: 1fr; } }
+@media (max-width: 780px) { .rocket-workshop__cols { grid-template-columns: 1fr; } .rocket-workshop__inline-actions { align-items: stretch; flex-direction: column; } .rocket-workshop__inline-buttons { width: 100%; } .rocket-workshop__inline-buttons .rocket-workshop__produce { flex: 1; } }
 
 /* v179 — Vaisseau > Munitions : gestion uniquement, aucun marché */
 .ship-panel--station-style .ship-ammo-panel {
