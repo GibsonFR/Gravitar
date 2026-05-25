@@ -7136,3 +7136,90 @@ button.station-item-icon[draggable="true"]:active,
   color: rgba(190,215,232,.62);
   padding: 12px;
 }
+
+
+/* v158 — onglet Vaisseau basé sur les anciens panneaux station */
+.ui-panel-shell--ship {
+  width: min(1120px, calc(100vw - 300px));
+  max-height: min(820px, calc(100vh - 130px));
+}
+.ship-panel--station-style {
+  min-width: 900px;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+  color: rgba(232,242,255,.94);
+}
+.ship-panel--station-style .ship-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  flex: 0 0 auto;
+}
+.ship-panel--station-style .ship-panel__eyebrow {
+  color: rgba(126,220,255,.82);
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.ship-panel--station-style .ship-panel__head h2 {
+  margin: 2px 0 0;
+  font-size: 24px;
+}
+.ship-panel--station-style .ship-panel__tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+.ship-panel--station-style .ship-panel__tabs button {
+  border: 1px solid rgba(126,220,255,.22);
+  border-radius: 999px;
+  background: rgba(7,16,28,.86);
+  color: rgba(216,235,250,.90);
+  padding: 7px 11px;
+  font-weight: 900;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.ship-panel--station-style .ship-panel__tabs button:hover,
+.ship-panel--station-style .ship-panel__tabs button.is-active {
+  border-color: rgba(126,220,255,.62);
+  background: rgba(25,70,104,.82);
+  color: white;
+}
+.ship-panel--station-style .ship-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.ship-panel--station-style .station-equipment,
+.ship-panel--station-style .station-converters,
+.ship-panel--station-style .station-ammo {
+  height: 100%;
+  min-height: 0;
+}
+.ship-panel--station-style .station-equipment__frame,
+.ship-panel--station-style .station-converters__frame,
+.ship-panel--station-style .station-ammo-drop {
+  height: 100%;
+  min-height: 0;
+}
+.ship-panel--station-style .station-equipment__left,
+.ship-panel--station-style .station-equipment__right,
+.ship-panel--station-style .station-equipment__details,
+.ship-panel--station-style .station-converters__left,
+.ship-panel--station-style .station-converters__right,
+.ship-panel--station-style .station-converters__details,
+.ship-panel--station-style .station-ammo-drop__slots,
+.ship-panel--station-style .station-ammo-drop__inventory,
+.ship-panel--station-style .station-ammo-drop__shop,
+.ship-panel--station-style .station-ammo-drop__details {
+  background: rgba(5,12,20,.62);
+}

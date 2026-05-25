@@ -850,7 +850,7 @@ export function startApp() {
     dock.setBadge('cargo', store.myState?.inv ? `${store.myState.inv.cargoUsed | 0}` : '');
     dock.setEnabled('cargo', !isDocked);
 
-    shipPanel.update(store.myState?.equipment);
+    shipPanel.update(store.myState);
     const activeConverterCount = Math.max(0, store.myState?.equipment?.converters?.summary?.enabledCount | 0);
     dock.setBadge('ship', activeConverterCount > 0 ? `${activeConverterCount}` : '');
     dock.setEnabled('ship', !!store.myState?.equipment);
