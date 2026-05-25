@@ -49,7 +49,7 @@ export function sanitizeCommandMessage(raw) {
     msg.accountPassword = cleanFree(raw.accountPassword || '', 80);
   }
   if (cmd === 'upgrade_ability') msg.slot = cleanWord(raw.slot, 1).toUpperCase();
-  if (cmd === 'buy_item' || cmd === 'buy_and_assign_rocket_ammo' || cmd === 'equip_item' || cmd === 'unequip_item' || cmd === 'sell_item' || cmd === 'assign_rocket_ammo' || cmd === 'toggle_converter' || cmd === 'equip_item_to_slot') msg.itemId = cleanWord(raw.itemId ?? raw.id, 64).toLowerCase();
+  if (cmd === 'buy_item' || cmd === 'buy_and_assign_rocket_ammo' || cmd === 'equip_item' || cmd === 'unequip_item' || cmd === 'sell_item' || cmd === 'assign_rocket_ammo' || cmd === 'toggle_converter' || cmd === 'equip_item_to_slot') msg.itemId = cleanWord(raw.itemId ?? raw.id, 128).toLowerCase();
   if (cmd === 'equip_item_to_slot') {
     msg.categoryId = cleanWord(raw.categoryId ?? raw.category ?? '', 32).toLowerCase();
     msg.slotId = cleanWord(raw.slotId ?? raw.slot ?? '', 32).toLowerCase();

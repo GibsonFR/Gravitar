@@ -201,7 +201,13 @@ export class StationEquipmentView {
 
   sendStationCommand(cmd, payload = {}) {
     if (!this.sendCmd || !cmd) return '';
-    return this.sendCmd(cmd, payload, { station: true, source: 'equipment' }) || '';
+    const id = this.sendCmd(cmd, payload, { station: true, source: 'equipment' }) || '';
+    this.el.classList.add('is-equipment-pending');
+    window.setTimeout(() => {
+      this.el.classList.remove('is-equipment-pending');
+      this.render();
+    }, 180);
+    return id;
   }
 
   getItemById(itemId) {
@@ -374,7 +380,9 @@ export class StationEquipmentView {
 
   getOwnedEquipmentItem(itemId) {
     if (!itemId) return null;
-    return (this.equipment?.ownedItems || []).find((item) => item?.itemId === itemId) || null;
+    return (this.equipment?.ownedItems || []).find((item) => item?.itemId === itemId)
+      || (this.equipment?.equippedItems || []).find((item) => item?.itemId === itemId)
+      || null;
   }
 
   getFocusedSlot() {
@@ -392,7 +400,7 @@ export class StationEquipmentView {
 
   performPrimaryAction(itemId) {
     if (!itemId || !this.sendCmd) return;
-    const item = this.getInventoryItems().find((entry) => entry.itemId === itemId) || null;
+    const item = this.getItemById(itemId) || null;
     if (!item) return;
     if (item.categoryId === ITEM_CATEGORY_IDS.AMMO) {
       const selectedSlot = this.getFocusedSlot();

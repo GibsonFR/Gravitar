@@ -1,4 +1,5 @@
 import { getItemDef } from '../../../../../shared/content/items/ItemDefs.js';
+import { getPlayerItemDef } from '../../equipment/PlayerEquipmentDefs.js';
 import { ITEM_CATEGORY_IDS } from '../../../../../shared/content/items/ItemCategoryIds.js';
 import { getDockedStation } from '../StationAccess.js';
 import { equipOwnedItem, hasOwnedItem, isItemEquipped, removeOwnedItem, sortEquipmentIdsStable, unequipOwnedItem } from '../../equipment/EquipmentRules.js';
@@ -34,10 +35,7 @@ export function buyStationItem(state, player, itemId, timeMs = 0) {
 }
 
 export function equipStationItem(state, player, itemId, timeMs = 0) {
-  const station = getDockedStation(state, player);
-  if (!station) return false;
-
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId) || getItemDef(itemId);
   if (!def) return false;
 
   // The generic equip command is used by UI buttons/double-click. For single-slot
@@ -57,8 +55,6 @@ export function equipStationItem(state, player, itemId, timeMs = 0) {
 }
 
 export function unequipStationItem(state, player, itemId, timeMs = 0) {
-  const station = getDockedStation(state, player);
-  if (!station) return false;
   const ok = unequipOwnedItem(player, itemId, timeMs);
   if (!ok) return false;
   syncPlayerFrameStats(player, { restoreVitals: false, preserveRatios: true });
@@ -68,10 +64,7 @@ export function unequipStationItem(state, player, itemId, timeMs = 0) {
 
 
 export function equipStationItemToSlot(state, player, itemId, categoryId, slotId = '', index = 0, timeMs = 0) {
-  const station = getDockedStation(state, player);
-  if (!station) return false;
-
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId) || getItemDef(itemId);
   if (!def) return false;
   if (def.categoryId !== categoryId) return false;
   if (def.categoryId === ITEM_CATEGORY_IDS.AMMO) return false;
@@ -83,27 +76,27 @@ export function equipStationItemToSlot(state, player, itemId, categoryId, slotId
   const cap = Math.max(0, caps[categoryId] ?? 0);
   if (cap <= 0) return false;
 
-  const sameCategory = equipped.filter((id) => getItemDef(id)?.categoryId === categoryId);
+  const sameCategory = equipped.filter((id) => (getPlayerItemDef(player, id) || getItemDef(id))?.categoryId === categoryId);
   const targetIndex = Math.max(0, Math.min(cap - 1, index | 0));
   const alreadyInSameCategory = sameCategory.includes(itemId);
 
   let next = equipped.filter((id) => id !== itemId);
 
   if (categoryId === ITEM_CATEGORY_IDS.MODULE || categoryId === ITEM_CATEGORY_IDS.CONVERTER) {
-    const currentSame = next.filter((id) => getItemDef(id)?.categoryId === categoryId);
+    const currentSame = next.filter((id) => (getPlayerItemDef(player, id) || getItemDef(id))?.categoryId === categoryId);
     const targetCurrent = currentSame[targetIndex] || '';
     if (targetCurrent) next = next.filter((id) => id !== targetCurrent);
   } else {
     next = next.filter((id) => getItemDef(id)?.categoryId !== categoryId);
   }
 
-  const currentCountAfterRemoval = next.filter((id) => getItemDef(id)?.categoryId === categoryId).length;
+  const currentCountAfterRemoval = next.filter((id) => (getPlayerItemDef(player, id) || getItemDef(id))?.categoryId === categoryId).length;
   if (currentCountAfterRemoval >= cap && !alreadyInSameCategory) return false;
 
   const beforeCategory = [];
   const afterCategory = [];
   for (const id of next) {
-    const d = getItemDef(id);
+    const d = getPlayerItemDef(player, id) || getItemDef(id);
     if (d?.categoryId === categoryId) afterCategory.push(id);
     else beforeCategory.push(id);
   }

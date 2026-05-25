@@ -29,6 +29,14 @@ const PROPULSERS = Object.freeze([
   markRecipe({ id: 'fab_thruster_mk5', baseItemId: 'vector-thruster-vanes', name: 'Propulseur', categoryId: ITEM_CATEGORY_IDS.ENGINE, mark: 5, seconds: 72, input: { electricMotor: 5, fuelInjector: 4, ancientSuperconductor: 1, precursorNanomaterial: 3, anomalySciencePack: 3 } })
 ]);
 
+const LAUNCHERS = Object.freeze([
+  markRecipe({ id: 'fab_launcher_mk1', baseItemId: 'siege-barrage-rack', name: 'Lance-roquettes', categoryId: ITEM_CATEGORY_IDS.LAUNCHER, mark: 1, seconds: 24, input: { controlCircuit: 1, steelPlate: 4, propellant: 4, combatSciencePack: 1 } }),
+  markRecipe({ id: 'fab_launcher_mk2', baseItemId: 'siege-barrage-rack', name: 'Lance-roquettes', categoryId: ITEM_CATEGORY_IDS.LAUNCHER, mark: 2, seconds: 34, input: { controlCircuit: 2, titaniumPlate: 4, propellant: 6, combatSciencePack: 1 } }),
+  markRecipe({ id: 'fab_launcher_mk3', baseItemId: 'siege-barrage-rack', name: 'Lance-roquettes', categoryId: ITEM_CATEGORY_IDS.LAUNCHER, mark: 3, seconds: 48, input: { microprocessor: 2, titaniumPlate: 6, propellant: 8, advancedSciencePack: 2 } }),
+  markRecipe({ id: 'fab_launcher_mk4', baseItemId: 'scatterstorm-pod', name: 'Lance-roquettes', categoryId: ITEM_CATEGORY_IDS.LAUNCHER, mark: 4, seconds: 64, input: { microprocessor: 3, thermalCeramic: 4, propellant: 10, unknownTechFragment: 2, anomalySciencePack: 1 } }),
+  markRecipe({ id: 'fab_launcher_mk5', baseItemId: 'scatterstorm-pod', name: 'Lance-roquettes', categoryId: ITEM_CATEGORY_IDS.LAUNCHER, mark: 5, seconds: 82, input: { microprocessor: 4, ancientSuperconductor: 1, propellant: 14, unknownTechFragment: 3, anomalySciencePack: 3 } })
+]);
+
 const SHIELDS = Object.freeze([
   markRecipe({ id: 'fab_shield_mk1', baseItemId: 'compact-shield-array', name: 'Bouclier', categoryId: ITEM_CATEGORY_IDS.DEFENSE, mark: 1, seconds: 20, input: { compositeArmor: 1, controlCircuit: 1, copperWire: 6, combatSciencePack: 1 } }),
   markRecipe({ id: 'fab_shield_mk2', baseItemId: 'compact-shield-array', name: 'Bouclier', categoryId: ITEM_CATEGORY_IDS.DEFENSE, mark: 2, seconds: 30, input: { compositeArmor: 2, titaniumPlate: 4, controlCircuit: 2, combatSciencePack: 1 } }),
@@ -76,6 +84,7 @@ const MODULES = Object.freeze([
 export const EQUIPMENT_FABRICATOR_RECIPES = Object.freeze([
   ...PROPULSERS,
   ...WEAPONS,
+  ...LAUNCHERS,
   ...SHIELDS,
   ...MODULES
 ]);

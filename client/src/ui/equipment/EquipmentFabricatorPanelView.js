@@ -2,10 +2,11 @@ function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
-const CATEGORY_ORDER = ['engine', 'weapon', 'defense', 'module'];
+const CATEGORY_ORDER = ['engine', 'weapon', 'launcher', 'defense', 'module'];
 const CATEGORY_LABELS = {
   engine: 'Propulseurs',
   weapon: 'Armes',
+  launcher: 'Lance-roquettes',
   defense: 'Boucliers',
   module: 'Modules'
 };
@@ -29,6 +30,7 @@ function statLabel(key) {
     enginePct: 'engine power',
     damageFlat: 'attack damage',
     damageMultPct: 'damage',
+    rocketDamagePct: 'rocket damage',
     fireRatePct: 'fire rate',
     critChancePct: 'crit chance',
     critDamagePct: 'crit damage',

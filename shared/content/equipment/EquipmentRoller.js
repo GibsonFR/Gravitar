@@ -61,6 +61,10 @@ export function scaleNeutralBonuses(baseBonuses = {}, mark = 1, categoryId = '')
   } else if (categoryId === ITEM_CATEGORY_IDS.ENGINE) {
     if (m >= 2) mergeBonus(out, 'energyFlat', 6 * (m - 1));
     if (m >= 3) mergeBonus(out, 'cooldownReductionPct', 0.01 * (m - 2));
+  } else if (categoryId === ITEM_CATEGORY_IDS.LAUNCHER) {
+    mergeBonus(out, 'rocketDamagePct', 0.04 + (m - 1) * 0.035);
+    if (m >= 2) mergeBonus(out, 'cooldownReductionPct', 0.012 * (m - 1));
+    if (m >= 3) mergeBonus(out, 'energyFlat', 5 * (m - 2));
   } else if (categoryId === ITEM_CATEGORY_IDS.DEFENSE) {
     if (m >= 2) mergeBonus(out, 'armorFlat', 3 * (m - 1));
     if (m >= 4) mergeBonus(out, 'hpPct', 0.025 * (m - 3));
@@ -86,6 +90,9 @@ function baseAffixes(categoryId) {
   if (categoryId === ITEM_CATEGORY_IDS.WEAPON) return [
     ['damageMultPct', 0.035], ['fireRatePct', 0.032], ['critChancePct', 0.022], ['critDamagePct', 0.075], ['armorPenFlat', 4]
   ];
+  if (categoryId === ITEM_CATEGORY_IDS.LAUNCHER) return [
+    ['rocketDamagePct', 0.045], ['cooldownReductionPct', 0.022], ['energyFlat', 10], ['critChancePct', 0.012], ['armorPenFlat', 3]
+  ];
   if (categoryId === ITEM_CATEGORY_IDS.DEFENSE) return [
     ['hpFlat', 18], ['shieldFlat', 24], ['armorFlat', 5], ['hpPct', 0.035], ['hullRegenFlat', 0.20]
   ];
@@ -101,6 +108,7 @@ function baseAffixes(categoryId) {
 function statLabel(key) {
   return ({
     damageMultPct: 'Dégâts',
+    rocketDamagePct: 'Dégâts roquettes',
     fireRatePct: 'Cadence',
     critChancePct: 'Critique',
     critDamagePct: 'Dégâts crit.',

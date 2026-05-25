@@ -62,6 +62,7 @@ function seedTestEquipmentItems(player, timeMs = Date.now()) {
   const specs = [
     ['vector-thruster-vanes', 'Propulseur Mark III', 3],
     ['needle-array-mk1', 'Arme cinétique Mark III', 3],
+    ['siege-barrage-rack', 'Lance-roquettes Mark III', 3],
     ['compact-shield-array', 'Bouclier Mark III', 3],
     ['cargo-overmesh', 'Module soute Mark III', 3],
     ['reaver-gyro-stabilizer', 'Module dégâts Mark III', 3],
@@ -70,6 +71,7 @@ function seedTestEquipmentItems(player, timeMs = Date.now()) {
     ['siege-target-matrix', 'Module ciblage Mark III', 3],
     ['vector-thruster-vanes', 'Propulseur Mark V', 5],
     ['needle-array-mk1', 'Arme cinétique Mark V', 5],
+    ['scatterstorm-pod', 'Lance-roquettes Mark V', 5],
     ['compact-shield-array', 'Bouclier Mark V', 5]
   ];
   player.equipment.craftedItemCounter = Math.max(0, player.equipment.craftedItemCounter | 0);
@@ -103,7 +105,7 @@ function grantTestEquipmentPortalLoadout(state, player, timeMs) {
   const pack = {
     ironOre: 48, copper: 48, aluminiumOre: 32, titaniumOre: 24, quartz: 32, graphite: 24,
     silicon: 32, hydrocarbons: 28, biomass: 24, organicLipids: 16, waterIce: 24, methane: 20, ammonia: 20,
-    refinedFuel: 20, biofuel: 12, propellant: 12,
+    refinedFuel: 20, biofuel: 12, propellant: 40,
     ironIngot: 30, copperIngot: 20, aluminiumIngot: 20, copperWire: 40, steelPlate: 24,
     siliconWafer: 18, microTransistor: 10, printedCircuit: 8, controlCircuit: 4,
     titaniumPlate: 10, carbonFiber: 8, opticalGlass: 8, lithiumBattery: 8, fuelCell: 8,

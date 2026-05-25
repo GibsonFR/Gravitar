@@ -429,7 +429,7 @@ function grantTestResources(player) {
   const pack = {
     ironOre: 48, copper: 48, aluminiumOre: 32, titaniumOre: 24, quartz: 32, graphite: 24,
     silicon: 32, hydrocarbons: 28, biomass: 24, organicLipids: 16, waterIce: 24, methane: 20, ammonia: 20,
-    refinedFuel: 20, biofuel: 12, propellant: 12,
+    refinedFuel: 20, biofuel: 12, propellant: 40,
     ironIngot: 30, copperIngot: 20, aluminiumIngot: 20, copperWire: 40, steelPlate: 24,
     siliconWafer: 18, microTransistor: 10, printedCircuit: 8, controlCircuit: 4,
     titaniumPlate: 10, carbonFiber: 8, opticalGlass: 8, lithiumBattery: 4, fuelCell: 4,
