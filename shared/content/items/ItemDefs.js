@@ -1,6 +1,7 @@
 import { ITEM_CATEGORY_IDS } from './ItemCategoryIds.js';
 import { ITEM_TAG_IDS } from './ItemTagIds.js';
 import { PROCEDURAL_ITEM_DEFS } from './ProceduralItemDefs.js';
+import { PIRATE_ITEM_DEFS } from './PirateItemDefs.js';
 
 export const STARTER_ITEM_IDS = Object.freeze({
   weapon: 'pulse-caster-alpha',
@@ -412,11 +413,11 @@ export const ITEM_DEFS = Object.freeze({
 });
 
 export function getItemDef(itemId) {
-  return ITEM_DEFS[itemId] ?? PROCEDURAL_ITEM_DEFS[itemId] ?? null;
+  return ITEM_DEFS[itemId] ?? PIRATE_ITEM_DEFS[itemId] ?? PROCEDURAL_ITEM_DEFS[itemId] ?? null;
 }
 
 export function listItemDefs(options = null) {
-  const all = [...Object.values(ITEM_DEFS), ...Object.values(PROCEDURAL_ITEM_DEFS)];
+  const all = [...Object.values(ITEM_DEFS), ...Object.values(PIRATE_ITEM_DEFS), ...Object.values(PROCEDURAL_ITEM_DEFS)];
   if (!options) return all;
   return all.filter((item) => {
     if (options.shopOnly && item.shopOffer === false) return false;

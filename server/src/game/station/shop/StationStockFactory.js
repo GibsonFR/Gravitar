@@ -23,6 +23,7 @@ function priceVarianceForItem(rng, tech, item) {
 
 function isPirateOffer(item) {
   if (!item) return false;
+  if (item.pirateOnly || item.source === 'pirate') return true;
   if (item.categoryId === ITEM_CATEGORY_IDS.AMMO) return true;
   const tags = item.tags || [];
   return tags.some((t) => t.tagId === ITEM_TAG_IDS.REAVER || t.tagId === ITEM_TAG_IDS.SIPHON || t.tagId === ITEM_TAG_IDS.SIEGE);
@@ -152,7 +153,22 @@ function selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tie
     items.push(...chooseCategoryOffers(all, categoryId, rng, stationSeed, tech, specialty, tierGate, sx, sy));
   }
   const sorted = items.sort(compareStockItems);
-  return sorted.map((item, index) => {
+  let visibleItems = sorted;
+  if (pirate) {
+    const pirateEffectiveTier = clamp(tierGate + stationDistanceTierBonus(sx, sy) + Math.max(0, pirateTier | 0), 1, 10);
+    const guaranteedPirateItems = seededShuffle(
+      all.filter((item) => item?.pirateOnly && (item.tier | 0) <= pirateEffectiveTier),
+      stationSeed ^ 0x176a11
+    ).slice(0, 8);
+    const seen = new Set();
+    visibleItems = [...guaranteedPirateItems, ...sorted].filter((item) => {
+      const id = String(item?.id || '');
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+  return visibleItems.map((item, index) => {
     const variance = priceVarianceForItem(rng, tech, item);
     const pirateMult = pirate ? 1.08 : 1;
     const specialtyMult = specialty?.priceBias?.[item.categoryId] ?? 1;
@@ -201,6 +217,7 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
   const specialty = getStationSpecialtyDef(options?.specialtyId || '');
   const all = listItemDefs({ shopOnly: true })
     .filter((item) => item?.categoryId !== ITEM_CATEGORY_IDS.CONVERTER)
+    .filter((item) => pirate || !item?.pirateOnly)
     .filter((item) => !pirate || isPirateOffer(item))
     .sort(compareStockItems);
 

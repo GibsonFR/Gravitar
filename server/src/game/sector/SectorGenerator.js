@@ -446,6 +446,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, -1140, 1320, SPECIAL_SECTORS.TEST_PIRATE_RARE_EQUIPMENT.sx, SPECIAL_SECTORS.TEST_PIRATE_RARE_EQUIPMENT.sy, '✦', {
+    label: 'Test équipements pirates rares',
+    mode: 'test_pirate_rare_equipment',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -673,6 +679,67 @@ function generateTestPirateReputationContent(state, sx, sy, timeMs, h) {
   resources.forEach(([resourceKey, x, y], i) => {
     spawnAsteroidProc(state, sx, sy, {
       x, y, radius: 42 + (i % 3) * 8, resourceKey, yieldValue: 20, seed: h ^ (0xb800 + i), sig: `test_pirate_reputation_${resourceKey}_${i}`
+    });
+  });
+}
+
+
+function generateTestPirateRareEquipmentContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+  const stationId = spawnStation(state, sx, sy, 0, 0, true, h ^ 0x176b00b5, timeMs, { specialtyId: 'pirate' });
+  const station = state.stations.get(stationId);
+  if (station?.stock) {
+    station.stock.pirateTier = 5;
+    station.pirateTier = 5;
+    station.stock.specialtyName = 'Arsenal pirate rare';
+    station.stock.demand = [
+      { resourceKey: 'unknownTechFragment', priceCredits: 140, maxAmount: 40, reputationXpPerUnit: 0.12 },
+      { resourceKey: 'titaniumOre', priceCredits: 20, maxAmount: 140, reputationXpPerUnit: 0.04 },
+      { resourceKey: 'rareEarthOre', priceCredits: 34, maxAmount: 90, reputationXpPerUnit: 0.06 },
+      { resourceKey: 'propellant', priceCredits: 18, maxAmount: 160, reputationXpPerUnit: 0.035 }
+    ];
+    station.stock.resourceDemand = station.stock.demand;
+    station.stock.resourceSupply = [
+      { resourceKey: 'unknownTechFragment', priceCredits: 240, amount: 2, stock: 18 },
+      { resourceKey: 'controlCircuit', priceCredits: 130, amount: 4, stock: 32 },
+      { resourceKey: 'propellant', priceCredits: 72, amount: 10, stock: 80 }
+    ];
+    station.stock.questOffers = [
+      { questId: 'pq_rare_fragments', templateId: 'deliver_unknown_fragment_t3', type: 'deliver_resource', name: 'Contrebande : fragments interdits', description: 'Livrer 4 fragments inconnus pour gagner la confiance de l’arsenal.', resourceKey: 'unknownTechFragment', required: 4, rewardCredits: 900, rewardReputationXp: 360, stationTierMin: 3, pirateTier: 5 },
+      { questId: 'pq_rare_propellant', templateId: 'deliver_propellant_t1', type: 'deliver_resource', name: 'Contrebande : propergol', description: 'Livrer du propergol pour approvisionner les racks pirates.', resourceKey: 'propellant', required: 40, rewardCredits: 420, rewardReputationXp: 160, stationTierMin: 2, pirateTier: 5 }
+    ];
+    const forcedOffers = [
+      { itemId: 'pirate-ironmaw-cannon', priceCredits: 980, tier: 3, categoryId: 'weapon', reputationRequired: 2 },
+      { itemId: 'pirate-blackleak-needler', priceCredits: 1680, tier: 4, categoryId: 'weapon', reputationRequired: 4 },
+      { itemId: 'pirate-contraband-rack', priceCredits: 1120, tier: 3, categoryId: 'launcher', reputationRequired: 2 },
+      { itemId: 'pirate-overload-shield', priceCredits: 860, tier: 3, categoryId: 'defense', reputationRequired: 2 },
+      { itemId: 'pirate-runaway-thruster', priceCredits: 920, tier: 3, categoryId: 'engine', reputationRequired: 2 },
+      { itemId: 'pirate-illegal-overdrive', priceCredits: 1550, tier: 4, categoryId: 'module', reputationRequired: 4 },
+      { itemId: 'pirate-stolen-emp-pack', priceCredits: 390, tier: 3, categoryId: 'ammo', reputationRequired: 2 },
+      { itemId: 'pirate-unstable-incendiary-pack', priceCredits: 520, tier: 4, categoryId: 'ammo', reputationRequired: 4 }
+    ];
+    const seenOffers = new Set();
+    station.stock.offers = [...forcedOffers, ...(station.stock.offers || [])]
+      .filter((offer) => {
+        const id = String(offer?.itemId || '');
+        if (!id || seenOffers.has(id)) return false;
+        seenOffers.add(id);
+        return true;
+      })
+      .map((offer) => ({ ...offer, pirateOnly: true }));
+  }
+
+  const resources = [
+    ['unknownTechFragment', -820, -360], ['rareEarthOre', -520, 360], ['titaniumOre', 580, -380],
+    ['propellant', 820, 240], ['ironOre', -940, 280], ['graphite', 320, 620]
+  ];
+  resources.forEach(([resourceKey, x, y], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x, y, radius: 42 + (i % 3) * 9, resourceKey, yieldValue: 24, seed: h ^ (0xc600 + i), sig: `test_pirate_rare_equipment_${resourceKey}_${i}`
     });
   });
 }
@@ -1147,6 +1214,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testIndustrialConverter = sx === SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sx && sy === SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sy;
   const testPirateQuests = sx === SPECIAL_SECTORS.TEST_PIRATE_QUESTS.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_QUESTS.sy;
   const testPirateReputation = sx === SPECIAL_SECTORS.TEST_PIRATE_REPUTATION.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_REPUTATION.sy;
+  const testPirateRareEquipment = sx === SPECIAL_SECTORS.TEST_PIRATE_RARE_EQUIPMENT.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_RARE_EQUIPMENT.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -1209,6 +1277,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testPirateReputation) {
     generateTestPirateReputationContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testPirateRareEquipment) {
+    generateTestPirateRareEquipmentContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

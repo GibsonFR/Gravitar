@@ -295,6 +295,7 @@ export function tryUsePortal(state, player, timeMs) {
   if (best.mode === 'test_pirate_market') grantPirateMarketTestPack(player);
   if (best.mode === 'test_pirate_quests') grantPirateQuestTestPack(player);
   if (best.mode === 'test_pirate_reputation') grantPirateReputationTestPack(player);
+  if (best.mode === 'test_pirate_rare_equipment') grantPirateRareEquipmentTestPack(player);
   if (best.mode === 'test_industrial_converter') grantIndustrialConverterTestPack(state, player, timeMs);
   if (best.mode === 'test_arena') player.uiHint = 'Simulateur activé';
   else if (best.mode === 'mob_bestiary') player.uiHint = 'Bestiaire activé';
@@ -302,10 +303,11 @@ export function tryUsePortal(state, player, timeMs) {
   else if (best.mode === 'test_pirate_market') player.uiHint = 'Station pirate de test chargée';
   else if (best.mode === 'test_pirate_quests') player.uiHint = 'Quêtes pirates de test chargées';
   else if (best.mode === 'test_pirate_reputation') player.uiHint = 'Réputation pirate de test chargée';
+  else if (best.mode === 'test_pirate_rare_equipment') player.uiHint = 'Arsenal pirate rare chargé';
   else if (best.mode === 'test_industrial_converter') player.uiHint = 'Convertisseur industriel de test chargé';
   else if (String(best.mode || '').startsWith('test_biome_')) player.uiHint = 'Biome de test chargé';
   else player.uiHint = `Saut → [${player.sx},${player.sy}]`;
-  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || best.mode === 'test_pirate_quests' || best.mode === 'test_pirate_reputation' || best.mode === 'test_industrial_converter' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
+  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || best.mode === 'test_pirate_quests' || best.mode === 'test_pirate_reputation' || best.mode === 'test_pirate_rare_equipment' || best.mode === 'test_industrial_converter' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   return true;
 }
@@ -326,6 +328,31 @@ function grantPirateReputationTestPack(player) {
   // pour afficher des offres accessibles et des offres bloquées côte à côte.
   pirate.reputationXp = 0;
   pirate.reputationLevel = 0;
+  player.forceFullUiSnapshot = true;
+}
+
+function grantPirateRareEquipmentTestPack(player) {
+  if (!player?.inv) return;
+  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
+  player.inv.credits = Math.max(player.inv.credits | 0, 3200);
+  const grants = {
+    unknownTechFragment: 10,
+    rareEarthOre: 40,
+    titaniumOre: 70,
+    propellant: 90,
+    graphite: 70,
+    ironOre: 90,
+    controlCircuit: 12,
+    titaniumPlate: 20,
+    steelPlate: 30,
+    copperWire: 60
+  };
+  for (const [key, amount] of Object.entries(grants)) addResource(player.inv, key, amount);
+  const pirate = ensurePlayerPirateState(player);
+  // Le test commence au niveau 2 : les premiers prototypes sont achetables,
+  // les modèles T4 restent verrouillés pour vérifier la progression.
+  pirate.reputationXp = Math.max(pirate.reputationXp | 0, 300);
+  pirate.reputationLevel = Math.max(pirate.reputationLevel | 0, 2);
   player.forceFullUiSnapshot = true;
 }
 
