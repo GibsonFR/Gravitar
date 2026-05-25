@@ -94,7 +94,7 @@ export class StationShopView {
   constructor(sendCmd) {
     this.sendCmd = typeof sendCmd === 'function' ? sendCmd : null;
     this.cmdQueue = new StationCommandQueue(this.sendCmd);
-    this.shopCategoryOrder = [CONVERSION_RECIPE_CATEGORY, ...ITEM_CATEGORY_ORDER.filter((categoryId) => categoryId !== ITEM_CATEGORY_IDS.AMMO)];
+    this.shopCategoryOrder = [CONVERSION_RECIPE_CATEGORY, ...ITEM_CATEGORY_ORDER.filter((categoryId) => categoryId !== ITEM_CATEGORY_IDS.AMMO && categoryId !== ITEM_CATEGORY_IDS.CONVERTER)];
     this.activeCategory = this.shopCategoryOrder[0];
     this.selectedItemId = '';
     this.hoverItemId = '';

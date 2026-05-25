@@ -235,6 +235,10 @@ export class MachinePanelView {
       </div>`;
 
     const progressPct = Math.round((Number(job?.progress) || 0) * 100);
+    const outputRows = machine.output || [];
+    const outputContent = outputRows.length
+      ? resourceRows(outputRows, 'Récupérer', 'withdraw', 'output', machine.id, false)
+      : `<div class="machine-panel__empty">${busy ? 'Production en cours : la sortie se remplit à la fin du cycle.' : 'Vide.'}</div>`;
     const progressHtml = job?.active ? `
       <div class="machine-panel__progress">
         <div class="machine-panel__progress-head">
@@ -269,7 +273,7 @@ export class MachinePanelView {
           <section class="machine-panel__box">
             <h3>Sortie <span>${fmt(machine.outputUsed)} / ${fmt(machine.outputCapacity)}</span></h3>
             <div class="machine-panel__need">${fmtList(selected.output, false)}</div>
-            ${resourceRows(machine.output || [], 'Récupérer', 'withdraw', 'output', machine.id, false)}
+            ${outputContent}
           </section>
         </div>
       </div>` : '<div class="machine-panel__empty">Choisis une recette.</div>';

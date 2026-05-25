@@ -7359,3 +7359,190 @@ button.station-item-icon[draggable="true"]:active,
 .equipment-rd__science-list.is-busy [data-equipment-rd-science] {
   pointer-events: none;
 }
+
+.station-ammo-market {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.9fr);
+  gap: 14px;
+  color: var(--text-main);
+}
+
+.station-ammo-market__grid-panel,
+.station-ammo-market__details {
+  border: 1px solid rgba(120, 180, 255, 0.16);
+  background: linear-gradient(180deg, rgba(14, 20, 31, 0.94), rgba(9, 13, 21, 0.96));
+  border-radius: 12px;
+  min-height: 0;
+}
+
+.station-ammo-market__grid-panel {
+  padding: 12px;
+  overflow: auto;
+}
+
+.station-ammo-market__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.station-ammo-pack {
+  position: relative;
+  min-height: 112px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 185, 96, 0.2);
+  background: linear-gradient(180deg, rgba(28, 19, 12, 0.94), rgba(14, 12, 10, 0.96));
+  color: rgba(255, 244, 230, 0.96);
+  cursor: pointer;
+  padding: 12px 12px 10px;
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  grid-template-rows: auto auto auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  text-align: left;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+}
+
+.station-ammo-pack::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 190, 90, 0.12), transparent 56%);
+  pointer-events: none;
+}
+
+.station-ammo-pack:hover,
+.station-ammo-pack.is-selected {
+  border-color: rgba(255, 196, 105, 0.62);
+  box-shadow: 0 0 0 1px rgba(255, 196, 105, 0.34), 0 0 18px rgba(255, 164, 80, 0.14);
+}
+
+.station-ammo-pack.is-unaffordable {
+  opacity: .65;
+}
+
+.station-ammo-pack__glyph,
+.station-ammo-pack__tier,
+.station-ammo-pack__name,
+.station-ammo-pack__qty,
+.station-ammo-pack__stats,
+.station-ammo-pack__price {
+  position: relative;
+  z-index: 1;
+}
+
+.station-ammo-pack__glyph {
+  grid-row: 1 / span 3;
+  grid-column: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: rgba(255, 216, 142, 0.96);
+  background: rgba(255, 185, 96, 0.08);
+  border: 1px solid rgba(255, 185, 96, 0.22);
+}
+
+.station-ammo-pack__tier {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 24px;
+  height: 16px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(12, 15, 24, 0.94);
+  border: 1px solid rgba(255, 196, 105, 0.24);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.station-ammo-pack__name {
+  grid-column: 2;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  padding-right: 26px;
+}
+
+.station-ammo-pack__qty,
+.station-ammo-pack__stats {
+  grid-column: 2;
+  font-size: 11px;
+  color: rgba(222, 206, 182, 0.9);
+  line-height: 1.35;
+}
+
+.station-ammo-pack__price {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 185, 96, 0.08);
+  border: 1px solid rgba(255, 185, 96, 0.18);
+  color: rgba(255, 220, 154, 0.92);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.station-ammo-market__details {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+}
+
+.station-ammo-market__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.station-ammo-market__eyebrow {
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255, 196, 105, .84);
+  font-weight: 800;
+}
+
+.station-ammo-market__title {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 800;
+  color: rgba(255, 244, 230, .96);
+}
+
+.station-ammo-market__credits {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: rgba(255, 220, 154, .86);
+  border: 1px solid rgba(255, 185, 96, .18);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(255, 185, 96, .06);
+}
+
+.station-ammo-market__content {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.station-ammo-market__buy {
+  margin-top: auto;
+  align-self: stretch;
+}
