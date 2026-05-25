@@ -345,6 +345,7 @@ function seedTestEquipmentItems(player, timeMs = Date.now()) {
   const specs = [
     ['vector-thruster-vanes', 'Propulseur Mark III', 3],
     ['needle-array-mk1', 'Arme cinétique Mark III', 3],
+    ['siege-barrage-rack', 'Lance-roquettes Mark III', 3],
     ['compact-shield-array', 'Bouclier Mark III', 3],
     ['cargo-overmesh', 'Module soute Mark III', 3],
     ['reaver-gyro-stabilizer', 'Module dégâts Mark III', 3],
@@ -353,6 +354,7 @@ function seedTestEquipmentItems(player, timeMs = Date.now()) {
     ['siege-target-matrix', 'Module ciblage Mark III', 3],
     ['vector-thruster-vanes', 'Propulseur Mark V', 5],
     ['needle-array-mk1', 'Arme cinétique Mark V', 5],
+    ['scatterstorm-pod', 'Lance-roquettes Mark V', 5],
     ['compact-shield-array', 'Bouclier Mark V', 5]
   ];
   player.equipment.craftedItemCounter = Math.max(0, player.equipment.craftedItemCounter | 0);
@@ -377,6 +379,27 @@ function seedTestEquipmentItems(player, timeMs = Date.now()) {
     if (!player.equipment.ownedItemIds.includes(stableId)) player.equipment.ownedItemIds.push(stableId);
   }
   player.equipment.ownedItemIds = [...new Set(player.equipment.ownedItemIds)].sort();
+  player.equipment.lastChangedAt = timeMs | 0;
+}
+
+
+function equipTestCraftedLoadout(player, timeMs) {
+  if (!player?.equipment) return;
+  seedTestEquipmentItems(player, timeMs);
+  const wanted = [
+    'test-neutral-vector-thruster-vanes-mk3',
+    'test-neutral-needle-array-mk1-mk3',
+    'test-neutral-siege-barrage-rack-mk3',
+    'test-neutral-compact-shield-array-mk3',
+    'test-neutral-cargo-overmesh-mk3',
+    'test-neutral-reaver-gyro-stabilizer-mk3',
+    'test-neutral-surge-capacitor-bank-mk3'
+  ];
+  player.equipment.equippedItemIds = wanted.filter((id) => player.equipment.customItemDefs?.[id]);
+  player.equipment.ownedItemIds = [...new Set([
+    ...(player.equipment.ownedItemIds || []).filter((id) => id !== STARTER_ITEM_IDS.weapon && id !== STARTER_ITEM_IDS.launcher),
+    ...wanted
+  ])].filter((id) => !(player.equipment.equippedItemIds || []).includes(id)).sort();
   player.equipment.lastChangedAt = timeMs | 0;
 }
 
@@ -416,7 +439,22 @@ export function ensureTestEquipmentBench(state, player, timeMs) {
   if (equipmentChest) {
     equipmentChest.storage ??= { kind: 'equipment', items: [] };
     equipmentChest.storage.kind = 'equipment';
-    const starterEquipmentItems = ['vector-thruster-vanes', 'needle-array-mk1', 'compact-shield-array', 'cargo-overmesh', 'reaver-gyro-stabilizer', 'surge-capacitor-bank', 'siphon-repair-weave', 'siege-target-matrix'];
+    const starterEquipmentItems = [
+      'test-neutral-vector-thruster-vanes-mk5',
+      'test-neutral-needle-array-mk1-mk5',
+      'test-neutral-scatterstorm-pod-mk5',
+      'test-neutral-compact-shield-array-mk5',
+      'test-neutral-cargo-overmesh-mk3',
+      'test-neutral-reaver-gyro-stabilizer-mk3',
+      'test-neutral-surge-capacitor-bank-mk3',
+      'test-neutral-siphon-repair-weave-mk3',
+      'test-neutral-siege-target-matrix-mk3'
+    ];
+    equipmentChest.storage.customItemDefs ??= {};
+    for (const itemId of starterEquipmentItems) {
+      const def = player.equipment?.customItemDefs?.[itemId];
+      if (def) equipmentChest.storage.customItemDefs[itemId] = JSON.parse(JSON.stringify(def));
+    }
     equipmentChest.storage.items = [...new Set([...(equipmentChest.storage.items || []), ...starterEquipmentItems])];
   }
   ensureTestStructure(state, worldId, 'storage', sx, sy, 640, -96, owner);
@@ -506,6 +544,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   player.dockTimer = 0;
   if (player.inv) player.inv.credits = Math.max(player.inv.credits || 0, def.credits | 0 || 0);
   grantTestResources(player);
+  equipTestCraftedLoadout(player, timeMs);
   ensureTestMiningDeposits(state, player, timeMs);
   ensureTestEquipmentBench(state, player, timeMs);
   if (player.progression) {

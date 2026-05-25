@@ -8,6 +8,7 @@ import { ensureSectorLoaded } from '../sector/SectorEnsure.js';
 import { isSpecialDetachedSector } from '../sector/SpecialSectors.js';
 import { addResource } from '../inventory/InventorySystem.js';
 import { createNeutralCraftedEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
+import { STARTER_ITEM_IDS } from '../../../../shared/content/items/ItemDefs.js';
 import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { ensureTestEquipmentBench } from '../modes/GameModes.js';
 
@@ -99,6 +100,27 @@ function seedTestEquipmentItems(player, timeMs = Date.now()) {
   player.equipment.lastChangedAt = timeMs | 0;
 }
 
+
+function equipTestPortalCraftedLoadout(player, timeMs) {
+  if (!player?.equipment) return;
+  seedTestEquipmentItems(player, timeMs);
+  const wanted = [
+    'test-neutral-vector-thruster-vanes-mk3',
+    'test-neutral-needle-array-mk1-mk3',
+    'test-neutral-siege-barrage-rack-mk3',
+    'test-neutral-compact-shield-array-mk3',
+    'test-neutral-cargo-overmesh-mk3',
+    'test-neutral-reaver-gyro-stabilizer-mk3',
+    'test-neutral-surge-capacitor-bank-mk3'
+  ];
+  player.equipment.equippedItemIds = wanted.filter((id) => player.equipment.customItemDefs?.[id]);
+  player.equipment.ownedItemIds = [...new Set([
+    ...(player.equipment.ownedItemIds || []).filter((id) => id !== STARTER_ITEM_IDS.weapon && id !== STARTER_ITEM_IDS.launcher),
+    ...wanted
+  ])].filter((id) => !(player.equipment.equippedItemIds || []).includes(id)).sort();
+  player.equipment.lastChangedAt = timeMs | 0;
+}
+
 function grantTestEquipmentPortalLoadout(state, player, timeMs) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
@@ -120,7 +142,7 @@ function grantTestEquipmentPortalLoadout(state, player, timeMs) {
   const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'equipment_rd_station', 'equipment_mark_ii', 'equipment_mark_iii', 'equipment_mark_iv', 'equipment_mark_v', 'alien_anomaly_analysis']);
   player.research.completed = [...completed];
   ensureTestEquipmentBench(state, player, timeMs);
-  seedTestEquipmentItems(player, timeMs);
+  equipTestPortalCraftedLoadout(player, timeMs);
 }
 
 function prepareTestArenaPlayer(player) {
