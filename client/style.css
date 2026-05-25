@@ -6868,3 +6868,271 @@ button.station-item-icon[draggable="true"]:active,
   font-weight: 900;
   vertical-align: middle;
 }
+
+
+/* v157 — coffre équipement compact + panneau Vaisseau */
+.storage-panel__row--item {
+  grid-template-columns: 12px minmax(0, 1fr) auto auto;
+  gap: 7px;
+}
+.storage-panel__row--item .storage-panel__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.storage-panel__row--item .storage-panel__qty {
+  min-width: 38px;
+  padding: 0 5px;
+  font-size: 11px;
+}
+.storage-panel__row--item .storage-panel__main {
+  min-width: 0;
+  max-width: 78px;
+  padding: 4px 7px;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.storage-panel__row--item.is-equipped .storage-panel__main {
+  max-width: 86px;
+}
+.storage-panel__badge {
+  max-width: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-panel-shell--ship {
+  width: min(920px, calc(100vw - 340px));
+  max-height: min(760px, calc(100vh - 150px));
+}
+.ship-panel {
+  color: rgba(232,242,255,.94);
+  min-width: 720px;
+}
+.ship-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.ship-panel__eyebrow {
+  color: rgba(126,220,255,.82);
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.ship-panel__head h2 {
+  margin: 2px 0 0;
+  font-size: 24px;
+}
+.ship-panel__tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ship-panel__tabs button {
+  border: 1px solid rgba(126,220,255,.18);
+  border-radius: 999px;
+  background: rgba(7,16,28,.66);
+  color: rgba(216,235,250,.88);
+  padding: 7px 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.ship-panel__tabs button.is-active {
+  border-color: rgba(126,220,255,.56);
+  background: rgba(25,70,104,.72);
+  color: white;
+}
+.ship-panel__grid {
+  display: grid;
+  grid-template-columns: 260px minmax(240px, 1fr) 260px;
+  gap: 12px;
+  min-height: 420px;
+}
+.ship-panel__slots,
+.ship-panel__inventory,
+.ship-detail,
+.ship-ammo section,
+.ship-converters__slots,
+.ship-converters__summary {
+  border: 1px solid rgba(126,220,255,.14);
+  border-radius: 14px;
+  background: rgba(5,12,20,.62);
+  padding: 12px;
+}
+.ship-panel__slots {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-content: start;
+}
+.ship-slot,
+.ship-inventory-item,
+.ship-converter-slot {
+  border: 1px solid rgba(126,220,255,.16);
+  border-radius: 12px;
+  background: rgba(10,20,32,.78);
+  color: rgba(230,242,255,.94);
+  cursor: pointer;
+}
+.ship-slot {
+  display: grid;
+  grid-template-columns: 54px minmax(0,1fr);
+  grid-template-rows: auto auto;
+  column-gap: 9px;
+  padding: 8px;
+  text-align: left;
+}
+.ship-slot.is-selected,
+.ship-inventory-item.is-selected,
+.ship-converter-slot.is-selected {
+  border-color: rgba(126,220,255,.62);
+  box-shadow: 0 0 18px rgba(126,220,255,.18);
+}
+.ship-slot__icon {
+  grid-row: 1 / span 2;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+}
+.ship-slot__label {
+  color: rgba(126,220,255,.78);
+  font-size: 11px;
+  font-weight: 900;
+}
+.ship-slot__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ship-panel__inventory {
+  overflow: auto;
+  min-height: 0;
+}
+.ship-inventory-group h3,
+.ship-ammo h3 {
+  margin: 0 0 8px;
+  color: rgba(126,220,255,.82);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.ship-inventory-list {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.ship-inventory-item {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 8px;
+  padding: 7px 9px;
+  text-align: left;
+}
+.ship-inventory-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ship-inventory-item b {
+  color: rgba(255,224,130,.95);
+}
+.ship-inventory-item.is-equipped {
+  border-color: rgba(255,205,86,.38);
+  background: rgba(95,70,18,.18);
+}
+.ship-detail {
+  overflow: auto;
+}
+.ship-detail h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.ship-detail__meta {
+  color: rgba(190,215,232,.76);
+  margin-bottom: 10px;
+}
+.ship-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+.ship-detail__tags span {
+  border: 1px solid rgba(210,140,255,.25);
+  border-radius: 999px;
+  background: rgba(50,28,80,.42);
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.ship-detail ul {
+  margin: 0;
+  padding-left: 16px;
+  color: rgba(220,235,250,.9);
+}
+.ship-converters,
+.ship-ammo {
+  display: grid;
+  gap: 12px;
+}
+.ship-converters__slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.ship-converter-slot {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  padding: 9px;
+  text-align: left;
+}
+.ship-converter-slot span {
+  grid-row: 1 / span 2;
+}
+.ship-converter-slot small {
+  color: rgba(190,215,232,.70);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ship-converter-slot.is-active {
+  border-color: rgba(90,255,180,.45);
+}
+.ship-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  overflow: hidden;
+  margin: 10px 0;
+}
+.ship-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(126,220,255,.95), rgba(90,255,180,.92));
+}
+.ship-ammo {
+  grid-template-columns: 1fr 1fr;
+}
+.ship-ammo-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding: 8px 0;
+}
+.ship-panel__empty {
+  color: rgba(190,215,232,.62);
+  padding: 12px;
+}

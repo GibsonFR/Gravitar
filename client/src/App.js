@@ -28,8 +28,8 @@ import { getCargoIconSvg } from './ui/cargo/CargoIconSvg.js';
 import { getMapIconSvg } from './ui/map/MapIconSvg.js';
 import { MapWindowView } from './ui/map/MapWindowView.js';
 import { StationWindowView } from './ui/station/StationWindowView.js';
-import { ConvertersPanelView } from './ui/converters/ConvertersPanelView.js';
-import { getConverterIconSvg } from './ui/converters/ConverterIconSvg.js';
+import { ShipPanelView } from './ui/ship/ShipPanelView.js';
+import { getShipIconSvg } from './ui/ship/ShipIconSvg.js';
 import { SessionSetupOverlay } from './ui/session/SessionSetupOverlay.js';
 import { getCombatHudLayout, hitTestHudAbility } from './ui/hud/HudLayout.js';
 import { getEquippedHudHit } from './ui/hud/HudEquipmentPanelRenderer.js';
@@ -200,8 +200,8 @@ export function startApp() {
   const cargoPanel = new CargoPanelView(sendCmd);
   dock.registerPanel({ id: 'cargo', title: 'Cargo', iconMarkup: getCargoIconSvg(), panelEl: cargoPanel.el, group: 'game' });
 
-  const convertersPanel = new ConvertersPanelView(sendCmd);
-  dock.registerPanel({ id: 'converters', title: 'Convert.', iconMarkup: getConverterIconSvg(), panelEl: convertersPanel.el, shellClass: 'ui-panel-shell--converters', group: 'game' });
+  const shipPanel = new ShipPanelView(sendCmd);
+  dock.registerPanel({ id: 'ship', title: 'Vaisseau', iconMarkup: getShipIconSvg(), panelEl: shipPanel.el, shellClass: 'ui-panel-shell--ship', group: 'game' });
 
   const optionsPanel = new OptionsPanelView((settings) => {
     audio.applySettings(settings);
@@ -850,10 +850,10 @@ export function startApp() {
     dock.setBadge('cargo', store.myState?.inv ? `${store.myState.inv.cargoUsed | 0}` : '');
     dock.setEnabled('cargo', !isDocked);
 
-    convertersPanel.update(store.myState?.equipment);
+    shipPanel.update(store.myState?.equipment);
     const activeConverterCount = Math.max(0, store.myState?.equipment?.converters?.summary?.enabledCount | 0);
-    dock.setBadge('converters', activeConverterCount > 0 ? `${activeConverterCount}` : '');
-    dock.setEnabled('converters', !!store.myState?.equipment?.converters);
+    dock.setBadge('ship', activeConverterCount > 0 ? `${activeConverterCount}` : '');
+    dock.setEnabled('ship', !!store.myState?.equipment);
 
     basePanel.update(store);
     storagePanel.update(store);

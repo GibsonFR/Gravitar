@@ -45,7 +45,7 @@ function itemRows(items = [], actionLabel, action, structureId, kind = 'equipmen
       ? `<span class="storage-panel__qty">${amount}</span>`
       : `<span class="storage-panel__qty">Mk ${it.mark || it.tier || 1}</span>`;
     const equippedBadge = kind === 'equipment' && it.equipped ? `<small class="storage-panel__badge">équipé</small>` : '';
-    const label = kind === 'equipment' && it.equipped && action === 'deposit' ? 'Déséquiper + stocker' : actionLabel;
+    const label = kind === 'equipment' && it.equipped && action === 'deposit' ? 'Déséquiper' : actionLabel;
     return `
       <div class="storage-panel__row storage-panel__row--item ${it.equipped ? 'is-equipped' : ''}" data-item="${esc(it.itemId)}" data-amount="${amount}" data-structure="${structureId | 0}">
         <span class="storage-panel__item-dot"></span>
