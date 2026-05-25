@@ -8,6 +8,7 @@ import { buildStationLocalResourcePool, getStationTierGateFromLocalPool } from '
 import { getStationSpecialtyDef } from './StationStockSpecialties.js';
 import { computePirateTier, createPirateDemand, createPirateResourceSupply } from '../pirate/PirateStationEconomy.js';
 import { listConversionRecipesForStation } from '../../../../../shared/content/conversion/ConversionRecipeDefs.js';
+import { createPirateQuestOffers } from '../../../../../shared/content/pirate/PirateQuestDefs.js';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -187,6 +188,11 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
   const demand = pirate ? createPirateDemand(localResourcePool, stationSeed, pirateTier) : [];
   const resourceSupply = pirate ? createPirateResourceSupply(localResourcePool, stationSeed, pirateTier) : [];
   const conversionRecipeOffers = pirate ? createConversionRecipeOffers({ pirateTier, stock: { pirateTier } }, stationSeed) : [];
+  const questOffers = pirate ? createPirateQuestOffers({
+    stationSeed,
+    pirateTier,
+    resourceKeys: localResourcePool?.resourceKeys || []
+  }) : [];
 
   return {
     tech: !!tech,
@@ -205,6 +211,7 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
     resourceDemand: demand,
     resourceSupply,
     conversionRecipeOffers,
+    questOffers,
     offers
   };
 }

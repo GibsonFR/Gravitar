@@ -50,3 +50,15 @@ export function getAmmoIconSvg() {
     </svg>
   `;
 }
+
+
+export function getQuestIconSvg() {
+  return `
+    <svg class="ui-icon-svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 10h18l4 5v23H15V10Z" stroke="rgba(255,191,122,0.95)" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M32 10v7h5" stroke="rgba(255,191,122,0.95)" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M20 22h12M20 28h8" stroke="rgba(125,233,255,0.95)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M20 35l3 3 6-7" stroke="rgba(90,240,196,0.9)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+}

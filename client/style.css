@@ -7546,3 +7546,208 @@ button.station-item-icon[draggable="true"]:active,
   margin-top: auto;
   align-self: stretch;
 }
+
+.pirate-quests {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, .9fr);
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
+  color: var(--text-main);
+}
+
+.pirate-quests__board,
+.pirate-quests__details {
+  border: 1px solid rgba(255, 191, 122, 0.16);
+  background: linear-gradient(180deg, rgba(18, 14, 22, 0.94), rgba(9, 13, 21, 0.96));
+  border-radius: 12px;
+  min-height: 0;
+}
+
+.pirate-quests__board {
+  overflow: auto;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  align-content: start;
+  gap: 12px;
+}
+
+.pirate-quest-card {
+  position: relative;
+  min-height: 108px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 191, 122, 0.22);
+  background: linear-gradient(180deg, rgba(35, 24, 15, .92), rgba(14, 12, 14, .96));
+  color: rgba(242, 238, 226, 0.96);
+  cursor: pointer;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  text-align: left;
+}
+
+.pirate-quest-card:hover,
+.pirate-quest-card.is-selected {
+  border-color: rgba(255, 199, 116, 0.62);
+  box-shadow: 0 0 0 1px rgba(255, 190, 102, 0.22), 0 0 20px rgba(255, 160, 80, 0.14);
+}
+
+.pirate-quest-card.is-active-quest {
+  border-color: rgba(125, 233, 255, 0.35);
+}
+
+.pirate-quest-card.is-completed {
+  opacity: .62;
+}
+
+.pirate-quest-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--quest-color, #ffbf7a);
+  background: color-mix(in srgb, var(--quest-color, #ffbf7a) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--quest-color, #ffbf7a) 28%, transparent);
+  font-size: 17px;
+}
+
+.pirate-quest-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.pirate-quest-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pirate-quest-card__top strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.pirate-quest-card__top em {
+  font-style: normal;
+  color: rgba(255, 218, 154, 0.86);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+.pirate-quest-card__goal,
+.pirate-quest-card__reward {
+  font-size: 11px;
+  color: rgba(205, 215, 230, .86);
+}
+
+.pirate-quest-card__bar,
+.pirate-quests__bar,
+.pirate-quests__repbar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .06);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .05);
+}
+
+.pirate-quest-card__bar i,
+.pirate-quests__bar i,
+.pirate-quests__repbar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(255, 191, 122, .88), rgba(125, 233, 255, .86));
+}
+
+.pirate-quests__details {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+}
+
+.pirate-quests__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 218, 154, .94);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 800;
+}
+
+.pirate-quests__xp,
+.pirate-quests__muted {
+  font-size: 12px;
+  color: rgba(182, 201, 224, 0.78);
+}
+
+.pirate-quests__detailbox {
+  border: 1px solid rgba(126, 196, 255, 0.13);
+  background: rgba(7, 12, 20, .55);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.pirate-quests__detailbox h3,
+.pirate-quests__detailbox h4 {
+  margin: 0 0 8px;
+  color: rgba(242, 245, 255, .96);
+}
+
+.pirate-quests__detailbox h3 { font-size: 15px; }
+.pirate-quests__detailbox h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: rgba(125, 233, 255, .86); }
+
+.pirate-quests__detailbox p {
+  margin: 0;
+  color: rgba(185, 201, 224, .84);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pirate-quests__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: rgba(220, 231, 245, .9);
+  font-size: 12px;
+}
+
+.pirate-quests__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pirate-quests__chips span {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 191, 122, .18);
+  background: rgba(255, 191, 122, .08);
+  color: rgba(255, 227, 184, .94);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pirate-quests__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.pirate-quests__actions .ui-btn {
+  flex: 1 1 auto;
+}

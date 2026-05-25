@@ -434,6 +434,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, -1520, 1040, SPECIAL_SECTORS.TEST_PIRATE_QUESTS.sx, SPECIAL_SECTORS.TEST_PIRATE_QUESTS.sy, '⚑', {
+    label: 'Test quêtes pirates',
+    mode: 'test_pirate_quests',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -531,6 +537,42 @@ function generateTestPirateMarketContent(state, sx, sy, timeMs, h) {
   testAsteroids.forEach(([resourceKey, x, y], i) => {
     spawnAsteroidProc(state, sx, sy, {
       x, y, radius: 42 + (i % 3) * 8, resourceKey, yieldValue: 16, seed: h ^ (0x9000 + i), sig: `test_pirate_market_${resourceKey}_${i}`
+    });
+  });
+}
+
+
+function generateTestPirateQuestsContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+  const stationId = spawnStation(state, sx, sy, 0, 0, true, h ^ 0x71e57, timeMs, { specialtyId: 'pirate' });
+  const station = state.stations.get(stationId);
+  if (station?.stock) {
+    station.stock.pirateTier = 2;
+    station.pirateTier = 2;
+    station.stock.questOffers = [
+      { questId: 'pq_test_deliver_iron', templateId: 'deliver_iron_ore_t1', type: 'deliver_resource', name: 'Livraison test : fer', description: 'Livrer 40 minerais de fer à cette station pirate.', resourceKey: 'ironOre', required: 40, rewardCredits: 180, rewardReputationXp: 30, stationTierMin: 1, pirateTier: 2 },
+      { questId: 'pq_test_deliver_graphite', templateId: 'deliver_graphite_t1', type: 'deliver_resource', name: 'Livraison test : graphite', description: 'Livrer 30 graphites à cette station pirate.', resourceKey: 'graphite', required: 30, rewardCredits: 240, rewardReputationXp: 38, stationTierMin: 1, pirateTier: 2 },
+      { questId: 'pq_test_deliver_propellant', templateId: 'deliver_propellant_t2', type: 'deliver_resource', name: 'Livraison test : propergol', description: 'Livrer 18 propergols à cette station pirate.', resourceKey: 'propellant', required: 18, rewardCredits: 360, rewardReputationXp: 52, stationTierMin: 2, pirateTier: 2 }
+    ];
+    station.stock.demand = [
+      { resourceKey: 'ironOre', priceCredits: 7, maxAmount: 200, reputationXpPerUnit: 0.02 },
+      { resourceKey: 'graphite', priceCredits: 9, maxAmount: 160, reputationXpPerUnit: 0.025 },
+      { resourceKey: 'propellant', priceCredits: 18, maxAmount: 80, reputationXpPerUnit: 0.04 }
+    ];
+    station.stock.resourceDemand = station.stock.demand;
+  }
+
+  const resources = [
+    ['ironOre', -760, -280], ['graphite', -420, -520], ['propellant', 520, -520], ['copper', 820, -260],
+    ['quartz', 780, 260], ['titaniumOre', -760, 280]
+  ];
+  resources.forEach(([resourceKey, x, y], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x, y, radius: 42 + (i % 3) * 8, resourceKey, yieldValue: 18, seed: h ^ (0xa700 + i), sig: `test_pirate_quests_${resourceKey}_${i}`
     });
   });
 }
@@ -1004,6 +1046,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testEquipment = sx === SPECIAL_SECTORS.TEST_EQUIPMENT.sx && sy === SPECIAL_SECTORS.TEST_EQUIPMENT.sy;
   const testPirateMarket = sx === SPECIAL_SECTORS.TEST_PIRATE_MARKET.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_MARKET.sy;
   const testIndustrialConverter = sx === SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sx && sy === SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sy;
+  const testPirateQuests = sx === SPECIAL_SECTORS.TEST_PIRATE_QUESTS.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_QUESTS.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -1058,6 +1101,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testIndustrialConverter) {
     generateTestIndustrialConverterContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testPirateQuests) {
+    generateTestPirateQuestsContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

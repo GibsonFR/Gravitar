@@ -145,6 +145,14 @@ function grantTestEquipmentPortalLoadout(state, player, timeMs) {
 }
 
 
+function grantPirateQuestTestPack(player) {
+  if (!player?.inv) return;
+  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1000);
+  player.inv.credits = Math.max(player.inv.credits || 0, 900);
+  const pack = { ironOre: 90, graphite: 70, propellant: 45, copper: 60, quartz: 40 };
+  for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
+}
+
 function grantPirateMarketTestPack(player) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 900);
@@ -284,15 +292,17 @@ export function tryUsePortal(state, player, timeMs) {
   if (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || String(best.mode || '').startsWith('test_biome_')) prepareTestArenaPlayer(player);
   if (best.mode === 'test_equipment') grantTestEquipmentPortalLoadout(state, player, timeMs);
   if (best.mode === 'test_pirate_market') grantPirateMarketTestPack(player);
+  if (best.mode === 'test_pirate_quests') grantPirateQuestTestPack(player);
   if (best.mode === 'test_industrial_converter') grantIndustrialConverterTestPack(state, player, timeMs);
   if (best.mode === 'test_arena') player.uiHint = 'Simulateur activé';
   else if (best.mode === 'mob_bestiary') player.uiHint = 'Bestiaire activé';
   else if (best.mode === 'test_equipment') player.uiHint = 'Test équipement chargé';
   else if (best.mode === 'test_pirate_market') player.uiHint = 'Station pirate de test chargée';
+  else if (best.mode === 'test_pirate_quests') player.uiHint = 'Quêtes pirates de test chargées';
   else if (best.mode === 'test_industrial_converter') player.uiHint = 'Convertisseur industriel de test chargé';
   else if (String(best.mode || '').startsWith('test_biome_')) player.uiHint = 'Biome de test chargé';
   else player.uiHint = `Saut → [${player.sx},${player.sy}]`;
-  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || best.mode === 'test_industrial_converter' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
+  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || best.mode === 'test_pirate_quests' || best.mode === 'test_industrial_converter' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   return true;
 }

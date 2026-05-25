@@ -6,7 +6,7 @@ import { ensureStationStockCurrent } from './StationStockRefresh.js';
 import { getEffectivePurchasePriceCredits, getEffectiveSellPriceCredits } from '../../bastion/BastionBuffs.js';
 import { getStationDemandForResource, getStationSupplyForResource } from '../pirate/PirateStationEconomy.js';
 import { getConversionRecipe } from '../../../../../shared/content/conversion/ConversionRecipeDefs.js';
-import { ensurePlayerPirateState, hasUnlockedConversionRecipe } from '../../player/runtime/PlayerPirateState.js';
+import { ensurePlayerPirateState, hasUnlockedConversionRecipe, getPirateReputationSnapshot } from '../../player/runtime/PlayerPirateState.js';
 
 
 function serializePassiveEffects(def) {
@@ -71,6 +71,50 @@ function buildResourceSupplySnapshot(station, player) {
   }).filter((entry) => entry.resourceKey);
 }
 
+
+
+function buildQuestSnapshot(station, player) {
+  const pirate = ensurePlayerPirateState(player);
+  const reputation = getPirateReputationSnapshot(player);
+  const active = new Set(pirate.activeQuestIds || []);
+  const completed = new Set(pirate.completedQuestIds || []);
+  const offers = (station?.stock?.questOffers || []).map((offer) => {
+    const questId = String(offer?.questId || '').toLowerCase();
+    if (!questId) return null;
+    const progress = pirate.questProgress?.[questId] || null;
+    const have = Math.max(0, player?.inv?.resources?.[offer.resourceKey] | 0);
+    const required = Math.max(1, offer.required | 0 || 1);
+    const current = progress ? Math.max(0, Math.min(required, have)) : 0;
+    const status = completed.has(questId) ? 'completed' : active.has(questId) ? 'active' : 'available';
+    const def = getResourceDef(offer.resourceKey);
+    return {
+      questId,
+      templateId: offer.templateId || '',
+      type: offer.type || 'deliver_resource',
+      name: offer.name || 'Quête pirate',
+      description: offer.description || '',
+      resourceKey: offer.resourceKey || '',
+      resourceName: def?.name || offer.resourceKey || '',
+      resourceColorHex: def?.colorHex || '#cfd7e6',
+      current,
+      have,
+      required,
+      rewardCredits: Math.max(0, offer.rewardCredits | 0 || 0),
+      rewardReputationXp: Math.max(0, offer.rewardReputationXp | 0 || 0),
+      status,
+      active: active.has(questId),
+      completed: completed.has(questId),
+      canAccept: status === 'available',
+      canComplete: status === 'active' && have >= required
+    };
+  }).filter(Boolean);
+  return {
+    ...reputation,
+    available: offers,
+    activeCount: pirate.activeQuestIds?.length | 0 || 0,
+    completedCount: pirate.completedQuestIds?.length | 0 || 0
+  };
+}
 
 function buildConversionRecipeSnapshot(station, player) {
   const pirate = ensurePlayerPirateState(player);
@@ -145,6 +189,7 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
     resourceDemand: buildDemandSnapshot(station, player),
     resourceSupply: buildResourceSupplySnapshot(station, player),
     conversionRecipes: buildConversionRecipeSnapshot(station, player),
+    quests: buildQuestSnapshot(station, player),
     localResourcePool: {
       radius: Math.max(0, station.stock.localResourcePool?.radius | 0),
       maxSpawnTier: Math.max(1, station.stock.localResourcePool?.maxSpawnTier | 0),

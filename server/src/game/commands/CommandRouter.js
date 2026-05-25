@@ -7,6 +7,9 @@ import { handleUpgradeAbility } from './UpgradeAbilityCommand.js';
 import { handleBuyItem } from './BuyItemCommand.js';
 import { handleBuyStationResource } from './BuyStationResourceCommand.js';
 import { handleBuyConversionRecipe } from './BuyConversionRecipeCommand.js';
+import { handleAcceptPirateQuest } from './AcceptPirateQuestCommand.js';
+import { handleCompletePirateQuest } from './CompletePirateQuestCommand.js';
+import { handleAbandonPirateQuest } from './AbandonPirateQuestCommand.js';
 import { handleBuyAndAssignRocketAmmo } from './BuyAndAssignRocketAmmoCommand.js';
 import { handleEquipItem } from './EquipItemCommand.js';
 import { handleEquipItemToSlot } from './EquipItemToSlotCommand.js';
@@ -64,6 +67,9 @@ const HANDLERS = {
   buy_item: handleBuyItem,
   buy_station_resource: handleBuyStationResource,
   buy_conversion_recipe: handleBuyConversionRecipe,
+  accept_pirate_quest: handleAcceptPirateQuest,
+  complete_pirate_quest: handleCompletePirateQuest,
+  abandon_pirate_quest: handleAbandonPirateQuest,
   buy_and_assign_rocket_ammo: handleBuyAndAssignRocketAmmo,
   equip_item: handleEquipItem,
   equip_item_to_slot: handleEquipItemToSlot,

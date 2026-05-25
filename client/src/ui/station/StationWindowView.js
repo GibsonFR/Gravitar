@@ -2,6 +2,7 @@ import { STATION_TABS } from './StationTabDefs.js';
 import { StationTradeView } from './StationTradeView.js';
 import { StationShopView } from './StationShopView.js';
 import { StationAmmoView } from './StationAmmoView.js';
+import { PirateQuestView } from './PirateQuestView.js';
 
 export class StationWindowView {
   constructor(sendCmd, store = null) {
@@ -47,12 +48,16 @@ export class StationWindowView {
     this.shopView = new StationShopView(sendCmd);
     this.shopView.el.classList.add('station-page', 'station-page--shop');
 
+    this.questView = new PirateQuestView(sendCmd);
+    this.questView.el.classList.add('station-page', 'station-page--quests');
+
     this.ammoView = new StationAmmoView(sendCmd);
     this.ammoView.el.classList.add('station-page', 'station-page--ammo');
 
     this.pages = new Map([
       ['trade', this.tradeView.el],
       ['shop', this.shopView.el],
+      ['quests', this.questView.el],
       ['ammo', this.ammoView.el]
     ]);
 
@@ -128,6 +133,7 @@ export class StationWindowView {
 
     this.tradeView.update(myState?.inv, docked, myState?.stationShop);
     this.shopView.update(myState?.stationShop, myState?.inv, docked);
+    this.questView.update(myState?.stationShop, docked);
     this.ammoView.update(myState?.equipment, myState?.stationShop, myState?.inv, docked);
     this.setTab(this.activeTab);
   }
