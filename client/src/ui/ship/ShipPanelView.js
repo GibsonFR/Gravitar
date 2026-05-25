@@ -1,5 +1,5 @@
 import { StationEquipmentView } from '../station/StationEquipmentView.js';
-import { StationAmmoView } from '../station/StationAmmoView.js';
+import { ShipAmmoView } from './ShipAmmoView.js';
 
 export class ShipPanelView {
   constructor(sendCmd) {
@@ -26,7 +26,7 @@ export class ShipPanelView {
 
     this.bodyEl = this.el.querySelector('[data-role="body"]');
     this.equipmentView = new StationEquipmentView(sendCmd);
-    this.ammoView = new StationAmmoView(sendCmd);
+    this.ammoView = new ShipAmmoView(sendCmd);
 
     this.pages = new Map([
       ['equipment', this.equipmentView.el],
@@ -66,7 +66,7 @@ export class ShipPanelView {
   refreshActivePage() {
     const docked = true;
     if (this.activeTab === 'equipment') this.equipmentView.update(this.equipment, this.inv, docked);
-    else if (this.activeTab === 'ammo') this.ammoView.update(this.equipment, null, this.inv, docked);
+    else if (this.activeTab === 'ammo') this.ammoView.update(this.equipment);
   }
 
   update(myStateOrEquipment) {
