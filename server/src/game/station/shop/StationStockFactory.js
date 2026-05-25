@@ -6,6 +6,7 @@ import { listItemDefs } from '../../../../../shared/content/items/ItemDefs.js';
 import { generateOfferResourceCosts } from './StationOfferCosts.js';
 import { buildStationLocalResourcePool, getStationTierGateFromLocalPool } from './StationLocalResourcePool.js';
 import { getStationSpecialtyDef } from './StationStockSpecialties.js';
+import { computePirateTier, createPirateDemand, createPirateResourceSupply } from '../pirate/PirateStationEconomy.js';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -154,17 +155,21 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
   const localResourcePool = buildStationLocalResourcePool(worldSeed, sx, sy);
   const tierGate = getStationTierGateFromLocalPool(tech, localResourcePool);
   const pirate = options?.specialtyId === 'pirate';
+  const pirateTier = pirate ? computePirateTier(sx, sy) : 0;
   const specialty = getStationSpecialtyDef(options?.specialtyId || '');
   const all = listItemDefs({ shopOnly: true })
     .filter((item) => !pirate || isPirateOffer(item))
     .sort(compareStockItems);
 
   const offers = selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tierGate, sx, sy, localResourcePool);
+  const demand = pirate ? createPirateDemand(localResourcePool, stationSeed, pirateTier) : [];
+  const resourceSupply = pirate ? createPirateResourceSupply(localResourcePool, stationSeed, pirateTier) : [];
 
   return {
     tech: !!tech,
     specialtyId: pirate ? 'pirate' : '',
-    specialtyName: pirate ? 'Shop pirate' : '',
+    specialtyName: pirate ? 'Marché pirate' : '',
+    pirateTier,
     refreshSeed: stationSeed,
     refreshIndex: 0,
     refreshAtMs: 0,
@@ -173,6 +178,9 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
     refreshLeftMs: 0,
     tierGate,
     localResourcePool,
+    demand,
+    resourceDemand: demand,
+    resourceSupply,
     offers
   };
 }

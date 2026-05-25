@@ -422,6 +422,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, 1520, 1040, SPECIAL_SECTORS.TEST_PIRATE_MARKET.sx, SPECIAL_SECTORS.TEST_PIRATE_MARKET.sy, '☠', {
+    label: 'Test station pirate / commerce ciblé',
+    mode: 'test_pirate_market',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -486,6 +492,42 @@ function generateTestEquipmentContent(state, sx, sy, timeMs, h) {
   ensureTestEquipmentBench(state, fakePlayer, timeMs);
 }
 
+
+function generateTestPirateMarketContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+  const stationId = spawnStation(state, sx, sy, 0, 0, true, h ^ 0x715a7e, timeMs, { specialtyId: 'pirate' });
+  const station = state.stations.get(stationId);
+  if (station?.stock) {
+    station.stock.pirateTier = 2;
+    station.pirateTier = 2;
+    station.stock.demand = [
+      { resourceKey: 'ironOre', priceCredits: 7, maxAmount: 200, reputationXpPerUnit: 0.02 },
+      { resourceKey: 'copper', priceCredits: 7, maxAmount: 200, reputationXpPerUnit: 0.02 },
+      { resourceKey: 'graphite', priceCredits: 9, maxAmount: 160, reputationXpPerUnit: 0.025 },
+      { resourceKey: 'propellant', priceCredits: 18, maxAmount: 80, reputationXpPerUnit: 0.04 }
+    ];
+    station.stock.resourceDemand = station.stock.demand;
+    station.stock.resourceSupply = [
+      { resourceKey: 'titaniumOre', priceCredits: 95, amount: 12, stock: 60 },
+      { resourceKey: 'controlCircuit', priceCredits: 160, amount: 4, stock: 24 },
+      { resourceKey: 'unknownTechFragment', priceCredits: 260, amount: 2, stock: 12 }
+    ];
+  }
+
+  const testAsteroids = [
+    ['ironOre', -780, -220], ['copper', -520, -520], ['graphite', -260, -260], ['propellant', 520, -520],
+    ['quartz', 780, -220], ['titaniumOre', 900, 260]
+  ];
+  testAsteroids.forEach(([resourceKey, x, y], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x, y, radius: 42 + (i % 3) * 8, resourceKey, yieldValue: 16, seed: h ^ (0x9000 + i), sig: `test_pirate_market_${resourceKey}_${i}`
+    });
+  });
+}
 
 function generateTestEffectsContent(state, sx, sy, timeMs, h) {
   spawnPortal(state, sx, sy, -1600, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52, autoTrigger: true });
@@ -743,9 +785,9 @@ function randomTeleportTarget(seed, sx, sy) {
 }
 
 function shouldSpawnPirateShop(seed, sx, sy, frontier) {
-  if (frontier < 12) return false;
+  if (frontier < 4) return false;
   const h = hash2D_XorShift((seed | 0) ^ 0x515017e, sx | 0, sy | 0);
-  return Math.abs(h % 37) === 0;
+  return Math.abs(h % 20) === 0;
 }
 
 function shouldSpawnRandomTeleport(seed, sx, sy, frontier) {
@@ -921,6 +963,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testBases = sx === SPECIAL_SECTORS.TEST_BASES.sx && sy === SPECIAL_SECTORS.TEST_BASES.sy;
   const testMining = sx === SPECIAL_SECTORS.TEST_MINING.sx && sy === SPECIAL_SECTORS.TEST_MINING.sy;
   const testEquipment = sx === SPECIAL_SECTORS.TEST_EQUIPMENT.sx && sy === SPECIAL_SECTORS.TEST_EQUIPMENT.sy;
+  const testPirateMarket = sx === SPECIAL_SECTORS.TEST_PIRATE_MARKET.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_MARKET.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -967,6 +1010,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testEquipment) {
     generateTestEquipmentContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testPirateMarket) {
+    generateTestPirateMarketContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

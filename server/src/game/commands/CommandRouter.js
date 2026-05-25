@@ -5,6 +5,7 @@ import { handleJettison } from './JettisonCommand.js';
 import { handleSetFrame } from './SetFrameCommand.js';
 import { handleUpgradeAbility } from './UpgradeAbilityCommand.js';
 import { handleBuyItem } from './BuyItemCommand.js';
+import { handleBuyStationResource } from './BuyStationResourceCommand.js';
 import { handleBuyAndAssignRocketAmmo } from './BuyAndAssignRocketAmmoCommand.js';
 import { handleEquipItem } from './EquipItemCommand.js';
 import { handleEquipItemToSlot } from './EquipItemToSlotCommand.js';
@@ -60,6 +61,7 @@ const HANDLERS = {
   set_frame: handleSetFrame,
   upgrade_ability: handleUpgradeAbility,
   buy_item: handleBuyItem,
+  buy_station_resource: handleBuyStationResource,
   buy_and_assign_rocket_ammo: handleBuyAndAssignRocketAmmo,
   equip_item: handleEquipItem,
   equip_item_to_slot: handleEquipItemToSlot,

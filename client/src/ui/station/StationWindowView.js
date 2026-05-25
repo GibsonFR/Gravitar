@@ -141,7 +141,7 @@ export class StationWindowView {
 
     this.updatePendingUi();
 
-    this.tradeView.update(myState?.inv, docked);
+    this.tradeView.update(myState?.inv, docked, myState?.stationShop);
     this.refineryView.update(myState?.inv, docked);
     this.shopView.update(myState?.stationShop, myState?.inv, docked);
     this.ammoView.update(myState?.equipment, myState?.stationShop, myState?.inv, docked);

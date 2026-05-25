@@ -1,6 +1,7 @@
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { removeResource } from '../inventory/InventorySystem.js';
 import { addCredits } from '../inventory/CreditSystem.js';
+import { getStationDemandForResource } from '../station/pirate/PirateStationEconomy.js';
 
 export function handleSell(state, player, msg) {
   if (!player?.inv) return false;
@@ -17,10 +18,13 @@ export function handleSell(state, player, msg) {
   const amount = Math.floor(Number(msg?.amount) || 0);
   if (amount <= 0) return false;
 
+  const demand = st.pirate ? getStationDemandForResource(st, key) : null;
+  const unit = st.pirate ? Math.max(0, demand?.priceCredits | 0) : (def.sellPrice || 0);
+  if (unit <= 0) return false;
+
   const sold = removeResource(player.inv, key, amount);
   if (sold <= 0) return false;
 
-  const unit = def.sellPrice || 0;
   const credits = sold * unit;
   if (credits > 0) addCredits(player.inv, credits);
 

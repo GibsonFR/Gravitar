@@ -4,6 +4,7 @@ import { getResourceDef } from '../../inventory/ResourceDefs.js';
 import { canAffordOffer } from './StationOfferCosts.js';
 import { ensureStationStockCurrent } from './StationStockRefresh.js';
 import { getEffectivePurchasePriceCredits, getEffectiveSellPriceCredits } from '../../bastion/BastionBuffs.js';
+import { getStationDemandForResource, getStationSupplyForResource } from '../pirate/PirateStationEconomy.js';
 
 
 function serializePassiveEffects(def) {
@@ -25,6 +26,47 @@ function serializePassiveEffects(def) {
     });
   }
   return out;
+}
+
+
+function buildDemandSnapshot(station, player) {
+  return (station?.stock?.demand || station?.stock?.resourceDemand || []).map((entry) => {
+    const key = String(entry?.resourceKey || '');
+    const def = getResourceDef(key);
+    const have = Math.max(0, player?.inv?.resources?.[key] | 0);
+    const priceCredits = Math.max(0, entry?.priceCredits | 0);
+    return {
+      resourceKey: key,
+      key,
+      name: def?.name || key,
+      colorHex: def?.colorHex || '#cfd7e6',
+      priceCredits,
+      sellUnitPrice: priceCredits,
+      have,
+      maxAmount: Math.max(0, entry?.maxAmount | 0),
+      reputationXpPerUnit: Number(entry?.reputationXpPerUnit || 0),
+      sellTotalValue: have * priceCredits
+    };
+  }).filter((entry) => entry.resourceKey);
+}
+
+function buildResourceSupplySnapshot(station, player) {
+  return (station?.stock?.resourceSupply || []).map((entry) => {
+    const key = String(entry?.resourceKey || '');
+    const def = getResourceDef(key);
+    const priceCredits = getEffectivePurchasePriceCredits(player, Math.max(0, entry?.priceCredits | 0));
+    const stock = Math.max(0, entry?.stock ?? entry?.amount ?? 0);
+    return {
+      resourceKey: key,
+      key,
+      name: def?.name || key,
+      colorHex: def?.colorHex || '#cfd7e6',
+      priceCredits,
+      amount: Math.max(1, entry?.amount | 0),
+      stock,
+      canAfford: Math.max(0, player?.inv?.credits | 0) >= priceCredits && stock > 0
+    };
+  }).filter((entry) => entry.resourceKey);
 }
 
 function buildResourceCosts(offer, player) {
@@ -52,14 +94,19 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
   return {
     stationId: station.id,
     tech: !!station.tech,
-    specialtyId: '',
-    specialtyName: '',
+    pirate: !!station.pirate,
+    pirateTier: Math.max(0, station.pirateTier || station.stock.pirateTier || 0),
+    specialtyId: station.stock.specialtyId || station.specialtyId || '',
+    specialtyName: station.stock.specialtyName || station.specialtyName || '',
     refreshIndex: 0,
     refreshAtMs: 0,
     nextRefreshAtMs: 0,
     refreshMs: 0,
     refreshLeftMs: 0,
     tierGate: Math.max(1, station.stock.tierGate | 0),
+    demand: buildDemandSnapshot(station, player),
+    resourceDemand: buildDemandSnapshot(station, player),
+    resourceSupply: buildResourceSupplySnapshot(station, player),
     localResourcePool: {
       radius: Math.max(0, station.stock.localResourcePool?.radius | 0),
       maxSpawnTier: Math.max(1, station.stock.localResourcePool?.maxSpawnTier | 0),

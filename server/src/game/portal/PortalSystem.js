@@ -144,6 +144,21 @@ function grantTestEquipmentPortalLoadout(state, player, timeMs) {
   equipTestPortalCraftedLoadout(player, timeMs);
 }
 
+
+function grantPirateMarketTestPack(player) {
+  if (!player?.inv) return;
+  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 900);
+  player.inv.credits = Math.max(player.inv.credits || 0, 450);
+  const pack = {
+    ironOre: 90,
+    copper: 90,
+    graphite: 60,
+    propellant: 35,
+    quartz: 40
+  };
+  for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
+}
+
 function prepareTestArenaPlayer(player) {
   if (!player?.progression) return;
   player.progression.level = Math.max(player.progression.level ?? 1, 18);
@@ -241,8 +256,9 @@ export function tryUsePortal(state, player, timeMs) {
   player.selectedId = 0;
   if (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || String(best.mode || '').startsWith('test_biome_')) prepareTestArenaPlayer(player);
   if (best.mode === 'test_equipment') grantTestEquipmentPortalLoadout(state, player, timeMs);
-  player.uiHint = best.mode === 'test_arena' ? 'Simulateur activé' : (best.mode === 'mob_bestiary' ? 'Bestiaire activé' : (best.mode === 'test_equipment' ? 'Test équipement chargé' : (String(best.mode || '').startsWith('test_biome_') ? 'Biome de test chargé' : `Saut → [${player.sx},${player.sy}]`)));
-  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
+  if (best.mode === 'test_pirate_market') grantPirateMarketTestPack(player);
+  player.uiHint = best.mode === 'test_arena' ? 'Simulateur activé' : (best.mode === 'mob_bestiary' ? 'Bestiaire activé' : (best.mode === 'test_equipment' ? 'Test équipement chargé' : (best.mode === 'test_pirate_market' ? 'Station pirate de test chargée' : (String(best.mode || '').startsWith('test_biome_') ? 'Biome de test chargé' : `Saut → [${player.sx},${player.sy}]`))));
+  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   return true;
 }
