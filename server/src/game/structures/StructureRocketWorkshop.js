@@ -3,8 +3,10 @@ import { isStructureOwner, distanceSqToStructureRect, findAliveCoreForStructure 
 import { addResource, removeResource, canAddResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { addRocketAmmo } from '../rocket/RocketAmmoRules.js';
+import { addCustomEquipmentDef, getPlayerItemDef } from '../equipment/PlayerEquipmentDefs.js';
 import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
 import { ROCKET_WORKSHOP_RECIPE } from '../../../../shared/content/rockets/RocketWorkshopDefs.js';
+import { computeRocketMixFromResources, getRocketMixInputKeys, hasRocketMixBaseInput } from '../../../../shared/content/rockets/RocketMixer.js';
 
 const WORKSHOP_RANGE = 280;
 const INPUT_CAPACITY = 180;
@@ -58,30 +60,38 @@ function outputUsed(st) {
   return used;
 }
 
-function canFitOutput(st) {
-  return outputUsed(st) + Math.max(1, ROCKET_WORKSHOP_RECIPE.ammoOutput.amount | 0) <= OUTPUT_CAPACITY;
+function canFitOutput(st, mix = null) {
+  const out = mix?.ammoOutput || ROCKET_WORKSHOP_RECIPE.ammoOutput;
+  return outputUsed(st) + Math.max(1, out.amount | 0) <= OUTPUT_CAPACITY;
 }
 
 function hasInputs(st) {
-  const input = inputMap(st);
-  for (const [key, amount] of recipeEntries(ROCKET_WORKSHOP_RECIPE.input)) {
-    if ((input[key] | 0) < (amount | 0)) return false;
-  }
-  return true;
+  return hasRocketMixBaseInput(inputMap(st));
 }
 
-function consumeInputs(st) {
+function consumeInputs(st, consumedInput = {}) {
   const input = inputMap(st);
-  for (const [key, amount] of recipeEntries(ROCKET_WORKSHOP_RECIPE.input)) input[key] = (input[key] | 0) - (amount | 0);
+  for (const [key, amount] of recipeEntries(consumedInput)) input[key] = (input[key] | 0) - (amount | 0);
   cleanMap(input);
 }
 
-function addAmmoOutput(st, timeMs) {
+function customDefMap(st) {
+  if (!st.rocketWorkshopCustomAmmoDefs || typeof st.rocketWorkshopCustomAmmoDefs !== 'object') st.rocketWorkshopCustomAmmoDefs = {};
+  return st.rocketWorkshopCustomAmmoDefs;
+}
+
+function getWorkshopAmmoDef(st, player, itemId) {
+  const id = String(itemId || '');
+  return customDefMap(st)[id] || getPlayerItemDef(player, id) || getItemDef(id) || null;
+}
+
+function addAmmoOutput(st, job, timeMs) {
   const out = outputMap(st);
-  const { itemId, amount } = ROCKET_WORKSHOP_RECIPE.ammoOutput;
-  const n = Math.max(1, amount | 0);
+  const itemId = String(job?.ammoOutput?.itemId || ROCKET_WORKSHOP_RECIPE.ammoOutput.itemId || '').toLowerCase();
+  const n = Math.max(1, job?.ammoOutput?.amount | 0 || ROCKET_WORKSHOP_RECIPE.ammoOutput.amount | 0);
+  if (job?.customAmmoDef?.id) customDefMap(st)[job.customAmmoDef.id] = JSON.parse(JSON.stringify(job.customAmmoDef));
   out[itemId] = (out[itemId] | 0) + n;
-  st.lastRocketWorkshopProduced = { itemId, amount: n, at: timeMs };
+  st.lastRocketWorkshopProduced = { itemId, amount: n, at: timeMs, name: job?.customAmmoDef?.name || '' };
 }
 
 function isWorkshop(st) {
@@ -103,7 +113,7 @@ function buildJobSnapshot(st) {
   const remainingMs = Math.max(0, Number(job.remainingMs) || 0);
   const elapsedMs = Math.max(0, totalMs - remainingMs);
   return {
-    recipeId: ROCKET_WORKSHOP_RECIPE.id,
+    recipeId: job.recipeId || ROCKET_WORKSHOP_RECIPE.id,
     totalMs: Math.round(totalMs),
     remainingMs: Math.round(remainingMs),
     totalSeconds: Math.round(totalMs / 100) / 10,
@@ -114,9 +124,9 @@ function buildJobSnapshot(st) {
   };
 }
 
-function outputRows(st) {
+function outputRows(st, player = null) {
   return Object.entries(outputMap(st)).filter(([, amount]) => (amount | 0) > 0).map(([itemId, amount]) => {
-    const def = getItemDef(itemId) || null;
+    const def = getWorkshopAmmoDef(st, player, itemId);
     return {
       itemId,
       name: def?.name || itemId,
@@ -142,33 +152,48 @@ export function buildRocketWorkshopSnapshot(state, player) {
   const core = findAliveCoreForStructure(state, st);
   const input = inputMap(st);
   const job = buildJobSnapshot(st);
-  const canRun = st.rocketWorkshopEnabled !== false && !!st.powered && hasInputs(st) && canFitOutput(st) && !job?.active;
-  const previewOutput = outputRows({ rocketWorkshopOutput: { [ROCKET_WORKSHOP_RECIPE.ammoOutput.itemId]: ROCKET_WORKSHOP_RECIPE.ammoOutput.amount } })[0] || null;
+  const mix = computeRocketMixFromResources(input);
+  const canRun = st.rocketWorkshopEnabled !== false && !!st.powered && hasInputs(st) && canFitOutput(st, mix) && !job?.active;
+  const previewOutput = {
+    itemId: mix.ammoDef.id,
+    name: mix.ammoDef.name,
+    shortName: mix.ammoDef.shortName || mix.ammoDef.name,
+    amount: mix.ammoOutput.amount | 0,
+    tier: mix.ammoDef.tier | 0 || 1,
+    summary: mix.ammoDef.ammoProfile?.summary || '',
+    damage: Math.round(mix.ammoDef.ammoProfile?.damage || 0),
+    splashRadius: Math.round(mix.ammoDef.ammoProfile?.splashRadius || 0),
+    custom: !!mix.hasOptional,
+    previewLines: mix.previewLines || [],
+    warnings: mix.warnings || []
+  };
   return {
     id: st.id | 0,
     type: st.type,
     name: st.name || def?.name || 'Atelier de roquettes',
     powered: !!st.powered,
     enabled: st.rocketWorkshopEnabled !== false,
-    energyUse: Number(ROCKET_WORKSHOP_RECIPE.energyUse || def?.energyUse) || 0,
+    energyUse: Number(mix.energyUse || ROCKET_WORKSHOP_RECIPE.energyUse || def?.energyUse) || 0,
     baseCoreId: core?.id | 0 || 0,
     baseEnergy: core?.energyState || null,
     recipe: {
-      id: ROCKET_WORKSHOP_RECIPE.id,
-      name: ROCKET_WORKSHOP_RECIPE.name,
-      seconds: ROCKET_WORKSHOP_RECIPE.seconds | 0,
-      energyUse: ROCKET_WORKSHOP_RECIPE.energyUse | 0,
-      input: recipeEntries(ROCKET_WORKSHOP_RECIPE.input).map(([key, amount]) => resourceEntry(key, amount | 0, { stored: input[key] | 0, have: player?.inv?.resources?.[key] | 0 })),
+      id: mix.id || ROCKET_WORKSHOP_RECIPE.id,
+      name: mix.hasOptional ? `Mix expérimental : ${mix.name}` : ROCKET_WORKSHOP_RECIPE.name,
+      seconds: mix.seconds | 0,
+      energyUse: mix.energyUse | 0,
+      input: Object.entries(mix.consumedInput || ROCKET_WORKSHOP_RECIPE.input).map(([key, amount]) => resourceEntry(key, amount | 0, { stored: input[key] | 0, have: player?.inv?.resources?.[key] | 0 })),
       ammoOutput: previewOutput,
-      description: ROCKET_WORKSHOP_RECIPE.description
+      previewLines: mix.previewLines || [],
+      warnings: mix.warnings || [],
+      description: mix.hasOptional ? 'Produit un lot de roquettes calculé depuis les ingrédients présents dans l’entrée.' : ROCKET_WORKSHOP_RECIPE.description
     },
     input: Object.entries(cleanMap(input)).map(([key, amount]) => resourceEntry(key, amount | 0)),
-    cargoResources: recipeEntries(ROCKET_WORKSHOP_RECIPE.input)
-      .map(([key]) => resourceEntry(key, player?.inv?.resources?.[key] | 0))
-      .filter((entry) => entry.amount > 0),
+    cargoResources: getRocketMixInputKeys()
+      .map((key) => resourceEntry(key, player?.inv?.resources?.[key] | 0, { required: ROCKET_WORKSHOP_RECIPE.input?.[key] | 0 || 0 }))
+      .filter((entry) => entry.amount > 0 || entry.required > 0),
     inputUsed: usedResourceCapacity(input),
     inputCapacity: INPUT_CAPACITY,
-    output: outputRows(st),
+    output: outputRows(st, player),
     outputUsed: outputUsed(st),
     outputCapacity: OUTPUT_CAPACITY,
     job,
@@ -227,6 +252,8 @@ export function claimRocketWorkshopAmmo(state, player, structureId, itemId = '',
   const out = outputMap(st);
   const take = Math.min(out[key] | 0, Math.max(1, amount | 0 || 9999));
   if (take <= 0) return { ok: false };
+  const customDef = customDefMap(st)[key] || customDefMap(st)[itemId] || null;
+  if (customDef?.id) addCustomEquipmentDef(player, customDef);
   if (!addRocketAmmo(player, key, take, timeMs)) return { ok: false };
   out[key] = (out[key] | 0) - take;
   cleanMap(out);
@@ -262,7 +289,7 @@ export function getRocketWorkshopActiveEnergyUse(st) {
   if (!isWorkshop(st)) return 0;
   const job = st.rocketWorkshopJob || null;
   if (!job || Number(job.remainingMs) <= 0 || st.rocketWorkshopEnabled === false) return 0;
-  return Math.max(0, Number(ROCKET_WORKSHOP_RECIPE.energyUse) || 0);
+  return Math.max(0, Number(job.energyUse || ROCKET_WORKSHOP_RECIPE.energyUse) || 0);
 }
 
 function canStart(st) {
@@ -271,14 +298,24 @@ function canStart(st) {
   if (st.rocketWorkshopJob && Number(st.rocketWorkshopJob.remainingMs) > 0) return false;
   if (!st.powered) return false;
   if (!hasInputs(st)) return false;
-  if (!canFitOutput(st)) return false;
+  if (!canFitOutput(st, computeRocketMixFromResources(inputMap(st)))) return false;
   return true;
 }
 
 function startJob(st, timeMs) {
-  consumeInputs(st);
-  const totalMs = Math.max(250, Math.round((Number(ROCKET_WORKSHOP_RECIPE.seconds) || 1) * 1000));
-  st.rocketWorkshopJob = { recipeId: ROCKET_WORKSHOP_RECIPE.id, totalMs, remainingMs: totalMs, startedAt: timeMs, paused: false };
+  const mix = computeRocketMixFromResources(inputMap(st));
+  consumeInputs(st, mix.consumedInput);
+  const totalMs = Math.max(250, Math.round((Number(mix.seconds) || 1) * 1000));
+  st.rocketWorkshopJob = {
+    recipeId: mix.id || ROCKET_WORKSHOP_RECIPE.id,
+    totalMs,
+    remainingMs: totalMs,
+    startedAt: timeMs,
+    paused: false,
+    energyUse: mix.energyUse | 0,
+    ammoOutput: { ...mix.ammoOutput },
+    customAmmoDef: mix.hasOptional ? JSON.parse(JSON.stringify(mix.ammoDef)) : null
+  };
   st.updatedAt = timeMs;
   return true;
 }
@@ -304,7 +341,7 @@ export function updateRocketWorkshops(state, dt, timeMs = Date.now()) {
     job.remainingMs = Math.max(0, Number(job.remainingMs) - stepMs);
     st.updatedAt = timeMs;
     if (job.remainingMs <= 0) {
-      if (canFitOutput(st)) addAmmoOutput(st, timeMs);
+      if (canFitOutput(st, { ammoOutput: job.ammoOutput })) addAmmoOutput(st, job, timeMs);
       st.rocketWorkshopJob = null;
       shouldSave ||= String(st.worldId || 'endless') === 'endless';
       if (canStart(st)) startJob(st, timeMs);

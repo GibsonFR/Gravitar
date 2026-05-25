@@ -533,6 +533,45 @@ export function ensureTestRocketWorkshopBench(state, player, timeMs) {
   }
 }
 
+export function ensureTestRocketMixerBench(state, player, timeMs) {
+  if (!state?.structures || !player) return;
+  const worldId = String(player.worldId || '');
+  const sx = SPECIAL_SECTORS.TEST_ROCKET_MIXER.sx | 0;
+  const sy = SPECIAL_SECTORS.TEST_ROCKET_MIXER.sy | 0;
+  if ((player.sx | 0) !== sx || (player.sy | 0) !== sy) return;
+  const owner = { ownerId: player.id | 0, ownerKey: player.accountKey || 'test', ownerName: player.pseudo || 'Test', timeMs };
+  const core = ensureTestStructure(state, worldId, 'base_core', sx, sy, -448, 0, owner);
+  if (core) core.claimRadius = Math.max(core.claimRadius || 0, 1600);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -256, -192, owner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -128, -192, owner);
+  const gen = ensureTestStructure(state, worldId, 'fuel_generator', sx, sy, 64, -192, owner);
+  if (gen) {
+    gen.storage ??= { kind: 'fuel', resources: {}, capacity: 80 };
+    gen.storage.kind = 'fuel';
+    gen.storage.resources ??= {};
+    gen.storage.resources.refinedFuel = Math.max(gen.storage.resources.refinedFuel | 0, 30);
+  }
+  const workshop = ensureTestStructure(state, worldId, 'rocket_workshop', sx, sy, 64, 96, owner);
+  if (workshop) {
+    workshop.rocketWorkshopEnabled = true;
+    workshop.rocketWorkshopInput = { steelPlate: 20, propellant: 18, controlCircuit: 6, biofuel: 2, graphite: 2 };
+    workshop.rocketWorkshopOutput ||= {};
+    workshop.updatedAt = timeMs;
+  }
+  const storage = ensureTestStructure(state, worldId, 'storage', sx, sy, 352, 96, owner);
+  if (storage) {
+    storage.storage ??= { kind: 'resources', resources: {}, capacity: 620 };
+    storage.storage.kind = 'resources';
+    storage.storage.capacity = Math.max(storage.storage.capacity || 0, 620);
+    storage.storage.resources = {
+      steelPlate: 120, propellant: 120, controlCircuit: 30,
+      biofuel: 30, waterIce: 30, ammoniaIce: 30,
+      lithiumBattery: 16, copperWire: 80, graphite: 40,
+      sulfur: 30, titaniumPlate: 12, unknownTechFragment: 6
+    };
+  }
+}
+
 function grantTestResources(player) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);

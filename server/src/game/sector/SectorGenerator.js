@@ -458,6 +458,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, -380, 1320, SPECIAL_SECTORS.TEST_ROCKET_MIXER.sx, SPECIAL_SECTORS.TEST_ROCKET_MIXER.sy, '✹', {
+    label: 'Test mixage libre de roquettes',
+    mode: 'test_rocket_mixer',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -764,6 +770,24 @@ function generateTestRocketWorkshopContent(state, sx, sy, timeMs, h) {
   resources.forEach(([resourceKey, x, y], i) => {
     spawnAsteroidProc(state, sx, sy, {
       x, y, radius: 44 + (i % 3) * 8, resourceKey, yieldValue: 26, seed: h ^ (0xd700 + i), sig: `test_rocket_workshop_${resourceKey}_${i}`
+    });
+  });
+}
+
+function generateTestRocketMixerContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+  const resources = [
+    ['biofuel', -860, -360], ['waterIce', -540, 360], ['ammoniaIce', 560, -390],
+    ['lithiumOre', 820, 250], ['graphite', -980, 300], ['sulfur', 340, 640],
+    ['titaniumOre', 980, -620], ['unknownTechFragment', 1180, 420]
+  ];
+  resources.forEach(([resourceKey, x, y], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x, y, radius: 44 + (i % 3) * 8, resourceKey, yieldValue: 28, seed: h ^ (0xd900 + i), sig: `test_rocket_mixer_${resourceKey}_${i}`
     });
   });
 }
@@ -1240,6 +1264,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testPirateReputation = sx === SPECIAL_SECTORS.TEST_PIRATE_REPUTATION.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_REPUTATION.sy;
   const testPirateRareEquipment = sx === SPECIAL_SECTORS.TEST_PIRATE_RARE_EQUIPMENT.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_RARE_EQUIPMENT.sy;
   const testRocketWorkshop = sx === SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sx && sy === SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sy;
+  const testRocketMixer = sx === SPECIAL_SECTORS.TEST_ROCKET_MIXER.sx && sy === SPECIAL_SECTORS.TEST_ROCKET_MIXER.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -1310,6 +1335,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testRocketWorkshop) {
     generateTestRocketWorkshopContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testRocketMixer) {
+    generateTestRocketMixerContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

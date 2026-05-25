@@ -1,5 +1,5 @@
 import { ITEM_CATEGORY_IDS } from '../../../../shared/content/items/ItemCategoryIds.js';
-import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
+import { getPlayerItemDef } from '../equipment/PlayerEquipmentDefs.js';
 import { STATUS_EFFECT_IDS } from '../../../../shared/content/status/StatusEffectIds.js';
 
 function ensureAmmoState(player) {
@@ -24,7 +24,7 @@ export function getRocketAmmoQuantity(player, itemId) {
 
 export function addRocketAmmo(player, itemId, amount, timeMs = 0) {
   const equipment = ensureAmmoState(player);
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!equipment || !isRocketAmmoDef(def)) return false;
   const qty = Math.max(0, Math.floor(amount || 0));
   if (qty <= 0) return false;
@@ -38,7 +38,7 @@ export function addRocketAmmo(player, itemId, amount, timeMs = 0) {
 
 export function assignRocketAmmoToSlot(player, itemId, slot, timeMs = 0) {
   const equipment = ensureAmmoState(player);
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!equipment || !isRocketAmmoDef(def)) return false;
   if (getRocketAmmoQuantity(player, itemId) <= 0) return false;
   const slotIndex = Math.max(0, Math.min(1, slot | 0));
@@ -85,7 +85,7 @@ export function getRocketAmmoDefBySlot(player, slot) {
   const slotIndex = Math.max(0, Math.min(1, slot | 0));
   const itemId = equipment.rocketAmmoSlotItemIds[slotIndex] || '';
   if (!itemId) return null;
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId);
   if (!isRocketAmmoDef(def)) return null;
   if (getRocketAmmoQuantity(player, itemId) <= 0) return null;
   return def;

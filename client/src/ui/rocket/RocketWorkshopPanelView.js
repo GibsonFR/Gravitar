@@ -30,6 +30,19 @@ function recipeNeedRows(entries = []) {
   }).join('');
 }
 
+
+function previewLines(lines = [], warnings = []) {
+  const safeLines = (lines || []).filter(Boolean);
+  const safeWarnings = (warnings || []).filter(Boolean);
+  if (!safeLines.length && !safeWarnings.length) return '';
+  return `
+    <div class="rocket-workshop__preview">
+      ${safeLines.map((line) => `<span>${escapeHtml(line)}</span>`).join('')}
+      ${safeWarnings.map((line) => `<span class="is-warning">${escapeHtml(line)}</span>`).join('')}
+    </div>
+  `;
+}
+
 function outputCards(entries = [], structureId = 0) {
   if (!entries.length) return '<div class="rocket-workshop__empty">Aucune roquette prête.</div>';
   return entries.map((item) => `
@@ -159,6 +172,7 @@ export class RocketWorkshopPanelView {
             <div class="rocket-workshop__recipe-title">${escapeHtml(recipe.name || 'Lot de roquettes')}</div>
             <div class="rocket-workshop__recipe-sub">${escapeHtml(recipe.description || '')}</div>
             <div class="rocket-workshop__chips">${recipeNeedRows(recipe.input || [])}</div>
+            ${previewLines(recipe.previewLines || out?.previewLines || [], recipe.warnings || out?.warnings || [])}
             <div class="rocket-workshop__out">Sortie : <b>${out ? `${out.amount | 0} ${escapeHtml(out.name || out.shortName || 'roquettes')}` : '—'}</b></div>
           </div>
         </section>
@@ -168,11 +182,11 @@ export class RocketWorkshopPanelView {
         </div>
         <div class="rocket-workshop__cols">
           <section class="rocket-workshop__box">
-            <h3>Cargo utile <span>déposer</span></h3>
+            <h3>Cargo utile <span>base + additifs</span></h3>
             ${resourceRows(workshop.cargoResources || [], 'Déposer', 'deposit', workshop.id, false)}
           </section>
           <section class="rocket-workshop__box">
-            <h3>Entrée machine <span>${Math.round(workshop.inputUsed || 0)} / ${Math.round(workshop.inputCapacity || 0)}</span></h3>
+            <h3>Mix en entrée <span>${Math.round(workshop.inputUsed || 0)} / ${Math.round(workshop.inputCapacity || 0)}</span></h3>
             ${resourceRows(workshop.input || [], 'Reprendre', 'withdraw', workshop.id, false)}
           </section>
           <section class="rocket-workshop__box rocket-workshop__box--output">
