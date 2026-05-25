@@ -17,13 +17,18 @@ function pct(current, required) {
 function questCard(q, selected) {
   const statusLabel = q.completed ? 'Terminée' : q.active ? 'En cours' : 'Disponible';
   const stateClass = q.completed ? 'is-completed' : q.active ? 'is-active-quest' : '';
-  const progressPct = pct(q.have, q.required);
+  const isKill = q.type === 'kill_mob';
+  const label = isKill ? (q.targetName || q.targetMobId || 'Cible') : (q.resourceName || q.resourceKey || 'Ressource');
+  const current = isKill ? (q.current | 0) : (q.have | 0);
+  const color = isKill ? (q.targetColorHex || '#ffbf7a') : (q.resourceColorHex || '#ffbf7a');
+  const icon = isKill ? '✦' : '☠';
+  const progressPct = pct(current, q.required);
   return `
     <button type="button" class="pirate-quest-card ${selected ? 'is-selected' : ''} ${stateClass}" data-quest-id="${escapeHtml(q.questId)}">
-      <span class="pirate-quest-card__icon" style="--quest-color:${escapeHtml(q.resourceColorHex || '#ffbf7a')}">☠</span>
+      <span class="pirate-quest-card__icon" style="--quest-color:${escapeHtml(color)}">${icon}</span>
       <span class="pirate-quest-card__body">
         <span class="pirate-quest-card__top"><strong>${escapeHtml(q.name || 'Quête pirate')}</strong><em>${escapeHtml(statusLabel)}</em></span>
-        <span class="pirate-quest-card__goal">${escapeHtml(q.resourceName || q.resourceKey || 'Ressource')} ${Math.max(0, q.have | 0)} / ${Math.max(1, q.required | 0 || 1)}</span>
+        <span class="pirate-quest-card__goal">${escapeHtml(label)} ${Math.max(0, current)} / ${Math.max(1, q.required | 0 || 1)}</span>
         <span class="pirate-quest-card__bar"><i style="width:${progressPct}%"></i></span>
         <span class="pirate-quest-card__reward">+${formatCredits(q.rewardCredits || 0)} · +${Math.max(0, q.rewardReputationXp | 0)} réputation</span>
       </span>
@@ -107,7 +112,10 @@ export class PirateQuestView {
         <div class="pirate-quests__muted">Sélectionne une quête.</div>`;
       return;
     }
-    const progressPct = pct(q.have, q.required);
+    const isKill = q.type === 'kill_mob';
+    const objectiveLabel = isKill ? (q.targetName || q.targetMobId || 'Cible') : (q.resourceName || q.resourceKey || 'Ressource');
+    const objectiveCurrent = isKill ? (q.current | 0) : (q.have | 0);
+    const progressPct = pct(objectiveCurrent, q.required);
     const action = q.completed
       ? `<button class="ui-btn" disabled>Déjà terminée</button>`
       : q.active
@@ -123,7 +131,7 @@ export class PirateQuestView {
       </section>
       <section class="pirate-quests__detailbox">
         <h4>Objectif</h4>
-        <div class="pirate-quests__line"><span>${escapeHtml(q.resourceName || q.resourceKey || 'Ressource')}</span><b>${Math.max(0, q.have | 0)} / ${Math.max(1, q.required | 0 || 1)}</b></div>
+        <div class="pirate-quests__line"><span>${escapeHtml(objectiveLabel)}</span><b>${Math.max(0, objectiveCurrent)} / ${Math.max(1, q.required | 0 || 1)}</b></div>
         <div class="pirate-quests__bar"><i style="width:${progressPct}%"></i></div>
       </section>
       <section class="pirate-quests__detailbox">

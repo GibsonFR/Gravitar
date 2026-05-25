@@ -21,6 +21,7 @@ import { queueWorldSfx } from '../audio/WorldSfxState.js';
 import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
 import { getAsteroidXpReward, getMobXpReward, getPlayerKillXpReward } from '../progression/ProgressionRewards.js';
 import { dropMobLoot } from '../mob/MobDrops.js';
+import { registerPirateQuestKill } from '../player/runtime/PlayerPirateState.js';
 import { isPlayerSessionPending } from '../player/PlayerSessionSetup.js';
 import { getBastionDefenseMultiplier } from '../bastion/BastionBuffs.js';
 import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
@@ -409,6 +410,12 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
 
     if (sourcePlayer && sourcePlayer.kind === 'player') {
       gainPlayerXp(sourcePlayer, getMobXpReward(target), `${target.name} éliminé`);
+      const questUpdates = registerPirateQuestKill(sourcePlayer, target.mobId);
+      if (questUpdates.length) {
+        const last = questUpdates[questUpdates.length - 1];
+        sourcePlayer.uiHint = `${last.name} : ${last.current}/${last.required}`;
+        sourcePlayer.uiHintTimer = 1.9;
+      }
       onEntityKilledByFrame(state, sourcePlayer, target);
     }
     return;

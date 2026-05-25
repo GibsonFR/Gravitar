@@ -38,7 +38,10 @@ export function ensurePlayerPirateState(player) {
       current: Math.max(0, progress.current | 0 || 0),
       required: Math.max(1, progress.required | 0 || 1),
       rewardCredits: Math.max(0, progress.rewardCredits | 0 || 0),
-      rewardReputationXp: Math.max(0, progress.rewardReputationXp | 0 || 0)
+      rewardReputationXp: Math.max(0, progress.rewardReputationXp | 0 || 0),
+      targetMobId: progress.targetMobId || '',
+      targetName: progress.targetName || '',
+      resourceKey: progress.resourceKey || ''
     };
     if (cleanId !== questId) delete player.pirate.questProgress[questId];
   }
@@ -91,6 +94,8 @@ export function acceptPirateQuest(player, quest) {
     type: quest.type || '',
     name: quest.name || 'Quête pirate',
     resourceKey: quest.resourceKey || '',
+    targetMobId: quest.targetMobId || '',
+    targetName: quest.targetName || '',
     current: 0,
     required: Math.max(1, quest.required | 0 || 1),
     rewardCredits: Math.max(0, quest.rewardCredits | 0 || 0),
@@ -120,4 +125,24 @@ export function completePirateQuest(player, questIdRaw) {
   pirate.completedQuestIds.sort();
   delete pirate.questProgress[questId];
   return progress;
+}
+
+
+export function registerPirateQuestKill(player, mobIdRaw) {
+  const mobId = String(mobIdRaw || '').toLowerCase();
+  if (!player || !mobId) return [];
+  const pirate = ensurePlayerPirateState(player);
+  const changed = [];
+  for (const questId of pirate.activeQuestIds || []) {
+    const progress = pirate.questProgress?.[questId];
+    if (!progress || progress.type !== 'kill_mob') continue;
+    if (String(progress.targetMobId || '').toLowerCase() !== mobId) continue;
+    const required = Math.max(1, progress.required | 0 || 1);
+    const next = Math.min(required, Math.max(0, progress.current | 0 || 0) + 1);
+    if (next === progress.current) continue;
+    progress.current = next;
+    changed.push({ questId, current: next, required, name: progress.name || 'Quête pirate' });
+  }
+  if (changed.length) player.forceFullUiSnapshot = true;
+  return changed;
 }

@@ -562,7 +562,9 @@ function generateTestPirateQuestsContent(state, sx, sy, timeMs, h) {
     station.stock.questOffers = [
       { questId: 'pq_test_deliver_iron', templateId: 'deliver_iron_ore_t1', type: 'deliver_resource', name: 'Livraison test : fer', description: 'Livrer 40 minerais de fer à cette station pirate.', resourceKey: 'ironOre', required: 40, rewardCredits: 180, rewardReputationXp: 30, stationTierMin: 1, pirateTier: 2 },
       { questId: 'pq_test_deliver_graphite', templateId: 'deliver_graphite_t1', type: 'deliver_resource', name: 'Livraison test : graphite', description: 'Livrer 30 graphites à cette station pirate.', resourceKey: 'graphite', required: 30, rewardCredits: 240, rewardReputationXp: 38, stationTierMin: 1, pirateTier: 2 },
-      { questId: 'pq_test_deliver_propellant', templateId: 'deliver_propellant_t2', type: 'deliver_resource', name: 'Livraison test : propergol', description: 'Livrer 18 propergols à cette station pirate.', resourceKey: 'propellant', required: 18, rewardCredits: 360, rewardReputationXp: 52, stationTierMin: 2, pirateTier: 2 }
+      { questId: 'pq_test_deliver_propellant', templateId: 'deliver_propellant_t2', type: 'deliver_resource', name: 'Livraison test : propergol', description: 'Livrer 18 propergols à cette station pirate.', resourceKey: 'propellant', required: 18, rewardCredits: 360, rewardReputationXp: 52, stationTierMin: 2, pirateTier: 2 },
+      { questId: 'pq_test_kill_mites', templateId: 'kill_ferrous_mites_t1', type: 'kill_mob', name: 'Contrat test : mites ferreuses', description: 'Éliminer 3 mites ferreuses autour de la station.', targetMobId: 'ferrous_mite', targetName: 'Mite ferreuse', required: 3, rewardCredits: 260, rewardReputationXp: 42, stationTierMin: 1, pirateTier: 2 },
+      { questId: 'pq_test_kill_sappers', templateId: 'kill_scoria_sappers_t2', type: 'kill_mob', name: 'Contrat test : sapeurs', description: 'Éliminer 2 sapeurs de scories autour de la station.', targetMobId: 'scoria_sapper', targetName: 'Sapeur de scories', required: 2, rewardCredits: 360, rewardReputationXp: 56, stationTierMin: 2, pirateTier: 2 }
     ];
     station.stock.demand = [
       { resourceKey: 'ironOre', priceCredits: 7, maxAmount: 200, reputationXpPerUnit: 0.02 },
@@ -580,6 +582,16 @@ function generateTestPirateQuestsContent(state, sx, sy, timeMs, h) {
     spawnAsteroidProc(state, sx, sy, {
       x, y, radius: 42 + (i % 3) * 8, resourceKey, yieldValue: 18, seed: h ^ (0xa700 + i), sig: `test_pirate_quests_${resourceKey}_${i}`
     });
+  });
+
+  const testMobs = [
+    ['ferrous_mite', -620, 520], ['ferrous_mite', -420, 740], ['ferrous_mite', -220, 560], ['ferrous_mite', -80, 780],
+    ['scoria_sapper', 420, 560], ['scoria_sapper', 660, 760], ['orbital_stinger', 860, 520]
+  ];
+  testMobs.forEach(([mobId, x, y], i) => {
+    const mob = spawnMob(state, sx, sy, mobId, x, y, { seed: h ^ (0xb700 + i), mapLevel: 4, spawnTimeMs: timeMs, noLoot: true });
+    mob.aggroRange = 900;
+    mob.leashRange = 1300;
   });
 }
 

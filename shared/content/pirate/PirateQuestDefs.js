@@ -1,9 +1,11 @@
 import { RESOURCE_DEFS } from '../resources/ResourceDefs.js';
+import { MOB_DEFS, MOB_IDS } from '../mobs/MobDefs.js';
 
 export const PIRATE_REPUTATION_THRESHOLDS = Object.freeze([0, 100, 300, 700, 1400, 2500]);
 
 export const PIRATE_QUEST_TYPES = Object.freeze({
-  DELIVER_RESOURCE: 'deliver_resource'
+  DELIVER_RESOURCE: 'deliver_resource',
+  KILL_MOB: 'kill_mob'
 });
 
 const DELIVERY_TEMPLATES = Object.freeze([
@@ -16,6 +18,18 @@ const DELIVERY_TEMPLATES = Object.freeze([
   { id: 'deliver_control_circuit_t3', type: PIRATE_QUEST_TYPES.DELIVER_RESOURCE, name: 'Circuits effacés', resourceKey: 'controlCircuit', required: 6, rewardCredits: 740, rewardReputationXp: 86, stationTierMin: 3 },
   { id: 'deliver_unknown_fragment_t3', type: PIRATE_QUEST_TYPES.DELIVER_RESOURCE, name: 'Fragments interdits', resourceKey: 'unknownTechFragment', required: 3, rewardCredits: 920, rewardReputationXp: 110, stationTierMin: 3 }
 ]);
+
+const KILL_TEMPLATES = Object.freeze([
+  { id: 'kill_ferrous_mites_t1', type: PIRATE_QUEST_TYPES.KILL_MOB, name: 'Nettoyage de mites ferreuses', targetMobId: MOB_IDS.FERROUS_MITE, required: 5, rewardCredits: 230, rewardReputationXp: 36, stationTierMin: 1 },
+  { id: 'kill_scoria_sappers_t2', type: PIRATE_QUEST_TYPES.KILL_MOB, name: 'Contrat : sapeurs de scories', targetMobId: MOB_IDS.SCORIA_SAPPER, required: 4, rewardCredits: 340, rewardReputationXp: 48, stationTierMin: 2 },
+  { id: 'kill_orbital_stingers_t2', type: PIRATE_QUEST_TYPES.KILL_MOB, name: 'Chasse aux dards orbitaux', targetMobId: MOB_IDS.ORBITAL_STINGER, required: 4, rewardCredits: 360, rewardReputationXp: 52, stationTierMin: 2 },
+  { id: 'kill_prismatic_lancers_t3', type: PIRATE_QUEST_TYPES.KILL_MOB, name: 'Prime : lanciers prismatiques', targetMobId: MOB_IDS.PRISMATIC_LANCER, required: 3, rewardCredits: 620, rewardReputationXp: 78, stationTierMin: 3 },
+  { id: 'kill_sentinel_nodules_t3', type: PIRATE_QUEST_TYPES.KILL_MOB, name: 'Sabotage de nodules sentinelles', targetMobId: MOB_IDS.SENTINEL_NODULE, required: 3, rewardCredits: 660, rewardReputationXp: 84, stationTierMin: 3 }
+]);
+
+function mobName(mobId) {
+  return MOB_DEFS[mobId]?.name || mobId || 'cible';
+}
 
 function hashText(str) {
   let h = 2166136261 | 0;
@@ -50,39 +64,63 @@ export function nextReputationXpForLevel(level) {
 }
 
 export function listPirateQuestTemplates() {
-  return DELIVERY_TEMPLATES.slice();
+  return [...DELIVERY_TEMPLATES, ...KILL_TEMPLATES];
 }
 
 export function createPirateQuestOffers(options = {}) {
   const stationSeed = options.stationSeed | 0;
   const pirateTier = Math.max(1, options.pirateTier | 0 || 1);
   const localKeys = new Set((options.resourceKeys || []).map((key) => String(key || '')));
-  const eligible = DELIVERY_TEMPLATES
+  const scale = 1 + Math.max(0, pirateTier - 1) * 0.18;
+
+  const delivery = DELIVERY_TEMPLATES
     .filter((tpl) => pirateTier >= Math.max(1, tpl.stationTierMin | 0 || 1))
     .map((tpl, index) => {
       const localBonus = localKeys.has(tpl.resourceKey) ? -2000 : 0;
-      return { tpl, score: Math.abs(hashText(`${stationSeed}:${tpl.id}`)) + localBonus + index * 17 };
+      return { tpl, source: 'delivery', score: Math.abs(hashText(`${stationSeed}:${tpl.id}`)) + localBonus + index * 17 };
     })
-    .sort((a, b) => a.score - b.score)
-    .slice(0, Math.max(2, Math.min(3, 1 + pirateTier)));
+    .sort((a, b) => a.score - b.score);
 
-  return eligible.map(({ tpl }, index) => {
-    const scale = 1 + Math.max(0, pirateTier - 1) * 0.18;
+  const kill = KILL_TEMPLATES
+    .filter((tpl) => pirateTier >= Math.max(1, tpl.stationTierMin | 0 || 1))
+    .map((tpl, index) => ({ tpl, source: 'kill', score: Math.abs(hashText(`${stationSeed}:kill:${tpl.id}`)) + index * 31 }))
+    .sort((a, b) => a.score - b.score);
+
+  const count = Math.max(2, Math.min(4, 2 + Math.floor(pirateTier / 2)));
+  const picked = [];
+  if (delivery[0]) picked.push(delivery[0]);
+  if (kill[0]) picked.push(kill[0]);
+  for (const candidate of [...delivery.slice(1), ...kill.slice(1)].sort((a, b) => a.score - b.score)) {
+    if (picked.length >= count) break;
+    if (!picked.some((p) => p.tpl.id === candidate.tpl.id)) picked.push(candidate);
+  }
+
+  return picked.map(({ tpl }, index) => {
     const required = Math.max(1, Math.round(tpl.required * scale));
     const rewardCredits = Math.max(1, Math.round(tpl.rewardCredits * (1 + Math.max(0, pirateTier - 1) * 0.35)));
     const rewardReputationXp = Math.max(1, Math.round(tpl.rewardReputationXp * (1 + Math.max(0, pirateTier - 1) * 0.22)));
-    return {
+    const base = {
       questId: questIdFor(stationSeed, tpl.id, index),
       templateId: tpl.id,
       type: tpl.type,
       name: tpl.name,
-      description: `Livrer ${required} × ${resourceName(tpl.resourceKey)} à cette station pirate.`,
-      resourceKey: tpl.resourceKey,
       required,
       rewardCredits,
       rewardReputationXp,
       stationTierMin: tpl.stationTierMin | 0 || 1,
       pirateTier
     };
-  });
-}
+    if (tpl.type === PIRATE_QUEST_TYPES.KILL_MOB) {
+      return {
+        ...base,
+        targetMobId: tpl.targetMobId,
+        targetName: mobName(tpl.targetMobId),
+        description: `Éliminer ${required} × ${mobName(tpl.targetMobId)} pour cette station pirate.`
+      };
+    }
+    return {
+      ...base,
+      resourceKey: tpl.resourceKey,
+      description: `Livrer ${required} × ${resourceName(tpl.resourceKey)} à cette station pirate.`
+    };
+  });}

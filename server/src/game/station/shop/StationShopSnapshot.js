@@ -6,6 +6,7 @@ import { ensureStationStockCurrent } from './StationStockRefresh.js';
 import { getEffectivePurchasePriceCredits, getEffectiveSellPriceCredits } from '../../bastion/BastionBuffs.js';
 import { getStationDemandForResource, getStationSupplyForResource } from '../pirate/PirateStationEconomy.js';
 import { getConversionRecipe } from '../../../../../shared/content/conversion/ConversionRecipeDefs.js';
+import { MOB_DEFS } from '../../../../../shared/content/mobs/MobDefs.js';
 import { ensurePlayerPirateState, hasUnlockedConversionRecipe, getPirateReputationSnapshot } from '../../player/runtime/PlayerPirateState.js';
 
 
@@ -82,20 +83,25 @@ function buildQuestSnapshot(station, player) {
     const questId = String(offer?.questId || '').toLowerCase();
     if (!questId) return null;
     const progress = pirate.questProgress?.[questId] || null;
-    const have = Math.max(0, player?.inv?.resources?.[offer.resourceKey] | 0);
-    const required = Math.max(1, offer.required | 0 || 1);
-    const current = progress ? Math.max(0, Math.min(required, have)) : 0;
+    const type = offer.type || 'deliver_resource';
+    const required = Math.max(1, offer.required | 0 || progress?.required | 0 || 1);
     const status = completed.has(questId) ? 'completed' : active.has(questId) ? 'active' : 'available';
-    const def = getResourceDef(offer.resourceKey);
+    const resourceDef = getResourceDef(offer.resourceKey);
+    const mobDef = MOB_DEFS[offer.targetMobId] || null;
+    const have = type === 'kill_mob' ? Math.max(0, progress?.current | 0 || 0) : Math.max(0, player?.inv?.resources?.[offer.resourceKey] | 0);
+    const current = status === 'active' ? Math.max(0, Math.min(required, type === 'kill_mob' ? (progress?.current | 0 || 0) : have)) : 0;
     return {
       questId,
       templateId: offer.templateId || '',
-      type: offer.type || 'deliver_resource',
+      type,
       name: offer.name || 'Quête pirate',
       description: offer.description || '',
       resourceKey: offer.resourceKey || '',
-      resourceName: def?.name || offer.resourceKey || '',
-      resourceColorHex: def?.colorHex || '#cfd7e6',
+      resourceName: resourceDef?.name || offer.resourceKey || '',
+      resourceColorHex: resourceDef?.colorHex || '#cfd7e6',
+      targetMobId: offer.targetMobId || progress?.targetMobId || '',
+      targetName: offer.targetName || progress?.targetName || mobDef?.name || offer.targetMobId || '',
+      targetColorHex: mobDef?.color ? `rgb(${mobDef.color.r},${mobDef.color.g},${mobDef.color.b})` : '#ffbf7a',
       current,
       have,
       required,
@@ -105,7 +111,7 @@ function buildQuestSnapshot(station, player) {
       active: active.has(questId),
       completed: completed.has(questId),
       canAccept: status === 'available',
-      canComplete: status === 'active' && have >= required
+      canComplete: status === 'active' && current >= required
     };
   }).filter(Boolean);
   return {

@@ -19,12 +19,19 @@ export function handleCompletePirateQuest(state, player, msg) {
   const questId = String(quest.questId || '').toLowerCase();
   const pirate = ensurePlayerPirateState(player);
   if (!pirate.activeQuestIds.includes(questId)) return false;
-  if (quest.type !== 'deliver_resource') return false;
-  const key = String(quest.resourceKey || '');
-  const required = Math.max(1, quest.required | 0 || 1);
-  if ((player.inv.resources?.[key] | 0) < required) return false;
-  const removed = removeResource(player.inv, key, required);
-  if (removed < required) return false;
+  const storedProgress = pirate.questProgress?.[questId] || null;
+  if (quest.type === 'deliver_resource') {
+    const key = String(quest.resourceKey || '');
+    const required = Math.max(1, quest.required | 0 || 1);
+    if ((player.inv.resources?.[key] | 0) < required) return false;
+    const removed = removeResource(player.inv, key, required);
+    if (removed < required) return false;
+  } else if (quest.type === 'kill_mob') {
+    const required = Math.max(1, quest.required | 0 || storedProgress?.required | 0 || 1);
+    if ((storedProgress?.current | 0) < required) return false;
+  } else {
+    return false;
+  }
   const progress = completePirateQuest(player, questId);
   if (!progress) return false;
   addCredits(player.inv, Math.max(0, quest.rewardCredits | 0 || progress.rewardCredits | 0 || 0));
