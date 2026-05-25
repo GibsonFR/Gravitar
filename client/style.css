@@ -7805,7 +7805,12 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(255,255,255,.04); color: rgba(245,248,255,.9);
   cursor: pointer; font-size: 20px;
 }
-.rocket-workshop__body { padding: 16px; overflow: auto; max-height: calc(min(760px, 100vh - 48px) - 76px); }
+.rocket-workshop__body { padding: 16px; overflow-y: auto; overflow-x: hidden; max-height: calc(min(760px, 100vh - 48px) - 76px); scrollbar-gutter: stable; overscroll-behavior: contain; touch-action: pan-y; }
+
+.rocket-workshop__body::-webkit-scrollbar { width: 12px; }
+.rocket-workshop__body::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 999px; }
+.rocket-workshop__body::-webkit-scrollbar-thumb { background: rgba(255,184,92,.45); border-radius: 999px; border: 3px solid rgba(7,10,15,.95); }
+.rocket-workshop__body::-webkit-scrollbar-thumb:hover { background: rgba(255,205,130,.70); }
 .rocket-workshop__recipe-card {
   display: grid; grid-template-columns: 58px 1fr; gap: 14px;
   border: 1px solid rgba(255, 184, 92, .22);

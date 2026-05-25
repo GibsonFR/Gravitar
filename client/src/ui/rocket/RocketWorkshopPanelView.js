@@ -103,6 +103,23 @@ export class RocketWorkshopPanelView {
       if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
     };
 
+    const stopBubbleOnly = (ev) => {
+      ev.stopPropagation();
+      if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+    };
+
+    const isNativeScrollbarEvent = (ev) => {
+      const target = ev.target;
+      if (!(target instanceof Element)) return false;
+      const scrollBox = target.closest('.rocket-workshop__body');
+      if (!scrollBox) return false;
+      const rect = scrollBox.getBoundingClientRect();
+      const nativeScrollbarWidth = Math.max(0, scrollBox.offsetWidth - scrollBox.clientWidth);
+      if (nativeScrollbarWidth <= 0) return false;
+      const grabZone = Math.max(18, nativeScrollbarWidth + 6);
+      return ev.clientX >= rect.right - grabZone && ev.clientX <= rect.right + 4;
+    };
+
     const handle = (ev) => {
       const target = ev.target;
       if (!(target instanceof Element)) return false;
@@ -140,9 +157,20 @@ export class RocketWorkshopPanelView {
     };
 
     for (const name of ['pointerdown', 'mousedown', 'click']) {
-      this.el.addEventListener(name, (ev) => { if (!handle(ev)) stop(ev); }, { capture: true });
+      this.el.addEventListener(name, (ev) => {
+        if (name !== 'click' && isNativeScrollbarEvent(ev)) return;
+        if (handle(ev)) return;
+        // Ne pas empêcher le comportement natif de la zone scrollable :
+        // sinon l'ascenseur vertical ne peut plus être attrapé à la souris.
+        if (ev.target instanceof Element && ev.target.closest('.rocket-workshop__body')) stopBubbleOnly(ev);
+        else stop(ev);
+      }, { capture: true });
     }
-    this.el.addEventListener('pointerup', stop, { capture: true });
+    this.el.addEventListener('pointerup', (ev) => {
+      if (isNativeScrollbarEvent(ev)) return;
+      if (ev.target instanceof Element && ev.target.closest('.rocket-workshop__body')) stopBubbleOnly(ev);
+      else stop(ev);
+    }, { capture: true });
     this.el.addEventListener('contextmenu', stop, { capture: true });
   }
 
