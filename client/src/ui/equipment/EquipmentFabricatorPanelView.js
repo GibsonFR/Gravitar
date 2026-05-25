@@ -138,71 +138,111 @@ export class EquipmentFabricatorPanelView {
   }
 
   bind() {
-    this.el.addEventListener('pointerdown', (ev) => ev.stopPropagation(), true);
+    this.lastPointerActionAt = 0;
+
+    const stopPanelPointer = (ev) => {
+      ev.stopPropagation();
+      this.tryHandleAction(ev, true);
+    };
+
+    this.el.addEventListener('pointerdown', stopPanelPointer, true);
     this.el.addEventListener('mousedown', (ev) => ev.stopPropagation(), true);
     this.el.addEventListener('click', (ev) => {
-      const close = ev.target.closest('[data-equipment-fab-close]');
-      if (close) {
-        this.sendCmd('equipment_fabricator_close', {});
-        this.el.hidden = true;
+      ev.stopPropagation();
+      if (performance.now() - (this.lastPointerActionAt || 0) < 260) {
         ev.preventDefault();
         return;
       }
-      const category = ev.target.closest('[data-equipment-fab-category]');
-      if (category) {
-        this.category = category.dataset.equipmentFabCategory || this.category;
-        this.selectedRecipeId = '';
-        this.lastKey = '';
-        this.update(this.store);
-        ev.preventDefault();
-        return;
-      }
-      const modFamily = ev.target.closest('[data-equipment-fab-module-family]');
-      if (modFamily) {
-        this.moduleFamily = modFamily.dataset.equipmentFabModuleFamily || this.moduleFamily;
-        this.selectedRecipeId = '';
-        this.lastKey = '';
-        this.update(this.store);
-        ev.preventDefault();
-        return;
-      }
-      const select = ev.target.closest('[data-equipment-fab-select]');
-      if (select) {
-        this.selectedRecipeId = select.dataset.equipmentFabSelect || '';
-        this.lastKey = '';
-        this.update(this.store);
-        ev.preventDefault();
-        return;
-      }
-      const transfer = ev.target.closest('[data-equipment-fab-transfer]');
-      if (transfer) {
-        this.sendCmd('equipment_fabricator_transfer', {
-          structureId: transfer.dataset.structure | 0,
-          resourceKey: transfer.dataset.key || '',
-          direction: transfer.dataset.equipmentFabTransfer || 'deposit',
-          amount: transfer.dataset.amount || '1'
-        });
-        ev.preventDefault();
-        return;
-      }
-      const claim = ev.target.closest('[data-equipment-fab-claim]');
-      if (claim) {
-        this.sendCmd('equipment_fabricator_claim', {
-          structureId: claim.dataset.structure | 0,
-          itemId: claim.dataset.equipmentFabClaim || ''
-        });
-        ev.preventDefault();
-        return;
-      }
-      const craft = ev.target.closest('[data-equipment-fab-craft]');
-      if (craft) {
-        this.sendCmd('equipment_fabricator_craft', {
-          structureId: craft.dataset.structure | 0,
-          recipeId: craft.dataset.equipmentFabCraft || ''
-        });
-        ev.preventDefault();
-      }
+      this.tryHandleAction(ev, false);
     });
+  }
+
+  tryHandleAction(ev, fromPointer = false) {
+    const target = ev.target;
+    if (!target?.closest) return false;
+    const actionable = target.closest([
+      '[data-equipment-fab-close]',
+      '[data-equipment-fab-category]',
+      '[data-equipment-fab-module-family]',
+      '[data-equipment-fab-select]',
+      '[data-equipment-fab-transfer]',
+      '[data-equipment-fab-claim]',
+      '[data-equipment-fab-craft]'
+    ].join(','));
+    if (!actionable) return false;
+    if (fromPointer && ev.button != null && ev.button !== 0) return false;
+
+    const close = target.closest('[data-equipment-fab-close]');
+    if (close) {
+      this.sendCmd('equipment_fabricator_close', {});
+      this.el.hidden = true;
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const category = target.closest('[data-equipment-fab-category]');
+    if (category) {
+      this.category = category.dataset.equipmentFabCategory || this.category;
+      this.selectedRecipeId = '';
+      this.lastKey = '';
+      this.update(this.store);
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const modFamily = target.closest('[data-equipment-fab-module-family]');
+    if (modFamily) {
+      this.moduleFamily = modFamily.dataset.equipmentFabModuleFamily || this.moduleFamily;
+      this.selectedRecipeId = '';
+      this.lastKey = '';
+      this.update(this.store);
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const select = target.closest('[data-equipment-fab-select]');
+    if (select) {
+      this.selectedRecipeId = select.dataset.equipmentFabSelect || '';
+      this.lastKey = '';
+      this.update(this.store);
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const transfer = target.closest('[data-equipment-fab-transfer]');
+    if (transfer && !transfer.disabled) {
+      this.sendCmd('equipment_fabricator_transfer', {
+        structureId: transfer.dataset.structure | 0,
+        resourceKey: transfer.dataset.key || '',
+        direction: transfer.dataset.equipmentFabTransfer || 'deposit',
+        amount: transfer.dataset.amount || '1'
+      });
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const claim = target.closest('[data-equipment-fab-claim]');
+    if (claim && !claim.disabled) {
+      this.sendCmd('equipment_fabricator_claim', {
+        structureId: claim.dataset.structure | 0,
+        itemId: claim.dataset.equipmentFabClaim || ''
+      });
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const craft = target.closest('[data-equipment-fab-craft]');
+    if (craft && !craft.disabled) {
+      this.sendCmd('equipment_fabricator_craft', {
+        structureId: craft.dataset.structure | 0,
+        recipeId: craft.dataset.equipmentFabCraft || ''
+      });
+      craft.setAttribute('data-pending-click', '1');
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    return false;
   }
 
   update(store) {

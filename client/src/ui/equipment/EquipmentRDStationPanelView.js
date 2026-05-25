@@ -96,78 +96,117 @@ export class EquipmentRDStationPanelView {
   }
 
   bind() {
-    this.el.addEventListener('pointerdown', (ev) => ev.stopPropagation(), true);
+    this.lastPointerActionAt = 0;
+
+    const stopPanelPointer = (ev) => {
+      ev.stopPropagation();
+      this.tryHandleAction(ev, true);
+    };
+
+    this.el.addEventListener('pointerdown', stopPanelPointer, true);
     this.el.addEventListener('mousedown', (ev) => ev.stopPropagation(), true);
     this.el.addEventListener('click', (ev) => {
-      const close = ev.target.closest('[data-equipment-rd-close]');
-      if (close) {
-        this.sendCmd('equipment_rd_close', {});
-        this.el.hidden = true;
+      ev.stopPropagation();
+      if (performance.now() - (this.lastPointerActionAt || 0) < 260) {
         ev.preventDefault();
         return;
       }
-      const transfer = ev.target.closest('[data-equipment-rd-transfer]');
-      if (transfer) {
-        this.sendCmd('equipment_rd_transfer', {
-          structureId: transfer.dataset.structure | 0,
-          resourceKey: transfer.dataset.key || '',
-          direction: transfer.dataset.equipmentRdTransfer || 'deposit',
-          amount: transfer.dataset.amount || '1'
-        });
-        ev.preventDefault();
-        return;
-      }
-      const unload = ev.target.closest('[data-equipment-rd-unload-item]');
-      if (unload) {
-        this.sendCmd('equipment_rd_unload_item', {
-          structureId: unload.dataset.structure | 0,
-          slot: unload.dataset.equipmentRdUnloadItem || 'input'
-        });
-        ev.preventDefault();
-        return;
-      }
-      const select = ev.target.closest('[data-equipment-rd-select]');
-      if (select) {
-        this.selectedItemId = select.dataset.equipmentRdSelect || '';
-        this.sendCmd('equipment_rd_load_item', {
-          structureId: select.dataset.structure | 0,
-          itemId: this.selectedItemId
-        });
-        this.selectedItemId = '';
-        this.lastKey = '';
-        this.update(this.store);
-        ev.preventDefault();
-        return;
-      }
-      const sci = ev.target.closest('[data-equipment-rd-science]');
-      if (sci) {
-        const key = sci.dataset.equipmentRdScience || '';
-        const idx = Number(sci.dataset.index ?? -1);
-        if (idx >= 0) this.selectedSciences.splice(idx, 1);
-        else if (this.selectedSciences.length < 3) this.selectedSciences.push(key);
-        this.lastKey = '';
-        this.update(this.store);
-        ev.preventDefault();
-        return;
-      }
-      const start = ev.target.closest('[data-equipment-rd-start]');
-      if (start) {
-        this.sendCmd('equipment_rd_start', {
-          structureId: start.dataset.structure | 0,
-          itemId: start.dataset.item || '',
-          sciences: this.selectedSciences.slice(0, 3)
-        });
-        start.setAttribute('disabled', 'disabled');
-        start.textContent = 'Lancement…';
-        ev.preventDefault();
-        return;
-      }
-      const cancel = ev.target.closest('[data-equipment-rd-cancel]');
-      if (cancel) {
-        this.sendCmd('equipment_rd_cancel', { structureId: cancel.dataset.structure | 0 });
-        ev.preventDefault();
-      }
+      this.tryHandleAction(ev, false);
     });
+  }
+
+  tryHandleAction(ev, fromPointer = false) {
+    const target = ev.target;
+    if (!target?.closest) return false;
+    const actionable = target.closest([
+      '[data-equipment-rd-close]',
+      '[data-equipment-rd-transfer]',
+      '[data-equipment-rd-unload-item]',
+      '[data-equipment-rd-select]',
+      '[data-equipment-rd-science]',
+      '[data-equipment-rd-start]',
+      '[data-equipment-rd-cancel]'
+    ].join(','));
+    if (!actionable) return false;
+    if (fromPointer && ev.button != null && ev.button !== 0) return false;
+
+    const close = target.closest('[data-equipment-rd-close]');
+    if (close) {
+      this.sendCmd('equipment_rd_close', {});
+      this.el.hidden = true;
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const transfer = target.closest('[data-equipment-rd-transfer]');
+    if (transfer && !transfer.disabled) {
+      this.sendCmd('equipment_rd_transfer', {
+        structureId: transfer.dataset.structure | 0,
+        resourceKey: transfer.dataset.key || '',
+        direction: transfer.dataset.equipmentRdTransfer || 'deposit',
+        amount: transfer.dataset.amount || '1'
+      });
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const unload = target.closest('[data-equipment-rd-unload-item]');
+    if (unload && !unload.disabled) {
+      this.sendCmd('equipment_rd_unload_item', {
+        structureId: unload.dataset.structure | 0,
+        slot: unload.dataset.equipmentRdUnloadItem || 'input'
+      });
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const select = target.closest('[data-equipment-rd-select]');
+    if (select && !select.disabled) {
+      this.selectedItemId = select.dataset.equipmentRdSelect || '';
+      this.sendCmd('equipment_rd_load_item', {
+        structureId: select.dataset.structure | 0,
+        itemId: this.selectedItemId
+      });
+      this.selectedItemId = '';
+      this.lastKey = '';
+      this.update(this.store);
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const sci = target.closest('[data-equipment-rd-science]');
+    if (sci && !sci.disabled) {
+      const key = sci.dataset.equipmentRdScience || '';
+      const idx = Number(sci.dataset.index ?? -1);
+      if (idx >= 0) this.selectedSciences.splice(idx, 1);
+      else if (this.selectedSciences.length < 3) this.selectedSciences.push(key);
+      this.lastKey = '';
+      this.update(this.store);
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const start = target.closest('[data-equipment-rd-start]');
+    if (start && !start.disabled) {
+      this.sendCmd('equipment_rd_start', {
+        structureId: start.dataset.structure | 0,
+        itemId: start.dataset.item || '',
+        sciences: this.selectedSciences.slice(0, 3)
+      });
+      start.setAttribute('disabled', 'disabled');
+      start.textContent = 'Lancement…';
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    const cancel = target.closest('[data-equipment-rd-cancel]');
+    if (cancel && !cancel.disabled) {
+      this.sendCmd('equipment_rd_cancel', { structureId: cancel.dataset.structure | 0 });
+      this.lastPointerActionAt = performance.now();
+      ev.preventDefault();
+      return true;
+    }
+    return false;
   }
 
   update(store) {

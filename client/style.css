@@ -7223,3 +7223,22 @@ button.station-item-icon[draggable="true"]:active,
 .ship-panel--station-style .station-ammo-drop__details {
   background: rgba(5,12,20,.62);
 }
+
+
+/* v165 — panels machines : clic fiable même pendant les updates fréquentes */
+.equipment-fab {
+  z-index: 420;
+  pointer-events: auto;
+}
+.equipment-fab *,
+.equipment-rd * {
+  pointer-events: auto;
+}
+.equipment-rd__items.is-busy,
+.equipment-rd__science-list.is-busy {
+  pointer-events: auto;
+}
+.equipment-rd__items.is-busy .equipment-rd__item,
+.equipment-rd__science-list.is-busy [data-equipment-rd-science] {
+  pointer-events: none;
+}
