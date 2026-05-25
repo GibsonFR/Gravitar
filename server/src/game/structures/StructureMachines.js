@@ -5,6 +5,7 @@ import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { getMachineRecipe, getRecipesForMachine } from '../../../../shared/content/crafting/MachineRecipes.js';
 import { getRecipeResearchRequirement, getResearchName, isRecipeUnlockedByResearch } from '../../../../shared/content/research/ScienceResearchDefs.js';
 import { isMachineJobActive } from './StructureMachineRuntime.js';
+import { hasUnlockedConversionRecipe } from '../player/runtime/PlayerPirateState.js';
 
 const MACHINE_RANGE = 280;
 const MACHINE_INPUT_CAPACITY = 160;
@@ -16,6 +17,16 @@ function playerResearchCompleted(player) {
 }
 
 function recipeLockSnapshot(recipe, player) {
+  if (recipe?.pirateRecipe) {
+    if (hasUnlockedConversionRecipe(player, recipe.id)) return { locked: false, requiredResearchId: '', requiredResearchName: '', requiredPirateRecipeId: '' };
+    return {
+      locked: true,
+      requiredResearchId: '',
+      requiredResearchName: '',
+      requiredPirateRecipeId: recipe.id,
+      requiredPirateRecipeName: 'Recette pirate à acheter en station'
+    };
+  }
   const researchId = getRecipeResearchRequirement(recipe);
   if (!researchId || isRecipeUnlockedByResearch(recipe, playerResearchCompleted(player))) return { locked: false, requiredResearchId: '', requiredResearchName: '' };
   return { locked: true, requiredResearchId: researchId, requiredResearchName: getResearchName(researchId) };

@@ -17,6 +17,7 @@ export const STRUCTURE_TYPES = {
   ELECTRONICS_BENCH: 'electronics_bench',
   INDUSTRIAL_PRESS: 'industrial_press',
   SCIENCE_LAB: 'science_lab',
+  INDUSTRIAL_CONVERTER: 'industrial_converter',
   RESEARCH_STATION: 'research_station',
   EQUIPMENT_FABRICATOR: 'equipment_fabricator',
   EQUIPMENT_RD_STATION: 'equipment_rd_station',
@@ -329,6 +330,28 @@ export const STRUCTURE_DEFS = {
     color: '#25384d',
     borderColor: '#7edcff',
     cost: { ironOre: 18, copper: 12, aluminiumOre: 8 }
+  },
+
+
+  [STRUCTURE_TYPES.INDUSTRIAL_CONVERTER]: {
+    id: STRUCTURE_TYPES.INDUSTRIAL_CONVERTER,
+    name: 'Convertisseur industriel',
+    description: 'Convertit des ressources via des recettes achetées dans les stations pirates.',
+    radius: 64,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    machineType: 'industrial_converter',
+    energyUse: 10,
+    color: '#3d3048',
+    borderColor: '#ff8ce6',
+    cost: { steelPlate: 6, copperWire: 10, controlCircuit: 1, unknownTechFragment: 1 }
   },
 
   [STRUCTURE_TYPES.RESEARCH_STATION]: {

@@ -1,3 +1,4 @@
+import { CONVERSION_MACHINE_TYPE, CONVERSION_MACHINE_RECIPES } from '../conversion/ConversionRecipeDefs.js';
 export const MACHINE_TYPES = Object.freeze({
   FURNACE: 'furnace',
   HIGH_TEMP_FURNACE: 'high_temp_furnace',
@@ -5,7 +6,8 @@ export const MACHINE_TYPES = Object.freeze({
   ELECTROLYZER: 'electrolyzer',
   ELECTRONICS_BENCH: 'electronics_bench',
   INDUSTRIAL_PRESS: 'industrial_press',
-  SCIENCE_LAB: 'science_lab'
+  SCIENCE_LAB: 'science_lab',
+  INDUSTRIAL_CONVERTER: CONVERSION_MACHINE_TYPE
 });
 
 export const MACHINE_RECIPES = Object.freeze([
@@ -306,6 +308,8 @@ export const MACHINE_RECIPES = Object.freeze([
     input: { unknownTechFragment: 1, precursorNanomaterial: 1, containedAntimatter: 1, advancedSciencePack: 1 },
     output: { anomalySciencePack: 1 }
   }
+  ,
+  ...CONVERSION_MACHINE_RECIPES
 ]);
 
 export function getRecipesForMachine(machineType) {

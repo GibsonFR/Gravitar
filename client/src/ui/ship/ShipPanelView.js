@@ -1,6 +1,5 @@
 import { StationEquipmentView } from '../station/StationEquipmentView.js';
 import { StationAmmoView } from '../station/StationAmmoView.js';
-import { StationConvertersView } from '../station/StationConvertersView.js';
 
 export class ShipPanelView {
   constructor(sendCmd) {
@@ -19,7 +18,6 @@ export class ShipPanelView {
         </div>
         <div class="ship-panel__tabs">
           <button type="button" data-ship-tab="equipment">Équipement</button>
-          <button type="button" data-ship-tab="converters">Convertisseurs</button>
           <button type="button" data-ship-tab="ammo">Munitions</button>
         </div>
       </div>
@@ -28,12 +26,10 @@ export class ShipPanelView {
 
     this.bodyEl = this.el.querySelector('[data-role="body"]');
     this.equipmentView = new StationEquipmentView(sendCmd);
-    this.convertersView = new StationConvertersView(sendCmd);
     this.ammoView = new StationAmmoView(sendCmd);
 
     this.pages = new Map([
       ['equipment', this.equipmentView.el],
-      ['converters', this.convertersView.el],
       ['ammo', this.ammoView.el]
     ]);
 
@@ -70,7 +66,6 @@ export class ShipPanelView {
   refreshActivePage() {
     const docked = true;
     if (this.activeTab === 'equipment') this.equipmentView.update(this.equipment, this.inv, docked);
-    else if (this.activeTab === 'converters') this.convertersView.update(this.equipment, docked);
     else if (this.activeTab === 'ammo') this.ammoView.update(this.equipment, null, this.inv, docked);
   }
 

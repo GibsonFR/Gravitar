@@ -12,6 +12,7 @@ import { createStructure } from '../structures/StructureFactory.js';
 import { createEquipmentState } from '../equipment/EquipmentState.js';
 import { STARTER_ITEM_IDS, STARTER_AMMO_LOADOUT } from '../../../../shared/content/items/ItemDefs.js';
 import { createPlayerProgressionState } from '../player/runtime/PlayerProgressionState.js';
+import { ensurePlayerPirateState } from '../player/runtime/PlayerPirateState.js';
 
 export const GAME_MODES = { ENDLESS: 'endless', BATTLE: 'battle', TEST: 'test', STRESS: 'stress' };
 export const BATTLE = {
@@ -460,6 +461,43 @@ export function ensureTestEquipmentBench(state, player, timeMs) {
 }
 
 
+
+export function ensureTestIndustrialConverterBench(state, player, timeMs) {
+  if (!state?.structures || !player) return;
+  const worldId = String(player.worldId || '');
+  const sx = SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sx | 0;
+  const sy = SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sy | 0;
+  if ((player.sx | 0) !== sx || (player.sy | 0) !== sy) return;
+  const owner = { ownerId: player.id | 0, ownerKey: player.accountKey || 'test', ownerName: player.pseudo || 'Test', timeMs };
+  const core = ensureTestStructure(state, worldId, 'base_core', sx, sy, -448, 0, owner);
+  if (core) {
+    core.claimRadius = Math.max(core.claimRadius || 0, 1600);
+    core.energyState = { production: 240, consumption: 0, surplus: 240 };
+  }
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -256, -192, owner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -128, -192, owner);
+  ensureTestStructure(state, worldId, 'fuel_generator', sx, sy, 64, -192, owner);
+  const converter = ensureTestStructure(state, worldId, 'industrial_converter', sx, sy, 64, 96, owner);
+  if (converter) {
+    converter.machineRecipeId = converter.machineRecipeId || 'conv_iron_to_copper_basic';
+    converter.machineEnabled = true;
+    converter.machineInput = { ironOre: 64, scrap: 48, graphite: 40, ironIngot: 24, copperIngot: 24, aluminiumOre: 40, quartz: 12, unknownTechFragment: 4, titaniumPlate: 12, thermalCeramic: 8 };
+    converter.machineOutput ||= {};
+    converter.powered = true;
+    converter.updatedAt = timeMs;
+  }
+  const storage = ensureTestStructure(state, worldId, 'storage', sx, sy, 352, 96, owner);
+  if (storage) {
+    storage.storage ??= { kind: 'resources', resources: {}, capacity: 420 };
+    storage.storage.kind = 'resources';
+    storage.storage.capacity = Math.max(storage.storage.capacity || 0, 420);
+    storage.storage.resources = { ironOre: 120, scrap: 120, graphite: 80, copperIngot: 40, aluminiumOre: 80, quartz: 40, unknownTechFragment: 8, titaniumPlate: 20, thermalCeramic: 12 };
+  }
+  const pirate = ensurePlayerPirateState(player);
+  const unlocked = new Set([...(pirate.unlockedConversionRecipeIds || []), 'conv_iron_to_copper_basic', 'conv_scrap_to_iron_basic', 'conv_graphite_to_carbon_basic']);
+  pirate.unlockedConversionRecipeIds = [...unlocked].sort();
+}
+
 function grantTestResources(player) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
@@ -546,6 +584,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   equipTestCraftedLoadout(player, timeMs);
   ensureTestMiningDeposits(state, player, timeMs);
   ensureTestEquipmentBench(state, player, timeMs);
+  ensureTestIndustrialConverterBench(state, player, timeMs);
   if (player.progression) {
     player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
     player.progression.xp = 0;

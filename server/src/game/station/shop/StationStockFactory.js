@@ -7,6 +7,7 @@ import { generateOfferResourceCosts } from './StationOfferCosts.js';
 import { buildStationLocalResourcePool, getStationTierGateFromLocalPool } from './StationLocalResourcePool.js';
 import { getStationSpecialtyDef } from './StationStockSpecialties.js';
 import { computePirateTier, createPirateDemand, createPirateResourceSupply } from '../pirate/PirateStationEconomy.js';
+import { listConversionRecipesForStation } from '../../../../../shared/content/conversion/ConversionRecipeDefs.js';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -148,6 +149,23 @@ function selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tie
   });
 }
 
+
+function createConversionRecipeOffers(stockLike, playerSeed = 0) {
+  const recipes = listConversionRecipesForStation(stockLike, null);
+  return recipes.slice(0, 5).map((recipe, index) => {
+    const seedBias = Math.abs((playerSeed ^ (index * 2654435761)) | 0) % 9;
+    const priceMult = 1 + seedBias * 0.015;
+    return {
+      recipeId: recipe.id,
+      priceCredits: Math.max(1, Math.round((recipe.piratePrice || 500) * priceMult)),
+      tier: recipe.tier || 1,
+      reputationRequired: recipe.reputationRequired | 0 || 0,
+      stationTierMin: recipe.stationTierMin | 0 || 1,
+      soldOut: false
+    };
+  });
+}
+
 export function createStationStock(seed, tech = false, sx = 0, sy = 0, options = null) {
   const stationSeed = hash2D_Mix((seed | 0) ^ (tech ? 0x51f3 : 0x0f2d), sx | 0, sy | 0);
   const rng = new DotNetRandom(stationSeed);
@@ -158,12 +176,14 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
   const pirateTier = pirate ? computePirateTier(sx, sy) : 0;
   const specialty = getStationSpecialtyDef(options?.specialtyId || '');
   const all = listItemDefs({ shopOnly: true })
+    .filter((item) => item?.categoryId !== ITEM_CATEGORY_IDS.CONVERTER)
     .filter((item) => !pirate || isPirateOffer(item))
     .sort(compareStockItems);
 
   const offers = selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tierGate, sx, sy, localResourcePool);
   const demand = pirate ? createPirateDemand(localResourcePool, stationSeed, pirateTier) : [];
   const resourceSupply = pirate ? createPirateResourceSupply(localResourcePool, stationSeed, pirateTier) : [];
+  const conversionRecipeOffers = pirate ? createConversionRecipeOffers({ pirateTier, stock: { pirateTier } }, stationSeed) : [];
 
   return {
     tech: !!tech,
@@ -181,6 +201,7 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
     demand,
     resourceDemand: demand,
     resourceSupply,
+    conversionRecipeOffers,
     offers
   };
 }

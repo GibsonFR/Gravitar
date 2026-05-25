@@ -7,6 +7,12 @@ function fmt(n) {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
+function lockLabel(recipe) {
+  if (!recipe?.locked) return '';
+  if (recipe.requiredPirateRecipeName || recipe.requiredPirateRecipeId) return recipe.requiredPirateRecipeName || 'Recette pirate requise';
+  return recipe.requiredResearchName || recipe.requiredResearchId || 'recherche';
+}
+
 function fmtList(entries = [], withHave = false) {
   if (!entries.length) return '<span class="machine-panel__muted">—</span>';
   return entries.map((e) => {
@@ -222,7 +228,7 @@ export class MachinePanelView {
         ${recipes.map((r) => `
           <button type="button" class="machine-panel__recipe-card ${r.id === machine.selectedRecipeId ? 'is-selected' : ''} ${r.locked ? 'is-locked' : ''}" data-select-recipe="${escapeHtml(r.id)}" ${busy || r.locked ? 'disabled' : ''}>
             <strong>${escapeHtml(r.name)}</strong>
-            <em>${r.locked ? `Requiert : ${escapeHtml(r.requiredResearchName || r.requiredResearchId || 'recherche')}` : `${r.seconds | 0}s · ${r.energyUse | 0} énergie`}</em>
+            <em>${r.locked ? `Requiert : ${escapeHtml(lockLabel(r))}` : `${r.seconds | 0}s · ${r.energyUse | 0} énergie`}</em>
             <div class="machine-panel__line"><b>Entrée</b>${fmtList(r.input, false)}</div>
             <div class="machine-panel__line"><b>Sortie</b>${fmtList(r.output, false)}</div>
           </button>`).join('') || '<div class="machine-panel__empty">Aucune recette disponible.</div>'}
@@ -242,7 +248,7 @@ export class MachinePanelView {
       <div class="machine-panel__production">
         <div class="machine-panel__recipe-banner">
           <div class="machine-panel__recipe-title">${escapeHtml(selected.name)}</div>
-          <div class="machine-panel__recipe-stats">${selected.locked ? `Requiert : ${escapeHtml(selected.requiredResearchName || selected.requiredResearchId || 'recherche')}` : `${selected.seconds | 0}s · ${selected.energyUse | 0} énergie`}</div>
+          <div class="machine-panel__recipe-stats">${selected.locked ? `Requiert : ${escapeHtml(lockLabel(selected))}` : `${selected.seconds | 0}s · ${selected.energyUse | 0} énergie`}</div>
         </div>
         ${progressHtml}
         <div class="machine-panel__cols">

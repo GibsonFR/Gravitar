@@ -422,6 +422,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, -760, 1040, SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sx, SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sy, '⬡', {
+    label: 'Test convertisseur industriel',
+    mode: 'test_industrial_converter',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, 1520, 1040, SPECIAL_SECTORS.TEST_PIRATE_MARKET.sx, SPECIAL_SECTORS.TEST_PIRATE_MARKET.sy, '☠', {
     label: 'Test station pirate / commerce ciblé',
     mode: 'test_pirate_market',
@@ -525,6 +531,39 @@ function generateTestPirateMarketContent(state, sx, sy, timeMs, h) {
   testAsteroids.forEach(([resourceKey, x, y], i) => {
     spawnAsteroidProc(state, sx, sy, {
       x, y, radius: 42 + (i % 3) * 8, resourceKey, yieldValue: 16, seed: h ^ (0x9000 + i), sig: `test_pirate_market_${resourceKey}_${i}`
+    });
+  });
+}
+
+
+function generateTestIndustrialConverterContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+  const stationId = spawnStation(state, sx, sy, -950, 980, true, h ^ 0x167c0de, timeMs, { specialtyId: 'pirate' });
+  const station = state.stations.get(stationId);
+  if (station?.stock) {
+    station.stock.pirateTier = 3;
+    station.pirateTier = 3;
+    station.stock.conversionRecipeOffers = [
+      { recipeId: 'conv_iron_to_copper_basic', priceCredits: 120, tier: 1, reputationRequired: 0, stationTierMin: 1 },
+      { recipeId: 'conv_scrap_to_iron_basic', priceCredits: 120, tier: 1, reputationRequired: 0, stationTierMin: 1 },
+      { recipeId: 'conv_graphite_to_carbon_basic', priceCredits: 160, tier: 1, reputationRequired: 0, stationTierMin: 1 },
+      { recipeId: 'conv_iron_carbon_to_steel', priceCredits: 260, tier: 2, reputationRequired: 0, stationTierMin: 2 },
+      { recipeId: 'conv_copper_to_conductors', priceCredits: 240, tier: 2, reputationRequired: 0, stationTierMin: 2 },
+      { recipeId: 'conv_bauxite_to_aluminium', priceCredits: 260, tier: 2, reputationRequired: 0, stationTierMin: 2 }
+    ];
+  }
+
+  const resources = [
+    ['ironOre', -760, -320], ['scrap', -520, -560], ['graphite', -260, -360],
+    ['aluminiumOre', 520, -540], ['quartz', 760, -280], ['titaniumOre', 920, 180]
+  ];
+  resources.forEach(([resourceKey, x, y], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x, y, radius: 44 + (i % 3) * 8, resourceKey, yieldValue: 24, seed: h ^ (0xc000 + i), sig: `test_industrial_converter_${resourceKey}_${i}`
     });
   });
 }
@@ -964,6 +1003,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testMining = sx === SPECIAL_SECTORS.TEST_MINING.sx && sy === SPECIAL_SECTORS.TEST_MINING.sy;
   const testEquipment = sx === SPECIAL_SECTORS.TEST_EQUIPMENT.sx && sy === SPECIAL_SECTORS.TEST_EQUIPMENT.sy;
   const testPirateMarket = sx === SPECIAL_SECTORS.TEST_PIRATE_MARKET.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_MARKET.sy;
+  const testIndustrialConverter = sx === SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sx && sy === SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -1014,6 +1054,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testPirateMarket) {
     generateTestPirateMarketContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testIndustrialConverter) {
+    generateTestIndustrialConverterContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

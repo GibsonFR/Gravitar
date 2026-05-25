@@ -5,6 +5,8 @@ import { canAffordOffer } from './StationOfferCosts.js';
 import { ensureStationStockCurrent } from './StationStockRefresh.js';
 import { getEffectivePurchasePriceCredits, getEffectiveSellPriceCredits } from '../../bastion/BastionBuffs.js';
 import { getStationDemandForResource, getStationSupplyForResource } from '../pirate/PirateStationEconomy.js';
+import { getConversionRecipe } from '../../../../../shared/content/conversion/ConversionRecipeDefs.js';
+import { ensurePlayerPirateState, hasUnlockedConversionRecipe } from '../../player/runtime/PlayerPirateState.js';
 
 
 function serializePassiveEffects(def) {
@@ -69,6 +71,41 @@ function buildResourceSupplySnapshot(station, player) {
   }).filter((entry) => entry.resourceKey);
 }
 
+
+function buildConversionRecipeSnapshot(station, player) {
+  const pirate = ensurePlayerPirateState(player);
+  const reputationLevel = Math.max(0, pirate.reputationLevel | 0 || 0);
+  return (station?.stock?.conversionRecipeOffers || []).map((offer) => {
+    const recipe = getConversionRecipe(offer?.recipeId);
+    if (!recipe) return null;
+    const priceCredits = getEffectivePurchasePriceCredits(player, Math.max(1, offer.priceCredits | 0 || recipe.piratePrice | 0 || 1));
+    const owned = hasUnlockedConversionRecipe(player, recipe.id);
+    const reputationRequired = Math.max(0, offer.reputationRequired | 0 || recipe.reputationRequired | 0 || 0);
+    const lockedByReputation = reputationLevel < reputationRequired;
+    return {
+      recipeId: recipe.id,
+      id: recipe.id,
+      name: recipe.name,
+      tier: recipe.tier | 0 || 1,
+      seconds: Number(recipe.seconds) || 0,
+      energyUse: Number(recipe.energyUse) || 0,
+      input: Object.entries(recipe.input || {}).map(([key, amount]) => {
+        const def = getResourceDef(key);
+        return { resourceKey: key, key, name: def?.name || key, amount: amount | 0, colorHex: def?.colorHex || '#cfd7e6' };
+      }),
+      output: Object.entries(recipe.output || {}).map(([key, amount]) => {
+        const def = getResourceDef(key);
+        return { resourceKey: key, key, name: def?.name || key, amount: amount | 0, colorHex: def?.colorHex || '#cfd7e6' };
+      }),
+      priceCredits,
+      reputationRequired,
+      owned,
+      lockedByReputation,
+      canAfford: !owned && !lockedByReputation && Math.max(0, player?.inv?.credits | 0) >= priceCredits
+    };
+  }).filter(Boolean);
+}
+
 function buildResourceCosts(offer, player) {
   return (offer?.resourceCosts || []).map((entry) => {
     const key = String(entry?.resourceKey || '');
@@ -107,6 +144,7 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
     demand: buildDemandSnapshot(station, player),
     resourceDemand: buildDemandSnapshot(station, player),
     resourceSupply: buildResourceSupplySnapshot(station, player),
+    conversionRecipes: buildConversionRecipeSnapshot(station, player),
     localResourcePool: {
       radius: Math.max(0, station.stock.localResourcePool?.radius | 0),
       maxSpawnTier: Math.max(1, station.stock.localResourcePool?.maxSpawnTier | 0),

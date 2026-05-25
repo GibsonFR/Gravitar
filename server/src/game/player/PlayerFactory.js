@@ -16,6 +16,7 @@ import { createPlayerUiState } from './runtime/PlayerUiState.js';
 import { createPlayerStatusState } from './runtime/PlayerStatusState.js';
 import { createPlayerProgressionState } from './runtime/PlayerProgressionState.js';
 import { createPlayerNetState } from './runtime/PlayerNetState.js';
+import { createPlayerPirateState } from './runtime/PlayerPirateState.js';
 import { createFrameState } from '../frames/FrameStateFactory.js';
 import { syncPlayerFrameStats } from '../frames/FrameStatSync.js';
 import { createEquipmentState } from '../equipment/EquipmentState.js';
@@ -54,6 +55,7 @@ export function createPlayer(id, frameId, timeMs = Date.now()) {
     bastionReturn: null,
     completedBastionIds: [],
     research: { completed: [], unlocked: [], active: null },
+    pirate: createPlayerPirateState(),
     gameMode: 'endless',
     worldId: 'setup',
     battleSessionId: '',

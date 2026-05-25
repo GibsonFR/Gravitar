@@ -3,6 +3,8 @@ import { ITEM_CATEGORY_IDS, ITEM_CATEGORY_ORDER, getItemCategoryName } from '../
 import { buildItemIconButton, renderItemSections, renderStationInfoSection, renderStationChips } from './StationItemVisuals.js';
 import { StationCommandQueue } from './StationCommandQueue.js';
 
+const CONVERSION_RECIPE_CATEGORY = 'conversion_recipes';
+
 function itemKeyOf(item) {
   return String(item?.itemId || '');
 }
@@ -15,6 +17,26 @@ function renderResourceCosts(item) {
     const state = affordable ? 'ok' : `manque ${Math.max(0, entry.missing | 0)}`;
     return `<div class="station-shop__recipe-line" style="color:${affordable ? '#cfe8bf' : '#f0b8b0'}">${entry.name} : ${Math.max(0, entry.amount | 0)} • stock ${Math.max(0, entry.have | 0)} • ${state}</div>`;
   }).join('');
+}
+
+function renderRecipeList(entries = []) {
+  if (!entries.length) return '<span class="station-shop__muted">—</span>';
+  return entries.map((entry) => `${entry.name} ×${entry.amount}`).join(', ');
+}
+
+function recipeButton(recipe, selected = false) {
+  const locked = recipe.lockedByReputation || false;
+  const owned = recipe.owned || false;
+  const cls = ['station-item-icon', selected ? 'is-selected' : '', locked ? 'is-locked' : '', owned ? 'is-owned' : ''].filter(Boolean).join(' ');
+  return `<button type="button" class="${cls}" data-recipe-id="${recipe.recipeId}" title="${escapeHtml(recipe.name)}">
+    <span class="station-item-icon__tier">T${Math.max(1, recipe.tier | 0)}</span>
+    <span class="station-item-icon__glyph">⬡</span>
+    <span class="station-item-icon__name">${escapeHtml(recipe.name)}</span>
+  </button>`;
+}
+
+function escapeHtml(txt) {
+  return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
 function getStockLines(shop) {
@@ -45,7 +67,7 @@ export class StationShopView {
   constructor(sendCmd) {
     this.sendCmd = typeof sendCmd === 'function' ? sendCmd : null;
     this.cmdQueue = new StationCommandQueue(this.sendCmd);
-    this.shopCategoryOrder = ITEM_CATEGORY_ORDER.filter((categoryId) => categoryId !== ITEM_CATEGORY_IDS.AMMO);
+    this.shopCategoryOrder = [CONVERSION_RECIPE_CATEGORY, ...ITEM_CATEGORY_ORDER.filter((categoryId) => categoryId !== ITEM_CATEGORY_IDS.AMMO)];
     this.activeCategory = this.shopCategoryOrder[0];
     this.selectedItemId = '';
     this.hoverItemId = '';
@@ -91,6 +113,12 @@ export class StationShopView {
         this.render();
         return;
       }
+      const recipeBtn = ev.target?.closest?.('button[data-recipe-id]');
+      if (recipeBtn) {
+        this.selectedItemId = recipeBtn.dataset.recipeId || '';
+        this.render();
+        return;
+      }
       const iconBtn = ev.target?.closest?.('button[data-item-id]');
       if (iconBtn) {
         this.selectedItemId = iconBtn.dataset.itemId || '';
@@ -98,6 +126,12 @@ export class StationShopView {
       }
     });
     this.el.addEventListener('dblclick', (ev) => {
+      const recipeBtn = ev.target?.closest?.('button[data-recipe-id]');
+      if (recipeBtn) {
+        this.selectedItemId = recipeBtn.dataset.recipeId || '';
+        this.triggerAction();
+        return;
+      }
       const iconBtn = ev.target?.closest?.('button[data-item-id]');
       if (!iconBtn) return;
       this.selectedItemId = iconBtn.dataset.itemId || '';
@@ -112,11 +146,17 @@ export class StationShopView {
   }
 
   getOffers() {
+    if (this.activeCategory === CONVERSION_RECIPE_CATEGORY) return this.shop?.conversionRecipes || [];
     const offers = sortItems(this.shop?.offers || []);
     return offers.filter((item) => item?.categoryId === this.activeCategory && item?.categoryId !== ITEM_CATEGORY_IDS.AMMO);
   }
 
   getFocusedItem() {
+    if (this.activeCategory === CONVERSION_RECIPE_CATEGORY) {
+      const recipes = this.shop?.conversionRecipes || [];
+      const key = this.selectedItemId || recipes[0]?.recipeId || '';
+      return recipes.find((recipe) => String(recipe.recipeId || '') === key) || null;
+    }
     const offers = this.shop?.offers || [];
     const key = this.selectedItemId || this.getOffers()[0]?.itemId || '';
     return offers.find((item) => itemKeyOf(item) === key) || null;
@@ -125,12 +165,17 @@ export class StationShopView {
   renderCats() {
     this.catsEl.innerHTML = this.shopCategoryOrder.map((categoryId) => {
       const active = categoryId === this.activeCategory ? 'is-active' : '';
-      return `<button class="station-shop__cat ${active}" type="button" data-cat="${categoryId}">${getItemCategoryName(categoryId)}</button>`;
+      const label = categoryId === CONVERSION_RECIPE_CATEGORY ? 'Recettes' : getItemCategoryName(categoryId);
+      return `<button class="station-shop__cat ${active}" type="button" data-cat="${categoryId}">${label}</button>`;
     }).join('');
   }
 
   renderGrid() {
     const items = this.getOffers();
+    if (this.activeCategory === CONVERSION_RECIPE_CATEGORY) {
+      this.gridEl.innerHTML = items.map((recipe) => recipeButton(recipe, recipe.recipeId === this.selectedItemId)).join('') || '<div class="station-shop__empty">Aucune recette pirate proposée.</div>';
+      return;
+    }
     this.gridEl.innerHTML = items.map((item) => {
       const selected = item.itemId === this.selectedItemId;
       return buildItemIconButton(item, { selected, showName: false, compact: true });
@@ -152,6 +197,23 @@ export class StationShopView {
     }
 
     const credits = Math.max(0, this.inv?.credits | 0);
+    if (this.activeCategory === CONVERSION_RECIPE_CATEGORY) {
+      this.titleEl.textContent = `${item.name || 'Recette'} [T${Math.max(1, item.tier | 0)}]`;
+      this.metaEl.textContent = item.owned ? 'Recette déjà débloquée' : `${formatCredits(item.priceCredits || 0)} / ${formatCredits(credits)} crédits pirates`;
+      const status = item.owned ? 'Débloquée' : (item.lockedByReputation ? `Réputation pirate ${item.reputationRequired} requise` : 'Disponible en station pirate');
+      this.contentEl.innerHTML = [
+        renderStationInfoSection('Recette de conversion', [
+          `État : ${status}`,
+          `Durée : ${item.seconds | 0}s`,
+          `Énergie : ${item.energyUse | 0}`,
+          `Entrée : ${renderRecipeList(item.input || [])}`,
+          `Sortie : ${renderRecipeList(item.output || [])}`
+        ])
+      ].join('');
+      this.actionBtn.disabled = !this.docked || item.owned || item.lockedByReputation || !item.canAfford;
+      this.actionBtn.textContent = item.owned ? 'Déjà achetée' : 'Acheter recette';
+      return;
+    }
     const isAmmo = item.categoryId === ITEM_CATEGORY_IDS.AMMO;
     const status = isAmmo
       ? `${Math.max(0, item.ammoQuantity | 0)} en soute${item.assignedRocketSlots?.length ? ` • slot ${item.assignedRocketSlots.map((slot) => slot + 1).join('/')}` : ''}`
@@ -174,6 +236,10 @@ export class StationShopView {
   triggerAction() {
     const item = this.getFocusedItem();
     if (!item || !this.sendCmd) return;
+    if (this.activeCategory === CONVERSION_RECIPE_CATEGORY) {
+      if (!item.owned && !item.lockedByReputation && item.canAfford) this.cmdQueue.send('buy_conversion_recipe', { recipeId: item.recipeId });
+      return;
+    }
     if (item.categoryId === ITEM_CATEGORY_IDS.AMMO) {
       this.cmdQueue.send('buy_item', { itemId: item.itemId });
       return;
@@ -185,8 +251,8 @@ export class StationShopView {
 
   render() {
     if (!this.shopCategoryOrder.includes(this.activeCategory)) this.activeCategory = this.shopCategoryOrder[0];
-    const offers = this.shop?.offers || [];
-    if (this.selectedItemId && !offers.some((item) => item.itemId === this.selectedItemId)) this.selectedItemId = '';
+    const offers = this.activeCategory === CONVERSION_RECIPE_CATEGORY ? (this.shop?.conversionRecipes || []) : (this.shop?.offers || []);
+    if (this.selectedItemId && !offers.some((item) => (item.itemId || item.recipeId) === this.selectedItemId)) this.selectedItemId = '';
     this.renderCats();
     this.renderGrid();
     this.renderDetails();
