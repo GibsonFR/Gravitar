@@ -5,6 +5,7 @@ import { addResource, removeResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS, RESOURCE_KEYS_ORDER } from '../inventory/ResourceDefs.js';
 import { ITEM_CATEGORY_IDS, getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
+import { getPlayerItemDef, addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 
 const STORAGE_RANGE = 260;
 const STORAGE_TYPES = new Set([
@@ -71,8 +72,8 @@ export function canPlayerAccessStorage(state, player, structure) {
   return !findAliveCoreForStructure(state, structure);
 }
 
-function itemEntry(itemId, amount = 1) {
-  const def = getItemDef(itemId);
+function itemEntry(itemOrId, amount = 1) {
+  const def = typeof itemOrId === 'object' && itemOrId ? itemOrId : getItemDef(itemOrId);
   if (!def) return null;
   return {
     itemId: def.id,
@@ -81,6 +82,12 @@ function itemEntry(itemId, amount = 1) {
     categoryId: def.categoryId || '',
     categoryName: getItemCategoryName(def.categoryId),
     tier: def.tier || 1,
+    mark: def.mark || 1,
+    qualityName: def.qualityName || '',
+    tags: Array.isArray(def.tags) ? def.tags : [],
+    bonuses: def.bonuses || {},
+    neutralBase: !!def.neutralBase,
+    rdEnhanced: !!def.rdEnhanced,
     amount: Math.max(1, amount | 0)
   };
 }
@@ -100,15 +107,26 @@ function buildResourceEntries(resources = {}) {
 
 function buildCargoEquipment(player) {
   const equipped = new Set(player?.equipment?.equippedItemIds || []);
+  const ids = new Set([
+    ...(player?.equipment?.ownedItemIds || []),
+    ...(player?.equipment?.equippedItemIds || [])
+  ]);
   const out = [];
-  for (const itemId of player?.equipment?.ownedItemIds || []) {
-    if (equipped.has(itemId)) continue;
-    const def = getItemDef(itemId);
+  for (const itemId of ids) {
+    const def = getPlayerItemDef(player, itemId);
     if (!def || def.categoryId === ITEM_CATEGORY_IDS.AMMO) continue;
-    const entry = itemEntry(itemId, 1);
-    if (entry) out.push(entry);
+    const entry = itemEntry(def, 1);
+    if (entry) {
+      entry.equipped = equipped.has(itemId);
+      entry.lockedReason = entry.equipped ? 'Équipé' : '';
+      out.push(entry);
+    }
   }
-  return out.sort((a, b) => (a.tier | 0) - (b.tier | 0) || a.name.localeCompare(b.name));
+  return out.sort((a, b) => {
+    const ae = a.equipped ? 1 : 0;
+    const be = b.equipped ? 1 : 0;
+    return ae - be || (a.tier | 0) - (b.tier | 0) || a.name.localeCompare(b.name);
+  });
 }
 
 function buildCargoAmmo(player) {
@@ -125,8 +143,13 @@ function buildCargoAmmo(player) {
   return out.sort((a, b) => (a.tier | 0) - (b.tier | 0) || a.name.localeCompare(b.name));
 }
 
+export function getStoredEquipmentDef(structure, itemId) {
+  const id = String(itemId || '');
+  return structure?.storage?.customItemDefs?.[id] || getItemDef(id) || null;
+}
+
 function buildStoredEquipment(structure) {
-  return (structure?.storage?.items || []).map((itemId) => itemEntry(itemId, 1)).filter(Boolean);
+  return (structure?.storage?.items || []).map((itemId) => itemEntry(getStoredEquipmentDef(structure, itemId), 1)).filter(Boolean);
 }
 
 function buildStoredAmmo(structure) {
@@ -232,7 +255,8 @@ export function transferStorageItem(state, player, structureId, itemId, amount, 
   if (!canPlayerAccessStorage(state, player, st)) return { ok: false, error: 'storage_locked' };
   const kind = getStorageKind(st);
   const id = String(itemId || '').toLowerCase();
-  const def = getItemDef(id);
+  let def = direction === 'withdraw' ? getStoredEquipmentDef(st, id) : getPlayerItemDef(player, id);
+  if (!def) def = getItemDef(id);
   if (!def) return { ok: false, error: 'invalid_item' };
   const qty = Math.max(1, Math.min(999999, Math.floor(Number(amount) || 1)));
   const eq = player?.equipment;
@@ -243,15 +267,25 @@ export function transferStorageItem(state, player, structureId, itemId, amount, 
     st.storage.items ??= [];
     if (direction === 'deposit') {
       if ((st.storage.items || []).length >= getStorageCapacity(st)) return { ok: false, error: 'storage_full' };
-      if (!(eq.ownedItemIds || []).includes(id)) return { ok: false, error: 'item_not_owned' };
-      if ((eq.equippedItemIds || []).includes(id)) return { ok: false, error: 'item_equipped' };
+      const owned = (eq.ownedItemIds || []).includes(id);
+      const equipped = (eq.equippedItemIds || []).includes(id);
+      if (!owned && !equipped) return { ok: false, error: 'item_not_owned' };
       eq.ownedItemIds = (eq.ownedItemIds || []).filter((x) => x !== id);
+      eq.equippedItemIds = (eq.equippedItemIds || []).filter((x) => x !== id);
       st.storage.items.push(id);
+      if (!getItemDef(id)) {
+        st.storage.customItemDefs ??= {};
+        st.storage.customItemDefs[id] = JSON.parse(JSON.stringify(def));
+      }
     } else if (direction === 'withdraw') {
       const idx = (st.storage.items || []).indexOf(id);
       if (idx < 0) return { ok: false, error: 'empty_storage' };
       if ((eq.ownedItemIds || []).includes(id)) return { ok: false, error: 'already_owned' };
       st.storage.items.splice(idx, 1);
+      if (st.storage.customItemDefs?.[id]) {
+        addCustomEquipmentDef(player, st.storage.customItemDefs[id]);
+        delete st.storage.customItemDefs[id];
+      }
       eq.ownedItemIds = [...(eq.ownedItemIds || []), id];
     } else return { ok: false, error: 'invalid_direction' };
   } else if (kind === 'ammo') {

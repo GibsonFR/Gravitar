@@ -15,7 +15,10 @@ function normalizeAmount(v) {
 function itemTitle(row) {
   const tier = row.tier ? ` T${row.tier}` : '';
   const cat = row.categoryName ? ` · ${row.categoryName}` : '';
-  return `${row.shortName || row.name || row.itemId}${tier}${cat}`;
+  const mark = row.mark ? ` · Mk ${row.mark}` : '';
+  const quality = row.qualityName ? ` · ${row.qualityName}` : '';
+  const equipped = row.equipped ? ' · équipé' : '';
+  return `${row.shortName || row.name || row.itemId}${tier}${mark}${quality}${cat}${equipped}`;
 }
 
 function resourceRows(resources = [], actionLabel, action, structureId) {
@@ -38,14 +41,18 @@ function itemRows(items = [], actionLabel, action, structureId, kind = 'equipmen
   if (!items.length) return `<div class="storage-panel__empty">Vide.</div>`;
   return items.map((it) => {
     const amount = normalizeAmount(it.amount || 1);
-    const qty = kind === 'ammo' ? `<span class="storage-panel__qty">${amount}</span>` : `<span class="storage-panel__qty">T${it.tier || 1}</span>`;
+    const qty = kind === 'ammo'
+      ? `<span class="storage-panel__qty">${amount}</span>`
+      : `<span class="storage-panel__qty">Mk ${it.mark || it.tier || 1}</span>`;
+    const equippedBadge = kind === 'equipment' && it.equipped ? `<small class="storage-panel__badge">équipé</small>` : '';
+    const label = kind === 'equipment' && it.equipped && action === 'deposit' ? 'Déséquiper + stocker' : actionLabel;
     return `
-      <div class="storage-panel__row storage-panel__row--item" data-item="${esc(it.itemId)}" data-amount="${amount}" data-structure="${structureId | 0}">
+      <div class="storage-panel__row storage-panel__row--item ${it.equipped ? 'is-equipped' : ''}" data-item="${esc(it.itemId)}" data-amount="${amount}" data-structure="${structureId | 0}">
         <span class="storage-panel__item-dot"></span>
-        <span class="storage-panel__name" title="${esc(itemTitle(it))}">${esc(it.shortName || it.name || it.itemId)}</span>
+        <span class="storage-panel__name" title="${esc(itemTitle(it))}">${esc(it.shortName || it.name || it.itemId)}${equippedBadge}</span>
         ${qty}
         ${kind === 'ammo' ? `<button class="ui-btn ui-btn--ghost storage-panel__mini" data-storage-act="${action}" data-amount="1" type="button">1</button>` : ''}
-        <button class="ui-btn storage-panel__main" data-storage-act="${action}" data-amount="all" type="button">${actionLabel}</button>
+        <button class="ui-btn storage-panel__main" data-storage-act="${action}" data-amount="all" type="button">${label}</button>
       </div>
     `;
   }).join('');
@@ -151,7 +158,7 @@ export class StoragePanelView {
     let leftRows = '';
     let rightRows = '';
     if (kind === 'equipment') {
-      leftTitle = 'Équipement disponible';
+      leftTitle = 'Équipement du vaisseau';
       rightTitle = 'Stocké';
       leftRows = itemRows(storage.cargoItems || [], 'Stocker', 'deposit', storage.id, 'equipment');
       rightRows = itemRows(storage.items || [], 'Reprendre', 'withdraw', storage.id, 'equipment');
