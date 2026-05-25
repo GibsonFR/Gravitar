@@ -24,14 +24,41 @@ function renderRecipeList(entries = []) {
   return entries.map((entry) => `${entry.name} ×${entry.amount}`).join(', ');
 }
 
+function compactRecipeList(entries = []) {
+  if (!entries.length) return '—';
+  return entries
+    .slice(0, 2)
+    .map((entry) => `${entry.amount} ${entry.shortName || entry.name || '?'}`)
+    .join(' • ');
+}
+
+function recipeStatusLine(recipe) {
+  if (recipe.owned) return 'Débloquée';
+  if (recipe.lockedByReputation) return `Réputation ${recipe.reputationRequired || 0}`;
+  return 'À acheter';
+}
+
 function recipeButton(recipe, selected = false) {
   const locked = recipe.lockedByReputation || false;
   const owned = recipe.owned || false;
-  const cls = ['station-item-icon', selected ? 'is-selected' : '', locked ? 'is-locked' : '', owned ? 'is-owned' : ''].filter(Boolean).join(' ');
-  return `<button type="button" class="${cls}" data-recipe-id="${recipe.recipeId}" title="${escapeHtml(recipe.name)}">
-    <span class="station-item-icon__tier">T${Math.max(1, recipe.tier | 0)}</span>
-    <span class="station-item-icon__glyph">⬡</span>
-    <span class="station-item-icon__name">${escapeHtml(recipe.name)}</span>
+  const cls = ['station-recipe-card', selected ? 'is-selected' : '', locked ? 'is-locked' : '', owned ? 'is-owned' : ''].filter(Boolean).join(' ');
+  const summaryIn = compactRecipeList(recipe.input || []);
+  const summaryOut = compactRecipeList(recipe.output || []);
+  const tooltip = [
+    recipe.name || 'Recette',
+    `Entrée : ${renderRecipeList(recipe.input || []).replace(/<[^>]*>/g, '')}`,
+    `Sortie : ${renderRecipeList(recipe.output || []).replace(/<[^>]*>/g, '')}`,
+    `Durée : ${Math.max(0, recipe.seconds | 0)}s`,
+    `Énergie : ${Math.max(0, recipe.energyUse | 0)}`,
+    recipeStatusLine(recipe)
+  ].join('\n');
+  return `<button type="button" class="${cls}" data-recipe-id="${recipe.recipeId}" title="${escapeHtml(tooltip)}">
+    <span class="station-recipe-card__tier">T${Math.max(1, recipe.tier | 0)}</span>
+    <span class="station-recipe-card__glyph">⇄</span>
+    <span class="station-recipe-card__name">${escapeHtml(recipe.name)}</span>
+    <span class="station-recipe-card__io"><strong>IN</strong> ${escapeHtml(summaryIn)}</span>
+    <span class="station-recipe-card__io"><strong>OUT</strong> ${escapeHtml(summaryOut)}</span>
+    <span class="station-recipe-card__meta">${escapeHtml(recipeStatusLine(recipe))}</span>
   </button>`;
 }
 
@@ -104,6 +131,23 @@ export class StationShopView {
     this.actionBtn = this.el.querySelector('[data-role="actionBtn"]');
 
     this.el.addEventListener('contextmenu', (ev) => ev.preventDefault());
+    this.el.addEventListener('pointermove', (ev) => {
+      const recipeBtn = ev.target?.closest?.('button[data-recipe-id]');
+      const itemBtn = ev.target?.closest?.('button[data-item-id]');
+      const hoveredKey = recipeBtn?.dataset?.recipeId || itemBtn?.dataset?.itemId || '';
+      if (hoveredKey !== this.hoverItemId) {
+        this.hoverItemId = hoveredKey;
+        this.renderGrid();
+        this.renderDetails();
+      }
+    });
+    this.el.addEventListener('pointerleave', () => {
+      if (!this.hoverItemId) return;
+      this.hoverItemId = '';
+      this.renderGrid();
+      this.renderDetails();
+    });
+
     this.el.addEventListener('pointerdown', (ev) => {
       if (ev.button !== 0) return;
       const tabBtn = ev.target?.closest?.('button[data-cat]');
@@ -154,11 +198,11 @@ export class StationShopView {
   getFocusedItem() {
     if (this.activeCategory === CONVERSION_RECIPE_CATEGORY) {
       const recipes = this.shop?.conversionRecipes || [];
-      const key = this.selectedItemId || recipes[0]?.recipeId || '';
+      const key = this.selectedItemId || this.hoverItemId || recipes[0]?.recipeId || '';
       return recipes.find((recipe) => String(recipe.recipeId || '') === key) || null;
     }
     const offers = this.shop?.offers || [];
-    const key = this.selectedItemId || this.getOffers()[0]?.itemId || '';
+    const key = this.selectedItemId || this.hoverItemId || this.getOffers()[0]?.itemId || '';
     return offers.find((item) => itemKeyOf(item) === key) || null;
   }
 
@@ -172,12 +216,16 @@ export class StationShopView {
 
   renderGrid() {
     const items = this.getOffers();
-    if (this.activeCategory === CONVERSION_RECIPE_CATEGORY) {
-      this.gridEl.innerHTML = items.map((recipe) => recipeButton(recipe, recipe.recipeId === this.selectedItemId)).join('') || '<div class="station-shop__empty">Aucune recette pirate proposée.</div>';
+    const isRecipeGrid = this.activeCategory === CONVERSION_RECIPE_CATEGORY;
+    this.gridEl.classList.toggle('is-recipes', isRecipeGrid);
+    if (isRecipeGrid) {
+      const focusId = this.selectedItemId || this.hoverItemId || items[0]?.recipeId || '';
+      this.gridEl.innerHTML = items.map((recipe) => recipeButton(recipe, recipe.recipeId === focusId)).join('') || '<div class="station-shop__empty">Aucune recette pirate proposée.</div>';
       return;
     }
+    const focusId = this.selectedItemId || this.hoverItemId || items[0]?.itemId || '';
     this.gridEl.innerHTML = items.map((item) => {
-      const selected = item.itemId === this.selectedItemId;
+      const selected = item.itemId === focusId;
       return buildItemIconButton(item, { selected, showName: false, compact: true });
     }).join('') || '<div class="station-shop__empty">Aucun item proposé dans cette catégorie.</div>';
   }
@@ -206,9 +254,10 @@ export class StationShopView {
           `État : ${status}`,
           `Durée : ${item.seconds | 0}s`,
           `Énergie : ${item.energyUse | 0}`,
-          `Entrée : ${renderRecipeList(item.input || [])}`,
-          `Sortie : ${renderRecipeList(item.output || [])}`
-        ])
+          'Déblocage permanent pour tes convertisseurs industriels.'
+        ]),
+        renderStationInfoSection('Entrée', renderStationChips((item.input || []).map((entry) => `${entry.name} ×${entry.amount}`), 'Aucune ressource')),
+        renderStationInfoSection('Sortie', renderStationChips((item.output || []).map((entry) => `${entry.name} ×${entry.amount}`), 'Aucune ressource'))
       ].join('');
       this.actionBtn.disabled = !this.docked || item.owned || item.lockedByReputation || !item.canAfford;
       this.actionBtn.textContent = item.owned ? 'Déjà achetée' : 'Acheter recette';

@@ -3,8 +3,6 @@ import { StationTradeView } from './StationTradeView.js';
 import { StationShopView } from './StationShopView.js';
 import { StationEquipmentView } from './StationEquipmentView.js';
 import { StationAmmoView } from './StationAmmoView.js';
-import { StationConvertersView } from './StationConvertersView.js';
-import { StationRefineryView } from './StationRefineryView.js';
 
 export class StationWindowView {
   constructor(sendCmd, store = null) {
@@ -47,9 +45,6 @@ export class StationWindowView {
     this.tradeView = new StationTradeView(sendCmd);
     this.tradeView.el.classList.add('station-page', 'station-page--trade');
 
-    this.refineryView = new StationRefineryView(sendCmd);
-    this.refineryView.el.classList.add('station-page', 'station-page--refinery');
-
     this.shopView = new StationShopView(sendCmd);
     this.shopView.el.classList.add('station-page', 'station-page--shop');
 
@@ -59,16 +54,11 @@ export class StationWindowView {
     this.equipmentView = new StationEquipmentView(sendCmd);
     this.equipmentView.el.classList.add('station-page', 'station-page--equipment');
 
-    this.convertersView = new StationConvertersView(sendCmd);
-    this.convertersView.el.classList.add('station-page', 'station-page--converters');
-
     this.pages = new Map([
       ['trade', this.tradeView.el],
-      ['refinery', this.refineryView.el],
       ['shop', this.shopView.el],
       ['ammo', this.ammoView.el],
-      ['equipment', this.equipmentView.el],
-      ['converters', this.convertersView.el]
+      ['equipment', this.equipmentView.el]
     ]);
 
     this.navEl.innerHTML = STATION_TABS.map((t) => {
@@ -142,11 +132,9 @@ export class StationWindowView {
     this.updatePendingUi();
 
     this.tradeView.update(myState?.inv, docked, myState?.stationShop);
-    this.refineryView.update(myState?.inv, docked);
     this.shopView.update(myState?.stationShop, myState?.inv, docked);
     this.ammoView.update(myState?.equipment, myState?.stationShop, myState?.inv, docked);
     this.equipmentView.update(myState?.equipment, myState?.inv, docked);
-    this.convertersView.update(myState?.equipment, docked);
     this.setTab(this.activeTab);
   }
 }

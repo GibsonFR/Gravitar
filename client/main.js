@@ -1,4 +1,4 @@
-// build v129 research-station-container
+// build v168 station-cleanup-industrial-converter
 function showBootError(error, title = 'Erreur au chargement du jeu') {
   const message = error?.stack || error?.message || String(error || 'Erreur inconnue');
   console.error('[Gravitar boot]', error);
@@ -20,7 +20,7 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
 
 async function boot() {
   try {
-    const mod = await import('./src/App.js?v=165');
+    const mod = await import('./src/App.js?v=168');
     mod.startApp();
   } catch (err) {
     showBootError(err, 'Erreur au chargement du jeu');
