@@ -180,11 +180,35 @@ export function getQualityName(id) {
 }
 
 
+function scaleNeutralLauncherProfile(baseProfile = {}, mark = 1) {
+  const m = Math.max(1, Math.min(5, mark | 0));
+  const volleyByMark = [0, 1, 1, 2, 2, 3];
+  const damageMultByMark = [0, 1.00, 1.13, 1.28, 1.48, 1.72];
+  const cooldownByMark = [0, 4.4, 4.0, 4.7, 4.25, 5.1];
+  const energyByMark = [0, 7, 8, 11, 13, 17];
+  const rangeByMark = [0, 1500, 1580, 1660, 1760, 1880];
+  const splashByMark = [0, 88, 94, 100, 108, 118];
+  const dispersionByMark = [0, 0, 0, 5, 4, 7];
+
+  return {
+    ...baseProfile,
+    volley: volleyByMark[m],
+    damageMult: damageMultByMark[m],
+    cooldown: cooldownByMark[m],
+    energyCost: energyByMark[m],
+    range: rangeByMark[m],
+    splashRadius: splashByMark[m],
+    dispersionDeg: dispersionByMark[m],
+    projectileSpeed: Math.round((baseProfile.projectileSpeed || 980) * (1 + (m - 1) * 0.035))
+  };
+}
+
 export function createNeutralCraftedEquipment({ baseItemId, recipeId, recipeName = '', mark = 1, ownerKey = '', craftedIndex = 0, timeMs = Date.now() }) {
   const base = getItemDef(baseItemId);
   if (!base) return null;
   const id = `neutral-${recipeId}-${craftedIndex}-${hashString(`${ownerKey}|${timeMs}|${baseItemId}|neutral`).toString(36)}`;
   const baseBonuses = getNeutralBaseBonuses(baseItemId, mark);
+  const launcherProfile = base.categoryId === ITEM_CATEGORY_IDS.LAUNCHER ? scaleNeutralLauncherProfile(base.launcherProfile || {}, mark) : base.launcherProfile;
   return {
     ...base,
     id,
@@ -200,6 +224,7 @@ export function createNeutralCraftedEquipment({ baseItemId, recipeId, recipeName
     shopOffer: false,
     tags: [],
     bonuses: baseBonuses,
+    ...(launcherProfile ? { launcherProfile } : {}),
     rollLines: [],
     description: `Objet neutre Mark ${mark | 0 || 1}. Peut être amélioré dans une station R&D avec des sciences.`
   };
@@ -226,8 +251,10 @@ export function rollRDEquipment({ neutralItemDef, programId = 'rd_basic', ownerK
     rdEnhanced: true,
     crafted: true,
     mark: neutralItemDef.mark || 1,
+    bonuses: { ...(neutralItemDef.bonuses || {}), ...(rolled.bonuses || {}) },
     name: `${neutralItemDef.name} ${rolled.qualityName}`,
     shortName: `${neutralItemDef.shortName || neutralItemDef.name} ${rolled.qualityName}`,
+    launcherProfile: neutralItemDef.launcherProfile || rolled.launcherProfile,
     description: `${neutralItemDef.name} amélioré par R&D. ${rolled.description || ''}`.trim()
   };
 }

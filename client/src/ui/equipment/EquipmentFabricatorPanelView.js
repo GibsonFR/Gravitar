@@ -60,6 +60,19 @@ function resourceList(entries = []) {
   return entries.map((r) => `<span class="equipment-fab__res ${r.missing > 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)} ×${r.amount | 0}<em>${r.have | 0}</em></span>`).join('');
 }
 
+function launcherProfileList(profile = null) {
+  if (!profile) return '';
+  const rows = [
+    `${Math.max(1, profile.volley | 0)} roquettes / salve`,
+    `×${Number(profile.damageMult || 1).toFixed(2)} dégâts roquette`,
+    `${Number(profile.cooldown || 0).toFixed(2)}s recharge`,
+    `${Math.round(profile.range || 0)} portée`,
+    `${Math.round(profile.splashRadius || 0)} rayon explosion`,
+    `${Number(profile.energyCost || 0).toFixed(1)} énergie / salve`
+  ];
+  return rows.map((line) => `<span>${escapeHtml(line)}</span>`).join('');
+}
+
 function bonusList(bonuses = {}) {
   const entries = Object.entries(bonuses || {}).filter(([, v]) => Number(v) !== 0);
   if (!entries.length) return '<span class="equipment-fab__muted">Base</span>';
@@ -266,7 +279,7 @@ export class EquipmentFabricatorPanelView {
               <div class="equipment-fab__sub">Charger depuis le cargo</div>
               <div class="equipment-fab__deposit-grid">${cargoDepositRows(selected, data.id)}</div>
               <div class="equipment-fab__sub">Base</div>
-              <div class="equipment-fab__bonus">${bonusList(selected.baseBonuses || {})}</div>
+              <div class="equipment-fab__bonus">${bonusList(selected.baseBonuses || {})}${launcherProfileList(selected.launcherProfile || null)}</div>
               ${selected.locked ? `<div class="equipment-fab__lock">Requiert : ${escapeHtml(selected.requiredResearchName || selected.requiredResearchId || 'recherche')}</div>` : ''}
               <button type="button" data-equipment-fab-craft="${escapeHtml(selected.id)}" data-structure="${data.id | 0}" ${selected.canCraft ? '' : 'disabled'}>Fabriquer</button>
             </div>` : '<div class="equipment-fab__muted">Aucune recette</div>'}

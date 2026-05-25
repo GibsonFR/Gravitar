@@ -87,7 +87,7 @@ export function equipStationItemToSlot(state, player, itemId, categoryId, slotId
     const targetCurrent = currentSame[targetIndex] || '';
     if (targetCurrent) next = next.filter((id) => id !== targetCurrent);
   } else {
-    next = next.filter((id) => getItemDef(id)?.categoryId !== categoryId);
+    next = next.filter((id) => (getPlayerItemDef(player, id) || getItemDef(id))?.categoryId !== categoryId);
   }
 
   const currentCountAfterRemoval = next.filter((id) => (getPlayerItemDef(player, id) || getItemDef(id))?.categoryId === categoryId).length;
@@ -118,7 +118,7 @@ export function sellStationItem(state, player, itemId, timeMs = 0) {
   const station = getDockedStation(state, player);
   if (!station) return false;
 
-  const def = getItemDef(itemId);
+  const def = getPlayerItemDef(player, itemId) || getItemDef(itemId);
   if (!def) return false;
 
   if (def.categoryId === ITEM_CATEGORY_IDS.AMMO && def.ammoProfile) {

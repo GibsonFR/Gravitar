@@ -94,6 +94,28 @@ function completed(player) {
   return Array.isArray(player?.research?.completed) ? player.research.completed : [];
 }
 
+function scalePreviewLauncherProfile(baseProfile = {}, mark = 1) {
+  const m = Math.max(1, Math.min(5, mark | 0));
+  const volleyByMark = [0, 1, 1, 2, 2, 3];
+  const damageMultByMark = [0, 1.00, 1.13, 1.28, 1.48, 1.72];
+  const cooldownByMark = [0, 4.4, 4.0, 4.7, 4.25, 5.1];
+  const energyByMark = [0, 7, 8, 11, 13, 17];
+  const rangeByMark = [0, 1500, 1580, 1660, 1760, 1880];
+  const splashByMark = [0, 88, 94, 100, 108, 118];
+  const dispersionByMark = [0, 0, 0, 5, 4, 7];
+  return {
+    ...baseProfile,
+    volley: volleyByMark[m],
+    damageMult: damageMultByMark[m],
+    cooldown: cooldownByMark[m],
+    energyCost: energyByMark[m],
+    range: rangeByMark[m],
+    splashRadius: splashByMark[m],
+    dispersionDeg: dispersionByMark[m],
+    projectileSpeed: Math.round((baseProfile.projectileSpeed || 980) * (1 + (m - 1) * 0.035))
+  };
+}
+
 function recipeSnapshot(player, recipe, st = null) {
   const base = getItemDef(recipe.baseItemId);
   const requiredResearchId = getRecipeResearchRequirement(recipe.id) || recipe.researchId || '';
@@ -112,6 +134,7 @@ function recipeSnapshot(player, recipe, st = null) {
     seconds: recipe.seconds | 0,
     input: Object.entries(recipe.input || {}).map(([key, amount]) => resourceEntry(key, amount | 0, player, map[key] | 0)),
     baseBonuses: getNeutralBaseBonuses(recipe.baseItemId, recipe.mark),
+    launcherProfile: base?.categoryId === 'launcher' ? scalePreviewLauncherProfile(base.launcherProfile || {}, recipe.mark) : null,
     locked: !researchDone,
     requiredResearchId,
     requiredResearchName: requiredResearchId ? getResearchName(requiredResearchId) : '',
@@ -130,7 +153,8 @@ function equipmentOutputSnapshot(player, st) {
     categoryName: getItemCategoryName(def.categoryId),
     mark: def.mark || 1,
     neutralBase: !!def.neutralBase,
-    bonuses: { ...(def.bonuses || {}) }
+    bonuses: { ...(def.bonuses || {}) },
+    launcherProfile: def.launcherProfile || null
   }));
 }
 
