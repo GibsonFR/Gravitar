@@ -877,7 +877,7 @@ export class WorldStore {
       'equip_item_to_slot', 'unequip_item', 'sell_item', 'assign_rocket_ammo',
       'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'set_frame'
     ]);
-    if (stationCmds.has(entry.cmd)) this.pendingStationCommands.set(id, entry);
+    if (stationCmds.has(entry.cmd) && !entry.meta?.globalEquipment) this.pendingStationCommands.set(id, entry);
     return id;
   }
 
@@ -893,7 +893,9 @@ export class WorldStore {
     if (!msg.ok) {
       this.myState = this.myState || {};
       const reason = String(msg.error || 'refusée');
-      this.myState.hint = `Action station refusée : ${entry.cmd}${reason ? ` (${reason})` : ''}`;
+      this.myState.hint = entry?.meta?.globalEquipment
+        ? `Action équipement refusée : ${entry.cmd}${reason ? ` (${reason})` : ''}`
+        : `Action station refusée : ${entry.cmd}${reason ? ` (${reason})` : ''}`;
       this.myState._optimisticHintLeft = 1.2;
     }
     // A command ack means the server answered. Stop the blocking wait immediately,

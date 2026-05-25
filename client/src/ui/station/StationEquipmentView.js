@@ -201,7 +201,7 @@ export class StationEquipmentView {
 
   sendStationCommand(cmd, payload = {}) {
     if (!this.sendCmd || !cmd) return '';
-    const id = this.sendCmd(cmd, payload, { station: true, source: 'equipment' }) || '';
+    const id = this.sendCmd(cmd, payload, { source: 'equipment', globalEquipment: true }) || '';
     this.el.classList.add('is-equipment-pending');
     window.setTimeout(() => {
       this.el.classList.remove('is-equipment-pending');

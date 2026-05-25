@@ -2,7 +2,7 @@ import { getItemDef } from '../../../../../shared/content/items/ItemDefs.js';
 import { getPlayerItemDef } from '../../equipment/PlayerEquipmentDefs.js';
 import { ITEM_CATEGORY_IDS } from '../../../../../shared/content/items/ItemCategoryIds.js';
 import { getDockedStation } from '../StationAccess.js';
-import { equipOwnedItem, hasOwnedItem, isItemEquipped, removeOwnedItem, sortEquipmentIdsStable, unequipOwnedItem, normalizeEquipmentOwnership } from '../../equipment/EquipmentRules.js';
+import { equipOwnedItem, hasOwnedItem, isItemEquipped, removeOwnedItem, sortEquipmentIdsStable, unequipOwnedItem } from '../../equipment/EquipmentRules.js';
 import { addRocketAmmo, getRocketAmmoQuantity, consumeRocketAmmo } from '../../rocket/RocketAmmoRules.js';
 import { syncPlayerFrameStats } from '../../frames/FrameStatSync.js';
 import { consumeOfferCosts } from './StationOfferCosts.js';
@@ -51,7 +51,6 @@ export function equipStationItem(state, player, itemId, timeMs = 0) {
   const ok = equipOwnedItem(player, itemId, timeMs);
   if (!ok) return false;
   syncPlayerFrameStats(player, { restoreVitals: false, preserveRatios: true });
-  player.forceFullUiSnapshot = true;
   return true;
 }
 
@@ -59,14 +58,12 @@ export function unequipStationItem(state, player, itemId, timeMs = 0) {
   const ok = unequipOwnedItem(player, itemId, timeMs);
   if (!ok) return false;
   syncPlayerFrameStats(player, { restoreVitals: false, preserveRatios: true });
-  player.forceFullUiSnapshot = true;
   return true;
 }
 
 
 
 export function equipStationItemToSlot(state, player, itemId, categoryId, slotId = '', index = 0, timeMs = 0) {
-  normalizeEquipmentOwnership(player, 0);
   const def = getPlayerItemDef(player, itemId) || getItemDef(itemId);
   if (!def) return false;
   if (def.categoryId !== categoryId) return false;
@@ -74,7 +71,6 @@ export function equipStationItemToSlot(state, player, itemId, categoryId, slotId
   if (!hasOwnedItem(player, itemId)) return false;
 
   const equipment = player.equipment ?? (player.equipment = {});
-  equipment.ownedItemIds = sortEquipmentIdsStable([...(equipment.ownedItemIds || []), itemId]);
   const equipped = [...(equipment.equippedItemIds ?? [])];
   const caps = equipment.slotCaps ?? {};
   const cap = Math.max(0, caps[categoryId] ?? 0);
@@ -113,10 +109,9 @@ export function equipStationItemToSlot(state, player, itemId, categoryId, slotId
     equipment.equippedItemIds = [...beforeCategory, itemId];
   }
 
-  normalizeEquipmentOwnership(player, 0);
+  equipment.ownedItemIds = [...new Set([...(equipment.ownedItemIds || []), itemId, ...equipment.equippedItemIds])].sort();
   equipment.lastChangedAt = timeMs | 0;
   syncPlayerFrameStats(player, { restoreVitals: false, preserveRatios: true });
-  player.forceFullUiSnapshot = true;
   return true;
 }
 

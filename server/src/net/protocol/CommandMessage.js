@@ -32,7 +32,7 @@ export function sanitizeCommandMessage(raw) {
 
   if (cmd === 'sell' || cmd === 'jettison') {
     msg.resourceKey = cleanWord(raw.resourceKey ?? raw.resource ?? raw.key, 48);
-    msg.itemId = cleanWord(raw.itemId ?? raw.id ?? '', 64).toLowerCase();
+    msg.itemId = cleanWord(raw.itemId ?? raw.id ?? '', 128).toLowerCase();
     const amount = Number.isFinite(raw.amount) ? Math.floor(raw.amount) : Math.floor(Number(raw.amount) || 0);
     msg.amount = Math.max(0, Math.min(999999, amount));
   }
@@ -116,7 +116,7 @@ export function sanitizeCommandMessage(raw) {
     const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
     msg.structureId = Math.max(0, Math.min(2147483647, structureId));
     msg.resourceKey = cleanWord(raw.resourceKey ?? raw.resource ?? raw.key, 48);
-    msg.itemId = cleanWord(raw.itemId ?? raw.id ?? '', 64).toLowerCase();
+    msg.itemId = cleanWord(raw.itemId ?? raw.id ?? '', 128).toLowerCase();
     const amount = Number.isFinite(raw.amount) ? Math.floor(raw.amount) : Math.floor(Number(raw.amount) || 0);
     msg.amount = Math.max(1, Math.min(999999, amount));
     const dir = cleanWord(raw.direction || raw.dir || '', 16).toLowerCase();

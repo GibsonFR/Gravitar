@@ -1,10 +1,10 @@
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { getPlayerItemDef } from './PlayerEquipmentDefs.js';
-import { normalizeEquipmentOwnership } from './EquipmentRules.js';
 import { buildEquippedTagState, buildEquippedSuperTagState, buildEquipmentEffectLines, resolveEquipmentRuntimeBonuses } from './EquipmentEffectResolver.js';
 import { buildEquippedCountByCategory } from './EquipmentBonuses.js';
 import { getRocketAmmoQuantity } from '../rocket/RocketAmmoRules.js';
 import { buildConverterSnapshot } from './EquipmentConverterSnapshot.js';
+import { repairEquipmentOwnership } from './EquipmentRules.js';
 
 
 function serializePassiveEffects(def) {
@@ -103,7 +103,7 @@ function buildRocketAmmoEntry(player, itemId, activeRocketSlot) {
 
 export function buildEquipmentSnapshot(player) {
   if (!player?.equipment) return null;
-  normalizeEquipmentOwnership(player, 0);
+  repairEquipmentOwnership(player, Date.now());
 
   const activeRocketSlot = Math.max(0, Math.min(1, player.equipment.activeRocketSlot | 0));
   const ownedEntries = (player.equipment.ownedItemIds ?? [])
