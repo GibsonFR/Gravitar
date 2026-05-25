@@ -2,6 +2,7 @@ import { STRUCTURE_TYPES } from './StructureDefs.js';
 import { updateBaseEnergy } from './StructureEnergy.js';
 import { updateMachineProcesses } from './StructureMachineRuntime.js';
 import { updateStructureAutomation } from './StructureAutomation.js';
+import { updateRocketWorkshops } from './StructureRocketWorkshop.js';
 
 const CORE_REGEN_HP_PER_SEC = 8;
 const CORE_REGEN_SAVE_INTERVAL_MS = 5000;
@@ -138,6 +139,7 @@ export function updateStructures(state, dt, timeMs = Date.now()) {
   const regen = Math.max(0, Number(dt) || 0) * CORE_REGEN_HP_PER_SEC;
   updateBaseEnergy(state, dt, timeMs);
   updateMachineProcesses(state, dt, timeMs);
+  updateRocketWorkshops(state, dt, timeMs);
   updateStructureAutomation(state, dt, timeMs);
   if (regen <= 0) return;
   for (const st of state.structures.values()) {

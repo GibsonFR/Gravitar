@@ -80,6 +80,7 @@ if (kind === 'chemical_refinery') return `<svg viewBox="0 0 64 64" aria-hidden="
 if (kind === 'electrolyzer') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="16" height="28" rx="5" fill="rgba(120,220,255,.12)" stroke="currentColor" stroke-width="3"/><rect x="36" y="18" width="16" height="28" rx="5" fill="rgba(120,220,255,.08)" stroke="currentColor" stroke-width="3"/><path d="M20 12v8M44 12v8M18 32h4M42 30h4M44 28v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".8"/><path d="M30 22l-5 10h6l-4 10 11-14h-6l4-6" fill="rgba(120,220,255,.16)" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>`;
 if (kind === 'electronics_bench') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="15" width="42" height="34" rx="5" fill="rgba(145,176,255,.12)" stroke="currentColor" stroke-width="3"/><rect x="24" y="25" width="16" height="12" rx="2.5" fill="rgba(145,176,255,.1)" stroke="currentColor" stroke-width="2.6"/><path d="M18 21v6M18 37v6M46 21v6M46 37v6M11 22h7M11 42h7M46 22h7M46 42h7M20 31h4M40 31h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".78"/></svg>`;
 if (kind === 'industrial_converter') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8l18 10v28L32 56 14 46V18L32 8z" fill="rgba(255,140,230,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 26h20M22 38h20M28 20l-6 6 6 6M36 32l6 6-6 6" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="32" r="5" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".8"/></svg>`;
+if (kind === 'rocket_workshop') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="17" width="40" height="34" rx="6" fill="rgba(255,184,92,.13)" stroke="currentColor" stroke-width="3"/><path d="M23 40l8-20 8 20M27 33h8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M44 20l7 5-7 5M45 34l7 5-7 5M15 52h34" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/></svg>`;
 if (kind === 'industrial_press') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="14" y="14" width="36" height="8" rx="3" fill="rgba(220,232,242,.12)" stroke="currentColor" stroke-width="3"/><rect x="18" y="42" width="28" height="8" rx="3" fill="rgba(220,232,242,.10)" stroke="currentColor" stroke-width="3"/><path d="M24 22v12M40 22v12M24 34h16M32 34v8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 54h24" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'machine') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="11" y="18" width="42" height="32" rx="5" fill="rgba(255,180,110,.12)" stroke="currentColor" stroke-width="3"/><circle cx="25" cy="34" r="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M37 27h8M37 34h8M37 41h8M18 18v-6h28v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'mining_extractor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="40" height="30" rx="5" fill="rgba(159,220,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M20 48l8-18h8l8 18M24 38h16M32 18v-7M24 12h16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M44 32h9M49 27l6 5-6 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -390,6 +391,23 @@ export const BUILD_STRUCTURES = [
     role: 'Convertit les ressources avec les recettes achetées en station pirate.',
     stats: ['Consommation : 10 énergie', 'Recettes pirates uniquement'],
     cost: { steelPlate: 6, copperWire: 10, controlCircuit: 1, unknownTechFragment: 1 }
+  },
+  {
+    type: 'rocket_workshop',
+    category: 'industry',
+    title: 'Atelier de roquettes',
+    subtitle: '2 × 2 cases',
+    icon: 'rocket_workshop',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    energyUse: 12,
+    role: 'Produit des lots de roquettes HE standards.',
+    stats: ['Consommation : 12 énergie', 'Sortie : munitions de roquettes'],
+    cost: { steelPlate: 6, propellant: 6, controlCircuit: 1 }
   },
   {
     type: 'equipment_fabricator',

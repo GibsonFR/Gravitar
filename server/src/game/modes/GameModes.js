@@ -498,6 +498,41 @@ export function ensureTestIndustrialConverterBench(state, player, timeMs) {
   pirate.unlockedConversionRecipeIds = [...unlocked].sort();
 }
 
+
+export function ensureTestRocketWorkshopBench(state, player, timeMs) {
+  if (!state?.structures || !player) return;
+  const worldId = String(player.worldId || '');
+  const sx = SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sx | 0;
+  const sy = SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sy | 0;
+  if ((player.sx | 0) !== sx || (player.sy | 0) !== sy) return;
+  const owner = { ownerId: player.id | 0, ownerKey: player.accountKey || 'test', ownerName: player.pseudo || 'Test', timeMs };
+  const core = ensureTestStructure(state, worldId, 'base_core', sx, sy, -448, 0, owner);
+  if (core) core.claimRadius = Math.max(core.claimRadius || 0, 1600);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -256, -192, owner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -128, -192, owner);
+  const gen = ensureTestStructure(state, worldId, 'fuel_generator', sx, sy, 64, -192, owner);
+  if (gen) {
+    gen.storage ??= { kind: 'fuel', resources: {}, capacity: 80 };
+    gen.storage.kind = 'fuel';
+    gen.storage.resources ??= {};
+    gen.storage.resources.refinedFuel = Math.max(gen.storage.resources.refinedFuel | 0, 20);
+  }
+  const workshop = ensureTestStructure(state, worldId, 'rocket_workshop', sx, sy, 64, 96, owner);
+  if (workshop) {
+    workshop.rocketWorkshopEnabled = true;
+    workshop.rocketWorkshopInput = { steelPlate: 30, propellant: 24, controlCircuit: 8 };
+    workshop.rocketWorkshopOutput ||= {};
+    workshop.updatedAt = timeMs;
+  }
+  const storage = ensureTestStructure(state, worldId, 'storage', sx, sy, 352, 96, owner);
+  if (storage) {
+    storage.storage ??= { kind: 'resources', resources: {}, capacity: 420 };
+    storage.storage.kind = 'resources';
+    storage.storage.capacity = Math.max(storage.storage.capacity || 0, 420);
+    storage.storage.resources = { steelPlate: 80, propellant: 80, controlCircuit: 20, ironOre: 120, graphite: 80, copperWire: 80 };
+  }
+}
+
 function grantTestResources(player) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
@@ -585,6 +620,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   ensureTestMiningDeposits(state, player, timeMs);
   ensureTestEquipmentBench(state, player, timeMs);
   ensureTestIndustrialConverterBench(state, player, timeMs);
+  ensureTestRocketWorkshopBench(state, player, timeMs);
   if (player.progression) {
     player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
     player.progression.xp = 0;

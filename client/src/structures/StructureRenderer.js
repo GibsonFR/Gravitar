@@ -724,7 +724,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   const h = (storage1x1 ? 64 : (s.h || s.radius * 2 || 80)) * view.dpr;
   const pal = ownerPalette(s);
   const edge = pal.edge;
-  const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press', 'industrial_converter', 'science_lab', 'research_station']);
+  const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press', 'industrial_converter', 'rocket_workshop', 'science_lab', 'research_station']);
   const powerTypes = new Set(['solar_panel', 'fuel_generator', 'fuel_tank']);
   const storageTypes = new Set(['storage', 'equipment_storage', 'ammo_storage']);
   const depositTypes = new Set(['resource_deposit']);
@@ -823,6 +823,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     const isElectronics = s.type === 'electronics_bench';
     const isPress = s.type === 'industrial_press';
     const isIndustrialConverter = s.type === 'industrial_converter';
+    const isRocketWorkshop = s.type === 'rocket_workshop';
     const isScienceLab = s.type === 'science_lab';
     const isResearchStation = s.type === 'research_station';
     const isDeposit = s.type === 'resource_deposit';
@@ -835,6 +836,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       : isElectro ? 'rgba(120,220,255,.72)'
       : isElectronics ? 'rgba(145,176,255,.72)'
       : isIndustrialConverter ? 'rgba(255,146,232,.82)'
+      : isRocketWorkshop ? 'rgba(255,184,92,.84)'
       : isScienceLab ? 'rgba(126,220,255,.78)'
       : isResearchStation ? 'rgba(181,140,255,.80)'
       : isPress ? 'rgba(220,232,242,.70)'
@@ -1157,6 +1159,36 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.stroke();
       ctx.fillStyle = 'rgba(181,140,255,.18)';
       ctx.fillRect(-w * 0.28, h * 0.22, w * 0.56 * Math.max(0, Math.min(1, s.researchProgress || 0)), 5 * view.dpr);
+    } else if (isRocketWorkshop) {
+
+      const pulse = 0.30 + 0.22 * Math.sin(t * 4.0);
+      ctx.fillStyle = 'rgba(82, 50, 24, .42)';
+      ctx.strokeStyle = 'rgba(255,184,92,.88)';
+      ctx.lineWidth = 1.8 * view.dpr;
+      ctx.beginPath();
+      roundedRect(ctx, -w * 0.34, -h * 0.28, w * 0.68, h * 0.56, 12 * view.dpr);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.18, h * 0.16); ctx.lineTo(-w * 0.04, -h * 0.18); ctx.lineTo(w * 0.10, h * 0.16);
+      ctx.moveTo(-w * 0.10, h * 0.02); ctx.lineTo(w * 0.02, h * 0.02);
+      ctx.rect(w * 0.16, -h * 0.18, w * 0.10, h * 0.34);
+      ctx.moveTo(w * 0.26, -h * 0.10); ctx.lineTo(w * 0.35, -h * 0.05); ctx.lineTo(w * 0.26, 0);
+      ctx.moveTo(w * 0.26, h * 0.05); ctx.lineTo(w * 0.35, h * 0.10); ctx.lineTo(w * 0.26, h * 0.15);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255, 184, 92, ${0.13 + pulse * 0.28})`;
+      ctx.beginPath();
+      ctx.arc(-w * 0.04, -h * 0.06, Math.min(w, h) * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.save();
+      ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255,226,185,.9)';
+      ctx.shadowColor = 'rgba(0,0,0,.92)';
+      ctx.shadowBlur = 3 * view.dpr;
+      ctx.fillText('ROCKET', 0, h * 0.36);
+      ctx.restore();
     } else if (isIndustrialConverter) {
 
       const pulse = 0.35 + 0.25 * Math.sin(t * 3.2);

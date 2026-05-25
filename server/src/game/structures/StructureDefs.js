@@ -18,6 +18,7 @@ export const STRUCTURE_TYPES = {
   INDUSTRIAL_PRESS: 'industrial_press',
   SCIENCE_LAB: 'science_lab',
   INDUSTRIAL_CONVERTER: 'industrial_converter',
+  ROCKET_WORKSHOP: 'rocket_workshop',
   RESEARCH_STATION: 'research_station',
   EQUIPMENT_FABRICATOR: 'equipment_fabricator',
   EQUIPMENT_RD_STATION: 'equipment_rd_station',
@@ -352,6 +353,28 @@ export const STRUCTURE_DEFS = {
     color: '#3d3048',
     borderColor: '#ff8ce6',
     cost: { steelPlate: 6, copperWire: 10, controlCircuit: 1, unknownTechFragment: 1 }
+  },
+
+
+  [STRUCTURE_TYPES.ROCKET_WORKSHOP]: {
+    id: STRUCTURE_TYPES.ROCKET_WORKSHOP,
+    name: 'Atelier de roquettes',
+    description: 'Produit des lots de roquettes à partir de composants industriels.',
+    radius: 64,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 0,
+    damageable: false,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    rocketWorkshop: true,
+    energyUse: 12,
+    color: '#4a3828',
+    borderColor: '#ffb85c',
+    cost: { steelPlate: 6, propellant: 6, controlCircuit: 1 }
   },
 
   [STRUCTURE_TYPES.RESEARCH_STATION]: {

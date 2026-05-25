@@ -55,6 +55,12 @@ import { handleEquipmentRDStationLoadItem } from './EquipmentRDStationLoadItemCo
 import { handleEquipmentRDStationUnloadItem } from './EquipmentRDStationUnloadItemCommand.js';
 import { handleResearchTreeStart } from './ResearchTreeStartCommand.js';
 import { handleResearchTreeCancel } from './ResearchTreeCancelCommand.js';
+import { handleRocketWorkshopOpen } from './RocketWorkshopOpenCommand.js';
+import { handleRocketWorkshopClose } from './RocketWorkshopCloseCommand.js';
+import { handleRocketWorkshopTransfer } from './RocketWorkshopTransferCommand.js';
+import { handleRocketWorkshopClaim } from './RocketWorkshopClaimCommand.js';
+import { handleRocketWorkshopStart } from './RocketWorkshopStartCommand.js';
+import { handleRocketWorkshopToggle } from './RocketWorkshopToggleCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -96,6 +102,12 @@ const HANDLERS = {
   machine_select_recipe: handleMachineSelectRecipe,
   machine_transfer: handleMachineTransfer,
   machine_toggle: handleMachineToggle,
+  rocket_workshop_open: handleRocketWorkshopOpen,
+  rocket_workshop_close: handleRocketWorkshopClose,
+  rocket_workshop_transfer: handleRocketWorkshopTransfer,
+  rocket_workshop_claim: handleRocketWorkshopClaim,
+  rocket_workshop_start: handleRocketWorkshopStart,
+  rocket_workshop_toggle: handleRocketWorkshopToggle,
   research_station_open: handleResearchStationOpen,
   research_station_close: handleResearchStationClose,
   research_station_transfer: handleResearchStationTransfer,

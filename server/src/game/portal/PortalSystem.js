@@ -10,7 +10,7 @@ import { addResource } from '../inventory/InventorySystem.js';
 import { createNeutralCraftedEquipment } from '../../../../shared/content/equipment/EquipmentRoller.js';
 import { STARTER_ITEM_IDS } from '../../../../shared/content/items/ItemDefs.js';
 import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
-import { ensureTestEquipmentBench, ensureTestIndustrialConverterBench } from '../modes/GameModes.js';
+import { ensureTestEquipmentBench, ensureTestIndustrialConverterBench, ensureTestRocketWorkshopBench } from '../modes/GameModes.js';
 import { ensurePlayerPirateState } from '../player/runtime/PlayerPirateState.js';
 
 
@@ -195,6 +195,17 @@ function grantIndustrialConverterTestPack(state, player, timeMs) {
   ensureTestIndustrialConverterBench(state, player, timeMs);
 }
 
+
+function grantRocketWorkshopTestPack(state, player, timeMs) {
+  if (!player?.inv) return;
+  player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
+  const pack = { steelPlate: 80, propellant: 80, controlCircuit: 20, copperWire: 60, refinedFuel: 30 };
+  for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
+  player.research = player.research || { completed: [], unlocked: [] };
+  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'energy_distribution', 'advanced_industry', 'electronics_processing'])];
+  ensureTestRocketWorkshopBench(state, player, timeMs);
+}
+
 function prepareTestArenaPlayer(player) {
   if (!player?.progression) return;
   player.progression.level = Math.max(player.progression.level ?? 1, 18);
@@ -296,6 +307,7 @@ export function tryUsePortal(state, player, timeMs) {
   if (best.mode === 'test_pirate_quests') grantPirateQuestTestPack(player);
   if (best.mode === 'test_pirate_reputation') grantPirateReputationTestPack(player);
   if (best.mode === 'test_pirate_rare_equipment') grantPirateRareEquipmentTestPack(player);
+  if (best.mode === 'test_rocket_workshop') grantRocketWorkshopTestPack(state, player, timeMs);
   if (best.mode === 'test_industrial_converter') grantIndustrialConverterTestPack(state, player, timeMs);
   if (best.mode === 'test_arena') player.uiHint = 'Simulateur activé';
   else if (best.mode === 'mob_bestiary') player.uiHint = 'Bestiaire activé';
@@ -304,10 +316,11 @@ export function tryUsePortal(state, player, timeMs) {
   else if (best.mode === 'test_pirate_quests') player.uiHint = 'Quêtes pirates de test chargées';
   else if (best.mode === 'test_pirate_reputation') player.uiHint = 'Réputation pirate de test chargée';
   else if (best.mode === 'test_pirate_rare_equipment') player.uiHint = 'Arsenal pirate rare chargé';
+  else if (best.mode === 'test_rocket_workshop') player.uiHint = 'Atelier de roquettes chargé';
   else if (best.mode === 'test_industrial_converter') player.uiHint = 'Convertisseur industriel de test chargé';
   else if (String(best.mode || '').startsWith('test_biome_')) player.uiHint = 'Biome de test chargé';
   else player.uiHint = `Saut → [${player.sx},${player.sy}]`;
-  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || best.mode === 'test_pirate_quests' || best.mode === 'test_pirate_reputation' || best.mode === 'test_pirate_rare_equipment' || best.mode === 'test_industrial_converter' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
+  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || best.mode === 'test_pirate_quests' || best.mode === 'test_pirate_reputation' || best.mode === 'test_pirate_rare_equipment' || best.mode === 'test_rocket_workshop' || best.mode === 'test_industrial_converter' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   return true;
 }

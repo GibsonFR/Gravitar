@@ -7766,3 +7766,92 @@ button.station-item-icon[draggable="true"]:active,
   opacity: 0.68;
   filter: saturate(0.7);
 }
+
+/* v177 — Atelier de roquettes */
+.rocket-workshop {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(980px, calc(100vw - 48px));
+  max-height: min(760px, calc(100vh - 48px));
+  z-index: 48;
+  color: var(--text-main);
+  border: 1px solid rgba(255, 184, 92, 0.24);
+  background: linear-gradient(180deg, rgba(15, 18, 26, 0.98), rgba(7, 10, 15, 0.98));
+  border-radius: 18px;
+  box-shadow: 0 22px 80px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.03);
+  overflow: hidden;
+}
+.rocket-workshop.is-hidden { display: none; }
+.rocket-workshop__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(255, 184, 92, .16);
+  background: radial-gradient(circle at 22% 0%, rgba(255,184,92,.16), transparent 38%);
+}
+.rocket-workshop__eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,214,160,.72); }
+.rocket-workshop__title { margin-top: 3px; font-size: 20px; font-weight: 800; }
+.rocket-workshop__meta { margin-top: 4px; font-size: 12px; color: rgba(181, 202, 224, .82); }
+.rocket-workshop__meta.is-powered { color: rgba(178, 240, 194, .9); }
+.rocket-workshop__meta.is-unpowered { color: rgba(255, 175, 120, .9); }
+.rocket-workshop__close {
+  width: 34px; height: 34px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04); color: rgba(245,248,255,.9);
+  cursor: pointer; font-size: 20px;
+}
+.rocket-workshop__body { padding: 16px; overflow: auto; max-height: calc(min(760px, 100vh - 48px) - 76px); }
+.rocket-workshop__recipe-card {
+  display: grid; grid-template-columns: 58px 1fr; gap: 14px;
+  border: 1px solid rgba(255, 184, 92, .22);
+  background: linear-gradient(135deg, rgba(82, 48, 24, .36), rgba(12,16,24,.82));
+  border-radius: 16px; padding: 14px;
+}
+.rocket-workshop__recipe-glyph {
+  width: 54px; height: 54px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,184,92,.12); border: 1px solid rgba(255,184,92,.28);
+  color: rgba(255,220,170,.96); font-size: 25px;
+}
+.rocket-workshop__recipe-title { font-weight: 800; font-size: 15px; }
+.rocket-workshop__recipe-sub { color: rgba(181,202,224,.82); font-size: 12px; margin-top: 3px; }
+.rocket-workshop__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rocket-workshop__chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px;
+  font-size: 11px; background: rgba(8,12,18,.72); border: 1px solid rgba(255,255,255,.08);
+}
+.rocket-workshop__chip i { width: 8px; height: 8px; border-radius: 3px; background: var(--res); box-shadow: 0 0 8px var(--res); }
+.rocket-workshop__chip.is-ok { color: rgba(207,238,191,.96); }
+.rocket-workshop__chip.is-missing { color: rgba(255,184,155,.96); }
+.rocket-workshop__out { margin-top: 10px; font-size: 12px; color: rgba(255,220,170,.9); }
+.rocket-workshop__progress { margin-top: 14px; padding: 12px; border: 1px solid rgba(255,184,92,.14); border-radius: 14px; background: rgba(8,12,18,.62); }
+.rocket-workshop__progress-head { display: flex; justify-content: space-between; font-size: 12px; color: rgba(190,205,228,.88); margin-bottom: 8px; }
+.rocket-workshop__bar { height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.08); }
+.rocket-workshop__bar span { display: block; height: 100%; background: linear-gradient(90deg, rgba(255,184,92,.55), rgba(255,225,150,.95)); }
+.rocket-workshop__cols { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px; margin-top: 14px; }
+.rocket-workshop__box { min-height: 180px; border: 1px solid rgba(120,180,255,.13); border-radius: 14px; background: rgba(8,12,18,.62); padding: 12px; }
+.rocket-workshop__box h3 { margin: 0 0 10px; display: flex; justify-content: space-between; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: rgba(220,232,248,.82); }
+.rocket-workshop__box h3 span { color: rgba(161,182,210,.72); text-transform: none; letter-spacing: 0; }
+.rocket-workshop__row { display: grid; grid-template-columns: 14px minmax(0, 1fr) 36px 36px 78px; gap: 7px; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+.rocket-workshop__dot { width: 10px; height: 10px; border-radius: 4px; }
+.rocket-workshop__row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.rocket-workshop__qty { text-align: right; color: rgba(221,230,245,.86); font-size: 12px; }
+.rocket-workshop__mini, .rocket-workshop__main-btn, .rocket-workshop__claim, .rocket-workshop__produce {
+  border: 1px solid rgba(255,184,92,.20); background: rgba(255,184,92,.08); color: rgba(255,230,196,.94); border-radius: 9px; cursor: pointer;
+}
+.rocket-workshop__mini { height: 25px; }
+.rocket-workshop__main-btn { height: 25px; font-size: 11px; }
+.rocket-workshop__produce { height: 36px; padding: 0 14px; font-weight: 700; }
+.rocket-workshop__produce:disabled, .rocket-workshop__main-btn:disabled, .rocket-workshop__mini:disabled { opacity: .45; cursor: default; }
+.rocket-output-card { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid rgba(255,184,92,.16); border-radius: 12px; background: rgba(255,184,92,.06); }
+.rocket-output-card__glyph { width: 34px; height: 34px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255,184,92,.12); }
+.rocket-output-card__name { font-weight: 800; font-size: 13px; }
+.rocket-output-card__meta, .rocket-output-card__summary { color: rgba(180,200,224,.82); font-size: 11px; margin-top: 2px; }
+.rocket-workshop__claim { height: 30px; padding: 0 10px; }
+.rocket-workshop__empty { color: rgba(160,180,210,.68); font-size: 12px; padding: 8px 0; }
+.rocket-workshop__muted { color: rgba(160,180,210,.68); }
+.rocket-workshop__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+@media (max-width: 780px) { .rocket-workshop__cols { grid-template-columns: 1fr; } }

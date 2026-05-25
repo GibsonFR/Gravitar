@@ -19,6 +19,7 @@ import { buildMachineSnapshot } from '../../structures/StructureMachines.js';
 import { buildResearchStationSnapshot, buildResearchOverviewSnapshot } from '../../structures/StructureResearchStation.js';
 import { buildEquipmentFabricatorSnapshot } from '../../structures/StructureEquipmentFabricator.js';
 import { buildEquipmentRDStationSnapshot } from '../../structures/StructureEquipmentRDStation.js';
+import { buildRocketWorkshopSnapshot } from '../../structures/StructureRocketWorkshop.js';
 
 
 function buildCurrentSectorBiomeSnapshot(player, state = null) {
@@ -125,6 +126,7 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     researchStation: buildResearchStationSnapshot(state, player),
     equipmentFabricator: buildEquipmentFabricatorSnapshot(state, player),
     equipmentRDStation: buildEquipmentRDStationSnapshot(state, player),
+    rocketWorkshop: buildRocketWorkshopSnapshot(state, player),
     researchOverview: buildResearchOverviewSnapshot(state, player),
     map: buildPlayerMapSnapshot(player, state, timeMs),
     cooldowns: {
@@ -176,6 +178,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
     researchStation: buildResearchStationSnapshot(state, player),
     equipmentFabricator: buildEquipmentFabricatorSnapshot(state, player),
     equipmentRDStation: buildEquipmentRDStationSnapshot(state, player),
+    rocketWorkshop: buildRocketWorkshopSnapshot(state, player),
     researchOverview: buildResearchOverviewSnapshot(state, player),
     cooldowns: {
       A: player.cooldownALeft,
