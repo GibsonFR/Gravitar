@@ -1,5 +1,5 @@
 import { getItemDef } from '../../../../../shared/content/items/ItemDefs.js';
-import { getPlayerItemDef } from '../../equipment/PlayerEquipmentDefs.js';
+import { getPlayerItemDef, canonicalizePlayerItemId } from '../../equipment/PlayerEquipmentDefs.js';
 import { ITEM_CATEGORY_IDS } from '../../../../../shared/content/items/ItemCategoryIds.js';
 import { getDockedStation } from '../StationAccess.js';
 import { equipOwnedItem, hasOwnedItem, isItemEquipped, removeOwnedItem, sortEquipmentIdsStable, unequipOwnedItem } from '../../equipment/EquipmentRules.js';
@@ -35,6 +35,7 @@ export function buyStationItem(state, player, itemId, timeMs = 0) {
 }
 
 export function equipStationItem(state, player, itemId, timeMs = 0) {
+  itemId = canonicalizePlayerItemId(player, itemId);
   const def = getPlayerItemDef(player, itemId) || getItemDef(itemId);
   if (!def) return false;
 
@@ -55,6 +56,7 @@ export function equipStationItem(state, player, itemId, timeMs = 0) {
 }
 
 export function unequipStationItem(state, player, itemId, timeMs = 0) {
+  itemId = canonicalizePlayerItemId(player, itemId);
   const ok = unequipOwnedItem(player, itemId, timeMs);
   if (!ok) return false;
   syncPlayerFrameStats(player, { restoreVitals: false, preserveRatios: true });
@@ -64,6 +66,7 @@ export function unequipStationItem(state, player, itemId, timeMs = 0) {
 
 
 export function equipStationItemToSlot(state, player, itemId, categoryId, slotId = '', index = 0, timeMs = 0) {
+  itemId = canonicalizePlayerItemId(player, itemId);
   const def = getPlayerItemDef(player, itemId) || getItemDef(itemId);
   if (!def) return false;
   if (def.categoryId !== categoryId) return false;
@@ -116,6 +119,7 @@ export function equipStationItemToSlot(state, player, itemId, categoryId, slotId
 }
 
 export function sellStationItem(state, player, itemId, timeMs = 0) {
+  itemId = canonicalizePlayerItemId(player, itemId);
   const station = getDockedStation(state, player);
   if (!station) return false;
 

@@ -264,7 +264,7 @@ export function rollRDEquipment({ neutralItemDef, programId = 'rd_basic', ownerK
   if (!rolled) return null;
   return {
     ...rolled,
-    id: `rd-${programId}-${craftedIndex}-${hashString(`${ownerKey}|${timeMs}|${neutralItemDef.id}|rd`).toString(36)}`,
+    id: `rd-${programId}-${craftedIndex}-${hashString(`${ownerKey}|${timeMs}|${neutralItemDef.id}|rd`).toString(36)}`.toLowerCase(),
     baseItemId,
     neutralSourceId: neutralItemDef.id,
     neutralBase: false,
