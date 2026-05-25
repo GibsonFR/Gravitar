@@ -611,15 +611,47 @@ function generateTestPirateReputationContent(state, sx, sy, timeMs, h) {
     ];
     station.stock.questOffers = [
       { questId: 'pq_rep_test_iron', templateId: 'deliver_iron_ore_t1', type: 'deliver_resource', name: 'Réputation test : fer', description: 'Livrer 40 minerais de fer pour vérifier la montée de réputation.', resourceKey: 'ironOre', required: 40, rewardCredits: 180, rewardReputationXp: 120, stationTierMin: 1, pirateTier: 5 },
-      { questId: 'pq_rep_test_fragments', templateId: 'deliver_unknown_fragment_t3', type: 'deliver_resource', name: 'Réputation test : fragments', description: 'Livrer 3 fragments interdits pour atteindre rapidement un palier.', resourceKey: 'unknownTechFragment', required: 3, rewardCredits: 920, rewardReputationXp: 320, stationTierMin: 3, pirateTier: 5 }
+      { questId: 'pq_rep_test_graphite', templateId: 'deliver_graphite_t1', type: 'deliver_resource', name: 'Réputation test : graphite', description: 'Livrer 30 graphites pour débloquer les offres de rang 1.', resourceKey: 'graphite', required: 30, rewardCredits: 240, rewardReputationXp: 180, stationTierMin: 1, pirateTier: 5 },
+      { questId: 'pq_rep_test_fragments', templateId: 'deliver_unknown_fragment_t3', type: 'deliver_resource', name: 'Réputation test : fragments', description: 'Livrer 3 fragments interdits pour atteindre rapidement un palier.', resourceKey: 'unknownTechFragment', required: 3, rewardCredits: 920, rewardReputationXp: 420, stationTierMin: 3, pirateTier: 5 }
     ];
-    for (let i = 0; i < (station.stock.offers || []).length; i += 1) {
-      const offer = station.stock.offers[i];
-      if (!offer) continue;
-      const tier = Math.max(1, offer.tier | 0 || 1);
-      offer.reputationRequired = tier >= 5 ? 4 : tier >= 4 ? 3 : tier >= 3 ? 2 : tier >= 2 ? 1 : 0;
-      offer.pirateOnly = true;
-    }
+
+    // Recettes forcées pour le portail de test réputation : l'objectif est de voir
+    // immédiatement des cartes achetables ET des cartes verrouillées, même avec un
+    // joueur fraîchement arrivé à réputation 0.
+    station.stock.conversionRecipeOffers = [
+      { recipeId: 'conv_iron_to_copper_basic', priceCredits: 120, tier: 1, reputationRequired: 0, stationTierMin: 1 },
+      { recipeId: 'conv_scrap_to_iron_basic', priceCredits: 120, tier: 1, reputationRequired: 0, stationTierMin: 1 },
+      { recipeId: 'conv_iron_carbon_to_steel', priceCredits: 260, tier: 2, reputationRequired: 1, stationTierMin: 2 },
+      { recipeId: 'conv_copper_to_conductors', priceCredits: 240, tier: 2, reputationRequired: 1, stationTierMin: 2 },
+      { recipeId: 'conv_ion_crystal_conductor', priceCredits: 720, tier: 3, reputationRequired: 3, stationTierMin: 3 },
+      { recipeId: 'conv_titanium_thermal_armor', priceCredits: 860, tier: 3, reputationRequired: 4, stationTierMin: 3 }
+    ];
+
+    const forcedOffers = [
+      { itemId: 'proc-weapon-venin-6', priceCredits: 360, tier: 1, categoryId: 'weapon', reputationRequired: 0 },
+      { itemId: 'proc-weapon-aegis-11', priceCredits: 520, tier: 2, categoryId: 'weapon', reputationRequired: 1 },
+      { itemId: 'proc-launcher-aegis-35', priceCredits: 930, tier: 3, categoryId: 'launcher', reputationRequired: 3 },
+      { itemId: 'proc-module-aegis-239', priceCredits: 680, tier: 3, categoryId: 'module', reputationRequired: 4 },
+      { itemId: 'proc-engine-vampire-171', priceCredits: 780, tier: 3, categoryId: 'engine', reputationRequired: 3 },
+      { itemId: 'proc-ammo-surchauffe-120', priceCredits: 360, tier: 3, categoryId: 'ammo', reputationRequired: 4 },
+      { itemId: 'proc-ammo-frappe-103', priceCredits: 380, tier: 3, categoryId: 'ammo', reputationRequired: 5 }
+    ];
+    const seenOffers = new Set();
+    station.stock.offers = [...forcedOffers, ...(station.stock.offers || [])]
+      .filter((offer) => {
+        const id = String(offer?.itemId || '');
+        if (!id || seenOffers.has(id)) return false;
+        seenOffers.add(id);
+        return true;
+      })
+      .map((offer) => {
+        const tier = Math.max(1, offer.tier | 0 || 1);
+        return {
+          ...offer,
+          reputationRequired: Math.max(0, offer.reputationRequired | 0 || (tier >= 3 ? 3 : tier >= 2 ? 1 : 0)),
+          pirateOnly: true
+        };
+      });
   }
 
   const resources = [

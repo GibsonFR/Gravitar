@@ -11,7 +11,7 @@ import { createNeutralCraftedEquipment } from '../../../../shared/content/equipm
 import { STARTER_ITEM_IDS } from '../../../../shared/content/items/ItemDefs.js';
 import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { ensureTestEquipmentBench, ensureTestIndustrialConverterBench } from '../modes/GameModes.js';
-import { addPirateReputationXp, ensurePlayerPirateState } from '../player/runtime/PlayerPirateState.js';
+import { ensurePlayerPirateState } from '../player/runtime/PlayerPirateState.js';
 
 
 function preloadPortalDestination(state, sx, sy, timeMs) {
@@ -322,7 +322,11 @@ function grantPirateReputationTestPack(player) {
   };
   for (const [key, amount] of Object.entries(grants)) resources[key] = Math.max(resources[key] | 0, amount | 0);
   const pirate = ensurePlayerPirateState(player);
-  if ((pirate.reputationXp | 0) < 300) addPirateReputationXp(player, 300 - (pirate.reputationXp | 0));
+  // Ce portail sert à tester le verrouillage : on repart volontairement à 0
+  // pour afficher des offres accessibles et des offres bloquées côte à côte.
+  pirate.reputationXp = 0;
+  pirate.reputationLevel = 0;
+  player.forceFullUiSnapshot = true;
 }
 
 
