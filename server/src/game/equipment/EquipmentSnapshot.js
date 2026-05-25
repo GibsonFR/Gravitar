@@ -1,5 +1,6 @@
 import { getItemCategoryName } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { getPlayerItemDef } from './PlayerEquipmentDefs.js';
+import { normalizeEquipmentOwnership } from './EquipmentRules.js';
 import { buildEquippedTagState, buildEquippedSuperTagState, buildEquipmentEffectLines, resolveEquipmentRuntimeBonuses } from './EquipmentEffectResolver.js';
 import { buildEquippedCountByCategory } from './EquipmentBonuses.js';
 import { getRocketAmmoQuantity } from '../rocket/RocketAmmoRules.js';
@@ -102,6 +103,7 @@ function buildRocketAmmoEntry(player, itemId, activeRocketSlot) {
 
 export function buildEquipmentSnapshot(player) {
   if (!player?.equipment) return null;
+  normalizeEquipmentOwnership(player, 0);
 
   const activeRocketSlot = Math.max(0, Math.min(1, player.equipment.activeRocketSlot | 0));
   const ownedEntries = (player.equipment.ownedItemIds ?? [])

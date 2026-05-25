@@ -94,6 +94,24 @@ function completed(player) {
   return Array.isArray(player?.research?.completed) ? player.research.completed : [];
 }
 
+
+function scalePreviewWeaponProfile(baseProfile = {}, mark = 1) {
+  const m = Math.max(1, Math.min(5, mark | 0));
+  const damageMult = 1 + (m - 1) * 0.75;
+  const cooldownMult = Math.max(0.46, 1 - (m - 1) * 0.08);
+  const energyMult = 1 + (m - 1) * 0.32;
+  const rangeMult = 1 + (m - 1) * 0.06;
+  const speedMult = 1 + (m - 1) * 0.035;
+  return {
+    ...baseProfile,
+    damage: Math.round((Number(baseProfile.damage) || 10) * damageMult),
+    cooldown: Math.round((Number(baseProfile.cooldown) || 0.7) * cooldownMult * 100) / 100,
+    energyCost: Math.round((Number(baseProfile.energyCost) || 2) * energyMult * 10) / 10,
+    range: Math.round((Number(baseProfile.range) || 760) * rangeMult),
+    projectileSpeed: Math.round((Number(baseProfile.projectileSpeed) || 1000) * speedMult)
+  };
+}
+
 function scalePreviewLauncherProfile(baseProfile = {}, mark = 1) {
   const m = Math.max(1, Math.min(5, mark | 0));
   const volleyByMark = [0, 1, 1, 2, 2, 3];
@@ -134,6 +152,7 @@ function recipeSnapshot(player, recipe, st = null) {
     seconds: recipe.seconds | 0,
     input: Object.entries(recipe.input || {}).map(([key, amount]) => resourceEntry(key, amount | 0, player, map[key] | 0)),
     baseBonuses: getNeutralBaseBonuses(recipe.baseItemId, recipe.mark),
+    weaponProfile: base?.categoryId === 'weapon' ? scalePreviewWeaponProfile(base.weaponProfile || {}, recipe.mark) : null,
     launcherProfile: base?.categoryId === 'launcher' ? scalePreviewLauncherProfile(base.launcherProfile || {}, recipe.mark) : null,
     locked: !researchDone,
     requiredResearchId,
@@ -154,6 +173,7 @@ function equipmentOutputSnapshot(player, st) {
     mark: def.mark || 1,
     neutralBase: !!def.neutralBase,
     bonuses: { ...(def.bonuses || {}) },
+    weaponProfile: def.weaponProfile || null,
     launcherProfile: def.launcherProfile || null
   }));
 }

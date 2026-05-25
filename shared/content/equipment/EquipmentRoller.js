@@ -180,6 +180,24 @@ export function getQualityName(id) {
 }
 
 
+
+function scaleNeutralWeaponProfile(baseProfile = {}, mark = 1) {
+  const m = Math.max(1, Math.min(5, mark | 0));
+  const damageMult = 1 + (m - 1) * 0.75;
+  const cooldownMult = Math.max(0.46, 1 - (m - 1) * 0.08);
+  const energyMult = 1 + (m - 1) * 0.32;
+  const rangeMult = 1 + (m - 1) * 0.06;
+  const speedMult = 1 + (m - 1) * 0.035;
+  return {
+    ...baseProfile,
+    damage: Math.round((Number(baseProfile.damage) || 10) * damageMult),
+    cooldown: Math.round((Number(baseProfile.cooldown) || 0.7) * cooldownMult * 100) / 100,
+    energyCost: Math.round((Number(baseProfile.energyCost) || 2) * energyMult * 10) / 10,
+    range: Math.round((Number(baseProfile.range) || 760) * rangeMult),
+    projectileSpeed: Math.round((Number(baseProfile.projectileSpeed) || 1000) * speedMult)
+  };
+}
+
 function scaleNeutralLauncherProfile(baseProfile = {}, mark = 1) {
   const m = Math.max(1, Math.min(5, mark | 0));
   const volleyByMark = [0, 1, 1, 2, 2, 3];
@@ -208,6 +226,7 @@ export function createNeutralCraftedEquipment({ baseItemId, recipeId, recipeName
   if (!base) return null;
   const id = `neutral-${recipeId}-${craftedIndex}-${hashString(`${ownerKey}|${timeMs}|${baseItemId}|neutral`).toString(36)}`;
   const baseBonuses = getNeutralBaseBonuses(baseItemId, mark);
+  const weaponProfile = base.categoryId === ITEM_CATEGORY_IDS.WEAPON ? scaleNeutralWeaponProfile(base.weaponProfile || {}, mark) : base.weaponProfile;
   const launcherProfile = base.categoryId === ITEM_CATEGORY_IDS.LAUNCHER ? scaleNeutralLauncherProfile(base.launcherProfile || {}, mark) : base.launcherProfile;
   return {
     ...base,
@@ -224,6 +243,7 @@ export function createNeutralCraftedEquipment({ baseItemId, recipeId, recipeName
     shopOffer: false,
     tags: [],
     bonuses: baseBonuses,
+    ...(weaponProfile ? { weaponProfile } : {}),
     ...(launcherProfile ? { launcherProfile } : {}),
     rollLines: [],
     description: `Objet neutre Mark ${mark | 0 || 1}. Peut être amélioré dans une station R&D avec des sciences.`
@@ -254,6 +274,7 @@ export function rollRDEquipment({ neutralItemDef, programId = 'rd_basic', ownerK
     bonuses: { ...(neutralItemDef.bonuses || {}), ...(rolled.bonuses || {}) },
     name: `${neutralItemDef.name} ${rolled.qualityName}`,
     shortName: `${neutralItemDef.shortName || neutralItemDef.name} ${rolled.qualityName}`,
+    weaponProfile: neutralItemDef.weaponProfile || rolled.weaponProfile,
     launcherProfile: neutralItemDef.launcherProfile || rolled.launcherProfile,
     description: `${neutralItemDef.name} amélioré par R&D. ${rolled.description || ''}`.trim()
   };

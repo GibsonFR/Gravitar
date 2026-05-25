@@ -79,7 +79,6 @@ function seedTestEquipmentItems(player, timeMs = Date.now()) {
   for (let i = 0; i < specs.length; i += 1) {
     const [baseItemId, name, mark] = specs[i];
     const stableId = `test-neutral-${baseItemId.replace(/[^a-z0-9]+/g, '-')}-mk${mark}`;
-    if (player.equipment.customItemDefs[stableId]) continue;
     const crafted = createNeutralCraftedEquipment({
       baseItemId,
       recipeId: stableId,
@@ -117,7 +116,7 @@ function equipTestPortalCraftedLoadout(player, timeMs) {
   player.equipment.ownedItemIds = [...new Set([
     ...(player.equipment.ownedItemIds || []).filter((id) => id !== STARTER_ITEM_IDS.weapon && id !== STARTER_ITEM_IDS.launcher),
     ...wanted
-  ])].filter((id) => !(player.equipment.equippedItemIds || []).includes(id)).sort();
+  ])].sort();
   player.equipment.lastChangedAt = timeMs | 0;
 }
 

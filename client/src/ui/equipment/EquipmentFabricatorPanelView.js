@@ -60,6 +60,18 @@ function resourceList(entries = []) {
   return entries.map((r) => `<span class="equipment-fab__res ${r.missing > 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)} ×${r.amount | 0}<em>${r.have | 0}</em></span>`).join('');
 }
 
+
+function weaponProfileList(profile = null) {
+  if (!profile) return '';
+  const rows = [
+    `${Math.round(profile.damage || 0)} dégâts auto`,
+    `${Number(profile.cooldown || 0).toFixed(2)}s cadence`,
+    `${Math.round(profile.range || 0)} portée`,
+    `${Number(profile.energyCost || 0).toFixed(1)} énergie / tir`
+  ];
+  return rows.map((line) => `<span>${escapeHtml(line)}</span>`).join('');
+}
+
 function launcherProfileList(profile = null) {
   if (!profile) return '';
   const rows = [
@@ -279,7 +291,7 @@ export class EquipmentFabricatorPanelView {
               <div class="equipment-fab__sub">Charger depuis le cargo</div>
               <div class="equipment-fab__deposit-grid">${cargoDepositRows(selected, data.id)}</div>
               <div class="equipment-fab__sub">Base</div>
-              <div class="equipment-fab__bonus">${bonusList(selected.baseBonuses || {})}${launcherProfileList(selected.launcherProfile || null)}</div>
+              <div class="equipment-fab__bonus">${bonusList(selected.baseBonuses || {})}${weaponProfileList(selected.weaponProfile || null)}${launcherProfileList(selected.launcherProfile || null)}</div>
               ${selected.locked ? `<div class="equipment-fab__lock">Requiert : ${escapeHtml(selected.requiredResearchName || selected.requiredResearchId || 'recherche')}</div>` : ''}
               <button type="button" data-equipment-fab-craft="${escapeHtml(selected.id)}" data-structure="${data.id | 0}" ${selected.canCraft ? '' : 'disabled'}>Fabriquer</button>
             </div>` : '<div class="equipment-fab__muted">Aucune recette</div>'}

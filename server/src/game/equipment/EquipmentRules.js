@@ -2,6 +2,29 @@ import { ITEM_CATEGORY_IDS } from '../../../../shared/content/items/ItemCategory
 import { getPlayerItemDef, pruneMissingCustomEquipmentDefs } from './PlayerEquipmentDefs.js';
 import { buildEquippedCountByCategory } from './EquipmentBonuses.js';
 
+function ensureEquipmentArrays(player) {
+  const eq = player?.equipment ?? (player.equipment = {});
+  eq.ownedItemIds = Array.isArray(eq.ownedItemIds) ? eq.ownedItemIds : [];
+  eq.equippedItemIds = Array.isArray(eq.equippedItemIds) ? eq.equippedItemIds : [];
+  return eq;
+}
+
+export function normalizeEquipmentOwnership(player, timeMs = 0) {
+  const eq = ensureEquipmentArrays(player);
+  const allIds = [...new Set([...(eq.ownedItemIds || []), ...(eq.equippedItemIds || [])])];
+  eq.ownedItemIds = sortEquipmentIdsStable(allIds);
+  eq.equippedItemIds = [...new Set(eq.equippedItemIds || [])].filter((id) => eq.ownedItemIds.includes(id));
+  if (timeMs) eq.lastChangedAt = timeMs | 0;
+  return eq;
+}
+
+function ensureOwned(player, itemId) {
+  const eq = ensureEquipmentArrays(player);
+  if (itemId && !eq.ownedItemIds.includes(itemId)) eq.ownedItemIds.push(itemId);
+  eq.ownedItemIds = sortEquipmentIdsStable(eq.ownedItemIds);
+  return eq;
+}
+
 
 function setConverterEnabled(player, itemId, enabled) {
   const table = player?.equipment?.converterEnabledById ?? (player.equipment.converterEnabledById = {});
@@ -55,6 +78,7 @@ export function isItemEquipped(player, itemId) {
 export function canEquipItem(player, itemId) {
   const def = getPlayerItemDef(player, itemId);
   if (!def) return { ok: false, reason: 'item_unknown' };
+  normalizeEquipmentOwnership(player, 0);
   if (!hasOwnedItem(player, itemId)) return { ok: false, reason: 'item_not_owned' };
   if (isItemEquipped(player, itemId)) return { ok: false, reason: 'item_already_equipped' };
 
@@ -75,9 +99,10 @@ export function canUnequipItem(player, itemId) {
 }
 
 export function equipOwnedItem(player, itemId, timeMs = 0) {
+  ensureOwned(player, itemId);
   const check = canEquipItem(player, itemId);
   if (!check.ok) return false;
-  player.equipment.equippedItemIds = [...player.equipment.equippedItemIds, itemId];
+  player.equipment.equippedItemIds = [...new Set([...player.equipment.equippedItemIds, itemId])];
   if (check.def?.categoryId === ITEM_CATEGORY_IDS.CONVERTER) setConverterEnabled(player, itemId, true);
   player.equipment.lastChangedAt = timeMs | 0;
   return true;
@@ -86,6 +111,7 @@ export function equipOwnedItem(player, itemId, timeMs = 0) {
 export function unequipOwnedItem(player, itemId, timeMs = 0) {
   const check = canUnequipItem(player, itemId);
   if (!check.ok) return false;
+  ensureOwned(player, itemId);
   player.equipment.equippedItemIds = player.equipment.equippedItemIds.filter((id) => id !== itemId);
   const def = getPlayerItemDef(player, itemId);
   if (def?.categoryId === ITEM_CATEGORY_IDS.CONVERTER) setConverterEnabled(player, itemId, false);
@@ -99,6 +125,7 @@ export function sortEquipmentIdsStable(itemIds) {
 
 
 export function removeOwnedItem(player, itemId, timeMs = 0) {
+  normalizeEquipmentOwnership(player, 0);
   if (!hasOwnedItem(player, itemId)) return false;
   if (isItemEquipped(player, itemId)) return false;
   player.equipment.ownedItemIds = player.equipment.ownedItemIds.filter((id) => id !== itemId);
