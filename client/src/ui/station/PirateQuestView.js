@@ -48,20 +48,29 @@ export class PirateQuestView {
 
     this.el.addEventListener('pointerdown', (ev) => {
       if (ev.button !== 0) return;
-      const questBtn = ev.target?.closest?.('button[data-quest-id]');
-      if (questBtn) {
-        this.selectedQuestId = questBtn.dataset.questId || '';
-        this.render();
+
+      const action = ev.target?.closest?.('button[data-quest-action]');
+      if (action) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (action.disabled) return;
+        const questId = action.dataset.questId || this.selectedQuestId || '';
+        if (!questId) return;
+        this.selectedQuestId = questId;
+        const kind = action.dataset.questAction || '';
+        if (kind === 'accept') this.cmdQueue.send('accept_pirate_quest', { questId });
+        else if (kind === 'complete') this.cmdQueue.send('complete_pirate_quest', { questId });
+        else if (kind === 'abandon') this.cmdQueue.send('abandon_pirate_quest', { questId });
         return;
       }
-      const action = ev.target?.closest?.('button[data-quest-action]');
-      if (!action || action.disabled) return;
-      const questId = action.dataset.questId || this.selectedQuestId || '';
-      if (!questId) return;
-      const kind = action.dataset.questAction || '';
-      if (kind === 'accept') this.cmdQueue.send('accept_pirate_quest', { questId });
-      else if (kind === 'complete') this.cmdQueue.send('complete_pirate_quest', { questId });
-      else if (kind === 'abandon') this.cmdQueue.send('abandon_pirate_quest', { questId });
+
+      const questBtn = ev.target?.closest?.('button[data-quest-id]');
+      if (questBtn) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.selectedQuestId = questBtn.dataset.questId || '';
+        this.render();
+      }
     });
   }
 
