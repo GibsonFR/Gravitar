@@ -8,6 +8,7 @@ import { syncPlayerFrameStats } from '../../frames/FrameStatSync.js';
 import { consumeOfferCosts } from './StationOfferCosts.js';
 import { getEffectivePurchasePriceCredits, getEffectiveSellPriceCredits } from '../../bastion/BastionBuffs.js';
 import { ensureStationStockCurrent } from './StationStockRefresh.js';
+import { ensurePlayerPirateState } from '../../player/runtime/PlayerPirateState.js';
 
 export function buyStationItem(state, player, itemId, timeMs = 0) {
   const station = getDockedStation(state, player);
@@ -20,6 +21,11 @@ export function buyStationItem(state, player, itemId, timeMs = 0) {
   const def = getItemDef(itemId);
    if (!def) return false;
   if (def.categoryId !== ITEM_CATEGORY_IDS.AMMO && hasOwnedItem(player, itemId)) return false;
+  const reputationRequired = Math.max(0, offer.reputationRequired | 0 || 0);
+  if (reputationRequired > 0) {
+    const pirate = ensurePlayerPirateState(player);
+    if ((pirate.reputationLevel | 0) < reputationRequired) return false;
+  }
 
   const pricedOffer = { ...offer, priceCredits: getEffectivePurchasePriceCredits(player, offer.priceCredits || def.priceCredits || 0) };
   if (!consumeOfferCosts(player?.inv, pricedOffer)) return false;

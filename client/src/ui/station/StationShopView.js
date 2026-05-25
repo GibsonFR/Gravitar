@@ -264,9 +264,11 @@ export class StationShopView {
       return;
     }
     const isAmmo = item.categoryId === ITEM_CATEGORY_IDS.AMMO;
-    const status = isAmmo
-      ? `${Math.max(0, item.ammoQuantity | 0)} en soute${item.assignedRocketSlots?.length ? ` • slot ${item.assignedRocketSlots.map((slot) => slot + 1).join('/')}` : ''}`
-      : item.equipped ? 'équipé' : item.owned ? 'possédé' : 'à acheter';
+    const status = item.lockedByReputation
+      ? `verrouillé · réputation pirate ${item.reputationRequired || 0} requise`
+      : isAmmo
+        ? `${Math.max(0, item.ammoQuantity | 0)} en soute${item.assignedRocketSlots?.length ? ` • slot ${item.assignedRocketSlots.map((slot) => slot + 1).join('/')}` : ''}`
+        : item.equipped ? 'équipé' : item.owned ? 'possédé' : 'à acheter';
     this.titleEl.textContent = `${item.name || 'Item'} [T${Math.max(1, item.tier | 0)}]`;
     this.metaEl.textContent = `${formatCredits(item.priceCredits || 0)} / ${formatCredits(credits)} crédits`;
     this.contentEl.innerHTML = [
@@ -274,12 +276,13 @@ export class StationShopView {
         status: `État : ${status}`,
         source: `${item.categoryName || ''}`
       }),
+      item.lockedByReputation ? renderStationInfoSection('Réputation pirate', [`Niveau ${item.reputationRequired || 0} requis pour cette offre.`]) : '',
       renderStationInfoSection('Coûts matières', renderResourceCosts(item))
     ].join('');
 
     const needsPurchase = isAmmo || (!item.owned && !item.equipped);
-    this.actionBtn.disabled = !this.docked || (needsPurchase && !item.canAfford);
-    this.actionBtn.textContent = isAmmo ? 'Acheter pack' : item.equipped ? 'Retirer' : item.owned ? 'Équiper' : 'Acheter';
+    this.actionBtn.disabled = !this.docked || item.lockedByReputation || (needsPurchase && !item.canAfford);
+    this.actionBtn.textContent = item.lockedByReputation ? `Réputation ${item.reputationRequired || 0} requise` : isAmmo ? 'Acheter pack' : item.equipped ? 'Retirer' : item.owned ? 'Équiper' : 'Acheter';
   }
 
   triggerAction() {
@@ -289,6 +292,7 @@ export class StationShopView {
       if (!item.owned && !item.lockedByReputation && item.canAfford) this.cmdQueue.send('buy_conversion_recipe', { recipeId: item.recipeId });
       return;
     }
+    if (item.lockedByReputation) return;
     if (item.categoryId === ITEM_CATEGORY_IDS.AMMO) {
       this.cmdQueue.send('buy_item', { itemId: item.itemId });
       return;

@@ -234,11 +234,13 @@ export function buildItemIconMarkup(item, opts = {}, tagName = 'button') {
     opts.selected ? 'is-selected' : '',
     item?.owned ? 'is-owned' : '',
     item?.equipped ? 'is-equipped' : '',
+    item?.lockedByReputation ? 'is-locked' : '',
     opts.compact ? 'is-compact' : ''
   ].filter(Boolean).join(' ');
   const tier = Math.max(1, item?.tier | 0);
   const badge = shortTag ? `<span class="station-item-icon__tag">${shortTag}</span>` : '';
   const equipped = item?.equipped ? '<span class="station-item-icon__equip">E</span>' : '';
+  const locked = item?.lockedByReputation ? `<span class="station-item-icon__tag">R${item.reputationRequired || 0}</span>` : '';
   const label = opts.showName ? `<span class="station-item-icon__label">${item?.shortName || item?.name || getItemCategoryName(item?.categoryId)}</span>` : '';
   const attrs = [];
   const tooltip = getItemTooltipText(item).replace(/"/g, '&quot;');
@@ -255,7 +257,7 @@ export function buildItemIconMarkup(item, opts = {}, tagName = 'button') {
       style="--item-accent:${accent}"
     >
       <span class="station-item-icon__tier">${tier}</span>
-      ${badge}
+      ${locked || badge}
       ${equipped}
       <span class="station-item-icon__glyph">${glyph}</span>
       ${label}

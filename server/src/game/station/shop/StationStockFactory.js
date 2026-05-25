@@ -28,6 +28,24 @@ function isPirateOffer(item) {
   return tags.some((t) => t.tagId === ITEM_TAG_IDS.REAVER || t.tagId === ITEM_TAG_IDS.SIPHON || t.tagId === ITEM_TAG_IDS.SIEGE);
 }
 
+function reputationRequiredForPirateOffer(item, pirateTier = 1) {
+  if (!item) return 0;
+  const tier = Math.max(1, item.tier | 0 || 1);
+  let required = 0;
+  if (tier >= 5) required = 4;
+  else if (tier >= 4) required = 3;
+  else if (tier >= 3) required = 2;
+  else if (tier >= 2) required = 1;
+
+  // Les stations plus lointaines peuvent exposer des objets avant que le joueur
+  // ait la réputation nécessaire : on les voit, mais ils restent verrouillés.
+  // Ça donne une cible claire à viser via les quêtes pirates.
+  const frontierBias = Math.max(0, (pirateTier | 0) - 3);
+  if (frontierBias >= 2 && tier >= 4) required = Math.min(5, required + 1);
+  return Math.max(0, Math.min(5, required));
+}
+
+
 function compareStockItems(a, b) {
   const ao = ITEM_CATEGORY_ORDER.indexOf(a?.categoryId);
   const bo = ITEM_CATEGORY_ORDER.indexOf(b?.categoryId);
@@ -128,7 +146,7 @@ function chooseCategoryOffers(all, categoryId, rng, stationSeed, tech, specialty
   return selected.slice(0, count);
 }
 
-function selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tierGate, sx, sy, localResourcePool) {
+function selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tierGate, sx, sy, localResourcePool, pirateTier = 0) {
   const items = [];
   for (const categoryId of ITEM_CATEGORY_ORDER) {
     items.push(...chooseCategoryOffers(all, categoryId, rng, stationSeed, tech, specialty, tierGate, sx, sy));
@@ -148,6 +166,8 @@ function selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tie
       priceCredits,
       tier: item.tier || 1,
       categoryId: item.categoryId,
+      reputationRequired: pirate ? reputationRequiredForPirateOffer(item, pirateTier) : 0,
+      pirateOnly: !!pirate,
       resourceCosts: generateOfferResourceCosts(stationSeed ^ (index * 131) ^ ((sx | 0) << 8) ^ ((sy | 0) << 16), item, priceCredits, localResourcePool)
     };
   });
@@ -184,7 +204,7 @@ export function createStationStock(seed, tech = false, sx = 0, sy = 0, options =
     .filter((item) => !pirate || isPirateOffer(item))
     .sort(compareStockItems);
 
-  const offers = selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tierGate, sx, sy, localResourcePool);
+  const offers = selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tierGate, sx, sy, localResourcePool, pirateTier);
   const demand = pirate ? createPirateDemand(localResourcePool, stationSeed, pirateTier) : [];
   const resourceSupply = pirate ? createPirateResourceSupply(localResourcePool, stationSeed, pirateTier) : [];
   const conversionRecipeOffers = pirate ? createConversionRecipeOffers({ pirateTier, stock: { pirateTier } }, stationSeed) : [];

@@ -7751,3 +7751,18 @@ button.station-item-icon[draggable="true"]:active,
 .pirate-quests__actions .ui-btn {
   flex: 1 1 auto;
 }
+
+
+.station-ammo-pack.is-locked {
+  opacity: 0.72;
+  border-color: rgba(255, 170, 90, 0.28);
+  filter: saturate(0.72);
+}
+.station-ammo-pack.is-locked .station-ammo-pack__price {
+  color: rgba(255, 190, 115, 0.96);
+  border-color: rgba(255, 170, 90, 0.28);
+}
+.station-item-icon.is-locked {
+  opacity: 0.68;
+  filter: saturate(0.7);
+}

@@ -440,6 +440,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, -1520, 1320, SPECIAL_SECTORS.TEST_PIRATE_REPUTATION.sx, SPECIAL_SECTORS.TEST_PIRATE_REPUTATION.sy, '★', {
+    label: 'Test réputation pirate / offres verrouillées',
+    mode: 'test_pirate_reputation',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -577,6 +583,55 @@ function generateTestPirateQuestsContent(state, sx, sy, timeMs, h) {
   });
 }
 
+
+
+function generateTestPirateReputationContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+  const stationId = spawnStation(state, sx, sy, 0, 0, true, h ^ 0x173cafe, timeMs, { specialtyId: 'pirate' });
+  const station = state.stations.get(stationId);
+  if (station?.stock) {
+    station.stock.pirateTier = 5;
+    station.pirateTier = 5;
+    station.stock.specialtyName = 'Marché réputation pirate';
+    station.stock.demand = [
+      { resourceKey: 'ironOre', priceCredits: 7, maxAmount: 200, reputationXpPerUnit: 0.02 },
+      { resourceKey: 'graphite', priceCredits: 10, maxAmount: 160, reputationXpPerUnit: 0.025 },
+      { resourceKey: 'titaniumOre', priceCredits: 18, maxAmount: 120, reputationXpPerUnit: 0.04 },
+      { resourceKey: 'unknownTechFragment', priceCredits: 120, maxAmount: 30, reputationXpPerUnit: 0.12 }
+    ];
+    station.stock.resourceDemand = station.stock.demand;
+    station.stock.resourceSupply = [
+      { resourceKey: 'controlCircuit', priceCredits: 140, amount: 4, stock: 40 },
+      { resourceKey: 'unknownTechFragment', priceCredits: 260, amount: 2, stock: 20 },
+      { resourceKey: 'titaniumPlate', priceCredits: 180, amount: 4, stock: 24 }
+    ];
+    station.stock.questOffers = [
+      { questId: 'pq_rep_test_iron', templateId: 'deliver_iron_ore_t1', type: 'deliver_resource', name: 'Réputation test : fer', description: 'Livrer 40 minerais de fer pour vérifier la montée de réputation.', resourceKey: 'ironOre', required: 40, rewardCredits: 180, rewardReputationXp: 120, stationTierMin: 1, pirateTier: 5 },
+      { questId: 'pq_rep_test_fragments', templateId: 'deliver_unknown_fragment_t3', type: 'deliver_resource', name: 'Réputation test : fragments', description: 'Livrer 3 fragments interdits pour atteindre rapidement un palier.', resourceKey: 'unknownTechFragment', required: 3, rewardCredits: 920, rewardReputationXp: 320, stationTierMin: 3, pirateTier: 5 }
+    ];
+    for (let i = 0; i < (station.stock.offers || []).length; i += 1) {
+      const offer = station.stock.offers[i];
+      if (!offer) continue;
+      const tier = Math.max(1, offer.tier | 0 || 1);
+      offer.reputationRequired = tier >= 5 ? 4 : tier >= 4 ? 3 : tier >= 3 ? 2 : tier >= 2 ? 1 : 0;
+      offer.pirateOnly = true;
+    }
+  }
+
+  const resources = [
+    ['ironOre', -760, -280], ['graphite', -420, -520], ['titaniumOre', 520, -520], ['unknownTechFragment', 820, -260],
+    ['quartz', 780, 260], ['copper', -760, 280]
+  ];
+  resources.forEach(([resourceKey, x, y], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x, y, radius: 42 + (i % 3) * 8, resourceKey, yieldValue: 20, seed: h ^ (0xb800 + i), sig: `test_pirate_reputation_${resourceKey}_${i}`
+    });
+  });
+}
 
 function generateTestIndustrialConverterContent(state, sx, sy, timeMs, h) {
   spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
@@ -1047,6 +1102,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testPirateMarket = sx === SPECIAL_SECTORS.TEST_PIRATE_MARKET.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_MARKET.sy;
   const testIndustrialConverter = sx === SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sx && sy === SPECIAL_SECTORS.TEST_INDUSTRIAL_CONVERTER.sy;
   const testPirateQuests = sx === SPECIAL_SECTORS.TEST_PIRATE_QUESTS.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_QUESTS.sy;
+  const testPirateReputation = sx === SPECIAL_SECTORS.TEST_PIRATE_REPUTATION.sx && sy === SPECIAL_SECTORS.TEST_PIRATE_REPUTATION.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -1105,6 +1161,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testPirateQuests) {
     generateTestPirateQuestsContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testPirateReputation) {
+    generateTestPirateReputationContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

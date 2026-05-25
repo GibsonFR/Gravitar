@@ -129,16 +129,17 @@ export class StationAmmoView {
   }
 
   renderAmmoCard(item, focused = false) {
-    const canAfford = item.canAfford !== false;
+    const locked = !!item.lockedByReputation;
+    const canAfford = item.canAfford !== false && !locked;
     const stats = ammoEffectLines(item).slice(0, 3);
     return `
-      <button type="button" class="station-ammo-pack ${focused ? 'is-selected' : ''} ${canAfford ? '' : 'is-unaffordable'}" data-ammo-shop-id="${escapeHtml(item.itemId)}" title="${escapeHtml(ammoTooltip(item))}">
+      <button type="button" class="station-ammo-pack ${focused ? 'is-selected' : ''} ${canAfford ? '' : 'is-unaffordable'} ${locked ? 'is-locked' : ''}" data-ammo-shop-id="${escapeHtml(item.itemId)}" title="${escapeHtml(ammoTooltip(item))}">
         <span class="station-ammo-pack__tier">T${Math.max(1, item.tier | 0)}</span>
         <span class="station-ammo-pack__glyph">☄</span>
         <span class="station-ammo-pack__name">${escapeHtml(item.shortName || item.name || 'Roquettes')}</span>
         <span class="station-ammo-pack__qty">Pack ×${Math.max(1, item.ammoQuantity | 0)}</span>
         <span class="station-ammo-pack__stats">${escapeHtml(stats.join(' • ') || 'Munition standard')}</span>
-        <span class="station-ammo-pack__price">${formatCredits(item.priceCredits || 0)}</span>
+        <span class="station-ammo-pack__price">${locked ? `Réputation ${item.reputationRequired || 0}` : formatCredits(item.priceCredits || 0)}</span>
       </button>`;
   }
 
@@ -159,23 +160,24 @@ export class StationAmmoView {
       this.buyBtn.textContent = 'Acheter le pack';
       return;
     }
-    const canAfford = item.canAfford !== false;
+    const locked = !!item.lockedByReputation;
+    const canAfford = item.canAfford !== false && !locked;
     this.titleEl.textContent = item.name || 'Pack de roquettes';
     this.contentEl.innerHTML = [
       renderStationInfoSection('Pack', [
         `Quantité : ${Math.max(1, item.ammoQuantity | 0)} roquettes`,
         `Prix : ${formatCredits(item.priceCredits || 0)} crédits pirates`,
-        canAfford ? 'Achat disponible.' : 'Crédits insuffisants.'
+        locked ? `Réputation pirate niveau ${item.reputationRequired || 0} requise.` : canAfford ? 'Achat disponible.' : 'Crédits insuffisants.'
       ]),
       renderStationInfoSection('Stats', renderStationChips(ammoEffectLines(item), 'Aucune stat spéciale'))
     ].join('');
     this.buyBtn.disabled = !this.docked || !canAfford;
-    this.buyBtn.textContent = canAfford ? 'Acheter le pack' : 'Crédits insuffisants';
+    this.buyBtn.textContent = locked ? `Réputation ${item.reputationRequired || 0} requise` : canAfford ? 'Acheter le pack' : 'Crédits insuffisants';
   }
 
   buySelected() {
     const item = this.getFocusedItem();
-    if (!item || !this.sendCmd || !this.docked || item.canAfford === false) return;
+    if (!item || !this.sendCmd || !this.docked || item.canAfford === false || item.lockedByReputation) return;
     this.cmdQueue.send('buy_item', { itemId: item.itemId });
   }
 

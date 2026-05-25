@@ -11,6 +11,7 @@ import { createNeutralCraftedEquipment } from '../../../../shared/content/equipm
 import { STARTER_ITEM_IDS } from '../../../../shared/content/items/ItemDefs.js';
 import { addCustomEquipmentDef } from '../equipment/PlayerEquipmentDefs.js';
 import { ensureTestEquipmentBench, ensureTestIndustrialConverterBench } from '../modes/GameModes.js';
+import { addPirateReputationXp, ensurePlayerPirateState } from '../player/runtime/PlayerPirateState.js';
 
 
 function preloadPortalDestination(state, sx, sy, timeMs) {
@@ -293,16 +294,35 @@ export function tryUsePortal(state, player, timeMs) {
   if (best.mode === 'test_equipment') grantTestEquipmentPortalLoadout(state, player, timeMs);
   if (best.mode === 'test_pirate_market') grantPirateMarketTestPack(player);
   if (best.mode === 'test_pirate_quests') grantPirateQuestTestPack(player);
+  if (best.mode === 'test_pirate_reputation') grantPirateReputationTestPack(player);
   if (best.mode === 'test_industrial_converter') grantIndustrialConverterTestPack(state, player, timeMs);
   if (best.mode === 'test_arena') player.uiHint = 'Simulateur activé';
   else if (best.mode === 'mob_bestiary') player.uiHint = 'Bestiaire activé';
   else if (best.mode === 'test_equipment') player.uiHint = 'Test équipement chargé';
   else if (best.mode === 'test_pirate_market') player.uiHint = 'Station pirate de test chargée';
   else if (best.mode === 'test_pirate_quests') player.uiHint = 'Quêtes pirates de test chargées';
+  else if (best.mode === 'test_pirate_reputation') player.uiHint = 'Réputation pirate de test chargée';
   else if (best.mode === 'test_industrial_converter') player.uiHint = 'Convertisseur industriel de test chargé';
   else if (String(best.mode || '').startsWith('test_biome_')) player.uiHint = 'Biome de test chargé';
   else player.uiHint = `Saut → [${player.sx},${player.sy}]`;
-  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || best.mode === 'test_pirate_quests' || best.mode === 'test_industrial_converter' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
+  player.uiHintTimer = (best.mode === 'test_arena' || best.mode === 'mob_bestiary' || best.mode === 'test_equipment' || best.mode === 'test_pirate_market' || best.mode === 'test_pirate_quests' || best.mode === 'test_pirate_reputation' || best.mode === 'test_industrial_converter' || String(best.mode || '').startsWith('test_biome_')) ? 2.8 : 1.2;
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   return true;
 }
+function grantPirateReputationTestPack(player) {
+  if (!player?.inv) return;
+  player.inv.credits = Math.max(player.inv.credits | 0, 2200);
+  const resources = player.inv.resources ?? (player.inv.resources = {});
+  const grants = {
+    ironOre: 80,
+    graphite: 70,
+    titaniumOre: 45,
+    unknownTechFragment: 8,
+    controlCircuit: 12
+  };
+  for (const [key, amount] of Object.entries(grants)) resources[key] = Math.max(resources[key] | 0, amount | 0);
+  const pirate = ensurePlayerPirateState(player);
+  if ((pirate.reputationXp | 0) < 300) addPirateReputationXp(player, 300 - (pirate.reputationXp | 0));
+}
+
+

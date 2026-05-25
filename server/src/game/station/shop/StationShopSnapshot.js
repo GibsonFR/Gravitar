@@ -202,6 +202,11 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
       const ammoQuantity = Math.max(0, player?.equipment?.rocketAmmoCountsById?.[def.id] | 0);
       const owned = def.categoryId === 'ammo' ? ammoQuantity > 0 : (player?.equipment?.ownedItemIds ?? []).includes(def.id);
       const equipped = def.categoryId === 'ammo' ? (player?.equipment?.rocketAmmoSlotItemIds || []).includes(def.id) : (player?.equipment?.equippedItemIds ?? []).includes(def.id);
+      const pirateState = ensurePlayerPirateState(player);
+      const reputationRequired = Math.max(0, offer.reputationRequired | 0 || 0);
+      const lockedByReputation = Math.max(0, pirateState.reputationLevel | 0 || 0) < reputationRequired;
+      const effectivePriceCredits = getEffectivePurchasePriceCredits(player, offer.priceCredits || def.priceCredits || 0);
+      const pricedOffer = { ...offer, priceCredits: effectivePriceCredits };
       return {
         itemId: def.id,
         name: def.name,
@@ -209,7 +214,7 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
         categoryId: def.categoryId,
         categoryName: getItemCategoryName(def.categoryId),
         tier: def.tier || 1,
-        priceCredits: getEffectivePurchasePriceCredits(player, offer.priceCredits || def.priceCredits || 0),
+        priceCredits: effectivePriceCredits,
         basePriceCredits: def.priceCredits || 0,
         description: def.description || '',
         passives: serializePassiveEffects(def),
@@ -221,12 +226,15 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
         converterProfile: def.converterProfile ? { ...def.converterProfile } : null,
         ammoProfile: def.ammoProfile ? { ...def.ammoProfile } : null,
         resourceCosts: buildResourceCosts(offer, player),
+        reputationRequired,
+        lockedByReputation,
+        pirateOnly: !!offer.pirateOnly,
         ammoQuantity: Math.max(0, player?.equipment?.rocketAmmoCountsById?.[def.id] | 0),
         assignedRocketSlots: (player?.equipment?.rocketAmmoSlotItemIds || []).map((id, index) => id === def.id ? index : -1).filter((index) => index >= 0),
         activeRocketSlot: (player?.equipment?.activeRocketSlot | 0) || 0,
         owned,
         equipped,
-        canAfford: canAffordOffer(player?.inv, { ...offer, priceCredits: getEffectivePurchasePriceCredits(player, offer.priceCredits || def.priceCredits || 0) }),
+        canAfford: !lockedByReputation && canAffordOffer(player?.inv, pricedOffer),
         sellPriceCredits: getEffectiveSellPriceCredits(player, Math.max(1, Math.round((def.priceCredits || 0) * 0.6)))
       };
     }).filter(Boolean)
