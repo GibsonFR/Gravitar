@@ -185,6 +185,9 @@ export function buildRocketWorkshopSnapshot(state, player) {
       ammoOutput: previewOutput,
       previewLines: mix.previewLines || [],
       warnings: mix.warnings || [],
+      roles: mix.roles || null,
+      roleCards: mix.roleCards || [],
+      valid: mix.valid !== false,
       description: mix.hasOptional ? 'Produit un lot de roquettes calculé depuis les ingrédients présents dans l’entrée.' : ROCKET_WORKSHOP_RECIPE.description
     },
     input: Object.entries(cleanMap(input)).map(([key, amount]) => resourceEntry(key, amount | 0)),

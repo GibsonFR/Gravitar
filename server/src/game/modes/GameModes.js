@@ -554,7 +554,7 @@ export function ensureTestRocketMixerBench(state, player, timeMs) {
   const workshop = ensureTestStructure(state, worldId, 'rocket_workshop', sx, sy, 64, 96, owner);
   if (workshop) {
     workshop.rocketWorkshopEnabled = true;
-    workshop.rocketWorkshopInput = { steelPlate: 20, propellant: 18, controlCircuit: 6, biofuel: 2, graphite: 2 };
+    workshop.rocketWorkshopInput = { steelPlate: 12, propellant: 10, controlCircuit: 4, aluminiumIngot: 3, refinedFuel: 2, graphite: 2, thermalCeramic: 1 };
     workshop.rocketWorkshopOutput ||= {};
     workshop.updatedAt = timeMs;
   }
@@ -564,10 +564,13 @@ export function ensureTestRocketMixerBench(state, player, timeMs) {
     storage.storage.kind = 'resources';
     storage.storage.capacity = Math.max(storage.storage.capacity || 0, 620);
     storage.storage.resources = {
-      steelPlate: 120, propellant: 120, controlCircuit: 30,
+      steelPlate: 140, propellant: 140, controlCircuit: 36,
       biofuel: 30, waterIce: 30, ammoniaIce: 30,
       lithiumBattery: 16, copperWire: 80, graphite: 40,
-      sulfur: 30, titaniumPlate: 12, unknownTechFragment: 6
+      sulfur: 30, titaniumPlate: 16, aluminiumIngot: 42,
+      carbonFiber: 18, compositeArmor: 8, microprocessor: 12,
+      servomotor: 16, thermalCeramic: 18, opticalGlass: 18,
+      laserLens: 10, unknownTechFragment: 8
     };
   }
 }

@@ -210,9 +210,12 @@ function grantRocketMixerTestPack(state, player, timeMs) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1600);
   const pack = {
-    steelPlate: 120, propellant: 120, controlCircuit: 30, refinedFuel: 40,
+    steelPlate: 140, propellant: 140, controlCircuit: 36, refinedFuel: 40,
     biofuel: 32, waterIce: 32, ammoniaIce: 32, lithiumBattery: 18,
-    copperWire: 90, graphite: 48, sulfur: 32, titaniumPlate: 16, unknownTechFragment: 8
+    copperWire: 90, graphite: 48, sulfur: 32, titaniumPlate: 18,
+    aluminiumIngot: 42, carbonFiber: 18, compositeArmor: 8,
+    microprocessor: 12, servomotor: 16, thermalCeramic: 18,
+    opticalGlass: 18, laserLens: 10, unknownTechFragment: 10
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
   player.research = player.research || { completed: [], unlocked: [] };

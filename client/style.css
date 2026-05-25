@@ -8136,3 +8136,57 @@ button.station-item-icon[draggable="true"]:active,
   line-height: 1.45;
   background: rgba(8, 15, 24, .50);
 }
+
+/* v182 — Mixage avancé roquettes : rôles corps / charge / stabilisateur */
+.rocket-workshop__roles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.rocket-workshop__role-card {
+  border: 1px solid rgba(255, 184, 92, .16);
+  background: linear-gradient(180deg, rgba(255,184,92,.07), rgba(8,12,18,.62));
+  border-radius: 12px;
+  padding: 9px 10px;
+  min-width: 0;
+}
+.rocket-workshop__role-card--addons {
+  grid-column: 1 / -1;
+  border-color: rgba(126, 220, 255, .18);
+  background: linear-gradient(180deg, rgba(126,220,255,.06), rgba(8,12,18,.62));
+}
+.rocket-workshop__role-kind {
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(255, 218, 166, .74);
+  font-weight: 800;
+}
+.rocket-workshop__role-name {
+  margin-top: 3px;
+  color: rgba(244, 248, 255, .96);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rocket-workshop__role-summary {
+  margin-top: 4px;
+  color: rgba(181, 202, 224, .80);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.rocket-workshop__role-cost {
+  margin-top: 5px;
+  color: rgba(255, 221, 178, .72);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 780px) {
+  .rocket-workshop__roles { grid-template-columns: 1fr; }
+  .rocket-workshop__role-card--addons { grid-column: auto; }
+}

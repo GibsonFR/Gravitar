@@ -31,6 +31,37 @@ function recipeNeedRows(entries = []) {
 }
 
 
+
+function costText(cost = []) {
+  const entries = Array.isArray(cost) ? cost : [];
+  if (!entries.length) return '';
+  return entries.map((entry) => `${entry.amount || 0} ${entry.key || ''}`).join(' · ');
+}
+
+function roleCardsMarkup(recipe = {}) {
+  const roles = Array.isArray(recipe.roleCards) ? recipe.roleCards : [];
+  const additives = Array.isArray(recipe.roles?.additives) ? recipe.roles.additives : [];
+  if (!roles.length && !additives.length) return '';
+  return `
+    <div class="rocket-workshop__roles">
+      ${roles.map((role) => `
+        <div class="rocket-workshop__role-card">
+          <div class="rocket-workshop__role-kind">${escapeHtml(role.kind || 'Rôle')}</div>
+          <div class="rocket-workshop__role-name">${escapeHtml(role.name || '—')}</div>
+          <div class="rocket-workshop__role-summary">${escapeHtml(role.summary || '')}</div>
+          <div class="rocket-workshop__role-cost">${escapeHtml(costText(role.cost || []))}</div>
+        </div>
+      `).join('')}
+      ${additives.length ? `
+        <div class="rocket-workshop__role-card rocket-workshop__role-card--addons">
+          <div class="rocket-workshop__role-kind">Additifs</div>
+          <div class="rocket-workshop__role-name">${escapeHtml(additives.map((a) => `${a.name || a.id} ×${a.amount || 1}`).join(' · '))}</div>
+          <div class="rocket-workshop__role-summary">${escapeHtml(additives.map((a) => a.summary || '').filter(Boolean).join(' · '))}</div>
+        </div>` : ''}
+    </div>
+  `;
+}
+
 function previewLines(lines = [], warnings = []) {
   const safeLines = (lines || []).filter(Boolean);
   const safeWarnings = (warnings || []).filter(Boolean);
@@ -171,6 +202,7 @@ export class RocketWorkshopPanelView {
           <div class="rocket-workshop__recipe-main">
             <div class="rocket-workshop__recipe-title">${escapeHtml(recipe.name || 'Lot de roquettes')}</div>
             <div class="rocket-workshop__recipe-sub">${escapeHtml(recipe.description || '')}</div>
+            ${roleCardsMarkup(recipe)}
             <div class="rocket-workshop__chips">${recipeNeedRows(recipe.input || [])}</div>
             ${previewLines(recipe.previewLines || out?.previewLines || [], recipe.warnings || out?.warnings || [])}
             <div class="rocket-workshop__out">Sortie : <b>${out ? `${out.amount | 0} ${escapeHtml(out.name || out.shortName || 'roquettes')}` : '—'}</b></div>
@@ -192,7 +224,7 @@ export class RocketWorkshopPanelView {
         </div>
         <div class="rocket-workshop__cols">
           <section class="rocket-workshop__box">
-            <h3>Cargo utile <span>base + additifs</span></h3>
+            <h3>Cargo utile <span>corps · charge · stabilisateur · additifs</span></h3>
             ${resourceRows(workshop.cargoResources || [], 'Déposer', 'deposit', workshop.id, false)}
           </section>
           <section class="rocket-workshop__box">
