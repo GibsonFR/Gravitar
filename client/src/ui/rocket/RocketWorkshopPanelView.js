@@ -202,7 +202,11 @@ export class RocketWorkshopPanelView {
       this.lastKey = '';
       return;
     }
-    this.currentId = workshop.id | 0;
+    const nextId = workshop.id | 0;
+    const sameWorkshop = this.currentId === nextId;
+    const previousBody = this.el.querySelector('.rocket-workshop__body');
+    const previousScrollTop = sameWorkshop && previousBody ? previousBody.scrollTop : 0;
+    this.currentId = nextId;
     this.el.classList.remove('is-hidden');
     const key = JSON.stringify({ workshop, t: Math.floor(Date.now() / 250) });
     if (key === this.lastKey) return;
@@ -270,5 +274,13 @@ export class RocketWorkshopPanelView {
         </div>
       </div>
     `;
+
+    if (sameWorkshop && previousScrollTop > 0) {
+      const body = this.el.querySelector('.rocket-workshop__body');
+      if (body) {
+        const maxScroll = Math.max(0, body.scrollHeight - body.clientHeight);
+        body.scrollTop = Math.min(previousScrollTop, maxScroll);
+      }
+    }
   }
 }
