@@ -7774,8 +7774,9 @@ button.station-item-icon[draggable="true"]:active,
   transform: translate(-50%, -50%);
   width: min(980px, calc(100vw - 48px));
   max-height: min(760px, calc(100vh - 48px));
-  z-index: 48;
+  z-index: 180;
   color: var(--text-main);
+  pointer-events: auto;
   border: 1px solid rgba(255, 184, 92, 0.24);
   background: linear-gradient(180deg, rgba(15, 18, 26, 0.98), rgba(7, 10, 15, 0.98));
   border-radius: 18px;
@@ -7783,6 +7784,7 @@ button.station-item-icon[draggable="true"]:active,
   overflow: hidden;
 }
 .rocket-workshop.is-hidden { display: none; }
+.rocket-workshop, .rocket-workshop * { pointer-events: auto; }
 .rocket-workshop__head {
   display: flex;
   justify-content: space-between;
