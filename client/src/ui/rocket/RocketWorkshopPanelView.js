@@ -38,17 +38,31 @@ function chipList(entries = []) {
 }
 
 function compositionCards(entries = []) {
-  return groupEntries(entries).map((group) => `
-    <article class="rocket-workshop__composition-card">
-      <div class="rocket-workshop__composition-head">
-        <div>
-          <div class="rocket-workshop__composition-title">${escapeHtml(group.title)}</div>
-          <div class="rocket-workshop__composition-sub">${escapeHtml(group.subtitle)}</div>
-        </div>
+  const groups = groupEntries(entries);
+  const filled = entries.reduce((sum, entry) => sum + (entry.amount | 0), 0);
+  return `
+    <div class="rocket-workshop__composition-summary">
+      <div class="rocket-workshop__composition-total">
+        <span>Quantité dans le mix</span>
+        <strong>${filled}</strong>
       </div>
-      <div class="rocket-workshop__component-list">${chipList(group.entries)}</div>
-    </article>
-  `).join('');
+      <div class="rocket-workshop__composition-slots">
+        ${groups.map((group) => {
+          const amount = group.entries.reduce((sum, entry) => sum + (entry.amount | 0), 0);
+          const filledClass = amount > 0 ? 'is-filled' : '';
+          return `
+            <article class="rocket-workshop__composition-slot ${filledClass}">
+              <div class="rocket-workshop__composition-title-row">
+                <span>${escapeHtml(group.title)}</span>
+                <b>${amount}</b>
+              </div>
+              <div class="rocket-workshop__component-list">${chipList(group.entries)}</div>
+            </article>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
 }
 
 function requirementRows(entries = []) {
@@ -88,6 +102,8 @@ function previewPills(lines = [], warnings = []) {
 
 function resourceRow(entry, actionLabel, direction, structureId, disabled = false) {
   const amount = entry.amount | 0;
+  const plusPrefix = direction === 'withdraw' ? '-' : '+';
+  const buttonAttrs = `data-rocket-transfer="${escapeHtml(direction)}" data-resource-key="${escapeHtml(entry.key)}" data-row-amount="${amount}" data-structure="${structureId | 0}"`;
   return `
     <div class="rocket-workshop__row" data-resource="${escapeHtml(entry.key)}" data-amount="${amount}" data-structure="${structureId | 0}">
       <span class="rocket-workshop__dot" style="background:${escapeHtml(entry.colorHex || '#fff')}"></span>
@@ -96,9 +112,9 @@ function resourceRow(entry, actionLabel, direction, structureId, disabled = fals
         <span class="rocket-workshop__row-sub">${amount} unité${amount > 1 ? 's' : ''}</span>
       </div>
       <div class="rocket-workshop__row-actions">
-        <button type="button" class="rocket-workshop__mini" data-rocket-transfer="${escapeHtml(direction)}" data-amount="1" ${disabled ? 'disabled' : ''}>+1</button>
-        <button type="button" class="rocket-workshop__mini" data-rocket-transfer="${escapeHtml(direction)}" data-amount="5" ${disabled ? 'disabled' : ''}>+5</button>
-        <button type="button" class="rocket-workshop__main-btn" data-rocket-transfer="${escapeHtml(direction)}" data-amount="all" ${disabled ? 'disabled' : ''}>${escapeHtml(actionLabel)}</button>
+        <button type="button" class="rocket-workshop__mini" ${buttonAttrs} data-amount="1" ${disabled ? 'disabled' : ''}>${plusPrefix}1</button>
+        <button type="button" class="rocket-workshop__mini" ${buttonAttrs} data-amount="5" ${disabled ? 'disabled' : ''}>${plusPrefix}5</button>
+        <button type="button" class="rocket-workshop__main-btn" ${buttonAttrs} data-amount="all" ${disabled ? 'disabled' : ''}>${escapeHtml(actionLabel)}</button>
       </div>
     </div>
   `;
@@ -168,15 +184,28 @@ export class RocketWorkshopPanelView {
     this.el = document.createElement('div');
     this.el.className = 'rocket-workshop is-hidden';
 
-    this.el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-    this.el.addEventListener('mousedown', (ev) => ev.stopPropagation());
-    this.el.addEventListener('mouseup', (ev) => ev.stopPropagation());
-    this.el.addEventListener('click', (ev) => this.handleClick(ev));
-    this.el.addEventListener('wheel', (ev) => ev.stopPropagation(), { passive: true });
-    this.el.addEventListener('contextmenu', (ev) => ev.stopPropagation());
+    const routePointerAction = (ev) => {
+      const target = ev.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('button, [data-rocket-transfer], [data-rocket-toggle], [data-rocket-start], [data-rocket-claim], [data-close-rocket-workshop]')) {
+        this.handleActionEvent(ev);
+      } else {
+        ev.stopPropagation();
+      }
+    };
+    this.el.addEventListener('pointerdown', routePointerAction, { capture: true });
+    this.el.addEventListener('mousedown', (ev) => ev.stopPropagation(), { capture: true });
+    this.el.addEventListener('mouseup', (ev) => ev.stopPropagation(), { capture: true });
+    this.el.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+    }, { capture: true });
+    this.el.addEventListener('wheel', (ev) => ev.stopPropagation(), { passive: true, capture: true });
+    this.el.addEventListener('contextmenu', (ev) => ev.stopPropagation(), { capture: true });
   }
 
-  handleClick(ev) {
+  handleActionEvent(ev) {
     ev.stopPropagation();
     const target = ev.target;
     if (!(target instanceof Element)) return;
@@ -222,9 +251,9 @@ export class RocketWorkshopPanelView {
 
   transferFromButton(btn) {
     const row = btn.closest('[data-resource]');
-    const structureId = row?.dataset?.structure | 0;
-    const resourceKey = row?.dataset?.resource || '';
-    const rowAmount = row?.dataset?.amount | 0;
+    const structureId = (btn.dataset.structure | 0) || (row?.dataset?.structure | 0);
+    const resourceKey = btn.dataset.resourceKey || row?.dataset?.resource || '';
+    const rowAmount = (btn.dataset.rowAmount | 0) || (row?.dataset?.amount | 0);
     let amount = 1;
     if (btn.dataset.amount === 'all') amount = rowAmount;
     else if (btn.dataset.amount === '5') amount = Math.min(5, rowAmount);

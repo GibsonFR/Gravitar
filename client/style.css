@@ -7948,20 +7948,60 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(255, 80, 80, .09);
   color: rgba(255, 190, 180, .96);
 }
-.rocket-workshop__composition-grid {
+.rocket-workshop__composition-summary {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+.rocket-workshop__composition-total {
+  border: 1px solid rgba(255,184,92,.14);
+  background: rgba(255,184,92,.055);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.rocket-workshop__composition-total span {
+  font-size: 10px;
+  line-height: 1.25;
+  color: rgba(167,186,211,.78);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.rocket-workshop__composition-total strong {
+  margin-top: 7px;
+  font-size: 26px;
+  color: rgba(255,226,180,.96);
+}
+.rocket-workshop__composition-slots {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
-.rocket-workshop__composition-card {
+.rocket-workshop__composition-slot {
   border: 1px solid rgba(255,255,255,.06);
   background: rgba(255,255,255,.02);
-  border-radius: 14px;
-  padding: 10px;
+  border-radius: 13px;
+  padding: 9px;
+  min-width: 0;
 }
-.rocket-workshop__composition-head { margin-bottom: 8px; }
-.rocket-workshop__composition-title { font-size: 13px; font-weight: 800; }
-.rocket-workshop__composition-sub { margin-top: 2px; font-size: 11px; color: rgba(167,186,211,.76); }
+.rocket-workshop__composition-slot.is-filled {
+  border-color: rgba(255,184,92,.14);
+  background: rgba(255,184,92,.04);
+}
+.rocket-workshop__composition-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.rocket-workshop__composition-title-row b { color: rgba(255,226,180,.95); }
 .rocket-workshop__component-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .rocket-workshop__component-chip {
   display: inline-flex;
@@ -8231,7 +8271,8 @@ button.station-item-icon[draggable="true"]:active,
   .rocket-workshop__actions { justify-content: stretch; }
   .rocket-workshop__actions .rocket-workshop__produce { flex: 1 1 auto; }
   .rocket-workshop__stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .rocket-workshop__composition-grid { grid-template-columns: 1fr; }
+  .rocket-workshop__composition-summary { grid-template-columns: 1fr; }
+  .rocket-workshop__composition-slots { grid-template-columns: 1fr; }
 }
 
 /* v179 — Vaisseau > Munitions : gestion uniquement, aucun marché */
