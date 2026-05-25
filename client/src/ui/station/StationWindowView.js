@@ -1,7 +1,6 @@
 import { STATION_TABS } from './StationTabDefs.js';
 import { StationTradeView } from './StationTradeView.js';
 import { StationShopView } from './StationShopView.js';
-import { StationEquipmentView } from './StationEquipmentView.js';
 import { StationAmmoView } from './StationAmmoView.js';
 
 export class StationWindowView {
@@ -51,14 +50,10 @@ export class StationWindowView {
     this.ammoView = new StationAmmoView(sendCmd);
     this.ammoView.el.classList.add('station-page', 'station-page--ammo');
 
-    this.equipmentView = new StationEquipmentView(sendCmd);
-    this.equipmentView.el.classList.add('station-page', 'station-page--equipment');
-
     this.pages = new Map([
       ['trade', this.tradeView.el],
       ['shop', this.shopView.el],
-      ['ammo', this.ammoView.el],
-      ['equipment', this.equipmentView.el]
+      ['ammo', this.ammoView.el]
     ]);
 
     this.navEl.innerHTML = STATION_TABS.map((t) => {
@@ -134,7 +129,6 @@ export class StationWindowView {
     this.tradeView.update(myState?.inv, docked, myState?.stationShop);
     this.shopView.update(myState?.stationShop, myState?.inv, docked);
     this.ammoView.update(myState?.equipment, myState?.stationShop, myState?.inv, docked);
-    this.equipmentView.update(myState?.equipment, myState?.inv, docked);
     this.setTab(this.activeTab);
   }
 }

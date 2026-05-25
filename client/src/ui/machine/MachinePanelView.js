@@ -236,9 +236,12 @@ export class MachinePanelView {
 
     const progressPct = Math.round((Number(job?.progress) || 0) * 100);
     const outputRows = machine.output || [];
+    const lastProduced = machine.lastProduced?.output?.length
+      ? machine.lastProduced.output.map((entry) => `${entry.key} ×${entry.amount}`).join(' • ')
+      : '';
     const outputContent = outputRows.length
       ? resourceRows(outputRows, 'Récupérer', 'withdraw', 'output', machine.id, false)
-      : `<div class="machine-panel__empty">${busy ? 'Production en cours : la sortie se remplit à la fin du cycle.' : 'Vide.'}</div>`;
+      : `<div class="machine-panel__empty">${busy ? 'Production en cours : la sortie se remplit à la fin du cycle.' : (lastProduced ? `Dernier cycle produit : ${escapeHtml(lastProduced)}. Si la sortie est vide, elle a été récupérée par l’automation.` : 'Vide.')}</div>`;
     const progressHtml = job?.active ? `
       <div class="machine-panel__progress">
         <div class="machine-panel__progress-head">

@@ -192,7 +192,7 @@ export class StationShopView {
   getOffers() {
     if (this.activeCategory === CONVERSION_RECIPE_CATEGORY) return this.shop?.conversionRecipes || [];
     const offers = sortItems(this.shop?.offers || []);
-    return offers.filter((item) => item?.categoryId === this.activeCategory && item?.categoryId !== ITEM_CATEGORY_IDS.AMMO);
+    return offers.filter((item) => item?.categoryId === this.activeCategory && item?.categoryId !== ITEM_CATEGORY_IDS.AMMO && item?.categoryId !== ITEM_CATEGORY_IDS.CONVERTER);
   }
 
   getFocusedItem() {

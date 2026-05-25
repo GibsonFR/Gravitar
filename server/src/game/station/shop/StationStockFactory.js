@@ -137,7 +137,10 @@ function selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tie
     const variance = priceVarianceForItem(rng, tech, item);
     const pirateMult = pirate ? 1.08 : 1;
     const specialtyMult = specialty?.priceBias?.[item.categoryId] ?? 1;
-    const distanceMult = 1 + Math.max(0, Math.abs(sx | 0) + Math.abs(sy | 0) - 2) * 0.012;
+    // Distance should unlock better/tiered stock, not multiply prices by hundreds in far/test sectors.
+    // Keep only a small frontier premium tied to the same tier bonus used for item selection.
+    const frontierPremium = stationDistanceTierBonus(sx, sy);
+    const distanceMult = 1 + frontierPremium * 0.08;
     const priceCredits = Math.max(1, Math.round((item.priceCredits || 0) * variance * pirateMult * specialtyMult * distanceMult));
     return {
       itemId: item.id,

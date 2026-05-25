@@ -263,6 +263,7 @@ export function buildMachineSnapshot(state, player) {
     recipes,
     input: mapRows(input),
     output: mapRows(output),
+    lastProduced: st.lastMachineProduced || null,
     cargoResources: selectedRecipe ? relevantCargoRows(player, selectedRecipe) : [],
     inputUsed: usedCapacity(input),
     inputCapacity: MACHINE_INPUT_CAPACITY,

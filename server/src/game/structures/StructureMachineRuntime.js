@@ -62,10 +62,18 @@ function consumeRecipeInputs(structure, recipe) {
 
 function addRecipeOutput(structure, recipe) {
   const output = resourceMap(structure, 'output');
+  const produced = [];
   for (const [key, amount] of recipeEntries(recipe.output)) {
-    output[key] = (output[key] | 0) + (amount | 0);
+    const n = amount | 0;
+    output[key] = (output[key] | 0) + n;
+    if (n > 0) produced.push({ key, amount: n });
   }
   cleanMap(output);
+  structure.lastMachineProduced = {
+    recipeId: recipe?.id || '',
+    at: Date.now(),
+    output: produced
+  };
 }
 
 export function isMachineJobActive(structure) {
@@ -150,9 +158,13 @@ export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
       continue;
     }
 
-    if ((job.remainingMs | 0) <= 0) {
+    if (Number(job.remainingMs) <= 0) {
+      if (canFitRecipeOutput(st, recipe)) addRecipeOutput(st, recipe);
       st.machineJob = null;
       st.updatedAt = timeMs;
+      shouldSave ||= String(st.worldId || 'endless') === 'endless';
+      const nextRecipe = getSelectedRecipe(st);
+      if (canStartNextJob(st, nextRecipe)) startNextJob(st, nextRecipe, timeMs);
       continue;
     }
 
