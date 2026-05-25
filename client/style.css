@@ -7767,142 +7767,472 @@ button.station-item-icon[draggable="true"]:active,
   filter: saturate(0.7);
 }
 
-/* v177 — Atelier de roquettes */
+/* v180 — Atelier de roquettes : refonte UX */
 .rocket-workshop {
   position: fixed;
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
-  width: min(980px, calc(100vw - 48px));
-  max-height: min(760px, calc(100vh - 48px));
+  width: min(1240px, calc(100vw - 40px));
+  height: min(820px, calc(100vh - 30px));
   z-index: 180;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   color: var(--text-main);
   pointer-events: auto;
   border: 1px solid rgba(255, 184, 92, 0.24);
-  background: linear-gradient(180deg, rgba(15, 18, 26, 0.98), rgba(7, 10, 15, 0.98));
-  border-radius: 18px;
-  box-shadow: 0 22px 80px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.03);
+  background: linear-gradient(180deg, rgba(14, 18, 28, 0.985), rgba(7, 10, 17, 0.985));
+  border-radius: 20px;
+  box-shadow: 0 24px 90px rgba(0,0,0,.58), inset 0 0 0 1px rgba(255,255,255,.03);
   overflow: hidden;
 }
 .rocket-workshop.is-hidden { display: none; }
-.rocket-workshop, .rocket-workshop * { pointer-events: auto; }
+.rocket-workshop,
+.rocket-workshop * { pointer-events: auto; box-sizing: border-box; }
 .rocket-workshop__head {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
-  padding: 18px 20px 14px;
+  padding: 18px 20px 16px;
   border-bottom: 1px solid rgba(255, 184, 92, .16);
-  background: radial-gradient(circle at 22% 0%, rgba(255,184,92,.16), transparent 38%);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255,184,92,.16), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
 }
-.rocket-workshop__eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,214,160,.72); }
-.rocket-workshop__title { margin-top: 3px; font-size: 20px; font-weight: 800; }
-.rocket-workshop__meta { margin-top: 4px; font-size: 12px; color: rgba(181, 202, 224, .82); }
-.rocket-workshop__meta.is-powered { color: rgba(178, 240, 194, .9); }
-.rocket-workshop__meta.is-unpowered { color: rgba(255, 175, 120, .9); }
+.rocket-workshop__eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,214,160,.76); }
+.rocket-workshop__title { margin-top: 3px; font-size: 22px; font-weight: 800; }
+.rocket-workshop__meta { margin-top: 6px; font-size: 12px; color: rgba(181, 202, 224, .82); }
+.rocket-workshop__meta.is-powered { color: rgba(178, 240, 194, .92); }
+.rocket-workshop__meta.is-unpowered { color: rgba(255, 175, 120, .92); }
 .rocket-workshop__close {
-  width: 34px; height: 34px; border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.04); color: rgba(245,248,255,.9);
-  cursor: pointer; font-size: 20px;
+  background: rgba(255,255,255,.04);
+  color: rgba(245,248,255,.92);
+  cursor: pointer;
+  font-size: 20px;
 }
-.rocket-workshop__body { padding: 16px; overflow-y: auto; overflow-x: hidden; max-height: calc(min(760px, 100vh - 48px) - 76px); scrollbar-gutter: stable; overscroll-behavior: contain; touch-action: pan-y; }
-
-.rocket-workshop__body::-webkit-scrollbar { width: 12px; }
-.rocket-workshop__body::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 999px; }
-.rocket-workshop__body::-webkit-scrollbar-thumb { background: rgba(255,184,92,.45); border-radius: 999px; border: 3px solid rgba(7,10,15,.95); }
-.rocket-workshop__body::-webkit-scrollbar-thumb:hover { background: rgba(255,205,130,.70); }
-.rocket-workshop__recipe-card {
-  display: grid; grid-template-columns: 58px 1fr; gap: 14px;
-  border: 1px solid rgba(255, 184, 92, .22);
-  background: linear-gradient(135deg, rgba(82, 48, 24, .36), rgba(12,16,24,.82));
-  border-radius: 16px; padding: 14px;
+.rocket-workshop__body {
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px;
 }
-.rocket-workshop__recipe-glyph {
-  width: 54px; height: 54px; border-radius: 16px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255,184,92,.12); border: 1px solid rgba(255,184,92,.28);
-  color: rgba(255,220,170,.96); font-size: 25px;
+.rocket-workshop__layout {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(340px, 1.1fr) minmax(290px, .95fr) minmax(310px, 1fr);
+  gap: 14px;
 }
-.rocket-workshop__recipe-title { font-weight: 800; font-size: 15px; }
-.rocket-workshop__recipe-sub { color: rgba(181,202,224,.82); font-size: 12px; margin-top: 3px; }
-.rocket-workshop__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.rocket-workshop__chip {
-  display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px;
-  font-size: 11px; background: rgba(8,12,18,.72); border: 1px solid rgba(255,255,255,.08);
+.rocket-workshop__panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(120, 180, 255, .13);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(11, 16, 26, .96), rgba(7, 11, 18, .98));
+  overflow: hidden;
 }
-.rocket-workshop__chip i { width: 8px; height: 8px; border-radius: 3px; background: var(--res); box-shadow: 0 0 8px var(--res); }
-.rocket-workshop__chip.is-ok { color: rgba(207,238,191,.96); }
-.rocket-workshop__chip.is-missing { color: rgba(255,184,155,.96); }
-.rocket-workshop__out { margin-top: 10px; font-size: 12px; color: rgba(255,220,170,.9); }
-
-.rocket-workshop__inline-actions {
-  position: sticky;
-  top: -16px;
-  z-index: 3;
-  margin-top: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(255,184,92,.20);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(18, 15, 22, .98), rgba(10, 12, 18, .96));
+.rocket-workshop__panel--hero {
+  padding: 14px;
+  gap: 12px;
+}
+.rocket-workshop__hero {
+  border: 1px solid rgba(255, 184, 92, .20);
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(86, 49, 20, .34), rgba(13, 17, 26, .82));
+}
+.rocket-workshop__hero-top {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.rocket-workshop__hero-glyph {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  box-shadow: 0 8px 22px rgba(0,0,0,.26);
+  justify-content: center;
+  background: rgba(255,184,92,.12);
+  border: 1px solid rgba(255,184,92,.28);
+  color: rgba(255,220,170,.96);
+  font-size: 26px;
 }
-.rocket-workshop__inline-title { font-size: 12px; font-weight: 800; color: rgba(255,224,178,.96); text-transform: uppercase; letter-spacing: .08em; }
-.rocket-workshop__inline-sub { margin-top: 2px; font-size: 11px; color: rgba(181,202,224,.76); }
-.rocket-workshop__inline-buttons { display: flex; gap: 8px; flex: 0 0 auto; }
-
-.rocket-workshop__preview {
+.rocket-workshop__hero-title { font-size: 16px; font-weight: 800; }
+.rocket-workshop__hero-sub { margin-top: 3px; font-size: 12px; color: rgba(181,202,224,.82); line-height: 1.45; }
+.rocket-workshop__stats-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.rocket-workshop__stat-card {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(7, 11, 18, .62);
+  border-radius: 12px;
+  padding: 10px;
+  min-width: 0;
+}
+.rocket-workshop__stat-card span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(167, 186, 211, .76);
+}
+.rocket-workshop__stat-card strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 15px;
+  color: rgba(246, 249, 255, .96);
+}
+.rocket-workshop__panel-block {
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(9, 14, 22, .72);
+  border-radius: 14px;
+  padding: 12px;
+}
+.rocket-workshop__panel-block--grow {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.rocket-workshop__panel-title {
+  font-size: 11px;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: rgba(255, 205, 130, .86);
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.rocket-workshop__requirements {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rocket-workshop__requirement {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+  padding: 8px 10px;
+}
+.rocket-workshop__requirement.is-ok { border-color: rgba(120, 242, 165, .18); }
+.rocket-workshop__requirement.is-missing { border-color: rgba(255, 120, 120, .18); }
+.rocket-workshop__requirement-name,
+.rocket-workshop__requirement-count { font-size: 12px; }
+.rocket-workshop__requirement-count { color: rgba(224, 233, 246, .88); }
+.rocket-workshop__preview-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
 }
-.rocket-workshop__preview span {
+.rocket-workshop__preview-pills span {
   border: 1px solid rgba(255, 184, 92, .18);
   background: rgba(255, 184, 92, .07);
   color: rgba(255, 226, 180, .94);
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 5px 9px;
   font-size: 11px;
   font-weight: 700;
 }
-.rocket-workshop__preview span.is-warning {
+.rocket-workshop__preview-pills span.is-warning {
   border-color: rgba(255, 120, 120, .26);
   background: rgba(255, 80, 80, .09);
   color: rgba(255, 190, 180, .96);
 }
-
-.rocket-workshop__progress { margin-top: 14px; padding: 12px; border: 1px solid rgba(255,184,92,.14); border-radius: 14px; background: rgba(8,12,18,.62); }
-.rocket-workshop__progress-head { display: flex; justify-content: space-between; font-size: 12px; color: rgba(190,205,228,.88); margin-bottom: 8px; }
-.rocket-workshop__bar { height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.08); }
-.rocket-workshop__bar span { display: block; height: 100%; background: linear-gradient(90deg, rgba(255,184,92,.55), rgba(255,225,150,.95)); }
-.rocket-workshop__cols { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px; margin-top: 14px; }
-.rocket-workshop__box { min-height: 180px; border: 1px solid rgba(120,180,255,.13); border-radius: 14px; background: rgba(8,12,18,.62); padding: 12px; }
-.rocket-workshop__box h3 { margin: 0 0 10px; display: flex; justify-content: space-between; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: rgba(220,232,248,.82); }
-.rocket-workshop__box h3 span { color: rgba(161,182,210,.72); text-transform: none; letter-spacing: 0; }
-.rocket-workshop__row { display: grid; grid-template-columns: 14px minmax(0, 1fr) 36px 36px 78px; gap: 7px; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
-.rocket-workshop__dot { width: 10px; height: 10px; border-radius: 4px; }
-.rocket-workshop__row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.rocket-workshop__qty { text-align: right; color: rgba(221,230,245,.86); font-size: 12px; }
-.rocket-workshop__mini, .rocket-workshop__main-btn, .rocket-workshop__claim, .rocket-workshop__produce {
-  border: 1px solid rgba(255,184,92,.20); background: rgba(255,184,92,.08); color: rgba(255,230,196,.94); border-radius: 9px; cursor: pointer;
+.rocket-workshop__composition-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
-.rocket-workshop__mini { height: 25px; }
-.rocket-workshop__main-btn { height: 25px; font-size: 11px; }
-.rocket-workshop__produce { height: 36px; padding: 0 14px; font-weight: 700; }
-.rocket-workshop__produce:disabled, .rocket-workshop__main-btn:disabled, .rocket-workshop__mini:disabled { opacity: .45; cursor: default; }
-.rocket-output-card { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid rgba(255,184,92,.16); border-radius: 12px; background: rgba(255,184,92,.06); }
-.rocket-output-card__glyph { width: 34px; height: 34px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255,184,92,.12); }
+.rocket-workshop__composition-card {
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+  border-radius: 14px;
+  padding: 10px;
+}
+.rocket-workshop__composition-head { margin-bottom: 8px; }
+.rocket-workshop__composition-title { font-size: 13px; font-weight: 800; }
+.rocket-workshop__composition-sub { margin-top: 2px; font-size: 11px; color: rgba(167,186,211,.76); }
+.rocket-workshop__component-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.rocket-workshop__component-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border-radius: 999px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(6,10,15,.62);
+  font-size: 11px;
+}
+.rocket-workshop__component-chip i,
+.rocket-workshop__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+.rocket-workshop__component-chip i {
+  background: var(--res);
+  box-shadow: 0 0 8px var(--res);
+}
+.rocket-workshop__section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.rocket-workshop__section-title { font-size: 15px; font-weight: 800; }
+.rocket-workshop__section-sub { margin-top: 3px; font-size: 11px; line-height: 1.4; color: rgba(167,186,211,.78); }
+.rocket-workshop__section-pill {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 184, 92, .18);
+  background: rgba(255, 184, 92, .07);
+  color: rgba(255, 226, 180, .92);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.rocket-workshop__stack {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 14px 14px;
+}
+.rocket-workshop__subpanel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 14px;
+  background: rgba(8,12,18,.56);
+  overflow: hidden;
+}
+.rocket-workshop__subhead,
+.rocket-workshop__group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rocket-workshop__subhead {
+  padding: 11px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  font-size: 12px;
+  color: rgba(220,232,248,.88);
+}
+.rocket-workshop__subhead b,
+.rocket-workshop__group-head b { color: rgba(255, 218, 159, .96); }
+.rocket-workshop__scroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+.rocket-workshop__scroll::-webkit-scrollbar { width: 10px; }
+.rocket-workshop__scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.10);
+  border-radius: 999px;
+  border: 2px solid rgba(0,0,0,0);
+  background-clip: padding-box;
+}
+.rocket-workshop__resource-group + .rocket-workshop__resource-group { margin-top: 12px; }
+.rocket-workshop__group-head {
+  padding: 0 2px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: rgba(255,205,130,.84);
+}
+.rocket-workshop__rows {
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,.02);
+}
+.rocket-workshop__row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+.rocket-workshop__row + .rocket-workshop__row { border-top: 1px solid rgba(255,255,255,.05); }
+.rocket-workshop__row-copy { min-width: 0; }
+.rocket-workshop__row-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.rocket-workshop__row-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgba(167,186,211,.76);
+}
+.rocket-workshop__row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.rocket-workshop__mini,
+.rocket-workshop__main-btn,
+.rocket-workshop__claim,
+.rocket-workshop__produce {
+  border: 1px solid rgba(255,184,92,.20);
+  background: rgba(255,184,92,.08);
+  color: rgba(255,230,196,.94);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.rocket-workshop__mini,
+.rocket-workshop__main-btn,
+.rocket-workshop__claim {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.rocket-workshop__main-btn { min-width: 92px; }
+.rocket-workshop__produce {
+  height: 38px;
+  padding: 0 16px;
+  font-weight: 800;
+}
+.rocket-workshop__produce--secondary,
+.rocket-workshop__produce.is-secondary {
+  background: rgba(120, 180, 255, .08);
+  border-color: rgba(120, 180, 255, .20);
+  color: rgba(210, 228, 255, .94);
+}
+.rocket-workshop__produce:disabled,
+.rocket-workshop__main-btn:disabled,
+.rocket-workshop__mini:disabled,
+.rocket-workshop__claim:disabled {
+  opacity: .45;
+  cursor: default;
+}
+.rocket-output-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid rgba(255,184,92,.16);
+  border-radius: 12px;
+  background: rgba(255,184,92,.06);
+}
+.rocket-output-card + .rocket-output-card { margin-top: 10px; }
+.rocket-output-card__glyph {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,184,92,.12);
+}
+.rocket-output-card__main { min-width: 0; }
 .rocket-output-card__name { font-weight: 800; font-size: 13px; }
-.rocket-output-card__meta, .rocket-output-card__summary { color: rgba(180,200,224,.82); font-size: 11px; margin-top: 2px; }
-.rocket-workshop__claim { height: 30px; padding: 0 10px; }
-.rocket-workshop__empty { color: rgba(160,180,210,.68); font-size: 12px; padding: 8px 0; }
-.rocket-workshop__muted { color: rgba(160,180,210,.68); }
-.rocket-workshop__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
-@media (max-width: 780px) { .rocket-workshop__cols { grid-template-columns: 1fr; } .rocket-workshop__inline-actions { align-items: stretch; flex-direction: column; } .rocket-workshop__inline-buttons { width: 100%; } .rocket-workshop__inline-buttons .rocket-workshop__produce { flex: 1; } }
+.rocket-output-card__meta,
+.rocket-output-card__summary {
+  color: rgba(180,200,224,.82);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.rocket-workshop__dock {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(240px, .9fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(255,255,255,.01), rgba(0,0,0,.10));
+}
+.rocket-workshop__dock-main,
+.rocket-workshop__dock-progress {
+  min-width: 0;
+}
+.rocket-workshop__dock-status {
+  font-size: 14px;
+  font-weight: 800;
+}
+.rocket-workshop__dock-hint {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(167,186,211,.78);
+}
+.rocket-workshop__dock-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: rgba(190,205,228,.88);
+}
+.rocket-workshop__bar {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,.08);
+}
+.rocket-workshop__bar span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255,184,92,.55), rgba(255,225,150,.95));
+}
+.rocket-workshop__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.rocket-workshop__empty { color: rgba(160,180,210,.68); font-size: 12px; }
+.rocket-workshop__muted { color: rgba(160,180,210,.68); font-size: 11px; }
+
+@media (max-width: 1120px) {
+  .rocket-workshop {
+    width: min(1060px, calc(100vw - 24px));
+    height: min(860px, calc(100vh - 20px));
+  }
+  .rocket-workshop__layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .rocket-workshop__panel--hero { grid-column: 1 / -1; }
+}
+@media (max-width: 860px) {
+  .rocket-workshop {
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+  }
+  .rocket-workshop__layout { grid-template-columns: 1fr; }
+  .rocket-workshop__dock {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .rocket-workshop__actions { justify-content: stretch; }
+  .rocket-workshop__actions .rocket-workshop__produce { flex: 1 1 auto; }
+  .rocket-workshop__stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rocket-workshop__composition-grid { grid-template-columns: 1fr; }
+}
 
 /* v179 — Vaisseau > Munitions : gestion uniquement, aucun marché */
 .ship-panel--station-style .ship-ammo-panel {
@@ -8140,58 +8470,4 @@ button.station-item-icon[draggable="true"]:active,
   padding: 16px;
   line-height: 1.45;
   background: rgba(8, 15, 24, .50);
-}
-
-/* v182 — Mixage avancé roquettes : rôles corps / charge / stabilisateur */
-.rocket-workshop__roles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-.rocket-workshop__role-card {
-  border: 1px solid rgba(255, 184, 92, .16);
-  background: linear-gradient(180deg, rgba(255,184,92,.07), rgba(8,12,18,.62));
-  border-radius: 12px;
-  padding: 9px 10px;
-  min-width: 0;
-}
-.rocket-workshop__role-card--addons {
-  grid-column: 1 / -1;
-  border-color: rgba(126, 220, 255, .18);
-  background: linear-gradient(180deg, rgba(126,220,255,.06), rgba(8,12,18,.62));
-}
-.rocket-workshop__role-kind {
-  font-size: 9px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: rgba(255, 218, 166, .74);
-  font-weight: 800;
-}
-.rocket-workshop__role-name {
-  margin-top: 3px;
-  color: rgba(244, 248, 255, .96);
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.rocket-workshop__role-summary {
-  margin-top: 4px;
-  color: rgba(181, 202, 224, .80);
-  font-size: 11px;
-  line-height: 1.35;
-}
-.rocket-workshop__role-cost {
-  margin-top: 5px;
-  color: rgba(255, 221, 178, .72);
-  font-size: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-@media (max-width: 780px) {
-  .rocket-workshop__roles { grid-template-columns: 1fr; }
-  .rocket-workshop__role-card--addons { grid-column: auto; }
 }
