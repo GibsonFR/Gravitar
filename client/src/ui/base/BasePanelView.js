@@ -629,6 +629,41 @@ function formatCost(cost = {}) {
   return entries.map(([key, amount]) => `${amount} ${RESOURCE_LABELS[key] || key}`).join(' · ');
 }
 
+
+function cargoAmount(store, key) {
+  const resources = store?.myState?.inv?.resources;
+  if (!resources) return 0;
+  if (Array.isArray(resources)) return resources.find((entry) => entry?.key === key)?.amount | 0;
+  return resources?.[key] | 0;
+}
+
+function missingCostEntries(store, cost = {}) {
+  return Object.entries(cost || {})
+    .filter(([, amount]) => Number(amount) > 0)
+    .map(([key, amount]) => ({ key, need: amount | 0, have: cargoAmount(store, key) | 0 }))
+    .filter((entry) => entry.have < entry.need);
+}
+
+function hasBuildCost(store, cost = {}) {
+  return missingCostEntries(store, cost).length === 0;
+}
+
+function formatMissingCost(store, cost = {}) {
+  const missing = missingCostEntries(store, cost);
+  if (!missing.length) return '';
+  return missing.map((entry) => `${Math.max(0, entry.need - entry.have)} ${RESOURCE_LABELS[entry.key] || entry.key}`).join(' · ');
+}
+
+function formatCostWithStock(store, cost = {}) {
+  const entries = Object.entries(cost || {}).filter(([, v]) => Number(v) > 0);
+  if (!entries.length) return 'Aucun coût';
+  return entries.map(([key, amount]) => {
+    const have = cargoAmount(store, key);
+    const ok = have >= (amount | 0);
+    return `${amount} ${RESOURCE_LABELS[key] || key} (${have}/${amount})${ok ? '' : ' manquant'}`;
+  }).join(' · ');
+}
+
 function researchCompletedForStore(store) {
   const overview = store?.myState?.researchOverview;
   const direct = store?.myState?.research;
@@ -775,6 +810,7 @@ function validatePreview(store, me, def, x, y, orientation) {
     const d = Math.hypot((station.x || 0) - x, (station.y || 0) - y);
     if (d < (station.radius || 80) + Math.max(r.w, r.h) * 0.5 + 80) return { ok: false, reason: 'Station proche' };
   }
+  if (!hasBuildCost(store, def.cost)) return { ok: false, reason: `Manque : ${formatMissingCost(store, def.cost)}`, ownCore };
   return { ok: true, reason: 'OK', ownCore };
 }
 
@@ -971,7 +1007,7 @@ export class BasePanelView {
     if (def.hp) sections.push(`<div class="base-panel__details-section"><strong>Résistance</strong><span>${def.hp} PV</span></div>`);
     const requirement = unlockRequirementForBuild(this.store, def.type);
     if (requirement) sections.unshift(`<div class="base-panel__details-section is-locked"><strong>Recherche requise</strong><span>${escapeHtml(requirement.name)}</span></div>`);
-    sections.push(`<div class="base-panel__details-section"><strong>Coût</strong><span>${escapeHtml(formatCost(def.cost))}</span></div>`);
+    sections.push(`<div class="base-panel__details-section ${hasBuildCost(this.store, def.cost) ? '' : 'is-locked'}"><strong>Coût</strong><span>${escapeHtml(formatCostWithStock(this.store, def.cost))}</span></div>`);
     this.details.innerHTML = `
       <div class="base-panel__details-icon base-panel__details-icon--${escapeHtml(def.icon)}">${iconSvg(def.icon)}</div>
       <h3>${escapeHtml(def.title)}</h3>

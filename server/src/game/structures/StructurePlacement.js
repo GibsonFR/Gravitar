@@ -198,7 +198,7 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
     const d = Math.hypot(station.x - px, station.y - py);
     if (d < (station.radius || 80) + Math.max(def.w || def.radius * 2, def.h || def.radius * 2) * 0.5 + 80) return { ok: false, error: 'too_close_to_station' };
   }
-  if (!isTestPlayer(player) && !hasResources(player.inv, def.cost)) return { ok: false, error: 'missing_resources' };
+  if (!hasResources(player.inv, def.cost)) return { ok: false, error: 'missing_resources' };
   return { ok: true, def, overlappedDeposit };
 }
 
@@ -206,7 +206,7 @@ export function placeStructure(state, player, type, x, y, orientation = 'h', tim
   const check = canPlaceStructure(state, player, type, x, y, orientation);
   if (!check.ok) return { ok: false, error: check.error };
   const def = check.def;
-  if (!isTestPlayer(player)) payResources(player.inv, def.cost);
+  payResources(player.inv, def.cost);
   const snapped = snapPlacement(def, x, y, orientation);
   const r = rectFor(def, snapped.x, snapped.y, orientation);
   const deposit = def.id === 'mining_extractor' ? (check.overlappedDeposit || findOverlappedDeposit(state, player, r)) : null;
