@@ -1,4 +1,4 @@
-// build v186 rocket-workshop-ui-click-fix
+// build v188 pirate-stations-research-locks
 function showBootError(error, title = 'Erreur au chargement du jeu') {
   const message = error?.stack || error?.message || String(error || 'Erreur inconnue');
   console.error('[Gravitar boot]', error);
@@ -20,7 +20,7 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
 
 async function boot() {
   try {
-    const mod = await import('./src/App.js?v=186');
+    const mod = await import('./src/App.js?v=188');
     mod.startApp();
   } catch (err) {
     showBootError(err, 'Erreur au chargement du jeu');

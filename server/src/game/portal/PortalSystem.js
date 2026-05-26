@@ -191,7 +191,7 @@ function grantIndustrialConverterTestPack(state, player, timeMs) {
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
   player.research = player.research || { completed: [], unlocked: [] };
-  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'energy_distribution', 'advanced_industry', 'electronics_processing'])];
+  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'advanced_research', 'pirate_reverse_engineering'])];
   ensureTestIndustrialConverterBench(state, player, timeMs);
 }
 
@@ -202,7 +202,7 @@ function grantRocketWorkshopTestPack(state, player, timeMs) {
   const pack = { steelPlate: 80, propellant: 80, controlCircuit: 20, copperWire: 60, refinedFuel: 30 };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
   player.research = player.research || { completed: [], unlocked: [] };
-  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'energy_distribution', 'advanced_industry', 'electronics_processing'])];
+  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'defense_turrets'])];
   ensureTestRocketWorkshopBench(state, player, timeMs);
 }
 
@@ -219,7 +219,7 @@ function grantRocketMixerTestPack(state, player, timeMs) {
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
   player.research = player.research || { completed: [], unlocked: [] };
-  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'energy_distribution', 'advanced_industry', 'electronics_processing'])];
+  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'defense_turrets'])];
   ensureTestRocketMixerBench(state, player, timeMs);
 }
 

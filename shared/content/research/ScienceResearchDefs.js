@@ -127,8 +127,8 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 12,
     energyUse: 20,
     pointCost: { automationSciencePack: 1, industrialSciencePack: 1 },
-    unlockBuildings: [],
-    unlockRecipes: ['Blindage composite', 'Science défense'],
+    unlockBuildings: ['Atelier de roquettes'],
+    unlockRecipes: ['Blindage composite', 'Science défense', 'Production de roquettes'],
     prereq: ['advanced_industry'],
     tier: 3
   },
@@ -151,14 +151,14 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 20,
     energyUse: 28,
     pointCost: { industrialSciencePack: 1, combatSciencePack: 1, advancedSciencePack: 1 },
-    unlockBuildings: [],
-    unlockRecipes: [],
+    unlockBuildings: ['Convertisseur industriel'],
+    unlockRecipes: ['Recettes pirates de conversion'],
     prereq: ['advanced_research'],
     tier: 4
   },
   {
     id: 'equipment_mark_ii',
-    branch: 'combat',
+    branch: 'defense',
     name: 'Équipement Mark II',
     points: 14,
     energyUse: 24,
@@ -170,7 +170,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
   },
   {
     id: 'equipment_rd_station',
-    branch: 'combat',
+    branch: 'defense',
     name: 'Station R&D équipement',
     points: 14,
     energyUse: 24,
@@ -182,7 +182,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
   },
   {
     id: 'equipment_mark_iii',
-    branch: 'combat',
+    branch: 'defense',
     name: 'Équipement Mark III',
     points: 24,
     energyUse: 32,
@@ -248,6 +248,8 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   electronics_bench: 'electronics_processing',
   mining_extractor: 'resource_scanning',
   equipment_fabricator: 'advanced_research',
+  industrial_converter: 'pirate_reverse_engineering',
+  rocket_workshop: 'defense_turrets',
   equipment_rd_station: 'equipment_rd_station'
 });
 

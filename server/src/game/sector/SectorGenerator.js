@@ -1400,19 +1400,13 @@ export function generateSectorContent(state, sx, sy, timeMs) {
     spawnStation(state, sx, sy, 0, 0, true, h, timeMs);
   } else {
     const frontier = Math.max(Math.abs(sx | 0), Math.abs(sy | 0));
-    const hasNormalStation = (h & 7) === 0;
     const hasPirateShop = shouldSpawnPirateShop(seed, sx, sy, frontier);
-    if (hasNormalStation || hasPirateShop) {
+    if (hasPirateShop) {
       const min = -SECTOR.half + 400;
       const max = SECTOR.half - 400;
       const x = min + rng.nextDouble() * (max - min);
       const y = min + rng.nextDouble() * (max - min);
-      const tech = (h & 31) === 0;
-      if (hasPirateShop) {
-        spawnStation(state, sx, sy, x, y, true, h ^ 0x51eaf00d, timeMs, { specialtyId: 'pirate' });
-      } else {
-        spawnStation(state, sx, sy, x, y, tech, h, timeMs);
-      }
+      spawnStation(state, sx, sy, x, y, true, h ^ 0x51eaf00d, timeMs, { specialtyId: 'pirate' });
     }
   }
 

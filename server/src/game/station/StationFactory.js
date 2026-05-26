@@ -4,7 +4,8 @@ import { buildStationStockForTime } from './shop/StationStockRefresh.js';
 import { computePirateTier } from './pirate/PirateStationEconomy.js';
 
 export function spawnStation(state, sx, sy, x, y, tech = false, seed = 0, timeMs = 0, options = null) {
-  const specialtyId = String(options?.specialtyId || '');
+  const rawSpecialtyId = String(options?.specialtyId || '');
+  const specialtyId = rawSpecialtyId || 'pirate';
   const pirate = specialtyId === 'pirate';
   const id = newEntityId(state);
   const station = {
@@ -17,7 +18,7 @@ export function spawnStation(state, sx, sy, x, y, tech = false, seed = 0, timeMs
     y,
     radius: 28,
     tech,
-    specialtyId,
+    specialtyId: pirate ? 'pirate' : rawSpecialtyId,
     specialtyName: pirate ? 'Marché pirate' : '',
     pirate,
     pirateTier: pirate ? computePirateTier(sx, sy) : 0,
