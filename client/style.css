@@ -2744,6 +2744,18 @@ button.station-item-icon[draggable="true"]:active,
   color: rgba(168, 184, 204, 0.88);
 }
 
+.map-panel__info-badge.is-pirate {
+  color: rgba(255, 205, 132, 0.98);
+  border-color: rgba(255, 151, 76, 0.36);
+  background: rgba(86, 45, 18, 0.46);
+}
+
+.map-panel__chip.is-pirate {
+  color: rgba(255, 205, 132, 0.98);
+  border-color: rgba(255, 151, 76, 0.32);
+  background: rgba(86, 45, 18, 0.34);
+}
+
 .map-panel__info-sections {
   min-height: 0;
   overflow: auto;

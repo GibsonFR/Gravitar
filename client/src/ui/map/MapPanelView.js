@@ -247,6 +247,9 @@ export class MapPanelView {
         rawSy,
         level: (s.level ?? 0) | 0,
         stationCount: (s.stationCount ?? 0) | 0,
+        pirateStationCount: (s.pirateStationCount ?? 0) | 0,
+        stationKind: s.stationKind || '',
+        stationLabel: s.stationLabel || '',
         hasReturnPortal: !!s.hasReturnPortal,
         primaryResource: s.primaryResource || 'scrap',
         resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6),
@@ -363,7 +366,8 @@ export class MapPanelView {
 
     const typeRows = [];
     if (sx === 0 && sy === 0) typeRows.push(`${this._chip('Hub', 'is-hub')} <span>zone protégée</span>`);
-    if ((visited?.stationCount | 0) > 0) typeRows.push(`${this._chip('Station')} <span>${visited.stationCount | 0} station${(visited.stationCount | 0) > 1 ? 's' : ''}</span>`);
+    if ((visited?.pirateStationCount | 0) > 0) typeRows.push(`${this._chip('Station pirate', 'is-pirate')} <span>${visited.pirateStationCount | 0} marché pirate${(visited.pirateStationCount | 0) > 1 ? 's' : ''}</span>`);
+    else if ((visited?.stationCount | 0) > 0) typeRows.push(`${this._chip('Station')} <span>${visited.stationCount | 0} station${(visited.stationCount | 0) > 1 ? 's' : ''}</span>`);
     if (visited?.hasReturnPortal) typeRows.push(`${this._chip('Retour')} <span>portail vers le hub</span>`);
     if (bastion) {
       const status = bastion.captured ? 'capturé' : (bastion.unlocked ? 'ouvert' : 'verrouillé');
@@ -388,8 +392,8 @@ export class MapPanelView {
       return `<span class="map-panel__resource-pill" title="${this._esc(key)}">${this._esc(label)}</span>`;
     });
 
-    const badge = sx === 0 && sy === 0 ? 'Hub' : bastion ? (bastion.captured ? 'Capturé' : (bastion.unlocked ? 'Ouvert' : 'Bastion')) : ((visited?.stationCount | 0) > 0 ? 'Station' : 'Normal');
-    const badgeClass = sx === 0 && sy === 0 ? 'is-hub' : bastion ? 'is-bastion' : '';
+    const badge = sx === 0 && sy === 0 ? 'Hub' : bastion ? (bastion.captured ? 'Capturé' : (bastion.unlocked ? 'Ouvert' : 'Bastion')) : ((visited?.pirateStationCount | 0) > 0 ? 'Pirate' : ((visited?.stationCount | 0) > 0 ? 'Station' : 'Normal'));
+    const badgeClass = sx === 0 && sy === 0 ? 'is-hub' : bastion ? 'is-bastion' : ((visited?.pirateStationCount | 0) > 0 ? 'is-pirate' : '');
     const html = [
       this._renderInfoSection('Activité', playerRows, 'Aucun joueur dans ce secteur.'),
       this._renderInfoSection('Points utiles', typeRows),

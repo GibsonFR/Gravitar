@@ -20,8 +20,23 @@ export function getSectorSummary(seed, sx, sy) {
   const asteroidCount = 16 + rng.nextMax(12) + Math.min(15, Math.floor(mapLevel / 3));
 
   let stationCount = 0;
-  if (hub) stationCount = 1;
-  else if ((h & 7) === 0) stationCount = 1;
+  let pirateStationCount = 0;
+  let stationKind = '';
+  let stationLabel = '';
+  if (hub) {
+    stationCount = 1;
+    stationKind = 'hub';
+    stationLabel = 'Hub';
+  } else {
+    const frontier = Math.max(Math.abs(sx | 0), Math.abs(sy | 0));
+    const ph = hash2D_XorShift(seed ^ 0x515017e, sx | 0, sy | 0);
+    if (frontier >= 4 && Math.abs(ph % 20) === 0) {
+      stationCount = 1;
+      pirateStationCount = 1;
+      stationKind = 'pirate';
+      stationLabel = 'Station pirate';
+    }
+  }
 
   let hasReturnPortal = false;
   if (!hub) {
@@ -61,6 +76,9 @@ export function getSectorSummary(seed, sx, sy) {
     biomeColorHex: biome?.colorHex || '#a8b2bd',
     asteroidCount,
     stationCount,
+    pirateStationCount,
+    stationKind,
+    stationLabel,
     hasReturnPortal,
     primaryResource,
     resourceKeys,

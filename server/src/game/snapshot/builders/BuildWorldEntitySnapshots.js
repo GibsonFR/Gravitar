@@ -276,6 +276,8 @@ export function buildStationSnapshots(stations, inSector) {
       tech: station.tech,
       specialtyId: station.specialtyId || '',
       specialtyName: station.specialtyName || '',
+      pirate: !!station.pirate || station.specialtyId === 'pirate',
+      pirateTier: station.pirateTier | 0 || 0,
       name: station.name,
       pulse: station.pulse
     }));

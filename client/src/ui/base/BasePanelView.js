@@ -8,7 +8,7 @@ const EDGE_RESERVE = BASE_TILE * EDGE_RESERVE_TILES;
 const RESOURCE_LABELS = {
   ironOre: 'Minerai de fer',
   copper: 'Cuivre',
-  aluminiumOre: 'Minerai d’aluminium',
+  aluminiumOre: 'Bauxite',
   titaniumOre: 'Minerai de titane',
   graphite: 'Graphite',
   quartz: 'Quartz',
@@ -116,7 +116,7 @@ export const BUILD_STRUCTURES = [
     hp: 1200,
     role: 'Définit ta zone de construction.',
     stats: ['Zone : 16 × 16 cases', '1 noyau actif'],
-    cost: { ironOre: 35, copper: 12, aluminiumOre: 8 }
+    cost: { scrap: 20, ironOre: 18, copper: 6 }
   },
   {
     type: 'wall',
@@ -151,7 +151,7 @@ export const BUILD_STRUCTURES = [
     hp: 680,
     role: 'Entrée de base ouvrable.',
     stats: [],
-    cost: { ironOre: 10, copper: 4, aluminiumOre: 2 }
+    cost: { scrap: 4, ironOre: 10, copper: 3 }
   },
   {
     type: 'storage',
@@ -168,7 +168,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 420,
     role: 'Stocke les minerais et matériaux.',
     stats: ['Capacité : 420'],
-    cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
+    cost: { scrap: 8, ironOre: 10, copper: 4 }
   },
   {
     type: 'equipment_storage',
@@ -185,7 +185,7 @@ export const BUILD_STRUCTURES = [
     itemCapacity: 18,
     role: 'Stocke armes, lance-roquettes et modules.',
     stats: ['Capacité : 18 objets'],
-    cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
+    cost: { scrap: 8, ironOre: 14, copper: 6 }
   },
   {
     type: 'solar_panel',
@@ -202,7 +202,7 @@ export const BUILD_STRUCTURES = [
     energyOutput: 8,
     role: 'Produit une énergie stable sans carburant.',
     stats: ['Production : +8 énergie'],
-    cost: { silicon: 12, copper: 8, aluminiumOre: 8 }
+    cost: { silicon: 8, copper: 6, ironOre: 6 }
   },
   {
     type: 'fuel_generator',
@@ -220,7 +220,7 @@ export const BUILD_STRUCTURES = [
     fuelCapacity: 80,
     role: 'Produit beaucoup d’énergie avec du carburant.',
     stats: ['Production : +34 énergie', 'Stock carburant : 80'],
-    cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
+    cost: { scrap: 8, ironOre: 14, copper: 6 }
   },
   {
     type: 'fuel_tank',
@@ -237,7 +237,7 @@ export const BUILD_STRUCTURES = [
     fuelCapacity: 240,
     role: 'Stocke le carburant de la base.',
     stats: ['Capacité : 240 carburant'],
-    cost: { ironOre: 16, copper: 8, aluminiumOre: 8 }
+    cost: { scrap: 6, ironOre: 12, copper: 6 }
   },
 
   {
@@ -254,7 +254,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 6,
     role: 'Produit les packs de science à partir de composants industriels.',
     stats: ['Machine de production', 'Packs de science'],
-    cost: { ironOre: 18, copper: 12, aluminiumOre: 8 }
+    cost: { ironOre: 16, copper: 10, silicon: 4 }
   },
   {
     type: 'research_station',
@@ -270,7 +270,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 8,
     role: 'Consomme les packs de science pour débloquer des technologies.',
     stats: ['Arbre de recherche', 'Packs requis', 'Énergie active'],
-    cost: { ironIngot: 8, copperWire: 8, aluminiumOre: 12 }
+    cost: { ironIngot: 8, copperWire: 8, silicon: 10 }
   },
 
   {
@@ -305,7 +305,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 9,
     role: 'Traite quartz, graphite et matériaux durs.',
     stats: ['Consommation : 9 énergie'],
-    cost: { steelPlate: 4, copper: 8, aluminiumOre: 8 }
+    cost: { steelPlate: 4, copper: 8, silicon: 6 }
   },
   {
     type: 'chemical_refinery',
@@ -322,7 +322,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 6,
     role: 'Produit carburants et composants chimiques.',
     stats: ['Consommation : 6 énergie'],
-    cost: { ironOre: 18, copper: 8, aluminiumOre: 6 }
+    cost: { ironOre: 16, copper: 8, silicon: 4 }
   },
   {
     type: 'electrolyzer',
@@ -339,7 +339,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 8,
     role: 'Sépare et stabilise les volatils.',
     stats: ['Consommation : 8 énergie'],
-    cost: { aluminiumOre: 14, copper: 10, silicon: 6 }
+    cost: { ironIngot: 6, copperWire: 8, silicon: 6 }
   },
   {
     type: 'electronics_bench',
@@ -356,7 +356,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 7,
     role: 'Produit wafers, transistors et circuits.',
     stats: ['Consommation : 7 énergie'],
-    cost: { aluminiumOre: 12, copper: 12, silicon: 8 }
+    cost: { ironIngot: 6, copperWire: 10, silicon: 8 }
   },
   {
     type: 'industrial_press',
@@ -373,7 +373,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 10,
     role: 'Assemble pièces mécaniques et blindage.',
     stats: ['Consommation : 10 énergie'],
-    cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
+    cost: { ironIngot: 8, copperWire: 8, silicon: 6 }
   },
   {
     type: 'industrial_converter',
@@ -458,7 +458,7 @@ export const BUILD_STRUCTURES = [
     ammoCapacity: 260,
     role: 'Stocke uniquement les roquettes.',
     stats: ['Capacité : 260 roquettes'],
-    cost: { ironOre: 16, copper: 6, aluminiumOre: 6 }
+    cost: { ironOre: 14, copper: 6, silicon: 4 }
   }
 ,
 
@@ -478,7 +478,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 8,
     role: 'Fore un gisement permanent. Le débit dépend du cycle, du buffer et de l’énergie.',
     stats: ['Pose : sur gisement', 'Sortie : avant', 'Cycle : 2.2 s', 'Énergie : 18', 'Buffer : 8'],
-    cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
+    cost: { ironIngot: 8, copperWire: 8, silicon: 6 }
   },
 
   {
@@ -515,7 +515,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 1,
     role: 'Déplace les ressources plus vite.',
     stats: ['Vitesse : rapide', 'Buffer : 1'],
-    cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
+    cost: { scrap: 4, ironOre: 8, copper: 3 }
   },
   {
     type: 'splitter',
@@ -533,7 +533,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 1,
     role: 'Une entrée à gauche, deux sorties à droite.',
     stats: ['Entrée : 1', 'Sorties : 2'],
-    cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
+    cost: { scrap: 5, ironOre: 10, copper: 4 }
   },
   {
     type: 'merger',
@@ -551,7 +551,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 1,
     role: 'Deux entrées à gauche, une sortie à droite.',
     stats: ['Entrées : 2', 'Sortie : 1'],
-    cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
+    cost: { scrap: 5, ironOre: 10, copper: 4 }
   },
   {
     type: 'robot_arm',
@@ -568,7 +568,7 @@ export const BUILD_STRUCTURES = [
     hp: 0,
     role: 'Transfère des ressources entre deux bâtiments adjacents.',
     stats: ['Portée : 1 case', 'Entrée arrière → sortie avant'],
-    cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
+    cost: { scrap: 4, ironOre: 8, copper: 3 }
   },
   {
     type: 'fast_arm',
@@ -585,7 +585,7 @@ export const BUILD_STRUCTURES = [
     hp: 0,
     role: 'Transfert court plus rapide.',
     stats: ['Portée : 1 case', 'Cycle rapide'],
-    cost: { ironOre: 10, copper: 6, aluminiumOre: 3 }
+    cost: { scrap: 6, ironOre: 10, copper: 5 }
   },
   {
     type: 'long_arm',
@@ -602,7 +602,7 @@ export const BUILD_STRUCTURES = [
     hp: 0,
     role: 'Transfère par-dessus une case.',
     stats: ['Portée : 2 cases', 'Cycle lent'],
-    cost: { ironOre: 12, copper: 6, aluminiumOre: 5 }
+    cost: { scrap: 8, ironOre: 12, copper: 6 }
   }];
 
 const BUILD_CATEGORIES = [

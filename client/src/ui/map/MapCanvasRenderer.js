@@ -136,6 +136,7 @@ export function drawSectorMap(ctx, w, h, opts) {
       const biomeFill = biomeCellFill(visited, isKnown);
       if (biomeFill) fill = biomeFill;
       if (visited?.stationCount > 0) fill = 'rgba(42,76,116,0.90)';
+      if (visited?.pirateStationCount > 0) fill = 'rgba(92,54,28,0.94)';
       if (visited?.hasReturnPortal) fill = 'rgba(28,88,108,0.92)';
       if (bastion) fill = bastion.captured ? 'rgba(42,82,58,0.94)' : (bastion.unlocked ? 'rgba(82,62,34,0.96)' : 'rgba(54,43,52,0.94)');
       if (isHub) fill = 'rgba(86,72,28,0.94)';
@@ -171,6 +172,9 @@ export function drawSectorMap(ctx, w, h, opts) {
       } else if (visited?.hasReturnPortal) {
         glyph = 'P';
         glyphColor = 'rgba(154,241,255,0.96)';
+      } else if ((visited?.pirateStationCount | 0) > 0) {
+        glyph = '☠';
+        glyphColor = 'rgba(255,190,105,0.98)';
       } else if ((visited?.stationCount | 0) > 0) {
         glyph = 'S';
         glyphColor = 'rgba(232,240,255,0.96)';

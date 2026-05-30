@@ -31,23 +31,31 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
   const sectors = [];
   for (const key of player.map.order) {
     const s = player.map.visited.get(key);
-    if (s) sectors.push({
-      sx: s.sx | 0,
-      sy: s.sy | 0,
-      level: s.level | 0,
-      asteroidCount: s.asteroidCount | 0,
-      stationCount: s.stationCount | 0,
-      hasReturnPortal: !!s.hasReturnPortal,
-      bastion: state?.bastionsBySector?.get?.(`${s.sx | 0},${s.sy | 0}`) ? buildMapBastion(state.bastionsBySector.get(`${s.sx | 0},${s.sy | 0}`), player, timeMs, state) : null,
-      primaryResource: s.primaryResource || 'scrap',
-      resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6),
-      resourceNames: (s.resourceNames || []).slice(0, 6),
-      biomeId: s.biomeId || '',
-      biomeName: s.biomeName || '',
-      biomeShortName: s.biomeShortName || '',
-      biomeDescription: s.biomeDescription || '',
-      biomeColorHex: s.biomeColorHex || ''
-    });
+    if (s) {
+      const fresh = getSectorSummary(state?.seed | 0, s.sx | 0, s.sy | 0);
+      const merged = { ...s, ...fresh, firstSeenAt: s.firstSeenAt, lastSeenAt: s.lastSeenAt };
+      player.map.visited.set(key, merged);
+      sectors.push({
+      sx: merged.sx | 0,
+      sy: merged.sy | 0,
+      level: merged.level | 0,
+      asteroidCount: merged.asteroidCount | 0,
+      stationCount: merged.stationCount | 0,
+      pirateStationCount: merged.pirateStationCount | 0,
+      stationKind: merged.stationKind || '',
+      stationLabel: merged.stationLabel || '',
+      hasReturnPortal: !!merged.hasReturnPortal,
+      bastion: state?.bastionsBySector?.get?.(`${merged.sx | 0},${merged.sy | 0}`) ? buildMapBastion(state.bastionsBySector.get(`${merged.sx | 0},${merged.sy | 0}`), player, timeMs, state) : null,
+      primaryResource: merged.primaryResource || 'scrap',
+      resourceKeys: (merged.resourceKeys || [merged.primaryResource || 'scrap']).slice(0, 6),
+      resourceNames: (merged.resourceNames || []).slice(0, 6),
+      biomeId: merged.biomeId || '',
+      biomeName: merged.biomeName || '',
+      biomeShortName: merged.biomeShortName || '',
+      biomeDescription: merged.biomeDescription || '',
+      biomeColorHex: merged.biomeColorHex || ''
+      });
+    }
   }
 
   const bastions = (state?.bastions || []).map((b) => buildMapBastion(b, player, timeMs, state));
