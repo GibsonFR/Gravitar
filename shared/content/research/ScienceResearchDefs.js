@@ -317,7 +317,7 @@ export const RECIPE_RESEARCH_REQUIREMENTS = Object.freeze({
   combat_science_pack: 'defense_turrets',
   aluminium_copper_to_motor: 'advanced_research',
   steel_fuel_to_injector: 'advanced_research',
-  energy_science_pack: 'advanced_research',
+  energy_science_pack: 'electronics_processing',
   advanced_science_pack: 'advanced_research',
   anomaly_science_pack: 'alien_anomaly_analysis'});
 

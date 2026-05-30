@@ -51,7 +51,7 @@ export const STRUCTURE_DEFS = {
     gridSize: BASE_TILE_SIZE,
     color: '#244e68',
     borderColor: '#8de7ff',
-    cost: { scrap: 20, ironOre: 18, copper: 6 }
+    cost: { scrap: 20, ironOre: 12, copper: 6 }
   },
   [STRUCTURE_TYPES.WALL]: {
     id: STRUCTURE_TYPES.WALL,
@@ -68,7 +68,7 @@ export const STRUCTURE_DEFS = {
     solid: true,
     color: '#263748',
     borderColor: '#73d4ff',
-    cost: { ironOre: 12, copper: 2 }
+    cost: { scrap: 8, ironOre: 6 }
   },
   [STRUCTURE_TYPES.DOOR]: {
     id: STRUCTURE_TYPES.DOOR,
@@ -86,7 +86,7 @@ export const STRUCTURE_DEFS = {
     openable: true,
     color: '#334454',
     borderColor: '#87d9ff',
-    cost: { scrap: 4, ironOre: 10, copper: 3 }
+    cost: { scrap: 6, ironOre: 8, copper: 3 }
   },
   [STRUCTURE_TYPES.STORAGE]: {
     id: STRUCTURE_TYPES.STORAGE,
@@ -107,7 +107,7 @@ export const STRUCTURE_DEFS = {
     storageCapacity: 420,
     color: '#30544b',
     borderColor: '#70f0c5',
-    cost: { scrap: 8, ironOre: 10, copper: 4 }
+    cost: { scrap: 10, ironOre: 8, copper: 4 }
   },
   [STRUCTURE_TYPES.EQUIPMENT_STORAGE]: {
     id: STRUCTURE_TYPES.EQUIPMENT_STORAGE,
@@ -127,7 +127,7 @@ export const STRUCTURE_DEFS = {
     itemCapacity: 18,
     color: '#30425e',
     borderColor: '#8bb8ff',
-    cost: { scrap: 8, ironOre: 14, copper: 6 }
+    cost: { ironIngot: 4, copperWire: 4, scrap: 8 }
   },
   [STRUCTURE_TYPES.SOLAR_PANEL]: {
     id: STRUCTURE_TYPES.SOLAR_PANEL,
@@ -168,7 +168,7 @@ export const STRUCTURE_DEFS = {
     fuelUsePerSecond: 0.025,
     color: '#5d4632',
     borderColor: '#ffb761',
-    cost: { scrap: 8, ironOre: 14, copper: 6 }
+    cost: { ironIngot: 4, copperWire: 4, steelPlate: 2 }
   },
   [STRUCTURE_TYPES.FUEL_TANK]: {
     id: STRUCTURE_TYPES.FUEL_TANK,
@@ -188,7 +188,7 @@ export const STRUCTURE_DEFS = {
     fuelCapacity: 240,
     color: '#5b4932',
     borderColor: '#ffc36f',
-    cost: { scrap: 6, ironOre: 12, copper: 6 }
+    cost: { ironIngot: 4, copperWire: 2, steelPlate: 1 }
   }
 ,
   [STRUCTURE_TYPES.AMMO_STORAGE]: {
@@ -209,7 +209,7 @@ export const STRUCTURE_DEFS = {
     ammoCapacity: 260,
     color: '#5a4030',
     borderColor: '#ffc16f',
-    cost: { ironOre: 14, copper: 6, silicon: 4 }
+    cost: { steelPlate: 2, copperWire: 4 }
   }
 ,
   [STRUCTURE_TYPES.FURNACE]: {
@@ -230,7 +230,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 4,
     color: '#4a3e35',
     borderColor: '#ffb36b',
-    cost: { ironOre: 18, copper: 4 }
+    cost: { scrap: 8, ironOre: 12, copper: 3 }
   },
   [STRUCTURE_TYPES.HIGH_TEMP_FURNACE]: {
     id: STRUCTURE_TYPES.HIGH_TEMP_FURNACE,
@@ -250,7 +250,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 9,
     color: '#503833',
     borderColor: '#ff7d5f',
-    cost: { steelPlate: 4, copper: 8, silicon: 6 }
+    cost: { ironIngot: 6, copperIngot: 4, graphite: 6 }
   },
   [STRUCTURE_TYPES.CHEMICAL_REFINERY]: {
     id: STRUCTURE_TYPES.CHEMICAL_REFINERY,
@@ -270,7 +270,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 6,
     color: '#3d4d3d',
     borderColor: '#95df89',
-    cost: { ironOre: 16, copper: 8, silicon: 4 }
+    cost: { steelPlate: 2, copperWire: 4, silicon: 4 }
   },
   [STRUCTURE_TYPES.ELECTROLYZER]: {
     id: STRUCTURE_TYPES.ELECTROLYZER,
@@ -290,7 +290,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 8,
     color: '#344f5a',
     borderColor: '#84ddff',
-    cost: { ironIngot: 6, copperWire: 8, silicon: 6 }
+    cost: { steelPlate: 2, copperWire: 6, silicon: 6 }
   },
   [STRUCTURE_TYPES.ELECTRONICS_BENCH]: {
     id: STRUCTURE_TYPES.ELECTRONICS_BENCH,
@@ -310,7 +310,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 7,
     color: '#313f5a',
     borderColor: '#8bb8ff',
-    cost: { ironIngot: 6, copperWire: 10, silicon: 8 }
+    cost: { steelPlate: 3, copperWire: 8, silicon: 10 }
   },
   [STRUCTURE_TYPES.SCIENCE_LAB]: {
     id: STRUCTURE_TYPES.SCIENCE_LAB,
@@ -330,7 +330,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 6,
     color: '#25384d',
     borderColor: '#7edcff',
-    cost: { ironOre: 16, copper: 10, silicon: 4 }
+    cost: { ironOre: 16, copper: 8, silicon: 6 }
   },
 
 
@@ -352,7 +352,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 10,
     color: '#3d3048',
     borderColor: '#ff8ce6',
-    cost: { steelPlate: 6, copperWire: 10, controlCircuit: 1, unknownTechFragment: 1 }
+    cost: { steelPlate: 6, copperWire: 10, controlCircuit: 2, titaniumPlate: 1 }
   },
 
 
@@ -374,7 +374,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 12,
     color: '#4a3828',
     borderColor: '#ffb85c',
-    cost: { steelPlate: 6, propellant: 6, controlCircuit: 1 }
+    cost: { steelPlate: 5, propellant: 5, controlCircuit: 1 }
   },
 
   [STRUCTURE_TYPES.RESEARCH_STATION]: {
@@ -395,7 +395,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 8,
     color: '#26304d',
     borderColor: '#b58cff',
-    cost: { ironIngot: 8, copperWire: 8, silicon: 10 }
+    cost: { ironIngot: 6, copperWire: 6, silicon: 6 }
   },
 
   [STRUCTURE_TYPES.INDUSTRIAL_PRESS]: {
@@ -416,7 +416,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 10,
     color: '#3e4653',
     borderColor: '#b6c8dc',
-    cost: { ironIngot: 8, copperWire: 8, silicon: 6 }
+    cost: { ironIngot: 4, copper: 8, graphite: 4 }
   }
 ,
 
@@ -466,7 +466,7 @@ export const STRUCTURE_DEFS = {
   energyUse: 18,
   color: '#314759',
   borderColor: '#9fdcff',
-  cost: { ironIngot: 8, copperWire: 8, silicon: 6 }
+  cost: { steelPlate: 4, copperWire: 8, controlCircuit: 1 }
 },
 
   [STRUCTURE_TYPES.CONVEYOR]: {
@@ -515,7 +515,7 @@ export const STRUCTURE_DEFS = {
     automationOutputs: ['front'],
     color: '#213f57',
     borderColor: '#79f1ff',
-    cost: { scrap: 4, ironOre: 8, copper: 3 }
+    cost: { ironIngot: 2, copperWire: 2 }
   },
 
   [STRUCTURE_TYPES.SPLITTER]: {
@@ -540,7 +540,7 @@ export const STRUCTURE_DEFS = {
     automationOutputs: ['upper', 'lower'],
     color: '#263f55',
     borderColor: '#a2ebff',
-    cost: { scrap: 5, ironOre: 10, copper: 4 }
+    cost: { ironIngot: 3, copperWire: 2 }
   },
 
 
@@ -566,7 +566,7 @@ export const STRUCTURE_DEFS = {
     automationOutputs: ['upper'],
     color: '#2a3f50',
     borderColor: '#ffd98a',
-    cost: { scrap: 5, ironOre: 10, copper: 4 }
+    cost: { ironIngot: 3, copperWire: 2 }
   },
 
   [STRUCTURE_TYPES.ROBOT_ARM]: {
@@ -589,7 +589,7 @@ export const STRUCTURE_DEFS = {
     automationReachTiles: 1,
     color: '#443a2c',
     borderColor: '#ffd27b',
-    cost: { scrap: 4, ironOre: 8, copper: 3 }
+    cost: { ironIngot: 2, copperWire: 2 }
   },
   [STRUCTURE_TYPES.FAST_ARM]: {
     id: STRUCTURE_TYPES.FAST_ARM,
@@ -611,7 +611,7 @@ export const STRUCTURE_DEFS = {
     automationReachTiles: 1,
     color: '#4d3c25',
     borderColor: '#ffe08a',
-    cost: { scrap: 6, ironOre: 10, copper: 5 }
+    cost: { steelPlate: 1, copperWire: 3 }
   },
   [STRUCTURE_TYPES.LONG_ARM]: {
     id: STRUCTURE_TYPES.LONG_ARM,
@@ -633,7 +633,7 @@ export const STRUCTURE_DEFS = {
     automationReachTiles: 2,
     color: '#4b3a2b',
     borderColor: '#ffc86e',
-    cost: { scrap: 8, ironOre: 12, copper: 6 }
+    cost: { steelPlate: 1, copperWire: 3 }
   }
 ,
   [STRUCTURE_TYPES.EQUIPMENT_FABRICATOR]: {
@@ -652,7 +652,7 @@ export const STRUCTURE_DEFS = {
     color: '#26324f',
     borderColor: '#b58cff',
     energyUse: 18,
-    cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 2, advancedSciencePack: 2 }
+    cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 2, advancedSciencePack: 1 }
   }
 ,
   [STRUCTURE_TYPES.EQUIPMENT_RD_STATION]: {
@@ -671,7 +671,7 @@ export const STRUCTURE_DEFS = {
     color: '#2e244f',
     borderColor: '#d28cff',
     energyUse: 24,
-    cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3, advancedSciencePack: 3 }
+    cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3, advancedSciencePack: 2 }
   }
 
 

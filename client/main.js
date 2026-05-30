@@ -1,4 +1,4 @@
-// build v192 cargo-jettison-fix
+// build v193 progression-cost-audit
 function showBootError(error, title = 'Erreur au chargement du jeu') {
   const message = error?.stack || error?.message || String(error || 'Erreur inconnue');
   console.error('[Gravitar boot]', error);
@@ -18,9 +18,23 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
   root.appendChild(box);
 }
 
+async function importApp() {
+  try {
+    return await import('./src/App.js?v=193');
+  } catch (firstError) {
+    console.warn('[Gravitar boot] App.js?v=193 failed, retrying without cache query', firstError);
+    try {
+      return await import('./src/App.js');
+    } catch (secondError) {
+      secondError.message = `${secondError.message || secondError}\n\nPremier essai App.js?v=193 : ${firstError?.message || firstError}`;
+      throw secondError;
+    }
+  }
+}
+
 async function boot() {
   try {
-    const mod = await import('./src/App.js?v=192');
+    const mod = await importApp();
     mod.startApp();
   } catch (err) {
     showBootError(err, 'Erreur au chargement du jeu');

@@ -260,7 +260,7 @@ export const MACHINE_RECIPES = Object.freeze([
     name: 'Science industrielle',
     seconds: 14,
     energyUse: 10,
-    input: { titaniumPlate: 1, carbonFiber: 1, refinedFuel: 1 },
+    input: { steelPlate: 1, carbonFiber: 1, refinedFuel: 1 },
     output: { industrialSciencePack: 1 }
   },
   {
