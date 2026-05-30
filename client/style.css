@@ -309,6 +309,38 @@ body {
   transition: width 120ms ease;
 }
 
+.cargo-panel__hint {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(120, 180, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(10, 16, 24, 0.46);
+  color: rgba(183, 202, 224, 0.78);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.cargo-panel--jettison .cargo-panel__hint {
+  border-color: rgba(255, 184, 92, 0.16);
+  background: rgba(255, 184, 92, 0.055);
+  color: rgba(255, 224, 176, 0.86);
+}
+
+.cargo-row__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cargo-row__jettison {
+  min-height: 28px;
+  padding-inline: 9px;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
 .cargo-panel__table-head {
   padding: 0 8px 8px;
   font-size: 11px;
@@ -2742,18 +2774,6 @@ button.station-item-icon[draggable="true"]:active,
 
 .map-panel__info-badge.is-unknown {
   color: rgba(168, 184, 204, 0.88);
-}
-
-.map-panel__info-badge.is-pirate {
-  color: rgba(255, 205, 132, 0.98);
-  border-color: rgba(255, 151, 76, 0.36);
-  background: rgba(86, 45, 18, 0.46);
-}
-
-.map-panel__chip.is-pirate {
-  color: rgba(255, 205, 132, 0.98);
-  border-color: rgba(255, 151, 76, 0.32);
-  background: rgba(86, 45, 18, 0.34);
 }
 
 .map-panel__info-sections {

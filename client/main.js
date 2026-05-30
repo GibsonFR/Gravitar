@@ -1,4 +1,4 @@
-// build v191 build-costs-map-pirates
+// build v192 cargo-jettison-fix
 function showBootError(error, title = 'Erreur au chargement du jeu') {
   const message = error?.stack || error?.message || String(error || 'Erreur inconnue');
   console.error('[Gravitar boot]', error);
@@ -20,7 +20,7 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
 
 async function boot() {
   try {
-    const mod = await import('./src/App.js?v=191');
+    const mod = await import('./src/App.js?v=192');
     mod.startApp();
   } catch (err) {
     showBootError(err, 'Erreur au chargement du jeu');

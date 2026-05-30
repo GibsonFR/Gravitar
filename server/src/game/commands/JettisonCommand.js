@@ -17,23 +17,18 @@ export function handleJettison(state, player, msg, timeMs = null) {
 
   timeMs = getSimulationTimeMs(state, timeMs);
 
-  if (amountReq <= 0 || amountReq >= cur) {
-    const removed = clearInventoryResource(player.inv, key);
-    if (removed <= 0) return false;
-    spawnLootBurstInSector(state, player.sx, player.sy, player.x, player.y, key, removed, timeMs, 'player', player.id, {
-      offsetRadius: 12,
-      speedBase: 28,
-      speedJitter: 22
-    });
-    return true;
-  }
+  let removed = 0;
+  if (amountReq <= 0 || amountReq >= cur) removed = clearInventoryResource(player.inv, key);
+  else removed = removeResource(player.inv, key, amountReq);
 
-  const removed = removeResource(player.inv, key, amountReq);
   if (removed <= 0) return false;
+
   spawnLootBurstInSector(state, player.sx, player.sy, player.x, player.y, key, removed, timeMs, 'player', player.id, {
     offsetRadius: 12,
     speedBase: 28,
     speedJitter: 22
   });
+
+  player.forceFullUiSnapshot = true;
   return true;
 }
