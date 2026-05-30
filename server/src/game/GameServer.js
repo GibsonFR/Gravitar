@@ -68,6 +68,7 @@ export function createGameServer() {
   function addPlayer(id) {
     const timeMs = getSimulationTimeMs(state, nowMs());
     const p = createPlayer(id, undefined, timeMs);
+    p.worldSeed = state.seed | 0;
     state.players.set(id, p);
     ensureSectorLoaded(state, p.sx | 0, p.sy | 0, timeMs);
     visitSectorOnPlayer(state, p, p.sx | 0, p.sy | 0, timeMs);
@@ -118,6 +119,10 @@ export function createGameServer() {
     p.forceFullUiSnapshotAt = timeMs;
     p.forceFullUiSnapshotReason = String(msg?.cmd || '').slice(0, 32);
     p.lastCommandError = error;
+    if (ok && p.accountKey && p.gameMode === GAME_MODES.ENDLESS && String(p.worldId || 'endless') === 'endless') {
+      const cmd = String(msg?.cmd || '');
+      if (cmd.includes('pirate_quest') || cmd === 'buy_conversion_recipe' || cmd === 'sell' || cmd === 'sell_all') persistAccountPlayer(p);
+    }
     return { ok, error };
   }
 

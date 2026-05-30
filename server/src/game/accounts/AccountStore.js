@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { serializePlayerMapState, hydratePlayerMapState } from '../map/PlayerMapState.js';
+import { createPlayerPirateState, ensurePlayerPirateState } from '../player/runtime/PlayerPirateState.js';
 
 const ACCOUNT_STORE_VERSION = 2;
 const BACKUP_INTERVAL_MS = 10 * 60 * 1000;
@@ -95,6 +97,19 @@ function normalizeProgression(prog) {
   return prog;
 }
 
+
+function normalizePirateState(pirate) {
+  const state = pirate && typeof pirate === 'object' ? { ...pirate } : createPlayerPirateState();
+  const probe = { pirate: state };
+  return ensurePlayerPirateState(probe);
+}
+
+function normalizeMapState(map) {
+  if (!map || typeof map !== 'object') return null;
+  const hydrated = hydratePlayerMapState(map);
+  return serializePlayerMapState(hydrated);
+}
+
 function normalizeSaveProfile(profile) {
   if (!profile || typeof profile !== 'object') return null;
   profile.pseudo = normalizeAccountName(profile.pseudo || 'Pilote') || 'Pilote';
@@ -103,6 +118,9 @@ function normalizeSaveProfile(profile) {
   if (!profile.inv || typeof profile.inv !== 'object') profile.inv = null;
   if (!profile.equipment || typeof profile.equipment !== 'object') profile.equipment = null;
   profile.research = normalizeResearch(profile.research);
+  profile.pirate = normalizePirateState(profile.pirate);
+  profile.map = normalizeMapState(profile.map) || { visited: [], order: [] };
+  profile.worldSeed = Number.isFinite(Number(profile.worldSeed)) ? (Number(profile.worldSeed) | 0) : 0;
   if (!Array.isArray(profile.completedBastionIds)) profile.completedBastionIds = [];
   profile.completedBastionIds = profile.completedBastionIds.map((v) => v | 0).filter((v, i, a) => Number.isFinite(v) && a.indexOf(v) === i);
   profile.schemaVersion = Math.max(1, profile.schemaVersion | 0 || 1);
@@ -329,6 +347,9 @@ export function buildEndlessSave(player) {
     equipment: player.equipment || null,
     completedBastionIds: player.completedBastionIds || [],
     research: player.research || { completed: [], unlocked: [], active: null },
+    pirate: normalizePirateState(player.pirate),
+    map: serializePlayerMapState(player.map),
+    worldSeed: player.worldSeed | 0 || 0,
     savedAt: Date.now(),
     schemaVersion: 1
   };
@@ -342,6 +363,9 @@ export function applyEndlessSave(player, save) {
   if (normalized.inv) player.inv = normalized.inv;
   if (normalized.equipment) player.equipment = normalized.equipment;
   player.research = normalizeResearch(normalized.research);
+  player.pirate = normalizePirateState(normalized.pirate);
+  player.map = hydratePlayerMapState(normalized.map);
+  player.worldSeed = normalized.worldSeed | 0 || player.worldSeed | 0 || 0;
   if (Array.isArray(normalized.completedBastionIds)) player.completedBastionIds = normalized.completedBastionIds.map((v) => v | 0);
   return true;
 }

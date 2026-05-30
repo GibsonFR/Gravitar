@@ -36,6 +36,7 @@ export function handleCommitSessionSetup(state, player, msg, timeMs) {
     player.pseudo = normalizePlayerPseudo(auth.name || accountName);
     player.authStatus = { ok: true, message: auth.message || (accountAction === 'register' ? 'Compte créé' : 'Connexion réussie') };
     if (shouldLoadPersistentProfile && auth.endless) applyEndlessSave(player, auth.endless);
+    player.worldSeed = state.seed | 0;
     const stats = auth.battleStats;
     if (stats) state.modes?.battleStats?.set?.(auth.key, { ...stats });
   } else {

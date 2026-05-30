@@ -31,31 +31,23 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
   const sectors = [];
   for (const key of player.map.order) {
     const s = player.map.visited.get(key);
-    if (s) {
-      const fresh = getSectorSummary(state?.seed | 0, s.sx | 0, s.sy | 0);
-      const merged = { ...s, ...fresh, firstSeenAt: s.firstSeenAt, lastSeenAt: s.lastSeenAt };
-      player.map.visited.set(key, merged);
-      sectors.push({
-      sx: merged.sx | 0,
-      sy: merged.sy | 0,
-      level: merged.level | 0,
-      asteroidCount: merged.asteroidCount | 0,
-      stationCount: merged.stationCount | 0,
-      pirateStationCount: merged.pirateStationCount | 0,
-      stationKind: merged.stationKind || '',
-      stationLabel: merged.stationLabel || '',
-      hasReturnPortal: !!merged.hasReturnPortal,
-      bastion: state?.bastionsBySector?.get?.(`${merged.sx | 0},${merged.sy | 0}`) ? buildMapBastion(state.bastionsBySector.get(`${merged.sx | 0},${merged.sy | 0}`), player, timeMs, state) : null,
-      primaryResource: merged.primaryResource || 'scrap',
-      resourceKeys: (merged.resourceKeys || [merged.primaryResource || 'scrap']).slice(0, 6),
-      resourceNames: (merged.resourceNames || []).slice(0, 6),
-      biomeId: merged.biomeId || '',
-      biomeName: merged.biomeName || '',
-      biomeShortName: merged.biomeShortName || '',
-      biomeDescription: merged.biomeDescription || '',
-      biomeColorHex: merged.biomeColorHex || ''
-      });
-    }
+    if (s) sectors.push({
+      sx: s.sx | 0,
+      sy: s.sy | 0,
+      level: s.level | 0,
+      asteroidCount: s.asteroidCount | 0,
+      stationCount: s.stationCount | 0,
+      hasReturnPortal: !!s.hasReturnPortal,
+      bastion: state?.bastionsBySector?.get?.(`${s.sx | 0},${s.sy | 0}`) ? buildMapBastion(state.bastionsBySector.get(`${s.sx | 0},${s.sy | 0}`), player, timeMs, state) : null,
+      primaryResource: s.primaryResource || 'scrap',
+      resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6),
+      resourceNames: (s.resourceNames || []).slice(0, 6),
+      biomeId: s.biomeId || '',
+      biomeName: s.biomeName || '',
+      biomeShortName: s.biomeShortName || '',
+      biomeDescription: s.biomeDescription || '',
+      biomeColorHex: s.biomeColorHex || ''
+    });
   }
 
   const bastions = (state?.bastions || []).map((b) => buildMapBastion(b, player, timeMs, state));
@@ -103,4 +95,65 @@ function buildMapBastion(bastion, player, timeMs, state = null) {
     unlockAtMs: bastion.unlockAtMs | 0,
     color
   };
+}
+export function serializePlayerMapState(map) {
+  if (!map || typeof map !== 'object') return { visited: [], order: [] };
+  const order = Array.isArray(map.order) ? map.order.map((key) => String(key || '')).filter(Boolean) : [];
+  const visited = [];
+  const seen = new Set();
+  for (const key of order) {
+    const entry = map.visited?.get?.(key) || null;
+    if (!entry || seen.has(key)) continue;
+    seen.add(key);
+    visited.push({ key, ...entry });
+  }
+  for (const [key, entry] of map.visited?.entries?.() || []) {
+    if (!entry || seen.has(key)) continue;
+    seen.add(key);
+    visited.push({ key, ...entry });
+    order.push(String(key));
+  }
+  return { visited, order };
+}
+
+export function hydratePlayerMapState(raw) {
+  const map = createPlayerMapState();
+  if (!raw || typeof raw !== 'object') return map;
+  const rawVisited = Array.isArray(raw.visited) ? raw.visited : [];
+  const byKey = new Map();
+  for (const entry of rawVisited) {
+    if (!entry || typeof entry !== 'object') continue;
+    const sx = entry.sx | 0;
+    const sy = entry.sy | 0;
+    const key = String(entry.key || sectorKey(sx, sy));
+    if (!key) continue;
+    byKey.set(key, {
+      ...entry,
+      sx,
+      sy,
+      level: entry.level | 0,
+      asteroidCount: Math.max(0, entry.asteroidCount | 0),
+      stationCount: Math.max(0, entry.stationCount | 0),
+      hasReturnPortal: !!entry.hasReturnPortal,
+      firstSeenAt: Number(entry.firstSeenAt || 0),
+      lastSeenAt: Number(entry.lastSeenAt || 0),
+      primaryResource: entry.primaryResource || 'scrap',
+      resourceKeys: Array.isArray(entry.resourceKeys) ? entry.resourceKeys.slice(0, 6) : [],
+      resourceNames: Array.isArray(entry.resourceNames) ? entry.resourceNames.slice(0, 6) : [],
+      biomeId: entry.biomeId || '',
+      biomeName: entry.biomeName || '',
+      biomeShortName: entry.biomeShortName || '',
+      biomeDescription: entry.biomeDescription || '',
+      biomeColorHex: entry.biomeColorHex || ''
+    });
+  }
+  const order = Array.isArray(raw.order) ? raw.order.map((key) => String(key || '')).filter(Boolean) : [];
+  const finalOrder = [];
+  for (const key of order) if (byKey.has(key) && !finalOrder.includes(key)) finalOrder.push(key);
+  for (const key of byKey.keys()) if (!finalOrder.includes(key)) finalOrder.push(key);
+  for (const key of finalOrder) {
+    map.order.push(key);
+    map.visited.set(key, byKey.get(key));
+  }
+  return map;
 }
