@@ -98,6 +98,14 @@ function normalizeProgression(prog) {
 }
 
 
+function normalizeEndlessPosition(profile) {
+  const sx = Number.isFinite(Number(profile?.sx)) ? (Number(profile.sx) | 0) : 0;
+  const sy = Number.isFinite(Number(profile?.sy)) ? (Number(profile.sy) | 0) : 0;
+  const x = Number.isFinite(Number(profile?.x)) ? Number(profile.x) : 0;
+  const y = Number.isFinite(Number(profile?.y)) ? Number(profile.y) : 0;
+  return { sx, sy, x, y };
+}
+
 function normalizePirateState(pirate) {
   const state = pirate && typeof pirate === 'object' ? { ...pirate } : createPlayerPirateState();
   const probe = { pirate: state };
@@ -121,6 +129,11 @@ function normalizeSaveProfile(profile) {
   profile.pirate = normalizePirateState(profile.pirate);
   profile.map = normalizeMapState(profile.map) || { visited: [], order: [] };
   profile.worldSeed = Number.isFinite(Number(profile.worldSeed)) ? (Number(profile.worldSeed) | 0) : 0;
+  const pos = normalizeEndlessPosition(profile);
+  profile.sx = pos.sx;
+  profile.sy = pos.sy;
+  profile.x = pos.x;
+  profile.y = pos.y;
   if (!Array.isArray(profile.completedBastionIds)) profile.completedBastionIds = [];
   profile.completedBastionIds = profile.completedBastionIds.map((v) => v | 0).filter((v, i, a) => Number.isFinite(v) && a.indexOf(v) === i);
   profile.schemaVersion = Math.max(1, profile.schemaVersion | 0 || 1);
@@ -350,6 +363,10 @@ export function buildEndlessSave(player) {
     pirate: normalizePirateState(player.pirate),
     map: serializePlayerMapState(player.map),
     worldSeed: player.worldSeed | 0 || 0,
+    sx: player.sx | 0,
+    sy: player.sy | 0,
+    x: Number.isFinite(Number(player.x)) ? Number(player.x) : 0,
+    y: Number.isFinite(Number(player.y)) ? Number(player.y) : 0,
     savedAt: Date.now(),
     schemaVersion: 1
   };
@@ -366,6 +383,12 @@ export function applyEndlessSave(player, save) {
   player.pirate = normalizePirateState(normalized.pirate);
   player.map = hydratePlayerMapState(normalized.map);
   player.worldSeed = normalized.worldSeed | 0 || player.worldSeed | 0 || 0;
+  player.sx = normalized.sx | 0;
+  player.sy = normalized.sy | 0;
+  player.x = Number.isFinite(Number(normalized.x)) ? Number(normalized.x) : (Number(player.x) || 0);
+  player.y = Number.isFinite(Number(normalized.y)) ? Number(normalized.y) : (Number(player.y) || 0);
+  player.vx = 0;
+  player.vy = 0;
   if (Array.isArray(normalized.completedBastionIds)) player.completedBastionIds = normalized.completedBastionIds.map((v) => v | 0);
   return true;
 }

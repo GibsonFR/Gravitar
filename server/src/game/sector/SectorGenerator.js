@@ -1397,7 +1397,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
 
   // --- Stations ---
   if (hub) {
-    spawnStation(state, sx, sy, 0, 0, true, h, timeMs);
+    // Hub endless protégé : aucune station et aucune base.
   } else {
     const frontier = Math.max(Math.abs(sx | 0), Math.abs(sy | 0));
     const hasPirateShop = shouldSpawnPirateShop(seed, sx, sy, frontier);

@@ -72,6 +72,10 @@ function isTestPlayer(player) {
   return String(player.gameMode || '').toLowerCase().includes('test') || String(player.worldId || '').toLowerCase().startsWith('test');
 }
 
+function isProtectedEndlessHub(player) {
+  return String(player?.worldId || 'endless') === 'endless' && (player?.sx | 0) === 0 && (player?.sy | 0) === 0;
+}
+
 function inSameWorld(st, player) {
   return String(st.worldId || 'endless') === String(player.worldId || 'endless');
 }
@@ -146,6 +150,7 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   const def = getStructureDef(type);
   if (!def) return { ok: false, error: 'unknown_structure' };
   if (!isTestPlayer(player) && !canBuildByResearch(player, type)) return { ok: false, error: buildResearchRequirementError(type), researchId: getStructureResearchRequirement(type), researchName: getResearchName(getStructureResearchRequirement(type)) };
+  if (!isTestPlayer(player) && isProtectedEndlessHub(player)) return { ok: false, error: 'hub_build_forbidden' };
   const sx = player.sx | 0;
   const sy = player.sy | 0;
   const rawX = finite(x, player.x);
