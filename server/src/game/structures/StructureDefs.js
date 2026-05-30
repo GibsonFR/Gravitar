@@ -395,7 +395,7 @@ export const STRUCTURE_DEFS = {
     energyUse: 8,
     color: '#26304d',
     borderColor: '#b58cff',
-    cost: { ironIngot: 6, copperWire: 6, silicon: 6 }
+    cost: { ironIngot: 4, copper: 10, silicon: 6 }
   },
 
   [STRUCTURE_TYPES.INDUSTRIAL_PRESS]: {

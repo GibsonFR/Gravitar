@@ -270,7 +270,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 8,
     role: 'Consomme les packs de science pour débloquer des technologies.',
     stats: ['Arbre de recherche', 'Packs requis', 'Énergie active'],
-    cost: { ironIngot: 6, copperWire: 6, silicon: 6 }
+    cost: { ironIngot: 4, copper: 10, silicon: 6 }
   },
 
   {

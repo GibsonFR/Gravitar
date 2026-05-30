@@ -31,7 +31,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 6,
     energyUse: 8,
     pointCost: { basicSciencePack: 1 },
-    unlockBuildings: ['Laboratoire scientifique', 'Station de recherche'],
+    unlockBuildings: [],
     unlockRecipes: ['Science automatisation'],
     prereq: [],
     tier: 1

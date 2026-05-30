@@ -1,4 +1,4 @@
-// build v193 progression-cost-audit
+// build v194 strict-progression-audit
 function showBootError(error, title = 'Erreur au chargement du jeu') {
   const message = error?.stack || error?.message || String(error || 'Erreur inconnue');
   console.error('[Gravitar boot]', error);
@@ -20,13 +20,13 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
 
 async function importApp() {
   try {
-    return await import('./src/App.js?v=193');
+    return await import('./src/App.js?v=194');
   } catch (firstError) {
-    console.warn('[Gravitar boot] App.js?v=193 failed, retrying without cache query', firstError);
+    console.warn('[Gravitar boot] App.js?v=194 failed, retrying without cache query', firstError);
     try {
       return await import('./src/App.js');
     } catch (secondError) {
-      secondError.message = `${secondError.message || secondError}\n\nPremier essai App.js?v=193 : ${firstError?.message || firstError}`;
+      secondError.message = `${secondError.message || secondError}\n\nPremier essai App.js?v=194 : ${firstError?.message || firstError}`;
       throw secondError;
     }
   }

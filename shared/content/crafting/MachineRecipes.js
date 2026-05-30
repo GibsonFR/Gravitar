@@ -242,7 +242,7 @@ export const MACHINE_RECIPES = Object.freeze([
     name: 'Science de base',
     seconds: 8,
     energyUse: 6,
-    input: { ironIngot: 1, copperWire: 2 },
+    input: { ironIngot: 1, copperIngot: 1 },
     output: { basicSciencePack: 1 }
   },
   {
