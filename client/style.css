@@ -9410,27 +9410,8 @@ button.station-item-icon[draggable="true"]:active,
 }
 
 
-/* v216 — Carte réseau drones */
-.map-panel__glyph--drone {
-  color: rgba(126, 220, 255, 0.96);
-  border-color: rgba(126, 220, 255, 0.28);
-  background: rgba(126, 220, 255, 0.08);
-}
-.map-panel__chip.is-logistic {
-  color: rgba(126, 220, 255, 0.96);
-  border-color: rgba(126, 220, 255, 0.26);
-  background: rgba(126, 220, 255, 0.08);
-}
-.map-panel__chip.is-warning {
-  color: rgba(255, 196, 118, 0.98);
-  border-color: rgba(255, 184, 92, 0.28);
-  background: rgba(255, 184, 92, 0.08);
-}
-.map-panel__info-badge.is-logistic {
-  color: rgba(126, 220, 255, 0.96);
-  border-color: rgba(126, 220, 255, 0.26);
-  background: rgba(126, 220, 255, 0.08);
-}
+/* v217 — Affichage réseau drones retiré de la carte.
+   On conserve seulement le comportement de scroll du coffre demandeur. */
 .logistics-panel__body--chest-v214 {
   overscroll-behavior: contain;
 }

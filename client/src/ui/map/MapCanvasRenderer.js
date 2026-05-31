@@ -27,86 +27,6 @@ function biomeCellFill(visited, isKnown) {
   return rgbaFromHex(visited.biomeColorHex, alpha);
 }
 
-
-
-function drawLogisticLink(ctx, layout, link) {
-  const a = getSectorRect(layout, link.fromSx | 0, link.fromSy | 0);
-  const b = getSectorRect(layout, link.toSx | 0, link.toSy | 0);
-  const ax = a.x + a.w * 0.5;
-  const ay = a.y + a.h * 0.5;
-  const bx = b.x + b.w * 0.5;
-  const by = b.y + b.h * 0.5;
-  ctx.save();
-  ctx.strokeStyle = link.active ? 'rgba(126, 220, 255, 0.48)' : 'rgba(255, 175, 110, 0.28)';
-  ctx.lineWidth = clamp(layout.cell * 0.08, 1.2, 4);
-  ctx.setLineDash([Math.max(3, layout.cell * 0.22), Math.max(3, layout.cell * 0.14)]);
-  ctx.beginPath();
-  ctx.moveTo(ax, ay);
-  ctx.lineTo(bx, by);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawLogisticSectorOverlay(ctx, layout, x, y, rectW, rectH, info) {
-  if (!info) return;
-  const hasStation = (info.stationCount | 0) > 0;
-  const hasDemand = (info.unmetRequests | 0) > 0;
-  const activeFlights = info.activeFlights | 0;
-  const providerCount = (info.providerCount | 0) + (info.bufferCount | 0);
-  if (!hasStation && !hasDemand && !activeFlights && !providerCount) return;
-  ctx.save();
-  if (hasStation) {
-    ctx.strokeStyle = info.poweredStations > 0 ? 'rgba(126, 220, 255, .72)' : 'rgba(255, 176, 110, .58)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x + 6, y + 6, Math.max(1, rectW - 12), Math.max(1, rectH - 12));
-  }
-  const badges = [];
-  if (hasStation) badges.push({ text: 'D', color: 'rgba(126,220,255,.96)' });
-  if (providerCount) badges.push({ text: '↑', color: 'rgba(165,240,188,.96)' });
-  if ((info.requesterCount | 0) > 0) badges.push({ text: hasDemand ? '!' : '↓', color: hasDemand ? 'rgba(255,188,112,.98)' : 'rgba(190,210,255,.92)' });
-  if (activeFlights) badges.push({ text: String(Math.min(9, activeFlights)), color: 'rgba(255,230,150,.98)' });
-  if (layout.cell >= 18 && badges.length) {
-    const size = clamp(layout.cell * 0.22, 8, 14);
-    ctx.font = `800 ${size}px Segoe UI, Arial, sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    let bx = x + 3;
-    const by = y + 3;
-    for (const badge of badges.slice(0, 4)) {
-      ctx.fillStyle = 'rgba(4,8,13,.78)';
-      ctx.fillRect(bx - 1, by - 1, size + 4, size + 3);
-      ctx.fillStyle = badge.color;
-      ctx.fillText(badge.text, bx + 1, by);
-      bx += size + 6;
-    }
-  }
-  ctx.restore();
-}
-
-function drawLogisticFlightRoute(ctx, layout, flight) {
-  if (!flight) return;
-  const a = getSectorRect(layout, flight.homeSx ?? flight.fromSx, flight.homeSy ?? flight.fromSy);
-  const b = getSectorRect(layout, flight.toSx | 0, flight.toSy | 0);
-  const c = getSectorRect(layout, flight.sx | 0, flight.sy | 0);
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255, 224, 120, .42)';
-  ctx.lineWidth = clamp(layout.cell * 0.06, 1, 3);
-  ctx.setLineDash([2, 4]);
-  ctx.beginPath();
-  ctx.moveTo(a.x + a.w * 0.5, a.y + a.h * 0.5);
-  ctx.lineTo(b.x + b.w * 0.5, b.y + b.h * 0.5);
-  ctx.stroke();
-  const rad = clamp(layout.cell * 0.15, 3, 8);
-  ctx.fillStyle = 'rgba(255, 230, 150, .98)';
-  ctx.strokeStyle = 'rgba(4,8,13,.92)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(c.x + c.w * 0.5, c.y + c.h * 0.5, rad, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-}
-
 export function computeMapLayout(w, h, opts) {
   const {
     currentSx,
@@ -159,9 +79,6 @@ export function drawSectorMap(ctx, w, h, opts) {
     visitedList,
     bastionList,
     playerList,
-    logisticSectors,
-    logisticLinks,
-    logisticFlights,
   } = opts;
 
   ctx.clearRect(0, 0, w, h);
@@ -196,8 +113,6 @@ export function drawSectorMap(ctx, w, h, opts) {
     });
   }
 
-  for (const link of (logisticLinks || [])) drawLogisticLink(ctx, layout, link);
-
   const minDx = Math.floor((0 - layout.currentCellX) / layout.cell) - 1;
   const maxDx = Math.ceil((w - layout.currentCellX) / layout.cell) + 1;
   const minDy = Math.floor((0 - layout.currentCellY) / layout.cell) - 1;
@@ -212,16 +127,14 @@ export function drawSectorMap(ctx, w, h, opts) {
       const rectW = layout.cell - 1;
       const rectH = layout.cell - 1;
       const visited = getVisited ? getVisited(sx, sy) : null;
-      const logisticInfo = logisticSectors?.get?.(`${sx},${sy}`) || null;
       const bastion = visited?.bastion || (getBastion ? getBastion(sx, sy) : null);
-      const isKnown = !!visited || !!bastion || !!logisticInfo || (sx === layout.currentSx && sy === layout.currentSy);
+      const isKnown = !!visited || !!bastion || (sx === layout.currentSx && sy === layout.currentSy);
       const isHub = sx === 0 && sy === 0;
       const isCurrent = sx === layout.currentSx && sy === layout.currentSy;
 
       let fill = isKnown ? 'rgba(18,28,42,0.88)' : 'rgba(8,13,20,0.66)';
       const biomeFill = biomeCellFill(visited, isKnown);
       if (biomeFill) fill = biomeFill;
-      if (logisticInfo && !visited && !bastion) fill = 'rgba(12, 34, 46, 0.82)';
       if (visited?.stationCount > 0) fill = 'rgba(42,76,116,0.90)';
       if (visited?.pirateStationCount > 0) fill = 'rgba(92,54,28,0.94)';
       if (visited?.hasReturnPortal) fill = 'rgba(28,88,108,0.92)';
@@ -268,7 +181,6 @@ export function drawSectorMap(ctx, w, h, opts) {
       }
 
       drawGlyph(ctx, glyph, x, y, layout.cell, glyphColor);
-      drawLogisticSectorOverlay(ctx, layout, x, y, rectW, rectH, logisticInfo);
 
       if (bastion) {
         const bc = bastion.color || { r: 250, g: 214, b: 120 };
@@ -307,8 +219,6 @@ export function drawSectorMap(ctx, w, h, opts) {
     }
   }
 
-
-  for (const flight of (logisticFlights || [])) drawLogisticFlightRoute(ctx, layout, flight);
 
   for (const player of (playerList || [])) {
     const sx = player.sx | 0;
