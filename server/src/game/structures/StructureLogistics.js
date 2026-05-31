@@ -69,8 +69,34 @@ function sameOwner(a, b) {
   return ownerKeyOf(a) && ownerKeyOf(a) === ownerKeyOf(b);
 }
 
+function sameWorld(a, b) {
+  return String(a?.worldId || 'endless') === String(b?.worldId || 'endless');
+}
+
 function sameWorldSector(a, b) {
-  return String(a?.worldId || 'endless') === String(b?.worldId || 'endless') && (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
+  return sameWorld(a, b) && (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
+}
+
+function sectorDistance(a, b) {
+  return Math.max(Math.abs((a?.sx | 0) - (b?.sx | 0)), Math.abs((a?.sy | 0) - (b?.sy | 0)));
+}
+
+function hasDroneStationInSector(state, station, sx, sy) {
+  for (const st of state?.structures?.values?.() || []) {
+    if (!isDroneStationStructure(st)) continue;
+    if (!sameOwner(station, st)) continue;
+    if (!sameWorld(station, st)) continue;
+    if ((st.sx | 0) === (sx | 0) && (st.sy | 0) === (sy | 0)) return true;
+  }
+  return false;
+}
+
+function isSectorInDroneNetwork(state, station, sx, sy) {
+  if (!sameWorld(station, { worldId: station.worldId })) return false;
+  if (sectorDistance(station, { sx, sy }) > 1) return false;
+  return (sx | 0) === (station.sx | 0) && (sy | 0) === (station.sy | 0)
+    ? true
+    : hasDroneStationInSector(state, station, sx, sy);
 }
 
 function localLogisticChests(state, station) {
@@ -84,11 +110,24 @@ function localLogisticChests(state, station) {
   return out;
 }
 
+function networkLogisticChests(state, station) {
+  const out = [];
+  for (const st of state?.structures?.values?.() || []) {
+    if (!isLogisticChestStructure(st)) continue;
+    if (!sameOwner(station, st)) continue;
+    if (!sameWorld(station, st)) continue;
+    if (!isSectorInDroneNetwork(state, station, st.sx | 0, st.sy | 0)) continue;
+    out.push(st);
+  }
+  return out;
+}
+
 function countDroneStations(state, player, center) {
   const out = [];
   for (const st of state?.structures?.values?.() || []) {
     if (!isDroneStationStructure(st)) continue;
     if (!isStructureOwner(player, st)) continue;
+    if ((st.worldId || 'endless') !== (center.worldId || 'endless')) continue;
     const dx = Math.abs((st.sx | 0) - (center.sx | 0));
     const dy = Math.abs((st.sy | 0) - (center.sy | 0));
     if (Math.max(dx, dy) > 1) continue;
@@ -98,16 +137,19 @@ function countDroneStations(state, player, center) {
 }
 
 function countLogisticChests(state, player, center) {
-  const counts = { provider: 0, requester: 0, buffer: 0 };
+  const counts = { provider: 0, requester: 0, buffer: 0, sectors: 0 };
+  const sectors = new Set();
   for (const st of state?.structures?.values?.() || []) {
     if (!isLogisticChestStructure(st)) continue;
     if (!isStructureOwner(player, st)) continue;
     if ((st.worldId || 'endless') !== (center.worldId || 'endless')) continue;
-    if ((st.sx | 0) !== (center.sx | 0) || (st.sy | 0) !== (center.sy | 0)) continue;
+    if (!isSectorInDroneNetwork(state, center, st.sx | 0, st.sy | 0)) continue;
+    sectors.add(`${st.sx | 0},${st.sy | 0}`);
     if (st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER) counts.provider += 1;
     else if (st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER) counts.requester += 1;
     else if (st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER) counts.buffer += 1;
   }
+  counts.sectors = sectors.size;
   return counts;
 }
 
@@ -163,7 +205,8 @@ function requestCandidates(state, player, st) {
   for (const other of state?.structures?.values?.() || []) {
     if (!isLogisticChestStructure(other)) continue;
     if (!isStructureOwner(player, other)) continue;
-    if (!sameWorldSector(st, other)) continue;
+    if (!sameWorld(st, other)) continue;
+    if (!isSectorInDroneNetwork(state, st, other.sx | 0, other.sy | 0)) continue;
     for (const [key, amount] of Object.entries(storageResources(other))) if ((amount | 0) > 0) keys.add(key);
   }
   const fallback = ['ironOre', 'copper', 'steelPlate', 'copperWire', 'controlCircuit', 'propellant', 'logisticDroneBasic'];
@@ -186,7 +229,7 @@ function tryRunOneMission(state, station, timeMs) {
   if (!station.powered) return false;
   const installed = Math.max(0, station.storage?.resources?.[DRONE_KEY] | 0);
   if (installed <= 0) return false;
-  const chests = localLogisticChests(state, station);
+  const chests = networkLogisticChests(state, station);
   const requesters = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER);
   const providers = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER || st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER);
   for (const requester of requesters) {
@@ -214,8 +257,13 @@ function tryRunOneMission(state, station, timeMs) {
           amount,
           fromId: provider.id | 0,
           toId: requester.id | 0,
-          fromLabel: chestLabel(provider),
-          toLabel: chestLabel(requester)
+          fromSx: provider.sx | 0,
+          fromSy: provider.sy | 0,
+          toSx: requester.sx | 0,
+          toSy: requester.sy | 0,
+          interSector: (provider.sx | 0) !== (requester.sx | 0) || (provider.sy | 0) !== (requester.sy | 0),
+          fromLabel: `${chestLabel(provider)} [${provider.sx | 0},${provider.sy | 0}]`,
+          toLabel: `${chestLabel(requester)} [${requester.sx | 0},${requester.sy | 0}]`
         });
         return true;
       }
@@ -270,6 +318,7 @@ export function buildDroneStationSnapshot(state, player) {
     nextMissionSeconds: Math.max(0, Math.round(((st.nextLogisticMissionAt || 0) - Date.now()) / 100) / 10),
     connectedStations: countDroneStations(state, player, st),
     localChests: countLogisticChests(state, player, st),
+    routeMode: 'inter_sector_v1',
     missions: (st.logisticMissionLog || []).slice(0, MISSION_LOG_MAX)
   };
 }

@@ -4,8 +4,8 @@ function escapeHtml(txt) {
 
 function missionRows(missions = []) {
   if (!missions.length) return '<div class="logistics-empty">Aucune livraison récente. Configure un coffre demandeur et remplis un coffre de chargement.</div>';
-  return missions.map((m) => `<div class="logistics-mission-row">
-    <span class="logistics-mission-row__icon">⇄</span>
+  return missions.map((m) => `<div class="logistics-mission-row ${m.interSector ? 'is-intersector' : ''}">
+    <span class="logistics-mission-row__icon">${m.interSector ? '⇆' : '⇄'}</span>
     <div><b>${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}</span></div>
   </div>`).join('');
 }
@@ -91,21 +91,22 @@ export class DroneStationPanelView {
           </div>
         </section>
         <section class="logistics-card">
-          <div class="logistics-card__title">Coffres locaux</div>
+          <div class="logistics-card__title">Coffres du réseau</div>
           <div class="logistics-kpis">
             <div><b>${local.provider | 0}</b><span>chargement</span></div>
             <div><b>${local.requester | 0}</b><span>demandeurs</span></div>
             <div><b>${local.buffer | 0}</b><span>tampons</span></div>
+            <div><b>${local.sectors | 0}</b><span>secteurs</span></div>
           </div>
         </section>
         <section class="logistics-card">
-          <div class="logistics-card__title">Missions intra-secteur</div>
+          <div class="logistics-card__title">Missions réseau</div>
           <div class="logistics-missions">${missionRows(station.missions || [])}</div>
         </section>
         <section class="logistics-card logistics-card--muted">
-          <div class="logistics-card__title">Secteurs connectables</div>
+          <div class="logistics-card__title">Stations connectées</div>
           <div class="logistics-station-grid">
-            ${connected.map((s) => `<div class="logistics-sector ${s.current ? 'is-current' : ''}"><b>[${s.sx}, ${s.sy}]</b><span>${s.current ? 'Cette station' : 'Station reliée'} · ${s.drones | 0} drones</span></div>`).join('') || '<div class="logistics-empty">Aucune station reliée dans les 8 secteurs adjacents.</div>'}
+            ${connected.map((s) => `<div class="logistics-sector ${s.current ? 'is-current' : ''}"><b>[${s.sx}, ${s.sy}]</b><span>${s.current ? 'Cette station' : 'Station reliée'} · ${s.drones | 0} drones</span></div>`).join('') || '<div class="logistics-empty">Aucune autre station de drones dans les 8 secteurs adjacents.</div>'}
           </div>
         </section>
       </div>

@@ -559,6 +559,41 @@ export function ensureTestLogisticDronesBench(state, player, timeMs) {
     requester.logisticRequests = { copper: Math.max(requester.logisticRequests?.copper | 0, 40), ironOre: Math.max(requester.logisticRequests?.ironOre | 0, 40) };
   }
   ensureTestStructure(state, worldId, 'logistic_chest_buffer', sx, sy, 416, 352, owner);
+
+  const remoteSx = sx + 1;
+  const remoteSy = sy;
+  const remoteOwner = owner;
+  const remoteCore = ensureTestStructure(state, worldId, 'outpost_core', remoteSx, remoteSy, -384, 0, remoteOwner);
+  if (remoteCore) remoteCore.claimRadius = Math.max(remoteCore.claimRadius || 0, 640);
+  ensureTestStructure(state, worldId, 'solar_panel', remoteSx, remoteSy, -192, -128, remoteOwner);
+  ensureTestStructure(state, worldId, 'solar_panel', remoteSx, remoteSy, -64, -128, remoteOwner);
+  const remoteStation = ensureTestStructure(state, worldId, 'logistic_drone_station', remoteSx, remoteSy, 96, 64, remoteOwner);
+  if (remoteStation) {
+    remoteStation.storage ??= { kind: 'resources', resources: {}, capacity: 80 };
+    remoteStation.storage.kind = 'resources';
+    remoteStation.storage.capacity = Math.max(remoteStation.storage.capacity || 0, 80);
+    remoteStation.storage.resources ??= {};
+    remoteStation.storage.resources.logisticDroneBasic = Math.max(remoteStation.storage.resources.logisticDroneBasic | 0, 1);
+    remoteStation.powered = true;
+  }
+  const remoteProvider = ensureTestStructure(state, worldId, 'logistic_chest_provider', remoteSx, remoteSy, 288, 64, remoteOwner);
+  if (remoteProvider) {
+    remoteProvider.storage ??= { kind: 'resources', resources: {}, capacity: 160 };
+    remoteProvider.storage.kind = 'resources';
+    remoteProvider.storage.capacity = Math.max(remoteProvider.storage.capacity || 0, 160);
+    remoteProvider.storage.resources = { copper: 90, ironOre: 90, lithiumOre: 35 };
+  }
+  const remoteRequester = ensureTestStructure(state, worldId, 'logistic_chest_requester', remoteSx, remoteSy, 480, 64, remoteOwner);
+  if (remoteRequester) {
+    remoteRequester.storage ??= { kind: 'resources', resources: {}, capacity: 160 };
+    remoteRequester.storage.kind = 'resources';
+    remoteRequester.storage.capacity = Math.max(remoteRequester.storage.capacity || 0, 160);
+    remoteRequester.logisticRequests = {
+      copper: Math.max(remoteRequester.logisticRequests?.copper | 0, 55),
+      ironOre: Math.max(remoteRequester.logisticRequests?.ironOre | 0, 55),
+      lithiumOre: Math.max(remoteRequester.logisticRequests?.lithiumOre | 0, 25)
+    };
+  }
 }
 
 export function ensureTestRocketWorkshopBench(state, player, timeMs) {

@@ -8924,7 +8924,7 @@ button.station-item-icon[draggable="true"]:active,
 .logistics-sector.is-current { border-color: rgba(126,220,255,.28); background: rgba(126,220,255,.07); }
 .logistics-sector b { display: block; font-size: 13px; }
 .logistics-sector span { display: block; margin-top: 4px; font-size: 11px; color: rgba(176,197,224,.78); }
-.logistics-kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.logistics-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
 .logistics-kpis div { border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.025); border-radius: 12px; padding: 10px; }
 .logistics-kpis b { display: block; font-size: 24px; }
 .logistics-kpis span { display: block; margin-top: 4px; font-size: 11px; color: rgba(176,197,224,.78); }
@@ -9025,6 +9025,8 @@ button.station-item-icon[draggable="true"]:active,
   align-items: center;
   gap: 10px;
 }
+.logistics-mission-row.is-intersector { border-color: rgba(255, 204, 112, .22); background: rgba(255, 184, 92, .045); }
+.logistics-mission-row.is-intersector .logistics-mission-row__icon { border-color: rgba(255, 204, 112, .28); background: rgba(255, 184, 92, .10); color: rgba(255, 230, 170, .96); }
 .logistics-mission-row__icon {
   width: 34px;
   height: 34px;
