@@ -2,6 +2,14 @@ function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
+function missionRows(missions = []) {
+  if (!missions.length) return '<div class="logistics-empty">Aucune livraison récente. Configure un coffre demandeur et remplis un coffre de chargement.</div>';
+  return missions.map((m) => `<div class="logistics-mission-row">
+    <span class="logistics-mission-row__icon">⇄</span>
+    <div><b>${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}</span></div>
+  </div>`).join('');
+}
+
 export class DroneStationPanelView {
   constructor(sendCmd) {
     this.sendCmd = sendCmd;
@@ -64,7 +72,7 @@ export class DroneStationPanelView {
         <div>
           <div class="logistics-panel__eyebrow">Logistique automatisée</div>
           <h2>${escapeHtml(station.name)}</h2>
-          <div class="logistics-panel__meta ${station.powered ? 'is-ok' : 'is-warn'}">${station.powered ? 'Alimentée' : 'Non alimentée'} · ${station.energyUse | 0} énergie · rayon ${station.rangeSectors | 0} secteur</div>
+          <div class="logistics-panel__meta ${station.powered ? 'is-ok' : 'is-warn'}">${station.powered ? 'Alimentée' : 'Non alimentée'} · ${station.energyUse | 0} énergie · capacité ${station.droneCargo | 0}/drone</div>
         </div>
         <button type="button" class="logistics-panel__close" data-drone-station-close="1">×</button>
       </header>
@@ -75,17 +83,11 @@ export class DroneStationPanelView {
             <strong>${station.installedDrones | 0}</strong><span>/ ${station.droneCapacity | 0}</span>
           </div>
           <div class="logistics-bar"><span style="width:${fill}%"></span></div>
-          <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · recharge ${station.rechargeSeconds | 0}s</div>
+          <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · cadence ${station.nextMissionSeconds > 0 ? `${station.nextMissionSeconds}s` : 'prête'}</div>
           <div class="logistics-actions">
             <button type="button" data-drone-station-transfer="deposit" data-amount="1" ${station.cargoDrones <= 0 || station.freeSlots <= 0 ? 'disabled' : ''}>Insérer 1</button>
             <button type="button" data-drone-station-transfer="deposit" data-amount="all" ${station.cargoDrones <= 0 || station.freeSlots <= 0 ? 'disabled' : ''}>Tout insérer</button>
             <button type="button" data-drone-station-transfer="withdraw" data-amount="1" ${station.installedDrones <= 0 ? 'disabled' : ''}>Retirer 1</button>
-          </div>
-        </section>
-        <section class="logistics-card">
-          <div class="logistics-card__title">Secteurs connectables</div>
-          <div class="logistics-station-grid">
-            ${connected.map((s) => `<div class="logistics-sector ${s.current ? 'is-current' : ''}"><b>[${s.sx}, ${s.sy}]</b><span>${s.current ? 'Cette station' : 'Station reliée'} · ${s.drones | 0} drones</span></div>`).join('') || '<div class="logistics-empty">Aucune station reliée dans les 8 secteurs adjacents.</div>'}
           </div>
         </section>
         <section class="logistics-card">
@@ -96,9 +98,15 @@ export class DroneStationPanelView {
             <div><b>${local.buffer | 0}</b><span>tampons</span></div>
           </div>
         </section>
+        <section class="logistics-card">
+          <div class="logistics-card__title">Missions intra-secteur</div>
+          <div class="logistics-missions">${missionRows(station.missions || [])}</div>
+        </section>
         <section class="logistics-card logistics-card--muted">
-          <div class="logistics-card__title">Missions</div>
-          <div class="logistics-empty">Les missions automatiques arrivent au prochain patch : les coffres sont déjà prêts et détectés.</div>
+          <div class="logistics-card__title">Secteurs connectables</div>
+          <div class="logistics-station-grid">
+            ${connected.map((s) => `<div class="logistics-sector ${s.current ? 'is-current' : ''}"><b>[${s.sx}, ${s.sy}]</b><span>${s.current ? 'Cette station' : 'Station reliée'} · ${s.drones | 0} drones</span></div>`).join('') || '<div class="logistics-empty">Aucune station reliée dans les 8 secteurs adjacents.</div>'}
+          </div>
         </section>
       </div>
     `;

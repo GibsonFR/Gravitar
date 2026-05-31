@@ -66,6 +66,7 @@ import { handleDroneStationClose } from './DroneStationCloseCommand.js';
 import { handleDroneStationTransfer } from './DroneStationTransferCommand.js';
 import { handleLogisticChestOpen } from './LogisticChestOpenCommand.js';
 import { handleLogisticChestClose } from './LogisticChestCloseCommand.js';
+import { handleLogisticChestSetRequest } from './LogisticChestSetRequestCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -118,6 +119,7 @@ const HANDLERS = {
   drone_station_transfer: handleDroneStationTransfer,
   logistic_chest_open: handleLogisticChestOpen,
   logistic_chest_close: handleLogisticChestClose,
+  logistic_chest_set_request: handleLogisticChestSetRequest,
   research_station_open: handleResearchStationOpen,
   research_station_close: handleResearchStationClose,
   research_station_transfer: handleResearchStationTransfer,

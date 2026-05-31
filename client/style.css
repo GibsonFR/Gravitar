@@ -8946,3 +8946,109 @@ button.station-item-icon[draggable="true"]:active,
   .logistics-panel { width: calc(100vw - 18px); max-height: calc(100vh - 18px); }
   .logistics-kpis { grid-template-columns: 1fr; }
 }
+
+/* v204 — demandes logistiques et missions intra-secteur */
+.logistics-panel--chest { width: min(860px, calc(100vw - 36px)); }
+.logistics-bar.mini { height: 7px; margin: 6px 0 8px; }
+.logistics-hint {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(126,220,255,.12);
+  background: rgba(126,220,255,.055);
+  color: rgba(190,216,238,.86);
+  font-size: 12px;
+}
+.logistics-requests,
+.logistics-candidates,
+.logistics-missions { display: grid; gap: 8px; }
+.logistics-request-row,
+.logistics-candidate-row,
+.logistics-mission-row {
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.025);
+  border-radius: 12px;
+  padding: 10px;
+}
+.logistics-request-row__top,
+.logistics-candidate-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+}
+.logistics-request-row__top span,
+.logistics-candidate-row span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.logistics-request-row__top i,
+.logistics-candidate-row i {
+  width: 9px;
+  height: 9px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+  box-shadow: 0 0 8px currentColor;
+}
+.logistics-request-row__top b,
+.logistics-candidate-row b {
+  font-size: 12px;
+  color: rgba(226,238,248,.92);
+}
+.logistics-request-row__actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.logistics-request-row__actions button,
+.logistics-candidate-row button {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(126,220,255,.18);
+  background: rgba(126,220,255,.075);
+  color: rgba(220,246,255,.96);
+  font-weight: 800;
+  cursor: pointer;
+}
+.logistics-candidate-row button { white-space: nowrap; }
+.logistics-mission-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0,1fr);
+  align-items: center;
+  gap: 10px;
+}
+.logistics-mission-row__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(126,220,255,.18);
+  background: rgba(126,220,255,.08);
+  color: rgba(180,245,255,.96);
+  font-weight: 900;
+}
+.logistics-mission-row b {
+  display: block;
+  font-size: 13px;
+}
+.logistics-mission-row span:last-child {
+  display: block;
+  margin-top: 3px;
+  color: rgba(176,197,224,.78);
+  font-size: 11px;
+}
+@media (max-width: 680px) {
+  .logistics-request-row__top,
+  .logistics-candidate-row { grid-template-columns: 1fr; align-items: stretch; }
+  .logistics-candidate-row button { width: 100%; }
+}

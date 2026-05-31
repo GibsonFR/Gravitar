@@ -1,10 +1,14 @@
 import { STRUCTURE_TYPES, getStructureDef } from './StructureDefs.js';
 import { distanceSqToStructureRect, isStructureOwner } from './StructureSystem.js';
-import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
+import { getStorageCapacity, getStorageUsed } from './StructureStorage.js';
+import { RESOURCE_DEFS, RESOURCE_KEYS_ORDER } from '../inventory/ResourceDefs.js';
 import { addResource, removeResource } from '../inventory/InventorySystem.js';
 
 const ACCESS_RANGE = 280;
 const DRONE_KEY = 'logisticDroneBasic';
+const DRONE_CARGO = 5;
+const LOGISTIC_TICK_MS = 2600;
+const MISSION_LOG_MAX = 10;
 
 export function isDroneStationStructure(st) {
   return String(st?.type || '') === STRUCTURE_TYPES.LOGISTIC_DRONE_STATION;
@@ -30,14 +34,23 @@ function storageResources(st) {
   return st.storage.resources;
 }
 
-function resourceEntry(key, amount) {
+function requestMap(st) {
+  if (!st.logisticRequests || typeof st.logisticRequests !== 'object') st.logisticRequests = {};
+  for (const key of Object.keys(st.logisticRequests)) {
+    if (!RESOURCE_DEFS[key] || (st.logisticRequests[key] | 0) <= 0) delete st.logisticRequests[key];
+  }
+  return st.logisticRequests;
+}
+
+function resourceEntry(key, amount, extra = {}) {
   const def = RESOURCE_DEFS[key] || null;
   return {
     key,
     name: def?.name || key,
     amount: Math.max(0, amount | 0),
     colorHex: def?.colorHex || '#d0d7e4',
-    cargoPerUnit: def?.cargoPerUnit || 1
+    cargoPerUnit: def?.cargoPerUnit || 1,
+    ...extra
   };
 }
 
@@ -46,6 +59,29 @@ function buildResourceEntries(map = {}) {
     .filter(([, amount]) => (amount | 0) > 0)
     .map(([key, amount]) => resourceEntry(key, amount | 0))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function ownerKeyOf(st) {
+  return String(st?.ownerKey || '').toLowerCase();
+}
+
+function sameOwner(a, b) {
+  return ownerKeyOf(a) && ownerKeyOf(a) === ownerKeyOf(b);
+}
+
+function sameWorldSector(a, b) {
+  return String(a?.worldId || 'endless') === String(b?.worldId || 'endless') && (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
+}
+
+function localLogisticChests(state, station) {
+  const out = [];
+  for (const st of state?.structures?.values?.() || []) {
+    if (!isLogisticChestStructure(st)) continue;
+    if (!sameOwner(station, st)) continue;
+    if (!sameWorldSector(station, st)) continue;
+    out.push(st);
+  }
+  return out;
 }
 
 function countDroneStations(state, player, center) {
@@ -75,6 +111,134 @@ function countLogisticChests(state, player, center) {
   return counts;
 }
 
+function missionLog(st) {
+  if (!Array.isArray(st.logisticMissionLog)) st.logisticMissionLog = [];
+  return st.logisticMissionLog;
+}
+
+function pushMissionLog(st, entry) {
+  const log = missionLog(st);
+  log.unshift({ at: Date.now(), ...entry });
+  while (log.length > MISSION_LOG_MAX) log.pop();
+}
+
+function storageRemainingUnits(st, key) {
+  const def = RESOURCE_DEFS[key];
+  if (!def) return 0;
+  const unit = Number(def.cargoPerUnit) || 1;
+  const capacity = getStorageCapacity(st);
+  if (capacity <= 0) return 999999;
+  return Math.max(0, Math.floor((capacity - getStorageUsed(st)) / Math.max(0.0001, unit)));
+}
+
+function requesterNeed(st, key) {
+  const target = requestMap(st)[key] | 0;
+  if (target <= 0) return 0;
+  return Math.max(0, target - (storageResources(st)[key] | 0));
+}
+
+function chestLabel(st) {
+  if (!st) return 'coffre';
+  if (st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER) return 'chargement';
+  if (st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER) return 'demandeur';
+  return 'tampon';
+}
+
+function requestEntries(st) {
+  const req = requestMap(st);
+  const res = storageResources(st);
+  return Object.entries(req)
+    .filter(([key, target]) => RESOURCE_DEFS[key] && (target | 0) > 0)
+    .map(([key, target]) => {
+      const have = res[key] | 0;
+      return resourceEntry(key, target | 0, { target: target | 0, stored: have, missing: Math.max(0, (target | 0) - have) });
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function requestCandidates(state, player, st) {
+  const keys = new Set();
+  for (const key of Object.keys(requestMap(st))) keys.add(key);
+  for (const key of Object.keys(player?.inv?.resources || {})) if ((player.inv.resources[key] | 0) > 0) keys.add(key);
+  for (const other of state?.structures?.values?.() || []) {
+    if (!isLogisticChestStructure(other)) continue;
+    if (!isStructureOwner(player, other)) continue;
+    if (!sameWorldSector(st, other)) continue;
+    for (const [key, amount] of Object.entries(storageResources(other))) if ((amount | 0) > 0) keys.add(key);
+  }
+  const fallback = ['ironOre', 'copper', 'steelPlate', 'copperWire', 'controlCircuit', 'propellant', 'logisticDroneBasic'];
+  for (const key of fallback) keys.add(key);
+  return [...keys]
+    .filter((key) => RESOURCE_DEFS[key])
+    .sort((a, b) => {
+      const ia = RESOURCE_KEYS_ORDER.indexOf(a);
+      const ib = RESOURCE_KEYS_ORDER.indexOf(b);
+      return (ia < 0 ? 9999 : ia) - (ib < 0 ? 9999 : ib) || a.localeCompare(b);
+    })
+    .map((key) => resourceEntry(key, player?.inv?.resources?.[key] | 0, { target: requestMap(st)[key] | 0 }));
+}
+
+function resourceName(key) {
+  return RESOURCE_DEFS[key]?.name || key;
+}
+
+function tryRunOneMission(state, station, timeMs) {
+  if (!station.powered) return false;
+  const installed = Math.max(0, station.storage?.resources?.[DRONE_KEY] | 0);
+  if (installed <= 0) return false;
+  const chests = localLogisticChests(state, station);
+  const requesters = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER);
+  const providers = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER || st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER);
+  for (const requester of requesters) {
+    const reqs = requestEntries(requester).filter((r) => r.missing > 0);
+    for (const req of reqs) {
+      const key = req.key;
+      const fit = storageRemainingUnits(requester, key);
+      if (fit <= 0) continue;
+      for (const provider of providers) {
+        if ((provider.id | 0) === (requester.id | 0)) continue;
+        const available = storageResources(provider)[key] | 0;
+        if (available <= 0) continue;
+        const amount = Math.max(0, Math.min(DRONE_CARGO, available, req.missing, fit));
+        if (amount <= 0) continue;
+        storageResources(provider)[key] = (storageResources(provider)[key] | 0) - amount;
+        if ((storageResources(provider)[key] | 0) <= 0) delete storageResources(provider)[key];
+        storageResources(requester)[key] = (storageResources(requester)[key] | 0) + amount;
+        provider.updatedAt = timeMs;
+        requester.updatedAt = timeMs;
+        station.updatedAt = timeMs;
+        pushMissionLog(station, {
+          kind: 'delivery',
+          resourceKey: key,
+          resourceName: resourceName(key),
+          amount,
+          fromId: provider.id | 0,
+          toId: requester.id | 0,
+          fromLabel: chestLabel(provider),
+          toLabel: chestLabel(requester)
+        });
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function updateLogisticDroneStations(state, dt, timeMs = Date.now()) {
+  if (!state?.structures) return false;
+  let shouldSave = false;
+  for (const st of state.structures.values()) {
+    if (!isDroneStationStructure(st)) continue;
+    if (timeMs < (st.nextLogisticMissionAt || 0)) continue;
+    const installed = Math.max(0, st.storage?.resources?.[DRONE_KEY] | 0);
+    const interval = Math.max(900, LOGISTIC_TICK_MS / Math.max(1, Math.min(6, installed)));
+    st.nextLogisticMissionAt = timeMs + interval;
+    if (tryRunOneMission(state, st, timeMs)) shouldSave ||= String(st.worldId || 'endless') === 'endless';
+  }
+  if (shouldSave) state.structureStore?.saveFromState?.(state);
+  return shouldSave;
+}
+
 export function buildDroneStationSnapshot(state, player) {
   const id = player?.openDroneStationId | 0;
   if (!id) return null;
@@ -100,11 +264,13 @@ export function buildDroneStationSnapshot(state, player) {
     droneCapacity: capacity,
     freeSlots: Math.max(0, capacity - installed),
     cargoDrones,
+    droneCargo: DRONE_CARGO,
     rangeSectors: Math.max(1, def.droneRangeSectors | 0 || 1),
     rechargeSeconds: Math.max(1, def.droneRechargeSeconds | 0 || 20),
+    nextMissionSeconds: Math.max(0, Math.round(((st.nextLogisticMissionAt || 0) - Date.now()) / 100) / 10),
     connectedStations: countDroneStations(state, player, st),
     localChests: countLogisticChests(state, player, st),
-    missions: []
+    missions: (st.logisticMissionLog || []).slice(0, MISSION_LOG_MAX)
   };
 }
 
@@ -127,10 +293,12 @@ export function buildLogisticChestSnapshot(state, player) {
     sx: st.sx | 0,
     sy: st.sy | 0,
     capacity: Math.max(0, Number(st.storage?.capacity ?? def.storageCapacity ?? 0) || 0),
+    used: getStorageUsed(st),
     resources: buildResourceEntries(resources),
     modeLabel: type === 'provider' ? 'Fournisseur' : type === 'requester' ? 'Demandeur' : 'Tampon',
     description: def.description || '',
-    requests: st.logisticRequests || {}
+    requests: requestEntries(st),
+    requestCandidates: type === 'requester' ? requestCandidates(state, player, st) : []
   };
 }
 
@@ -190,6 +358,24 @@ export function transferDroneStationDrone(state, player, structureId, direction 
     resources[DRONE_KEY] = (resources[DRONE_KEY] | 0) + moved;
   }
   if ((resources[DRONE_KEY] | 0) <= 0) delete resources[DRONE_KEY];
+  st.updatedAt = timeMs;
+  player.forceFullUiSnapshot = true;
+  if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+  return true;
+}
+
+export function setLogisticChestRequest(state, player, structureId, resourceKey, delta = 0, setTarget = null, timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canPlayerAccessLogisticsStructure(state, player, st) || st.type !== STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER) return false;
+  const key = String(resourceKey || '');
+  if (!RESOURCE_DEFS[key]) return false;
+  const req = requestMap(st);
+  const current = req[key] | 0;
+  const next = setTarget !== null && setTarget !== undefined
+    ? Math.max(0, Math.min(9999, setTarget | 0))
+    : Math.max(0, Math.min(9999, current + (delta | 0)));
+  if (next > 0) req[key] = next;
+  else delete req[key];
   st.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
   if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
