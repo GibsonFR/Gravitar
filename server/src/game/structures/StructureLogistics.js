@@ -356,8 +356,13 @@ function flights(st) {
   return st.logisticDroneFlights;
 }
 
+function isActiveFlightState(state) {
+  const value = String(state || 'to_source');
+  return value !== 'complete' && value !== 'cancelled';
+}
+
 function activeFlightCount(st) {
-  return flights(st).filter((flight) => String(flight.state || 'traveling') === 'traveling').length;
+  return flights(st).filter((flight) => isActiveFlightState(flight.state)).length;
 }
 
 function nextFlightId(st, timeMs) {
@@ -636,7 +641,7 @@ export function buildLogisticDroneSnapshots(structures, inSector, timeMs = Date.
   for (const station of structures?.values?.() || []) {
     if (!isDroneStationStructure(station)) continue;
     for (const flight of flights(station)) {
-      if (String(flight.state || 'traveling') !== 'traveling') continue;
+      if (!isActiveFlightState(flight.state)) continue;
       const snap = flightSnapshot(flight, timeMs);
       if (inSector(snap)) out.push(snap);
     }
