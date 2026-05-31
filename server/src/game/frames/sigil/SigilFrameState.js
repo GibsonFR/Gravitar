@@ -13,6 +13,7 @@ export function createSigilFrameState() {
     trailSlowDuration: 0,
     veilLeft: 0,
     ultLeft: 0,
+    ultDetonationStunUsed: false,
     zoneCamouflagePulseLeft: 0
   };
 }

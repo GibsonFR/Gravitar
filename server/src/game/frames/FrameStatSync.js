@@ -26,6 +26,7 @@ export function syncPlayerFrameStats(player, options = {}) {
   player.radius = nextStats.radius;
   player.baseArmor = (nextStats.baseArmor ?? 0) + Math.max(0, equipmentBonuses.armorFlat ?? 0);
   player.magnetRange = nextStats.magnetRange;
+  player.sensorRange = nextStats.sensorRange ?? player.sensorRange ?? 900;
   player.progressionBonuses = {
     damageMult: (nextStats.damageMult ?? 1) * (1 + (equipmentBonuses.damageMultPct ?? 0)),
     fireRateMult: (nextStats.fireRateMult ?? 1) * (1 + (equipmentBonuses.fireRatePct ?? 0)),
@@ -34,9 +35,12 @@ export function syncPlayerFrameStats(player, options = {}) {
     autoAttackBaseDamage: (nextStats.autoAttackBaseDamage ?? 13) + (equipmentBonuses.damageFlat ?? 0),
     hullRegen,
     energyRegen,
-    critChance: equipmentBonuses.critChancePct ?? 0,
-    critDamageMult: 1.5 + (equipmentBonuses.critDamagePct ?? 0),
-    lifestealRatio: equipmentBonuses.lifestealPct ?? 0,
+    critChance: (nextStats.critChance ?? 0) + (equipmentBonuses.critChancePct ?? 0),
+    critDamageMult: (nextStats.critDamageMult ?? 1.5) + (equipmentBonuses.critDamagePct ?? 0),
+    lifestealRatio: (nextStats.lifestealRatio ?? 0) + (equipmentBonuses.lifestealPct ?? 0),
+    tenacity: nextStats.tenacity ?? 0,
+    slowResist: nextStats.slowResist ?? 0,
+    autoAttackAccuracy: nextStats.autoAttackAccuracy ?? 0.82,
     healMult: 1 + (equipmentBonuses.healPowerPct ?? 0),
     overhealShieldRatio: equipmentBonuses.overhealShieldRatio ?? 0,
     autoBurnDuration: equipmentBonuses.autoBurnDuration ?? 0,
@@ -54,14 +58,16 @@ export function syncPlayerFrameStats(player, options = {}) {
     autoAmpPct: equipmentBonuses.autoAmpPct ?? 0,
     autoAmpDuration: equipmentBonuses.autoAmpDuration ?? 0,
     rocketDamageMult: 1 + (equipmentBonuses.rocketDamagePct ?? 0),
-    autoRangeMult: 1 + (equipmentBonuses.autoRangePct ?? 0),
-    shieldPenPct: equipmentBonuses.shieldPenPct ?? 0,
+    autoRangeMult: (nextStats.autoAttackRangeMult ?? 1) * (1 + (equipmentBonuses.autoRangePct ?? 0)),
+    shieldPenPct: (nextStats.antiShieldPct ?? 0) + (equipmentBonuses.shieldPenPct ?? 0),
+    healCutPct: nextStats.healCutPct ?? 0,
+    armorShredPct: nextStats.armorShredPct ?? 0,
     armorPenFlat: equipmentBonuses.armorPenFlat ?? 0,
     armorFlat: equipmentBonuses.armorFlat ?? 0
   };
 
   if (player?.inv) {
-    player.inv.cargoMax = 60 + Math.max(0, Math.round(equipmentBonuses.cargoFlat ?? 0));
+    player.inv.cargoMax = Math.max(1, Math.round((nextStats.cargoCapacity ?? 60) + Math.max(0, equipmentBonuses.cargoFlat ?? 0)));
   }
 
   player.stats = {

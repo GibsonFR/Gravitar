@@ -315,8 +315,10 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   if (target.kind === 'player' && isPlayerSessionPending(target)) return;
 
   const bypassShield = !!options.bypassShield;
+  const outgoingFrameDamageMult = sourcePlayer?.frameBonuses?.outgoingDamageMult ?? 1;
+  const sourceAdjustedAmount = amount * Math.max(0, outgoingFrameDamageMult);
   const shielded = !!target.stats && (target.stats.shield ?? 0) > 0 && !bypassShield;
-  const bastionAdjustedAmount = target.kind === 'player' ? amount * getBastionDefenseMultiplier(target) : amount;
+  const bastionAdjustedAmount = target.kind === 'player' ? sourceAdjustedAmount * getBastionDefenseMultiplier(target) : sourceAdjustedAmount;
   const frameAdjusted = adjustIncomingDamageByFrame(target, bastionAdjustedAmount);
   const finalAmount = shielded
     ? frameAdjusted * getIncomingShieldDamageMultiplier(target)

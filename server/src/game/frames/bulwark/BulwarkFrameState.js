@@ -2,6 +2,9 @@ export function createBulwarkFrameState() {
   return {
     plateDurations: [],
     plateGainIcdLeft: 0,
+    recentDamageWindowLeft: 0,
+    recentDamageTaken: 0,
+    empoweredLeft: 0,
     anchorLeft: 0,
     anchorArmorFlat: 0,
     anchorPulseRadius: 0,
@@ -12,6 +15,7 @@ export function createBulwarkFrameState() {
     meditationFinalSlowPct: 0,
     meditationFinalSlowDuration: 0,
     meditationPulseRadius: 0,
+    meditationPulseTickLeft: 0.85,
     meditationFinalGroundedDuration: 0,
     harpoonHasteLeft: 0,
     harpoonHastePct: 0,

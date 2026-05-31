@@ -221,8 +221,8 @@ function maybeDetonateSigilRunes(state, owner, target, timeMs, options = {}) {
 
   const bonus = tuning.passive.detonationBonusFlat
     + getWeaponReferenceDamage(owner) * tuning.passive.detonationBonusWeaponPct
-    + Math.max(0, owner.stats?.energy ?? 0) * tuning.passive.detonationBonusCurrentEnergyPct;
-  applyDamage(state, target, bonus, owner, { timeMs });
+    + Math.max(0, owner.stats?.maxEnergy ?? 0) * tuning.passive.detonationBonusMaxEnergyPct;
+  applyDamage(state, target, bonus, owner, { timeMs, sourceSlot: options.sourceSlot || '', visualKind: 'ability' });
   fs.detonationCooldownLeft = tuning.passive.detonationCooldown;
 
   if (options.applyStasisDuration > 0) {
@@ -232,13 +232,15 @@ function maybeDetonateSigilRunes(state, owner, target, timeMs, options = {}) {
       label: 'A',
       timeMs
     });
-  } else if (options.applyStunDuration > 0) {
+  }
+  if (options.applyStunDuration > 0 && !fs.ultDetonationStunUsed) {
     applyStatus(target, I.STUN, options.applyStunDuration, {
       sourceId: owner.id,
       hostile: true,
       label: 'R',
       timeMs
     });
+    fs.ultDetonationStunUsed = true;
   }
   return true;
 }
@@ -268,10 +270,45 @@ function addBulwarkPlate(player) {
   return true;
 }
 
+function grantBulwarkPlateShield(player) {
+  if (!player?.stats) return 0;
+  const armor = getBulwarkArmor(player);
+  const shieldGain = player.stats.maxHp * BULWARK_PASSIVE.plateShieldPctMaxHp + armor * BULWARK_PASSIVE.plateShieldArmorPct;
+  if (shieldGain <= 0) return 0;
+  player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + shieldGain);
+  return shieldGain;
+}
+
+function consumeBulwarkMaxPlatesForAbility(player) {
+  const fs = getBulwarkState(player);
+  if (!fs || fs.plateDurations.length < BULWARK_PASSIVE.maxPlates) return false;
+  fs.plateDurations = [];
+  fs.empoweredLeft = Math.max(fs.empoweredLeft || 0, BULWARK_PASSIVE.empoweredDuration);
+  grantBulwarkPlateShield(player);
+  return true;
+}
+
+function registerBulwarkBurstDamage(player, amount) {
+  const fs = getBulwarkState(player);
+  if (!fs || amount <= 0) return false;
+  fs.recentDamageWindowLeft = BULWARK_PASSIVE.plateBurstWindow;
+  fs.recentDamageTaken = (fs.recentDamageTaken || 0) + amount;
+  if (fs.plateGainIcdLeft > 0) return false;
+  if (fs.recentDamageTaken < player.stats.maxHp * BULWARK_PASSIVE.plateBurstThresholdPctMaxHp) return false;
+  fs.recentDamageTaken = 0;
+  fs.plateGainIcdLeft = BULWARK_PASSIVE.plateGainInternalCooldown;
+  return addBulwarkPlate(player);
+}
+
 function tickBulwarkPlates(player, dt) {
   const fs = getBulwarkState(player);
   if (!fs) return;
   if (fs.plateGainIcdLeft > 0) fs.plateGainIcdLeft = Math.max(0, fs.plateGainIcdLeft - dt);
+  if (fs.empoweredLeft > 0) fs.empoweredLeft = Math.max(0, fs.empoweredLeft - dt);
+  if (fs.recentDamageWindowLeft > 0) {
+    fs.recentDamageWindowLeft = Math.max(0, fs.recentDamageWindowLeft - dt);
+    if (fs.recentDamageWindowLeft <= 0) fs.recentDamageTaken = 0;
+  }
   if (!fs.plateDurations.length) return;
   fs.plateDurations = fs.plateDurations.map((v) => Math.max(0, v - dt)).filter((v) => v > 0);
 }
@@ -286,10 +323,11 @@ function updateFrameBonuses(player) {
     const stacks = fs?.passiveStacks ?? 0;
     player.frameBonuses = {
       moveHaste: stacks * VANGUARD_PASSIVE.moveSpeedPerStack + (fs?.moveBoostLeft > 0 ? z.moveBoostPct : 0) + (fs?.ultLeft > 0 ? ult.ultMoveSpeedPct : 0),
-      slowResist: stacks * VANGUARD_PASSIVE.slowResistPerStack,
-      tenacity: stacks >= 6 ? VANGUARD_PASSIVE.tenacityAtSixPct : 0,
+      slowResist: (player.progressionBonuses?.slowResist ?? 0) + stacks * VANGUARD_PASSIVE.slowResistPerStack,
+      tenacity: (player.progressionBonuses?.tenacity ?? 0) + (stacks >= 6 ? VANGUARD_PASSIVE.tenacityAtSixPct : 0),
       attackSpeed: stacks * VANGUARD_PASSIVE.attackSpeedPerStack + (fs?.ultLeft > 0 ? ult.ultAttackSpeedPct : 0),
-      ultEmpowerPct: fs?.ultLeft > 0 ? ult.ultEmpowerPct : 0,
+      ultEmpowerPct: 0,
+      outgoingDamageMult: fs?.ultLeft > 0 ? (1 + ult.ultEmpowerPct) : 1,
       incomingDamageReductionPct: fs?.phaseLeft > 0 ? getE(player).damageReductionPct : 0,
       armorFlat: 0
     };
@@ -299,11 +337,12 @@ function updateFrameBonuses(player) {
   if (player.frameId === SHIP_FRAME_IDS.SIGIL) {
     player.frameBonuses = {
       moveHaste: 0,
-      slowResist: 0,
-      tenacity: 0,
+      slowResist: player.progressionBonuses?.slowResist ?? 0,
+      tenacity: player.progressionBonuses?.tenacity ?? 0,
       attackSpeed: 0,
       ultEmpowerPct: 0,
       incomingDamageReductionPct: 0,
+      outgoingDamageMult: 1,
       armorFlat: 0
     };
     return;
@@ -316,10 +355,11 @@ function updateFrameBonuses(player) {
     const meditation = getBulwarkE(player);
     player.frameBonuses = {
       moveHaste: -(fs?.anchorLeft > 0 ? anchor.anchorSelfSlowPct : 0) - (fs?.meditationLeft > 0 ? meditation.meditationSelfSlowPct : 0),
-      slowResist: 0,
-      tenacity: plates * BULWARK_PASSIVE.plateTenacityPerPlate,
+      slowResist: player.progressionBonuses?.slowResist ?? 0,
+      tenacity: (player.progressionBonuses?.tenacity ?? 0) + plates * BULWARK_PASSIVE.plateTenacityPerPlate,
       attackSpeed: 0,
       ultEmpowerPct: 0,
+      outgoingDamageMult: 1,
       incomingDamageReductionPct: plates * BULWARK_PASSIVE.plateDamageReductionPerPlate
         + (fs?.anchorLeft > 0 ? anchor.anchorDamageReductionPct : 0)
         + (fs?.meditationLeft > 0 ? meditation.meditationDamageReductionPct : 0),
@@ -466,21 +506,7 @@ function tickSigil(state, player, dt, timeMs) {
   if (fs.zoneEffectId && !state.areaEffects.has(fs.zoneEffectId)) fs.zoneEffectId = 0;
   tickSigilTrail(state, player, dt, timeMs);
 
-  if (fs.zoneEffectId && fs.ultLeft > 0) {
-    const zone = state.areaEffects.get(fs.zoneEffectId);
-    const r = getSigilR(player);
-    if (zone && r.ultZoneCamouflageDuration > 0) {
-      const rr = zone.radius + (player.radius ?? 0);
-      if (distSq(player.x, player.y, zone.x, zone.y) <= rr * rr) {
-        applyStatus(player, I.CAMOUFLAGE, r.ultZoneCamouflageDuration, {
-          sourceId: player.id,
-          hostile: false,
-          label: 'R',
-          timeMs
-        });
-      }
-    }
-  }
+  if (fs.zoneCamouflagePulseLeft > 0) fs.zoneCamouflagePulseLeft = Math.max(0, fs.zoneCamouflagePulseLeft - dt);
 
   updateFrameBonuses(player);
 }
@@ -543,6 +569,21 @@ function tickBulwark(state, player, dt, timeMs) {
     if (missing > 0 && tuning.meditationHealMissingPctPerSecond > 0) {
       healStatBlock(player.stats, missing * tuning.meditationHealMissingPctPerSecond * dt);
     }
+    if (tuning.meditationPulseRadius > 0 && tuning.meditationFinalSlowPct > 0) {
+      fs.meditationPulseTickLeft = Math.max(0, (fs.meditationPulseTickLeft || 0.85) - dt);
+      while (fs.meditationPulseTickLeft <= 0 && fs.meditationLeft > 0) {
+        forEachHostileInRadius(state, player, player.x, player.y, tuning.meditationPulseRadius, (target) => {
+          applyStatus(target, I.SLOW, tuning.meditationFinalSlowDuration, {
+            sourceId: player.id,
+            hostile: true,
+            value: tuning.meditationFinalSlowPct,
+            label: 'E',
+            timeMs
+          });
+        });
+        fs.meditationPulseTickLeft += 0.85;
+      }
+    }
     const prev = fs.meditationLeft;
     fs.meditationLeft = Math.max(0, fs.meditationLeft - dt);
     if (prev > 0 && fs.meditationLeft <= 0) {
@@ -582,8 +623,8 @@ function tickBulwark(state, player, dt, timeMs) {
     if (stormTuning.stormShieldGainPctMaxShieldPerTick > 0) {
       fs.stormShieldTickLeft = Math.max(0, fs.stormShieldTickLeft - dt);
       while (fs.stormShieldTickLeft <= 0 && fs.stormLeft > 0) {
-        const cap = player.stats.maxShield * (stormTuning.stormShieldGainCapPctMaxShield || 0);
-        const gain = Math.min(player.stats.maxShield * stormTuning.stormShieldGainPctMaxShieldPerTick, Math.max(0, cap - (fs.stormShieldGained || 0)));
+        const cap = player.stats.maxHp * (stormTuning.stormShieldGainCapPctMaxShield || 0);
+        const gain = Math.min(player.stats.maxHp * stormTuning.stormShieldGainPctMaxShieldPerTick, Math.max(0, cap - (fs.stormShieldGained || 0)));
         if (gain > 0) {
           player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + gain);
           fs.stormShieldGained = (fs.stormShieldGained || 0) + gain;
@@ -637,8 +678,6 @@ export function getFrameAutoAttackProfile(player, options = {}) {
       if (!options.peekOnly) fs.empoweredCharges = Math.max(0, fs.empoweredCharges - 1);
       empoweredUsed = true;
     }
-    if ((player.frameBonuses?.ultEmpowerPct ?? 0) > 0) damage += baseDamage * player.frameBonuses.ultEmpowerPct;
-
     return {
       cooldownMult: Math.max(0.15, (player.progressionBonuses?.fireRateMult ?? 1) * (1 + (player.frameBonuses?.attackSpeed ?? 0))),
       damage,
@@ -666,8 +705,9 @@ export function getFrameAutoAttackProfile(player, options = {}) {
     const fs = getBulwarkState(player);
     const armor = getBulwarkArmor(player);
     const passive = BULWARK_PASSIVE;
-    const empowered = getBulwarkPlateCount(player) >= passive.maxPlates;
-    const pct = empowered ? passive.empoweredArmorToAttackDamagePct : passive.armorToAttackDamagePct;
+    const empowered = (fs?.empoweredLeft ?? 0) > 0;
+    const conversionBoost = (fs?.anchorLeft ?? 0) > 0 ? 1.5 : 1;
+    const pct = (empowered ? passive.empoweredArmorToAttackDamagePct : passive.armorToAttackDamagePct) * conversionBoost;
     const damage = getWeaponReferenceDamage(player) + armor * pct;
     return {
       cooldownMult: Math.max(0.15, player.progressionBonuses?.fireRateMult ?? 1),
@@ -697,6 +737,10 @@ export function adjustIncomingDamageByFrame(target, amount) {
       const tuning = getBulwarkA(target);
       if (tuning.anchorSingleHitCapPctMaxHp > 0) adjusted = Math.min(adjusted, target.stats.maxHp * tuning.anchorSingleHitCapPctMaxHp);
     }
+    if (fs?.meditationLeft > 0) {
+      const tuning = getBulwarkE(target);
+      if (tuning.phase >= 5) adjusted = Math.min(adjusted, target.stats.maxHp * 0.16);
+    }
   }
 
   return adjusted;
@@ -707,15 +751,7 @@ export function onDamageTakenByFrame(state, target, amount, sourcePlayer, timeMs
   const fs = getBulwarkState(target);
   if (!fs) return;
 
-  if (!options.isReflected && amount >= target.stats.maxHp * BULWARK_PASSIVE.plateBurstThresholdPctMaxHp && fs.plateGainIcdLeft <= 0) {
-    fs.plateGainIcdLeft = BULWARK_PASSIVE.plateGainInternalCooldown;
-    const added = addBulwarkPlate(target);
-    if (added && getBulwarkPlateCount(target) >= BULWARK_PASSIVE.maxPlates) {
-      const armor = getBulwarkArmor(target);
-      const shieldGain = target.stats.maxHp * BULWARK_PASSIVE.plateShieldPctMaxHp + armor * BULWARK_PASSIVE.plateShieldArmorPct;
-      target.stats.shield = Math.min(target.stats.maxShield, target.stats.shield + shieldGain);
-    }
-  }
+  if (!options.isReflected) registerBulwarkBurstDamage(target, amount);
 
   if (!options.isReflected && fs.anchorLeft > 0 && sourcePlayer) {
     const tuning = getBulwarkA(target);
@@ -830,11 +866,19 @@ function handleSigilProjectileImpact(state, owner, target, projectile, timeMs) {
     maybeSlowFromSigilRunes(owner, target, a, timeMs);
   }
 
-  if (projectile.sourceAbilitySlot !== 'A') return;
+  if (projectile.sourceAbilitySlot !== 'A') {
+    if (projectile.sourceAbilitySlot === -1) {
+      applySigilRunes(owner, target, a, 1, timeMs);
+      maybeSlowFromSigilRunes(owner, target, a, timeMs);
+    }
+    return;
+  }
 
+  const hadRevealRunes = a.aRevealThreshold > 0 && runesBefore >= a.aRevealThreshold;
+  const hadHealCutRunes = a.aHealCutThreshold > 0 && runesBefore >= a.aHealCutThreshold;
   applySigilRunes(owner, target, a, a.aImpactRunes, timeMs);
   const runesAfter = getSigilRuneCount(target);
-  if (a.aRevealThreshold > 0 && runesAfter >= a.aRevealThreshold) {
+  if (hadRevealRunes) {
     applyStatus(target, I.REVEAL, a.aRevealDuration, {
       sourceId: owner.id,
       hostile: true,
@@ -842,7 +886,7 @@ function handleSigilProjectileImpact(state, owner, target, projectile, timeMs) {
       timeMs
     });
   }
-  if (a.aHealCutThreshold > 0 && runesAfter >= a.aHealCutThreshold) {
+  if (hadHealCutRunes) {
     applyStatus(target, I.HEAL_CUT, a.aHealCutDuration, {
       sourceId: owner.id,
       hostile: true,
@@ -869,12 +913,27 @@ function handleSigilProjectileImpact(state, owner, target, projectile, timeMs) {
     });
   }
   maybeDetonateSigilRunes(state, owner, target, timeMs, {
+    sourceSlot: 'A',
     applyStasisDuration: a.aDetonationStasisDuration,
     applyStunDuration: fs.ultLeft > 0 ? r.ultDetonationStunDuration : 0
   });
 }
 
 function handleBulwarkProjectileImpact(state, owner, target, projectile, timeMs) {
+  if (projectile.sourceAbilitySlot === -1) {
+    const fs = getBulwarkState(owner);
+    const armor = getBulwarkArmor(owner);
+    const passive = BULWARK_PASSIVE;
+    const conversionBoost = (fs?.anchorLeft ?? 0) > 0 ? 1.5 : 1;
+    const pct = ((fs?.empoweredLeft ?? 0) > 0 ? passive.empoweredArmorToOnHitDamagePct : passive.armorToOnHitDamagePct) * conversionBoost;
+    let bonus = armor * pct;
+    if ((fs?.anchorLeft ?? 0) > 0 && hasStatus(target, I.TAUNT)) {
+      const a = getBulwarkA(owner);
+      bonus += a.anchorTauntedBonusFlat + armor * a.anchorTauntedBonusArmorPct;
+    }
+    if (bonus > 0) applyDamage(state, target, bonus, owner, { timeMs, sourceSlot: 'auto', visualKind: 'auto', ignoreItemProcs: true });
+    return;
+  }
   if (projectile.sourceAbilitySlot !== 'Z') return;
   const tuning = getBulwarkZ(owner);
   applyStatus(target, I.TAUNT, tuning.harpoonTauntDuration, {
@@ -1091,7 +1150,7 @@ function castSigilZ(state, player, timeMs) {
     if (zone) {
       forEachHostileInRadius(state, player, zone.x, zone.y, zone.radius, (target) => {
         const runes = getSigilRuneCount(target);
-        if (runes >= z.zCloseControlThresholdRunes && z.zClosePullStrength > 0) applyPullMove(target, player, 0.18, z.zClosePullStrength);
+        if (runes >= z.zCloseControlThresholdRunes && z.zClosePullStrength > 0) applyPullMove(target, { id: player.id, x: zone.x, y: zone.y }, 0.18, z.zClosePullStrength);
         if (runes >= z.zCloseControlThresholdRunes && z.zCloseSuppressDuration > 0) {
           applyStatus(target, I.SUPPRESS, z.zCloseSuppressDuration, {
             sourceId: player.id,
@@ -1103,6 +1162,15 @@ function castSigilZ(state, player, timeMs) {
       });
       state.areaEffects.delete(fs.zoneEffectId);
       fs.zoneEffectId = 0;
+      const r = getSigilR(player);
+      if (fs.ultLeft > 0 && r.ultZoneCamouflageDuration > 0) {
+        applyStatus(player, I.CAMOUFLAGE, r.ultZoneCamouflageDuration, {
+          sourceId: player.id,
+          hostile: false,
+          label: 'R+Z',
+          timeMs
+        });
+      }
       return true;
     }
     fs.zoneEffectId = 0;
@@ -1208,6 +1276,7 @@ function castSigilR(state, player, timeMs) {
   if (!consumeEnergy(player.stats, r.energyCost)) return false;
   const fs = getSigilState(player);
   fs.ultLeft = r.ultDuration;
+  fs.ultDetonationStunUsed = false;
   applyStatus(player, I.LIFESTEAL, r.ultDuration, {
     sourceId: player.id,
     hostile: false,
@@ -1225,6 +1294,7 @@ function castBulwarkA(state, player, timeMs) {
   if (player.cooldownALeft > 0) return false;
   if (!consumeEnergy(player.stats, a.energyCost)) return false;
   const fs = getBulwarkState(player);
+  consumeBulwarkMaxPlatesForAbility(player);
   fs.anchorLeft = a.anchorDuration;
   fs.anchorArmorFlat = a.anchorArmorFlat;
   fs.anchorPulseRadius = a.anchorPulseRadius;
@@ -1239,6 +1309,7 @@ function castBulwarkZ(state, player, timeMs) {
   const z = getBulwarkZ(player);
   if (player.cooldownZLeft > 0) return false;
   if (!consumeEnergy(player.stats, z.energyCost)) return false;
+  consumeBulwarkMaxPlatesForAbility(player);
   const world = getAbilityMouseWorld(player);
   const dir = norm(world.x - player.x, world.y - player.y);
   const armor = getBulwarkArmor(player);
@@ -1258,6 +1329,7 @@ function castBulwarkE(state, player, timeMs) {
   const e = getBulwarkE(player);
   if (player.cooldownELeft > 0) return false;
   if (!consumeEnergy(player.stats, e.energyCost)) return false;
+  consumeBulwarkMaxPlatesForAbility(player);
   if (e.meditationCleanseSilenceDisarmRoot) cleanseControlOnly(player);
   if (e.meditationCastUnstoppableDuration > 0) {
     applyStatus(player, I.UNSTOPPABLE, e.meditationCastUnstoppableDuration, {
@@ -1278,6 +1350,7 @@ function castBulwarkR(state, player, timeMs) {
   const r = getBulwarkR(player);
   if (player.cooldownRLeft > 0) return false;
   if (!consumeEnergy(player.stats, r.energyCost)) return false;
+  consumeBulwarkMaxPlatesForAbility(player);
   const fs = getBulwarkState(player);
   fs.stormLeft = r.stormDuration;
   fs.stormTickLeft = 0.5;
@@ -1364,6 +1437,7 @@ export function buildFrameUiState(player, timeMs) {
       anchorLeft: fs.anchorLeft,
       meditationLeft: fs.meditationLeft,
       stormLeft: fs.stormLeft,
+      empoweredLeft: fs.empoweredLeft || 0,
       stormArmorStolen: fs.stormArmorStolen || 0,
       stormShieldGained: fs.stormShieldGained || 0
     };

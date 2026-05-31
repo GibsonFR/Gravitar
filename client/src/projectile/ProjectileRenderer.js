@@ -73,13 +73,102 @@ function drawRocket(ctx, view, p, s) {
   }
 }
 
+function abilityProjectileStyle(p) {
+  const frame = p.sourceFrameId || '';
+  const slot = p.visualSlot || p.sourceAbilitySlot || '';
+  if (frame === 'vanguard' && slot === 'A') return { kind: 'needle', color: { r: 130, g: 225, b: 255 }, core: { r: 245, g: 255, b: 255 } };
+  if (frame === 'sigil' && slot === 'A') return { kind: 'rune', color: { r: 197, g: 120, b: 255 }, core: { r: 248, g: 232, b: 255 } };
+  if (frame === 'bulwark' && slot === 'Z') return { kind: 'harpoon', color: { r: 234, g: 190, b: 112 }, core: { r: 255, g: 240, b: 200 } };
+  return { kind: 'orb', color: p.tint ?? { r: 130, g: 225, b: 255 }, core: { r: 245, g: 255, b: 255 } };
+}
+
 function drawAbilityProjectile(ctx, view, p, s) {
   const dpr = view.dpr;
-  const c = p.tint ?? { r: 130, g: 225, b: 255 };
+  const style = abilityProjectileStyle(p);
+  const c = style.color;
+  const core = style.core;
   const r = Math.max(3.5, p.radius || 3.5);
   const x = s.x * dpr;
   const y = s.y * dpr;
+  const vlen = Math.hypot(p.vx || 0, p.vy || 0);
+  const a = vlen > 0.01 ? Math.atan2(p.vy, p.vx) : 0;
   const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.018 + p.id);
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(a);
+
+  if (style.kind === 'needle') {
+    ctx.fillStyle = rgba(c.r, c.g, c.b, 0.13 * pulse);
+    ctx.beginPath();
+    ctx.ellipse(-r * 2.2 * dpr, 0, r * 5.6 * dpr, r * 1.55 * dpr, 0, 0, Math.PI * 2);
+    ctx.fill();
+    const grad = ctx.createLinearGradient(-r * 2.6 * dpr, 0, r * 3.2 * dpr, 0);
+    grad.addColorStop(0, rgba(c.r, c.g, c.b, 0.12));
+    grad.addColorStop(0.45, rgba(c.r, c.g, c.b, 0.88));
+    grad.addColorStop(1, rgba(core.r, core.g, core.b, 0.98));
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = rgba(c.r, c.g, c.b, 0.86);
+    ctx.lineWidth = 1.45 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(r * 3.8 * dpr, 0);
+    ctx.lineTo(-r * 2.2 * dpr, -r * 0.72 * dpr);
+    ctx.lineTo(-r * 3.4 * dpr, 0);
+    ctx.lineTo(-r * 2.2 * dpr, r * 0.72 * dpr);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (style.kind === 'rune') {
+    ctx.rotate(performance.now() * 0.004 + p.id * 0.02);
+    ctx.fillStyle = rgba(c.r, c.g, c.b, 0.13 * pulse);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 3.5 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = rgba(c.r, c.g, c.b, 0.90);
+    ctx.lineWidth = 1.7 * dpr;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i += 1) {
+      const aa = -Math.PI / 2 + i * Math.PI / 3;
+      const px = Math.cos(aa) * r * 1.75 * dpr;
+      const py = Math.sin(aa) * r * 1.75 * dpr;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fillStyle = rgba(core.r, core.g, core.b, 0.96);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.78 * dpr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (style.kind === 'harpoon') {
+    ctx.fillStyle = rgba(c.r, c.g, c.b, 0.12 * pulse);
+    ctx.beginPath();
+    ctx.ellipse(-r * 2.4 * dpr, 0, r * 5.8 * dpr, r * 1.7 * dpr, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = rgba(c.r, c.g, c.b, 0.84);
+    ctx.fillStyle = rgba(core.r, core.g, core.b, 0.95);
+    ctx.lineWidth = 1.6 * dpr;
+    ctx.beginPath();
+    ctx.moveTo(r * 3.2 * dpr, 0);
+    ctx.lineTo(r * 0.8 * dpr, -r * 1.0 * dpr);
+    ctx.lineTo(r * 1.25 * dpr, -r * 0.25 * dpr);
+    ctx.lineTo(-r * 3.4 * dpr, -r * 0.25 * dpr);
+    ctx.lineTo(-r * 3.4 * dpr, r * 0.25 * dpr);
+    ctx.lineTo(r * 1.25 * dpr, r * 0.25 * dpr);
+    ctx.lineTo(r * 0.8 * dpr, r * 1.0 * dpr);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  ctx.restore();
   ctx.fillStyle = rgba(c.r, c.g, c.b, 0.16 * pulse);
   ctx.beginPath();
   ctx.arc(x, y, r * 3.2 * dpr, 0, Math.PI * 2);
@@ -89,7 +178,7 @@ function drawAbilityProjectile(ctx, view, p, s) {
   ctx.beginPath();
   ctx.arc(x, y, r * 1.55 * dpr, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.fillStyle = rgba(245, 255, 255, 0.96);
+  ctx.fillStyle = rgba(core.r, core.g, core.b, 0.96);
   ctx.beginPath();
   ctx.arc(x, y, r * 0.82 * dpr, 0, Math.PI * 2);
   ctx.fill();

@@ -10,7 +10,7 @@ export const SIGIL_PASSIVE = Object.freeze({
   detonationCooldown: 1.2,
   detonationBonusFlat: 18,
   detonationBonusWeaponPct: 0.45,
-  detonationBonusCurrentEnergyPct: 0.06
+  detonationBonusMaxEnergyPct: 0.06
 });
 
 const PHASE_POINTS = Object.freeze([1, 3, 6, 10, 15]);
