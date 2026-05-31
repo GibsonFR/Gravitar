@@ -251,14 +251,14 @@ body {
   color: rgba(183, 202, 224, 0.82);
 }
 
-.cargo-panel__total-wrap {
+.cargo-panel__capacity-wrap {
   text-align: right;
 }
 
-.cargo-panel__total {
+.cargo-panel__capacity {
   margin-top: 4px;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
   color: var(--accent-cyan);
 }
 
@@ -274,14 +274,9 @@ body {
 .cargo-panel__table-head,
 .cargo-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) 0.7fr 0.8fr 0.9fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 64px 132px;
+  gap: 12px;
   align-items: center;
-}
-
-.cargo-panel--jettison .cargo-panel__table-head,
-.cargo-panel--jettison .cargo-row {
-  grid-template-columns: minmax(0, 1.6fr) 0.7fr 0.8fr 0.9fr 1.1fr;
 }
 
 .cargo-panel__meter-topline {
@@ -309,36 +304,45 @@ body {
   transition: width 120ms ease;
 }
 
-.cargo-panel__hint {
-  margin: 0 0 10px;
-  padding: 8px 10px;
-  border: 1px solid rgba(120, 180, 255, 0.12);
-  border-radius: 12px;
-  background: rgba(10, 16, 24, 0.46);
-  color: rgba(183, 202, 224, 0.78);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.cargo-panel--jettison .cargo-panel__hint {
-  border-color: rgba(255, 184, 92, 0.16);
-  background: rgba(255, 184, 92, 0.055);
-  color: rgba(255, 224, 176, 0.86);
-}
-
 .cargo-row__actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 52px;
   gap: 6px;
   min-width: 0;
+  align-items: center;
 }
 
 .cargo-row__jettison {
-  min-height: 28px;
-  padding-inline: 9px;
+  height: 30px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 1px solid rgba(125, 214, 255, 0.22);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(20, 32, 46, 0.95) 0%, rgba(10, 16, 24, 0.95) 100%);
+  color: rgba(235, 242, 255, 0.92);
+  font-size: 11px;
+  font-weight: 700;
   white-space: nowrap;
+  cursor: pointer;
   pointer-events: auto;
+}
+
+.cargo-row__jettison--ghost {
+  background: rgba(9, 15, 22, 0.55);
+}
+
+.cargo-row__jettison:hover {
+  border-color: rgba(125, 214, 255, 0.42);
+}
+
+.cargo-row__jettison:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+.cargo-row__locked {
+  justify-self: center;
+  color: rgba(183, 202, 224, 0.45);
 }
 
 .cargo-panel__table-head {
@@ -364,6 +368,12 @@ body {
   border-radius: 16px;
   background: rgba(9, 15, 22, 0.65);
   color: var(--text-soft);
+}
+
+.cargo-row__qty {
+  text-align: right;
+  font-weight: 800;
+  color: rgba(235, 242, 255, 0.92);
 }
 
 .cargo-row.is-stocked {
@@ -8791,4 +8801,19 @@ button.station-item-icon[draggable="true"]:active,
     width: auto;
     max-height: 45vh;
   }
+}
+
+/* v199 — cargo simplifié : plus de prix, actions alignées */
+.cargo-panel__table-head span:nth-child(2),
+.cargo-panel__table-head span:nth-child(3) {
+  text-align: right;
+}
+.cargo-panel__table-head span:nth-child(3) {
+  text-align: center;
+}
+.cargo-row__resource span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

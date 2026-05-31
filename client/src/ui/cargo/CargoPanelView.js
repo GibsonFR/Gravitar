@@ -1,4 +1,4 @@
-import { formatCredits, formatInt } from './CargoFormat.js';
+import { formatInt } from './CargoFormat.js';
 
 function toInt(value) {
   const n = Math.floor(Number(value) || 0);
@@ -21,11 +21,10 @@ export class CargoPanelView {
         <div>
           <div class="cargo-panel__eyebrow">Soute</div>
           <h2 class="cargo-panel__title">Cargo</h2>
-          <div class="cargo-panel__credits" data-role="credits">0 cr</div>
         </div>
-        <div class="cargo-panel__total-wrap">
-          <div class="cargo-panel__eyebrow">Valeur totale</div>
-          <div class="cargo-panel__total" data-role="totalValue">0 cr</div>
+        <div class="cargo-panel__capacity-wrap">
+          <div class="cargo-panel__eyebrow">Capacité</div>
+          <div class="cargo-panel__capacity" data-role="capacityText">0 / 0</div>
         </div>
       </div>
       <div class="cargo-panel__meter-block">
@@ -37,24 +36,20 @@ export class CargoPanelView {
           <div class="cargo-panel__meter-fill" data-role="cargoFill"></div>
         </div>
       </div>
-      <div class="cargo-panel__hint" data-role="hint"></div>
       <div class="cargo-panel__table-head" data-role="head">
         <span>Ressource</span>
         <span>Qté</span>
-        <span>Prix/u</span>
-        <span>Total</span>
+        <span>Larguer</span>
       </div>
       <div class="cargo-panel__rows" data-role="rows"></div>
     `;
 
-    this.totalValueEl = this.el.querySelector('[data-role="totalValue"]');
-    this.creditsEl = this.el.querySelector('[data-role="credits"]');
+    this.capacityTextEl = this.el.querySelector('[data-role="capacityText"]');
     this.cargoLabelEl = this.el.querySelector('[data-role="cargoLabel"]');
     this.cargoPercentEl = this.el.querySelector('[data-role="cargoPercent"]');
     this.cargoFillEl = this.el.querySelector('[data-role="cargoFill"]');
     this.rowsEl = this.el.querySelector('[data-role="rows"]');
     this.headEl = this.el.querySelector('[data-role="head"]');
-    this.hintEl = this.el.querySelector('[data-role="hint"]');
 
     this.rowsEl.addEventListener('pointerdown', (ev) => this.handlePointerDown(ev));
     this.rowsEl.addEventListener('click', (ev) => {
@@ -85,11 +80,9 @@ export class CargoPanelView {
 
   update(inv, ctx) {
     const safeInv = inv || {
-      credits: 0,
       cargoUsed: 0,
       cargoMax: 0,
       cargoFill01: 0,
-      totalSellValue: 0,
       resources: []
     };
 
@@ -98,23 +91,15 @@ export class CargoPanelView {
     this.el.classList.toggle('cargo-panel--jettison', canJettison);
     this.el.classList.toggle('cargo-panel--docked', isDocked);
 
-    this.totalValueEl.textContent = formatCredits(safeInv.totalSellValue || 0);
-    this.creditsEl.textContent = formatCredits(safeInv.credits || 0);
-    this.cargoLabelEl.textContent = `${formatInt(safeInv.cargoUsed || 0)} / ${formatInt(safeInv.cargoMax || 0)}`;
+    const cargoText = `${formatInt(safeInv.cargoUsed || 0)} / ${formatInt(safeInv.cargoMax || 0)}`;
+    this.capacityTextEl.textContent = cargoText;
+    this.cargoLabelEl.textContent = cargoText;
     this.cargoPercentEl.textContent = `${Math.round((safeInv.cargoFill01 || 0) * 100)}%`;
     this.cargoFillEl.style.width = `${Math.round((safeInv.cargoFill01 || 0) * 100)}%`;
 
-    if (this.hintEl) {
-      this.hintEl.textContent = canJettison
-        ? 'Hors station : vous pouvez larguer des ressources pour libérer de la soute.'
-        : 'Amarré : le largage est désactivé. Utilisez le commerce ou désamarrez.';
-    }
-
     const rows = (safeInv.resources?.length ? safeInv.resources : []).filter((e) => (e?.amount || 0) > 0);
 
-    this.headEl.innerHTML = canJettison
-      ? `<span>Ressource</span><span>Qté</span><span>Prix/u</span><span>Total</span><span>Larguer</span>`
-      : `<span>Ressource</span><span>Qté</span><span>Prix/u</span><span>Total</span>`;
+    this.headEl.innerHTML = `<span>Ressource</span><span>Qté</span><span>Larguer</span>`;
 
     this.rowsEl.innerHTML = rows.map((entry) => {
       const amount = toInt(entry.amount || 0);
@@ -122,10 +107,10 @@ export class CargoPanelView {
       const key = escapeAttr(entry.key || '');
       const actions = canJettison
         ? `<div class="cargo-row__actions">
-            <button class="ui-btn ui-btn--ghost cargo-row__jettison" type="button" data-cargo-jettison="1" data-resource-key="${key}" data-available="${amount}" data-amount="1" ${stocked ? '' : 'disabled'}>Jeter 1</button>
-            <button class="ui-btn cargo-row__jettison" type="button" data-cargo-jettison="1" data-resource-key="${key}" data-available="${amount}" data-amount="all" ${stocked ? '' : 'disabled'}>Tout</button>
+            <button class="cargo-row__jettison cargo-row__jettison--ghost" type="button" data-cargo-jettison="1" data-resource-key="${key}" data-available="${amount}" data-amount="1" ${stocked ? '' : 'disabled'}>Jeter 1</button>
+            <button class="cargo-row__jettison" type="button" data-cargo-jettison="1" data-resource-key="${key}" data-available="${amount}" data-amount="all" ${stocked ? '' : 'disabled'}>Tout</button>
           </div>`
-        : '';
+        : '<span class="cargo-row__locked">—</span>';
 
       return `
         <div class="cargo-row ${stocked ? 'is-stocked' : ''}" data-resource="${key}" data-amount="${amount}">
@@ -133,9 +118,7 @@ export class CargoPanelView {
             <span class="cargo-row__swatch" style="background:${escapeAttr(entry.colorHex || '#d0d7e4')}"></span>
             <span>${escapeAttr(entry.name)}</span>
           </div>
-          <span>${formatInt(amount)}</span>
-          <span>${formatCredits(entry.sellUnitPrice || 0)}</span>
-          <span>${formatCredits(entry.sellTotalValue || 0)}</span>
+          <span class="cargo-row__qty">${formatInt(amount)}</span>
           ${actions}
         </div>
       `;
