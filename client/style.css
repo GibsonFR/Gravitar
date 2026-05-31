@@ -8544,3 +8544,239 @@ button.station-item-icon[draggable="true"]:active,
   line-height: 1.45;
   background: rgba(8, 15, 24, .50);
 }
+
+/* v197 — Objectifs de construction épinglés */
+.base-panel__btn {
+  position: relative;
+}
+.base-panel__btn.is-pinned {
+  border-color: rgba(255, 214, 120, .48);
+  box-shadow: 0 0 18px rgba(255, 194, 84, .12), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.base-panel__pin-btn {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 214, 120, .24);
+  background: rgba(8, 12, 18, .82);
+  color: rgba(255, 226, 160, .86);
+  font-size: 12px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.base-panel__pin-btn:hover,
+.base-panel__pin-btn.is-pinned {
+  border-color: rgba(255, 214, 120, .72);
+  background: rgba(255, 194, 84, .16);
+  color: rgba(255, 240, 190, .98);
+}
+.base-panel__pin-detail {
+  width: 100%;
+  margin: 0 0 12px;
+  min-height: 34px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 214, 120, .22);
+  background: rgba(255, 194, 84, .08);
+  color: rgba(255, 232, 184, .94);
+  cursor: pointer;
+  font-weight: 800;
+}
+.base-panel__pin-detail:hover,
+.base-panel__pin-detail.is-pinned {
+  border-color: rgba(255, 214, 120, .52);
+  box-shadow: 0 0 16px rgba(255, 194, 84, .12);
+}
+.build-pin-hud {
+  position: fixed;
+  top: 92px;
+  right: 18px;
+  width: min(360px, calc(100vw - 36px));
+  max-height: calc(100vh - 128px);
+  z-index: 95;
+  color: rgba(236, 244, 255, .96);
+  pointer-events: auto;
+  border: 1px solid rgba(255, 214, 120, .22);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(13, 18, 27, .94), rgba(7, 10, 16, .96));
+  box-shadow: 0 18px 54px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.03);
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+.build-pin-hud.is-hidden {
+  display: none;
+}
+.build-pin-hud,
+.build-pin-hud * {
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+.build-pin-hud__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px 11px;
+  border-bottom: 1px solid rgba(255, 214, 120, .12);
+  background: radial-gradient(circle at 12% 0%, rgba(255, 194, 84, .14), transparent 42%);
+}
+.build-pin-hud__head button {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: rgba(244,248,255,.9);
+  cursor: pointer;
+}
+.build-pin-hud__eyebrow {
+  font-size: 10px;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: rgba(255, 214, 150, .76);
+  font-weight: 900;
+}
+.build-pin-hud__title {
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 900;
+}
+.build-pin-hud__builds {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 190px;
+  overflow: auto;
+}
+.build-pin-hud__build {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  padding: 9px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+}
+.build-pin-hud__build-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(125, 190, 255, .14);
+  background: rgba(5, 12, 20, .72);
+  color: rgba(125, 232, 255, .88);
+}
+.build-pin-hud__build-icon svg {
+  width: 26px;
+  height: 26px;
+}
+.build-pin-hud__build-main {
+  min-width: 0;
+}
+.build-pin-hud__build-main strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.build-pin-hud__build-main span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: rgba(170, 190, 214, .72);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.build-pin-hud__build-controls {
+  display: inline-grid;
+  grid-template-columns: 24px 26px 24px 24px;
+  gap: 4px;
+  align-items: center;
+}
+.build-pin-hud__build-controls button {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 214, 120, .18);
+  background: rgba(255, 194, 84, .08);
+  color: rgba(255, 232, 184, .94);
+  cursor: pointer;
+  font-weight: 900;
+}
+.build-pin-hud__build-controls button.is-danger {
+  border-color: rgba(255, 120, 120, .20);
+  background: rgba(255, 80, 80, .08);
+  color: rgba(255, 198, 198, .96);
+}
+.build-pin-hud__build-controls b {
+  text-align: center;
+  font-size: 12px;
+}
+.build-pin-hud__resources {
+  padding: 0 10px 12px;
+  max-height: 300px;
+  overflow: auto;
+}
+.build-pin-hud__res {
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.025);
+  margin-top: 8px;
+}
+.build-pin-hud__res.is-ok {
+  border-color: rgba(120, 242, 165, .18);
+}
+.build-pin-hud__res.is-missing {
+  border-color: rgba(255, 180, 100, .16);
+}
+.build-pin-hud__res-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.build-pin-hud__bar {
+  height: 7px;
+  margin-top: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,.08);
+}
+.build-pin-hud__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(255, 194, 84, .72), rgba(126, 242, 170, .92));
+}
+.build-pin-hud__missing {
+  margin-top: 5px;
+  font-size: 10px;
+  color: rgba(185, 204, 228, .74);
+}
+.build-pin-hud__empty {
+  color: rgba(170, 190, 214, .70);
+  font-size: 12px;
+  padding: 10px 0;
+}
+@media (max-width: 760px) {
+  .build-pin-hud {
+    top: auto;
+    right: 10px;
+    left: 10px;
+    bottom: 12px;
+    width: auto;
+    max-height: 45vh;
+  }
+}

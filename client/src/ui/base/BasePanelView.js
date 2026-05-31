@@ -6,6 +6,7 @@ const EDGE_RESERVE_TILES = 1;
 const EDGE_RESERVE = BASE_TILE * EDGE_RESERVE_TILES;
 
 const RESOURCE_LABELS = {
+  scrap: 'Ferraille',
   ironOre: 'Minerai de fer',
   copper: 'Cuivre',
   aluminiumOre: 'Minerai d’aluminium',
@@ -116,7 +117,7 @@ export const BUILD_STRUCTURES = [
     hp: 1200,
     role: 'Définit ta zone de construction.',
     stats: ['Zone : 16 × 16 cases', '1 noyau actif'],
-    cost: { ironOre: 35, copper: 12, aluminiumOre: 8 }
+    cost: { scrap: 20, ironOre: 12, copper: 6 }
   },
   {
     type: 'wall',
@@ -133,7 +134,7 @@ export const BUILD_STRUCTURES = [
     hp: 760,
     role: 'Protège la base.',
     stats: [],
-    cost: { ironOre: 12, copper: 2 }
+    cost: { scrap: 8, ironOre: 6 }
   },
 
   {
@@ -151,7 +152,7 @@ export const BUILD_STRUCTURES = [
     hp: 680,
     role: 'Entrée de base ouvrable.',
     stats: [],
-    cost: { ironOre: 10, copper: 4, aluminiumOre: 2 }
+    cost: { scrap: 6, ironOre: 8, copper: 3 }
   },
   {
     type: 'storage',
@@ -168,7 +169,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 420,
     role: 'Stocke les minerais et matériaux.',
     stats: ['Capacité : 420'],
-    cost: { ironOre: 14, copper: 8, aluminiumOre: 4 }
+    cost: { scrap: 10, ironOre: 8, copper: 4 }
   },
   {
     type: 'equipment_storage',
@@ -185,7 +186,7 @@ export const BUILD_STRUCTURES = [
     itemCapacity: 18,
     role: 'Stocke armes, lance-roquettes et modules.',
     stats: ['Capacité : 18 objets'],
-    cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
+    cost: { ironIngot: 4, copperWire: 4, scrap: 8 }
   },
   {
     type: 'solar_panel',
@@ -202,7 +203,7 @@ export const BUILD_STRUCTURES = [
     energyOutput: 8,
     role: 'Produit une énergie stable sans carburant.',
     stats: ['Production : +8 énergie'],
-    cost: { silicon: 12, copper: 8, aluminiumOre: 8 }
+    cost: { silicon: 8, copper: 6, ironOre: 6 }
   },
   {
     type: 'fuel_generator',
@@ -220,7 +221,7 @@ export const BUILD_STRUCTURES = [
     fuelCapacity: 80,
     role: 'Produit beaucoup d’énergie avec du carburant.',
     stats: ['Production : +34 énergie', 'Stock carburant : 80'],
-    cost: { ironOre: 18, copper: 10, aluminiumOre: 8 }
+    cost: { ironIngot: 4, copperWire: 4, steelPlate: 2 }
   },
   {
     type: 'fuel_tank',
@@ -237,7 +238,7 @@ export const BUILD_STRUCTURES = [
     fuelCapacity: 240,
     role: 'Stocke le carburant de la base.',
     stats: ['Capacité : 240 carburant'],
-    cost: { ironOre: 16, copper: 8, aluminiumOre: 8 }
+    cost: { ironIngot: 4, copperWire: 2, steelPlate: 1 }
   },
 
   {
@@ -254,7 +255,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 6,
     role: 'Produit les packs de science à partir de composants industriels.',
     stats: ['Machine de production', 'Packs de science'],
-    cost: { ironOre: 18, copper: 12, aluminiumOre: 8 }
+    cost: { ironOre: 16, copper: 8, silicon: 6 }
   },
   {
     type: 'research_station',
@@ -270,7 +271,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 8,
     role: 'Consomme les packs de science pour débloquer des technologies.',
     stats: ['Arbre de recherche', 'Packs requis', 'Énergie active'],
-    cost: { ironIngot: 8, copperWire: 8, aluminiumOre: 12 }
+    cost: { ironIngot: 4, copper: 10, silicon: 6 }
   },
 
   {
@@ -288,7 +289,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 4,
     role: 'Transforme les minerais communs.',
     stats: ['Consommation : 4 énergie'],
-    cost: { ironOre: 18, copper: 4 }
+    cost: { scrap: 8, ironOre: 12, copper: 3 }
   },
   {
     type: 'high_temp_furnace',
@@ -305,7 +306,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 9,
     role: 'Traite quartz, graphite et matériaux durs.',
     stats: ['Consommation : 9 énergie'],
-    cost: { steelPlate: 4, copper: 8, aluminiumOre: 8 }
+    cost: { ironIngot: 6, copperIngot: 4, graphite: 6 }
   },
   {
     type: 'chemical_refinery',
@@ -322,7 +323,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 6,
     role: 'Produit carburants et composants chimiques.',
     stats: ['Consommation : 6 énergie'],
-    cost: { ironOre: 18, copper: 8, aluminiumOre: 6 }
+    cost: { steelPlate: 2, copperWire: 4, silicon: 4 }
   },
   {
     type: 'electrolyzer',
@@ -339,7 +340,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 8,
     role: 'Sépare et stabilise les volatils.',
     stats: ['Consommation : 8 énergie'],
-    cost: { aluminiumOre: 14, copper: 10, silicon: 6 }
+    cost: { steelPlate: 2, copperWire: 6, silicon: 6 }
   },
   {
     type: 'electronics_bench',
@@ -356,7 +357,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 7,
     role: 'Produit wafers, transistors et circuits.',
     stats: ['Consommation : 7 énergie'],
-    cost: { aluminiumOre: 12, copper: 12, silicon: 8 }
+    cost: { steelPlate: 3, copperWire: 8, silicon: 10 }
   },
   {
     type: 'industrial_press',
@@ -373,7 +374,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 10,
     role: 'Assemble pièces mécaniques et blindage.',
     stats: ['Consommation : 10 énergie'],
-    cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
+    cost: { ironIngot: 4, copper: 8, graphite: 4 }
   },
   {
     type: 'industrial_converter',
@@ -390,7 +391,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 10,
     role: 'Convertit les ressources avec les recettes achetées en station pirate.',
     stats: ['Consommation : 10 énergie', 'Recettes pirates uniquement'],
-    cost: { steelPlate: 6, copperWire: 10, controlCircuit: 1, unknownTechFragment: 1 }
+    cost: { steelPlate: 6, copperWire: 10, controlCircuit: 2, titaniumPlate: 1 }
   },
   {
     type: 'rocket_workshop',
@@ -407,7 +408,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 12,
     role: 'Produit des lots de roquettes HE standards.',
     stats: ['Consommation : 12 énergie', 'Sortie : munitions de roquettes'],
-    cost: { steelPlate: 6, propellant: 6, controlCircuit: 1 }
+    cost: { steelPlate: 5, propellant: 5, controlCircuit: 1 }
   },
   {
     type: 'equipment_fabricator',
@@ -424,7 +425,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 18,
     role: 'Fabrique des armes, boucliers, propulseurs et modules avancés.',
     stats: ['Consommation : 18 énergie', 'Craft équipement'],
-    cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 2, advancedSciencePack: 2 }
+    cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 2, advancedSciencePack: 1 }
   },
   {
     type: 'equipment_rd_station',
@@ -441,7 +442,7 @@ export const BUILD_STRUCTURES = [
     energyUse: 24,
     role: 'Améliore des objets neutres avec 1 à 3 sciences.',
     stats: ['Consommation : 24 énergie', 'R&D équipement : 60s'],
-    cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3, advancedSciencePack: 3 }
+    cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3, advancedSciencePack: 2 }
   },
   {
     type: 'ammo_storage',
@@ -458,7 +459,7 @@ export const BUILD_STRUCTURES = [
     ammoCapacity: 260,
     role: 'Stocke uniquement les roquettes.',
     stats: ['Capacité : 260 roquettes'],
-    cost: { ironOre: 16, copper: 6, aluminiumOre: 6 }
+    cost: { steelPlate: 2, copperWire: 4 }
   }
 ,
 
@@ -478,7 +479,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 8,
     role: 'Fore un gisement permanent. Le débit dépend du cycle, du buffer et de l’énergie.',
     stats: ['Pose : sur gisement', 'Sortie : avant', 'Cycle : 2.2 s', 'Énergie : 18', 'Buffer : 8'],
-    cost: { ironOre: 22, copper: 12, aluminiumOre: 8 }
+    cost: { steelPlate: 4, copperWire: 8, controlCircuit: 1 }
   },
 
   {
@@ -515,7 +516,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 1,
     role: 'Déplace les ressources plus vite.',
     stats: ['Vitesse : rapide', 'Buffer : 1'],
-    cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
+    cost: { ironIngot: 2, copperWire: 2 }
   },
   {
     type: 'splitter',
@@ -533,7 +534,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 1,
     role: 'Une entrée à gauche, deux sorties à droite.',
     stats: ['Entrée : 1', 'Sorties : 2'],
-    cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
+    cost: { ironIngot: 3, copperWire: 2 }
   },
   {
     type: 'merger',
@@ -551,7 +552,7 @@ export const BUILD_STRUCTURES = [
     storageCapacity: 1,
     role: 'Deux entrées à gauche, une sortie à droite.',
     stats: ['Entrées : 2', 'Sortie : 1'],
-    cost: { ironOre: 10, copper: 5, aluminiumOre: 2 }
+    cost: { ironIngot: 3, copperWire: 2 }
   },
   {
     type: 'robot_arm',
@@ -568,7 +569,7 @@ export const BUILD_STRUCTURES = [
     hp: 0,
     role: 'Transfère des ressources entre deux bâtiments adjacents.',
     stats: ['Portée : 1 case', 'Entrée arrière → sortie avant'],
-    cost: { ironOre: 8, copper: 4, aluminiumOre: 2 }
+    cost: { ironIngot: 2, copperWire: 2 }
   },
   {
     type: 'fast_arm',
@@ -585,7 +586,7 @@ export const BUILD_STRUCTURES = [
     hp: 0,
     role: 'Transfert court plus rapide.',
     stats: ['Portée : 1 case', 'Cycle rapide'],
-    cost: { ironOre: 10, copper: 6, aluminiumOre: 3 }
+    cost: { steelPlate: 1, copperWire: 3 }
   },
   {
     type: 'long_arm',
@@ -602,7 +603,7 @@ export const BUILD_STRUCTURES = [
     hp: 0,
     role: 'Transfère par-dessus une case.',
     stats: ['Portée : 2 cases', 'Cycle lent'],
-    cost: { ironOre: 12, copper: 6, aluminiumOre: 5 }
+    cost: { steelPlate: 1, copperWire: 3 }
   }];
 
 const BUILD_CATEGORIES = [
@@ -662,6 +663,61 @@ function formatCostWithStock(store, cost = {}) {
     const ok = have >= (amount | 0);
     return `${amount} ${RESOURCE_LABELS[key] || key} (${have}/${amount})${ok ? '' : ' manquant'}`;
   }).join(' · ');
+}
+
+const BUILD_PIN_STORAGE_KEY = 'gravitar.buildPins.v1';
+
+function loadBuildPins() {
+  try {
+    const raw = localStorage.getItem(BUILD_PIN_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((entry) => ({ type: String(entry?.type || ''), count: Math.max(1, Math.min(99, entry?.count | 0 || 1)) }))
+      .filter((entry) => !!structureDef(entry.type));
+  } catch {
+    return [];
+  }
+}
+
+function saveBuildPins(pins = []) {
+  try { localStorage.setItem(BUILD_PIN_STORAGE_KEY, JSON.stringify(pins)); } catch {}
+}
+
+function aggregatePinCosts(pins = []) {
+  const totals = new Map();
+  for (const pin of pins) {
+    const def = structureDef(pin.type);
+    if (!def) continue;
+    const count = Math.max(1, pin.count | 0 || 1);
+    for (const [key, amount] of Object.entries(def.cost || {})) {
+      const n = Math.max(0, amount | 0) * count;
+      if (n > 0) totals.set(key, (totals.get(key) || 0) + n);
+    }
+  }
+  return [...totals.entries()].map(([key, amount]) => ({ key, amount })).sort((a, b) => String(RESOURCE_LABELS[a.key] || a.key).localeCompare(String(RESOURCE_LABELS[b.key] || b.key)));
+}
+
+function isBuildPinned(pins = [], type = '') {
+  return pins.some((pin) => pin.type === type);
+}
+
+function renderPinnedCostRows(store, totals = []) {
+  if (!totals.length) return '<div class="build-pin-hud__empty">Aucun coût à suivre.</div>';
+  return totals.map(({ key, amount }) => {
+    const have = cargoAmount(store, key);
+    const missing = Math.max(0, (amount | 0) - (have | 0));
+    const pct = Math.max(0, Math.min(100, Math.round((have / Math.max(1, amount)) * 100)));
+    return `
+      <div class="build-pin-hud__res ${missing <= 0 ? 'is-ok' : 'is-missing'}">
+        <div class="build-pin-hud__res-top">
+          <span>${escapeHtml(RESOURCE_LABELS[key] || key)}</span>
+          <b>${Math.min(have, amount)}/${amount}</b>
+        </div>
+        <div class="build-pin-hud__bar"><span style="width:${pct}%"></span></div>
+        <div class="build-pin-hud__missing">${missing > 0 ? `Manque ${missing}` : 'OK'}</div>
+      </div>`;
+  }).join('');
 }
 
 function researchCompletedForStore(store) {
@@ -864,6 +920,10 @@ export class BasePanelView {
     this.lastPreview = null;
     this.category = 'construction';
     this.hoveredType = null;
+    this.pinnedBuilds = loadBuildPins();
+    this.pinHud = document.createElement('aside');
+    this.pinHud.className = 'build-pin-hud is-hidden';
+    document.body.appendChild(this.pinHud);
     this.el = document.createElement('div');
     this.el.className = 'base-panel';
     this.el.innerHTML = `
@@ -905,6 +965,13 @@ export class BasePanelView {
       }
     });
     this.grid.addEventListener('click', (ev) => {
+      const pinBtn = ev.target.closest('[data-pin-type]');
+      if (pinBtn) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.togglePin(pinBtn.dataset.pinType || '');
+        return;
+      }
       const btn = ev.target.closest('button[data-type]');
       if (!btn) return;
       this.select(btn.dataset.type);
@@ -916,7 +983,110 @@ export class BasePanelView {
       this.renderDetails();
     });
     this.cancelBtn.addEventListener('click', () => this.cancel());
+    this.details.addEventListener('click', (ev) => {
+      const pinBtn = ev.target.closest('button[data-detail-pin-type]');
+      if (!pinBtn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.togglePin(pinBtn.dataset.detailPinType || '');
+    });
+    this.pinHud.addEventListener('click', (ev) => this.handlePinHudClick(ev));
     this.refresh();
+    this.renderPinHud();
+  }
+
+  persistPins() {
+    saveBuildPins(this.pinnedBuilds);
+    this.renderPinHud();
+    this.refresh();
+  }
+
+  findPin(type) {
+    return this.pinnedBuilds.find((pin) => pin.type === type) || null;
+  }
+
+  togglePin(type) {
+    if (!structureDef(type)) return;
+    const idx = this.pinnedBuilds.findIndex((pin) => pin.type === type);
+    if (idx >= 0) this.pinnedBuilds.splice(idx, 1);
+    else this.pinnedBuilds.push({ type, count: 1 });
+    this.persistPins();
+  }
+
+  adjustPin(type, delta) {
+    const pin = this.findPin(type);
+    if (!pin) return;
+    pin.count = Math.max(1, Math.min(99, (pin.count | 0 || 1) + (delta | 0)));
+    this.persistPins();
+  }
+
+  removePin(type) {
+    const before = this.pinnedBuilds.length;
+    this.pinnedBuilds = this.pinnedBuilds.filter((pin) => pin.type !== type);
+    if (this.pinnedBuilds.length !== before) this.persistPins();
+  }
+
+  clearPins() {
+    if (!this.pinnedBuilds.length) return;
+    this.pinnedBuilds = [];
+    this.persistPins();
+  }
+
+  handlePinHudClick(ev) {
+    const target = ev.target;
+    if (!(target instanceof Element)) return;
+    const act = target.closest('[data-build-pin-act]');
+    if (!act) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const type = act.dataset.pinType || '';
+    const action = act.dataset.buildPinAct || '';
+    if (action === 'inc') this.adjustPin(type, 1);
+    else if (action === 'dec') this.adjustPin(type, -1);
+    else if (action === 'remove') this.removePin(type);
+    else if (action === 'clear') this.clearPins();
+  }
+
+  renderPinHud() {
+    if (!this.pinHud) return;
+    const pins = (this.pinnedBuilds || []).filter((pin) => !!structureDef(pin.type));
+    this.pinHud.classList.toggle('is-hidden', !pins.length);
+    if (!pins.length) {
+      this.pinHud.innerHTML = '';
+      return;
+    }
+    const totals = aggregatePinCosts(pins);
+    const missingTotal = totals.reduce((sum, entry) => sum + Math.max(0, (entry.amount | 0) - cargoAmount(this.store, entry.key)), 0);
+    const ready = missingTotal <= 0;
+    const buildRows = pins.map((pin) => {
+      const def = structureDef(pin.type);
+      const count = Math.max(1, pin.count | 0 || 1);
+      return `
+        <div class="build-pin-hud__build">
+          <div class="build-pin-hud__build-icon">${iconSvg(def.icon)}</div>
+          <div class="build-pin-hud__build-main">
+            <strong>${escapeHtml(def.title)}</strong>
+            <span>${escapeHtml(formatCost(def.cost))}</span>
+          </div>
+          <div class="build-pin-hud__build-controls">
+            <button type="button" data-build-pin-act="dec" data-pin-type="${escapeHtml(pin.type)}">−</button>
+            <b>${count}</b>
+            <button type="button" data-build-pin-act="inc" data-pin-type="${escapeHtml(pin.type)}">+</button>
+            <button type="button" class="is-danger" data-build-pin-act="remove" data-pin-type="${escapeHtml(pin.type)}">×</button>
+          </div>
+        </div>`;
+    }).join('');
+    this.pinHud.innerHTML = `
+      <div class="build-pin-hud__head">
+        <div>
+          <div class="build-pin-hud__eyebrow">Objectif construction</div>
+          <div class="build-pin-hud__title">${ready ? 'Prêt à construire' : `${missingTotal} ressource${missingTotal > 1 ? 's' : ''} manquante${missingTotal > 1 ? 's' : ''}`}</div>
+        </div>
+        <button type="button" data-build-pin-act="clear" title="Tout retirer">×</button>
+      </div>
+      <div class="build-pin-hud__builds">${buildRows}</div>
+      <div class="build-pin-hud__resources">${renderPinnedCostRows(this.store, totals)}</div>
+    `;
   }
 
   select(type) {
@@ -1017,6 +1187,7 @@ export class BasePanelView {
       <div class="base-panel__details-icon base-panel__details-icon--${escapeHtml(def.icon)}">${iconSvg(def.icon)}</div>
       <h3>${escapeHtml(def.title)}</h3>
       <p>${escapeHtml(def.role || def.subtitle || '')}</p>
+      <button class="base-panel__pin-detail ${isBuildPinned(this.pinnedBuilds, def.type) ? 'is-pinned' : ''}" type="button" data-detail-pin-type="${escapeHtml(def.type)}">${isBuildPinned(this.pinnedBuilds, def.type) ? 'Retirer de l’objectif' : '📌 Suivre cette construction'}</button>
       ${sections.join('')}`;
   }
 
@@ -1046,8 +1217,10 @@ export class BasePanelView {
         .map((s) => {
           const req = unlockRequirementForBuild(this.store, s.type);
           const locked = !!req;
+          const pinned = isBuildPinned(this.pinnedBuilds, s.type);
           return `
-          <button class="base-panel__btn ${s.type === activeType ? 'is-active' : ''} ${locked ? 'is-locked' : ''}" data-type="${s.type}" type="button" title="${locked ? `Requiert : ${escapeHtml(req.name)}` : ''}">
+          <button class="base-panel__btn ${s.type === activeType ? 'is-active' : ''} ${locked ? 'is-locked' : ''} ${pinned ? 'is-pinned' : ''}" data-type="${s.type}" type="button" title="${locked ? `Requiert : ${escapeHtml(req.name)}` : ''}">
+            <span class="base-panel__pin-btn ${pinned ? 'is-pinned' : ''}" data-pin-type="${escapeHtml(s.type)}" title="${pinned ? 'Retirer de l’objectif' : 'Suivre les ressources'}">📌</span>
             <span class="base-panel__icon base-panel__icon--${escapeHtml(s.icon)}">${iconSvg(s.icon)}</span>
             <span class="base-panel__meta">
               <strong>${escapeHtml(s.title)}</strong>
@@ -1183,6 +1356,7 @@ export class BasePanelView {
 
   update(store) {
     this.store = store;
+    this.renderPinHud();
     if (this.activeBuild && this.lastPreview) {
       this.status.textContent = this.lastPreview.ok ? this.lastPreview.title : this.lastPreview.reason;
       return;
