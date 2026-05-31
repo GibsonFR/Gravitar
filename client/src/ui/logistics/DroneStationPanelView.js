@@ -94,6 +94,57 @@ export class DroneStationPanelView {
     this.sendCmd('drone_station_transfer', { structureId: this.currentId, direction, amount });
   }
 
+
+  captureScroll() {
+    const map = new Map();
+    this.el.querySelectorAll('[data-logistics-scroll]').forEach((node) => {
+      map.set(node.getAttribute('data-logistics-scroll'), node.scrollTop || 0);
+    });
+    return map;
+  }
+
+  restoreScroll(map) {
+    if (!map?.size) return;
+    this.el.querySelectorAll('[data-logistics-scroll]').forEach((node) => {
+      const key = node.getAttribute('data-logistics-scroll');
+      if (map.has(key)) node.scrollTop = map.get(key) || 0;
+    });
+  }
+
+  renderKey(station) {
+    return JSON.stringify({
+      id: station?.id | 0,
+      powered: !!station?.powered,
+      energyUse: station?.energyUse | 0,
+      installedDrones: station?.installedDrones | 0,
+      droneCapacity: station?.droneCapacity | 0,
+      cargoDrones: station?.cargoDrones | 0,
+      freeSlots: station?.freeSlots | 0,
+      droneCharge: station?.droneCharge | 0,
+      droneChargeMax: station?.droneChargeMax | 0,
+      availableDrones: station?.availableDrones | 0,
+      chargingDrones: station?.chargingDrones | 0,
+      activeFlights: station?.activeFlights | 0,
+      maxActiveFlights: station?.maxActiveFlights | 0,
+      localChests: station?.localChests || {},
+      connectedStations: station?.connectedStations || [],
+      missions: station?.missions || [],
+      diagnostics: station?.diagnostics || null,
+      activeRoutesShape: (station?.activeRoutes || []).map((r) => ({
+        id: r.id || '',
+        phase: r.phase || '',
+        resourceKey: r.resourceKey || '',
+        amount: r.amount | 0,
+        fromLabel: r.fromLabel || '',
+        toLabel: r.toLabel || '',
+        stationLabel: r.stationLabel || '',
+        interSector: !!r.interSector,
+        hp: Math.round(Number(r.hp || 0)),
+        maxHp: Math.round(Number(r.maxHp || 0))
+      }))
+    });
+  }
+
   update(store) {
     const station = store?.myState?.droneStation || null;
     if (!station) {
@@ -105,8 +156,12 @@ export class DroneStationPanelView {
     }
     this.currentId = station.id | 0;
     this.el.classList.remove('is-hidden');
-    const key = JSON.stringify(station);
-    if (key === this.lastKey) return;
+    const key = this.renderKey(station);
+    if (key === this.lastKey) {
+      this.updateDynamic(station);
+      return;
+    }
+    const scrollState = this.captureScroll();
     this.lastKey = key;
     const fill = pct(station.installedDrones, station.droneCapacity);
     const chargeFill = pct(station.droneCharge, station.droneChargeMax);
@@ -125,7 +180,7 @@ export class DroneStationPanelView {
         </div>
         <button type="button" class="logistics-panel__close" data-drone-station-close="1">×</button>
       </header>
-      <div class="logistics-panel__body">
+      <div class="logistics-panel__body" data-logistics-scroll="body">
         <section class="logistics-card logistics-card--hero">
           <div class="logistics-card__title">Hangar de drones</div>
           <div class="logistics-drone-hero">
@@ -169,11 +224,11 @@ export class DroneStationPanelView {
         </section>
         <section class="logistics-card">
           <div class="logistics-card__title">Drones en vol</div>
-          <div class="logistics-routes">${routeRows(station.activeRoutes || [])}</div>
+          <div class="logistics-routes" data-logistics-scroll="routes">${routeRows(station.activeRoutes || [])}</div>
         </section>
         <section class="logistics-card">
           <div class="logistics-card__title">Historique réseau</div>
-          <div class="logistics-missions">${missionRows(station.missions || [])}</div>
+          <div class="logistics-missions" data-logistics-scroll="missions">${missionRows(station.missions || [])}</div>
         </section>
         <section class="logistics-card logistics-card--muted">
           <div class="logistics-card__title">Stations connectées</div>
@@ -183,5 +238,26 @@ export class DroneStationPanelView {
         </section>
       </div>
     `;
+    this.restoreScroll(scrollState);
+    this.updateDynamic(station);
+  }
+
+  updateDynamic(station) {
+    const routes = this.el.querySelector('.logistics-routes');
+    if (routes) routes.innerHTML = routeRows(station.activeRoutes || []);
+    const status = this.el.querySelector('.logistics-drone-status');
+    if (status) {
+      const chargeLabel = station.droneChargeMax > 0 ? `${station.droneCharge | 0}/${station.droneChargeMax | 0} livraisons` : 'aucun drone';
+      const available = station.availableDrones | 0;
+      const charging = station.chargingDrones | 0;
+      status.textContent = `${chargeLabel} · ${available} dispo · ${station.activeFlights | 0}/${station.maxActiveFlights | 0} en vol · ${charging} recharge`;
+      status.classList.toggle('is-ok', available > 0);
+      status.classList.toggle('is-empty', available <= 0);
+    }
+    const rechargeBar = this.el.querySelector('.logistics-bar--recharge span');
+    if (rechargeBar) {
+      const rechargeFill = Math.max(0, Math.min(100, station.rechargeProgressPct | 0));
+      rechargeBar.style.width = `${station.droneCharge >= station.droneChargeMax ? 100 : rechargeFill}%`;
+    }
   }
 }

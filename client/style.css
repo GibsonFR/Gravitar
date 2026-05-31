@@ -9263,3 +9263,29 @@ button.station-item-icon[draggable="true"]:active,
   .logistics-demand-row em { justify-self: start; }
   .logistics-route-row__top { display: block; }
 }
+
+
+/* v212 — fix scroll station drones + coffres logistiques normaux */
+.logistics-panel--drone .logistics-panel__body {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.logistics-panel--drone .logistics-routes,
+.logistics-panel--drone .logistics-missions {
+  max-height: 240px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.logistics-panel--drone .logistics-panel__body::-webkit-scrollbar,
+.logistics-panel--drone .logistics-routes::-webkit-scrollbar,
+.logistics-panel--drone .logistics-missions::-webkit-scrollbar { width: 10px; }
+.logistics-panel--drone .logistics-panel__body::-webkit-scrollbar-thumb,
+.logistics-panel--drone .logistics-routes::-webkit-scrollbar-thumb,
+.logistics-panel--drone .logistics-missions::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
