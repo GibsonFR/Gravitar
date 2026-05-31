@@ -168,48 +168,123 @@ function pushMissionLog(st, entry) {
   while (log.length > MISSION_LOG_MAX) log.pop();
 }
 
+
 function installedDrones(st) {
   return Math.max(0, st?.storage?.resources?.[DRONE_KEY] | 0);
+}
+
+function droneSlotId(st, index) {
+  return `${st.id | 0}:${index | 0}`;
+}
+
+function activeDroneIds(st) {
+  const ids = new Set();
+  for (const flight of flights(st)) {
+    const state = String(flight.state || 'to_source');
+    if (state !== 'complete' && state !== 'cancelled' && flight.droneSlotId) ids.add(String(flight.droneSlotId));
+  }
+  return ids;
+}
+
+function normalizeDroneSlots(st) {
+  const installed = installedDrones(st);
+  const activeIds = activeDroneIds(st);
+  let raw = Array.isArray(st.logisticDroneSlots) ? st.logisticDroneSlots.filter(Boolean).map((slot, index) => ({
+    id: String(slot.id || droneSlotId(st, index)),
+    charge: Math.max(0, Math.min(DRONE_DELIVERIES_BEFORE_RECHARGE, Number(slot.charge ?? DRONE_DELIVERIES_BEFORE_RECHARGE) | 0)),
+    rechargeMs: Math.max(0, Number(slot.rechargeMs || 0) || 0)
+  })) : [];
+
+  if (!raw.length && installed > 0 && Number.isFinite(Number(st.logisticDroneCharge))) {
+    let remaining = Math.max(0, Math.min(installed * DRONE_DELIVERIES_BEFORE_RECHARGE, Number(st.logisticDroneCharge) | 0));
+    raw = Array.from({ length: installed }, (_, index) => {
+      const charge = Math.min(DRONE_DELIVERIES_BEFORE_RECHARGE, remaining);
+      remaining -= charge;
+      return { id: droneSlotId(st, index), charge, rechargeMs: 0 };
+    });
+  }
+
+  while (raw.length < installed) raw.push({ id: droneSlotId(st, raw.length), charge: DRONE_DELIVERIES_BEFORE_RECHARGE, rechargeMs: 0 });
+  if (raw.length > installed) {
+    const idle = raw.filter((slot) => !activeIds.has(slot.id));
+    const active = raw.filter((slot) => activeIds.has(slot.id));
+    raw = [...active, ...idle].slice(0, installed);
+  }
+
+  raw.forEach((slot, index) => {
+    slot.id ||= droneSlotId(st, index);
+    slot.charge = Math.max(0, Math.min(DRONE_DELIVERIES_BEFORE_RECHARGE, slot.charge | 0));
+    if (slot.charge >= DRONE_DELIVERIES_BEFORE_RECHARGE) slot.rechargeMs = 0;
+    slot.rechargeMs = Math.max(0, Number(slot.rechargeMs || 0) || 0);
+  });
+
+  st.logisticDroneSlots = raw;
+  st.logisticDroneCharge = raw.reduce((sum, slot) => sum + Math.max(0, slot.charge | 0), 0);
+  const charging = raw.filter((slot) => !activeIds.has(slot.id) && (slot.charge | 0) <= 0);
+  st.logisticDroneRechargeMs = charging.length ? Math.max(...charging.map((slot) => Number(slot.rechargeMs || 0) || 0)) : 0;
+  return raw;
 }
 
 function droneChargeCapacity(st) {
   return installedDrones(st) * DRONE_DELIVERIES_BEFORE_RECHARGE;
 }
 
-function normalizeDroneCharge(st) {
-  const maxCharge = droneChargeCapacity(st);
-  if (!Number.isFinite(Number(st.logisticDroneCharge))) st.logisticDroneCharge = maxCharge;
-  st.logisticDroneCharge = Math.max(0, Math.min(maxCharge, Math.floor(Number(st.logisticDroneCharge) || 0)));
-  if (!Number.isFinite(Number(st.logisticDroneRechargeMs))) st.logisticDroneRechargeMs = 0;
-  if (maxCharge <= 0) st.logisticDroneRechargeMs = 0;
-  return st.logisticDroneCharge;
-}
-
 function rechargeDroneStation(st, dtMs, timeMs) {
   if (!isDroneStationStructure(st)) return false;
-  const maxCharge = droneChargeCapacity(st);
-  normalizeDroneCharge(st);
-  if (maxCharge <= 0 || st.logisticDroneCharge >= maxCharge) return false;
-  if (!st.powered) return false;
+  const slots = normalizeDroneSlots(st);
+  if (!slots.length || !st.powered) return false;
+  const activeIds = activeDroneIds(st);
   const def = getStructureDef(st.type) || {};
   const rechargeMs = Math.max(1000, (Number(def.droneRechargeSeconds) || 20) * 1000);
-  st.logisticDroneRechargeMs = Math.max(0, Number(st.logisticDroneRechargeMs) || 0) + Math.max(0, Number(dtMs) || 0);
   let changed = false;
-  while (st.logisticDroneRechargeMs >= rechargeMs && st.logisticDroneCharge < maxCharge) {
-    st.logisticDroneRechargeMs -= rechargeMs;
-    st.logisticDroneCharge += 1;
+  for (const slot of slots) {
+    if (activeIds.has(slot.id)) continue;
+    if ((slot.charge | 0) > 0) continue;
+    slot.rechargeMs = Math.min(rechargeMs, Math.max(0, Number(slot.rechargeMs || 0) || 0) + Math.max(0, Number(dtMs) || 0));
+    if (slot.rechargeMs >= rechargeMs) {
+      slot.charge = DRONE_DELIVERIES_BEFORE_RECHARGE;
+      slot.rechargeMs = 0;
+    }
     changed = true;
   }
-  if (st.logisticDroneCharge >= maxCharge) st.logisticDroneRechargeMs = 0;
-  if (changed) st.updatedAt = timeMs;
+  if (changed) {
+    normalizeDroneSlots(st);
+    st.updatedAt = timeMs;
+  }
   return changed;
 }
 
-function consumeDroneCharge(st) {
-  normalizeDroneCharge(st);
-  if ((st.logisticDroneCharge | 0) <= 0) return false;
-  st.logisticDroneCharge = Math.max(0, (st.logisticDroneCharge | 0) - 1);
-  return true;
+function availableDroneSlot(st) {
+  const activeIds = activeDroneIds(st);
+  return normalizeDroneSlots(st).find((slot) => !activeIds.has(slot.id) && (slot.charge | 0) > 0) || null;
+}
+
+function claimDroneForMission(st) {
+  const slot = availableDroneSlot(st);
+  if (!slot) return null;
+  slot.charge = Math.max(0, (slot.charge | 0) - 1);
+  if ((slot.charge | 0) <= 0) slot.rechargeMs = 0;
+  normalizeDroneSlots(st);
+  return slot;
+}
+
+function finishDroneMission(st, flight, timeMs) {
+  const slots = normalizeDroneSlots(st);
+  const slot = slots.find((entry) => entry.id === String(flight.droneSlotId || ''));
+  if (slot && (slot.charge | 0) <= 0) slot.rechargeMs = 0;
+  normalizeDroneSlots(st);
+  st.updatedAt = timeMs;
+}
+
+function stationDroneStatus(st) {
+  const slots = normalizeDroneSlots(st);
+  const activeIds = activeDroneIds(st);
+  const active = slots.filter((slot) => activeIds.has(slot.id)).length;
+  const charging = slots.filter((slot) => !activeIds.has(slot.id) && (slot.charge | 0) <= 0).length;
+  const available = slots.filter((slot) => !activeIds.has(slot.id) && (slot.charge | 0) > 0).length;
+  const full = slots.filter((slot) => (slot.charge | 0) >= DRONE_DELIVERIES_BEFORE_RECHARGE).length;
+  const charge = slots.reduce((sum, slot) => sum + Math.max(0, slot.charge | 0), 0);
+  return { active, charging, available, full, charge, maxCharge: slots.length * DRONE_DELIVERIES_BEFORE_RECHARGE, slots };
 }
 
 function storageRemainingUnits(st, key) {
@@ -290,22 +365,41 @@ function nextFlightId(st, timeMs) {
   return `${st.id | 0}-${timeMs}-${st.nextLogisticFlightSeq}`;
 }
 
-function flightDurationMs(provider, requester) {
-  const inter = ((provider.sx | 0) !== (requester.sx | 0)) || ((provider.sy | 0) !== (requester.sy | 0));
-  if (inter) {
-    const sectorSteps = Math.max(1, sectorDistance(provider, requester));
-    return Math.max(6500, 5200 + sectorSteps * 4200);
-  }
-  const dx = (requester.x || 0) - (provider.x || 0);
-  const dy = (requester.y || 0) - (provider.y || 0);
-  return Math.max(2200, Math.min(9000, Math.round(Math.hypot(dx, dy) / LOGISTIC_DRONE_SPEED * 1000)));
+
+function pointFromStructure(st, label = '') {
+  return {
+    id: st?.id | 0,
+    sx: st?.sx | 0,
+    sy: st?.sy | 0,
+    x: Number(st?.x) || 0,
+    y: Number(st?.y) || 0,
+    label: label || `${chestLabel(st)} [${st?.sx | 0},${st?.sy | 0}]`
+  };
 }
 
-function createFlight(state, station, provider, requester, key, amount, timeMs) {
-  const durationMs = flightDurationMs(provider, requester);
+function legDurationMs(a, b) {
+  const inter = ((a.sx | 0) !== (b.sx | 0)) || ((a.sy | 0) !== (b.sy | 0));
+  if (inter) {
+    const sectorSteps = Math.max(1, Math.max(Math.abs((a.sx | 0) - (b.sx | 0)), Math.abs((a.sy | 0) - (b.sy | 0))));
+    return Math.max(3400, 2600 + sectorSteps * 2400);
+  }
+  return Math.max(900, Math.min(5200, Math.round(Math.hypot((b.x || 0) - (a.x || 0), (b.y || 0) - (a.y || 0)) / LOGISTIC_DRONE_SPEED * 1000)));
+}
+
+function createFlight(state, station, droneSlot, provider, requester, key, amount, timeMs) {
+  const home = pointFromStructure(station, `station [${station.sx | 0},${station.sy | 0}]`);
+  const source = pointFromStructure(provider, `${chestLabel(provider)} [${provider.sx | 0},${provider.sy | 0}]`);
+  const destination = pointFromStructure(requester, `${chestLabel(requester)} [${requester.sx | 0},${requester.sy | 0}]`);
+  const sourceDurationMs = legDurationMs(home, source);
+  const deliveryDurationMs = legDurationMs(source, destination);
+  const returnDurationMs = legDurationMs(destination, home);
+  const sourceArriveAt = timeMs + sourceDurationMs;
+  const destArriveAt = sourceArriveAt + deliveryDurationMs;
+  const returnArriveAt = destArriveAt + returnDurationMs;
   const flight = {
     id: nextFlightId(station, timeMs),
-    state: 'traveling',
+    state: 'to_source',
+    droneSlotId: String(droneSlot?.id || ''),
     stationId: station.id | 0,
     ownerKey: station.ownerKey || '',
     ownerName: station.ownerName || '',
@@ -314,25 +408,37 @@ function createFlight(state, station, provider, requester, key, amount, timeMs) 
     resourceName: resourceName(key),
     amount: amount | 0,
     startedAt: timeMs,
-    arriveAt: timeMs + durationMs,
-    durationMs,
+    sourceArriveAt,
+    destArriveAt,
+    returnArriveAt,
+    arriveAt: returnArriveAt,
+    durationMs: returnArriveAt - timeMs,
     fromId: provider.id | 0,
     toId: requester.id | 0,
     fromSx: provider.sx | 0,
     fromSy: provider.sy | 0,
     toSx: requester.sx | 0,
     toSy: requester.sy | 0,
-    fromX: Number(provider.x) || 0,
-    fromY: Number(provider.y) || 0,
-    toX: Number(requester.x) || 0,
-    toY: Number(requester.y) || 0,
+    sourceDurationMs,
+    deliveryDurationMs,
+    returnDurationMs,
+    home,
+    source,
+    destination,
+    fromX: home.x,
+    fromY: home.y,
+    toX: destination.x,
+    toY: destination.y,
     interSector: (provider.sx | 0) !== (requester.sx | 0) || (provider.sy | 0) !== (requester.sy | 0),
-    fromLabel: `${chestLabel(provider)} [${provider.sx | 0},${provider.sy | 0}]`,
-    toLabel: `${chestLabel(requester)} [${requester.sx | 0},${requester.sy | 0}]`
+    stationLabel: home.label,
+    fromLabel: source.label,
+    toLabel: destination.label,
+    delivered: false
   };
   flights(station).push(flight);
   pushMissionLog(station, {
     kind: 'flight_start',
+    phase: 'depart_station',
     resourceKey: key,
     resourceName: resourceName(key),
     amount,
@@ -343,13 +449,15 @@ function createFlight(state, station, provider, requester, key, amount, timeMs) 
     toSx: requester.sx | 0,
     toSy: requester.sy | 0,
     interSector: flight.interSector,
+    stationLabel: flight.stationLabel,
     fromLabel: flight.fromLabel,
     toLabel: flight.toLabel
   });
   return flight;
 }
 
-function completeFlight(state, station, flight, timeMs) {
+function deliverFlightCargo(state, station, flight, timeMs) {
+  if (flight.delivered) return true;
   const requester = state?.structures?.get?.(flight.toId | 0) || null;
   const provider = state?.structures?.get?.(flight.fromId | 0) || null;
   const key = String(flight.resourceKey || '');
@@ -371,8 +479,10 @@ function completeFlight(state, station, flight, timeMs) {
       provider.updatedAt = timeMs;
     }
   }
+  flight.delivered = true;
   pushMissionLog(station, {
     kind: delivered > 0 ? 'delivery' : 'delivery_failed',
+    phase: 'delivered_returning',
     resourceKey: key,
     resourceName: flight.resourceName || resourceName(key),
     amount: delivered || amount,
@@ -383,11 +493,12 @@ function completeFlight(state, station, flight, timeMs) {
     toSx: flight.toSx | 0,
     toSy: flight.toSy | 0,
     interSector: !!flight.interSector,
+    stationLabel: flight.stationLabel || 'station',
     fromLabel: flight.fromLabel || 'source',
     toLabel: flight.toLabel || 'destination'
   });
   station.updatedAt = timeMs;
-  return true;
+  return delivered > 0;
 }
 
 function updateFlights(state, station, timeMs) {
@@ -395,15 +506,37 @@ function updateFlights(state, station, timeMs) {
   if (!list.length) return false;
   let changed = false;
   for (const flight of list) {
-    if (String(flight.state || 'traveling') !== 'traveling') continue;
-    if (timeMs >= (Number(flight.arriveAt) || 0)) {
-      completeFlight(state, station, flight, timeMs);
+    const stateName = String(flight.state || 'to_source');
+    if (stateName === 'complete' || stateName === 'cancelled') continue;
+    if (stateName === 'to_source' && timeMs >= (Number(flight.sourceArriveAt) || 0)) {
+      flight.state = 'to_destination';
+      changed = true;
+    }
+    if (String(flight.state || '') === 'to_destination' && timeMs >= (Number(flight.destArriveAt) || 0)) {
+      deliverFlightCargo(state, station, flight, timeMs);
+      flight.state = 'returning';
+      changed = true;
+    }
+    if (String(flight.state || '') === 'returning' && timeMs >= (Number(flight.returnArriveAt || flight.arriveAt) || 0)) {
+      finishDroneMission(station, flight, timeMs);
       flight.state = 'complete';
+      pushMissionLog(station, {
+        kind: 'drone_return',
+        phase: 'return_station',
+        resourceKey: flight.resourceKey || '',
+        resourceName: flight.resourceName || resourceName(flight.resourceKey),
+        amount: flight.amount | 0,
+        fromLabel: flight.toLabel || 'destination',
+        toLabel: flight.stationLabel || 'station'
+      });
       changed = true;
     }
   }
   const before = list.length;
-  station.logisticDroneFlights = list.filter((flight) => String(flight.state || 'traveling') === 'traveling');
+  station.logisticDroneFlights = list.filter((flight) => {
+    const stateName = String(flight.state || 'to_source');
+    return stateName !== 'complete' && stateName !== 'cancelled';
+  });
   if (station.logisticDroneFlights.length !== before) changed = true;
   return changed;
 }
@@ -423,55 +556,75 @@ function q(v, decimals = 1) {
   return Math.round(n * m) / m;
 }
 
-function flightSnapshot(flight, timeMs) {
-  const total = Math.max(1, Number(flight.durationMs) || Math.max(1, (Number(flight.arriveAt) || 0) - (Number(flight.startedAt) || 0)));
-  const progress = clamp01((timeMs - (Number(flight.startedAt) || 0)) / total);
-  let sx = flight.fromSx | 0;
-  let sy = flight.fromSy | 0;
-  let x = Number(flight.fromX) || 0;
-  let y = Number(flight.fromY) || 0;
-  const fromX = Number(flight.fromX) || 0;
-  const fromY = Number(flight.fromY) || 0;
-  const toX = Number(flight.toX) || 0;
-  const toY = Number(flight.toY) || 0;
-  if (!flight.interSector) {
-    x = lerp(fromX, toX, progress);
-    y = lerp(fromY, toY, progress);
-  } else {
-    const dx = Math.sign((flight.toSx | 0) - (flight.fromSx | 0));
-    const dy = Math.sign((flight.toSy | 0) - (flight.fromSy | 0));
-    const exitX = dx === 0 ? fromX : dx * SECTOR_EDGE;
-    const exitY = dy === 0 ? fromY : dy * SECTOR_EDGE;
-    const enterX = dx === 0 ? toX : -dx * SECTOR_EDGE;
-    const enterY = dy === 0 ? toY : -dy * SECTOR_EDGE;
-    if (progress < 0.5) {
-      const p = progress / 0.5;
-      sx = flight.fromSx | 0;
-      sy = flight.fromSy | 0;
-      x = lerp(fromX, exitX, p);
-      y = lerp(fromY, exitY, p);
-    } else {
-      const p = (progress - 0.5) / 0.5;
-      sx = flight.toSx | 0;
-      sy = flight.toSy | 0;
-      x = lerp(enterX, toX, p);
-      y = lerp(enterY, toY, p);
-    }
+
+function interpolateSegment(a, b, progress) {
+  let sx = a.sx | 0;
+  let sy = a.sy | 0;
+  let x = Number(a.x) || 0;
+  let y = Number(a.y) || 0;
+  const inter = ((a.sx | 0) !== (b.sx | 0)) || ((a.sy | 0) !== (b.sy | 0));
+  if (!inter) {
+    return { sx, sy, x: lerp(a.x || 0, b.x || 0, progress), y: lerp(a.y || 0, b.y || 0, progress) };
   }
+  const dx = Math.sign((b.sx | 0) - (a.sx | 0));
+  const dy = Math.sign((b.sy | 0) - (a.sy | 0));
+  const exitX = dx === 0 ? a.x : dx * SECTOR_EDGE;
+  const exitY = dy === 0 ? a.y : dy * SECTOR_EDGE;
+  const enterX = dx === 0 ? b.x : -dx * SECTOR_EDGE;
+  const enterY = dy === 0 ? b.y : -dy * SECTOR_EDGE;
+  if (progress < 0.5) {
+    const p = progress / 0.5;
+    return { sx: a.sx | 0, sy: a.sy | 0, x: lerp(a.x || 0, exitX, p), y: lerp(a.y || 0, exitY, p) };
+  }
+  const p = (progress - 0.5) / 0.5;
+  return { sx: b.sx | 0, sy: b.sy | 0, x: lerp(enterX, b.x || 0, p), y: lerp(enterY, b.y || 0, p) };
+}
+
+function flightSnapshot(flight, timeMs) {
+  const home = flight.home || { sx: flight.fromSx | 0, sy: flight.fromSy | 0, x: Number(flight.fromX) || 0, y: Number(flight.fromY) || 0, label: flight.stationLabel || 'station' };
+  const source = flight.source || { sx: flight.fromSx | 0, sy: flight.fromSy | 0, x: Number(flight.fromX) || 0, y: Number(flight.fromY) || 0, label: flight.fromLabel || 'source' };
+  const destination = flight.destination || { sx: flight.toSx | 0, sy: flight.toSy | 0, x: Number(flight.toX) || 0, y: Number(flight.toY) || 0, label: flight.toLabel || 'destination' };
+  const sourceArriveAt = Number(flight.sourceArriveAt || 0) || ((Number(flight.startedAt) || 0) + Math.max(1, Number(flight.durationMs || 1) * 0.25));
+  const destArriveAt = Number(flight.destArriveAt || 0) || ((Number(flight.startedAt) || 0) + Math.max(1, Number(flight.durationMs || 1) * 0.75));
+  const returnArriveAt = Number(flight.returnArriveAt || flight.arriveAt || 0) || ((Number(flight.startedAt) || 0) + Math.max(1, Number(flight.durationMs || 1)));
+  let a = home;
+  let b = source;
+  let segmentStart = Number(flight.startedAt) || 0;
+  let segmentEnd = sourceArriveAt;
+  let phase = 'station → chargement';
+  if (timeMs >= destArriveAt) {
+    a = destination;
+    b = home;
+    segmentStart = destArriveAt;
+    segmentEnd = returnArriveAt;
+    phase = 'retour station';
+  } else if (timeMs >= sourceArriveAt) {
+    a = source;
+    b = destination;
+    segmentStart = sourceArriveAt;
+    segmentEnd = destArriveAt;
+    phase = 'livraison';
+  }
+  const segmentProgress = clamp01((timeMs - segmentStart) / Math.max(1, segmentEnd - segmentStart));
+  const p = interpolateSegment(a, b, segmentProgress);
+  const total = Math.max(1, returnArriveAt - (Number(flight.startedAt) || 0));
+  const progress = clamp01((timeMs - (Number(flight.startedAt) || 0)) / total);
   return {
     id: `logistic-drone-${flight.id}`,
     kind: 'logistic_drone',
-    sx,
-    sy,
-    x: q(x),
-    y: q(y),
+    sx: p.sx | 0,
+    sy: p.sy | 0,
+    x: q(p.x),
+    y: q(p.y),
     radius: 16,
     progress: q(progress, 3),
+    phase,
     resourceKey: flight.resourceKey || '',
     resourceName: flight.resourceName || resourceName(flight.resourceKey),
     amount: flight.amount | 0,
-    fromLabel: flight.fromLabel || '',
-    toLabel: flight.toLabel || '',
+    fromLabel: flight.fromLabel || source.label || '',
+    toLabel: flight.toLabel || destination.label || '',
+    stationLabel: flight.stationLabel || home.label || '',
     interSector: !!flight.interSector,
     ownerName: flight.ownerName || '',
     tint: RESOURCE_DEFS[flight.resourceKey]?.colorHex || '#9edcff'
@@ -495,7 +648,8 @@ function tryRunOneMission(state, station, timeMs) {
   if (!station.powered) return false;
   const installed = installedDrones(station);
   if (installed <= 0) return false;
-  if ((normalizeDroneCharge(station) | 0) <= 0) return false;
+  const droneSlot = availableDroneSlot(station);
+  if (!droneSlot) return false;
   if (activeFlightCount(station) >= installed) return false;
   const chests = networkLogisticChests(state, station);
   const requesters = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER);
@@ -512,10 +666,11 @@ function tryRunOneMission(state, station, timeMs) {
         if (available <= 0) continue;
         const amount = Math.max(0, Math.min(DRONE_CARGO, available, req.missing, fit));
         if (amount <= 0) continue;
-        if (!consumeDroneCharge(station)) return false;
+        const claimed = claimDroneForMission(station);
+        if (!claimed) return false;
         storageResources(provider)[key] = (storageResources(provider)[key] | 0) - amount;
         if ((storageResources(provider)[key] | 0) <= 0) delete storageResources(provider)[key];
-        createFlight(state, station, provider, requester, key, amount, timeMs);
+        createFlight(state, station, claimed, provider, requester, key, amount, timeMs);
         provider.updatedAt = timeMs;
         station.updatedAt = timeMs;
         return true;
@@ -555,10 +710,14 @@ export function buildDroneStationSnapshot(state, player) {
   const resources = storageResources(st);
   const installed = installedDrones(st);
   const capacity = Math.max(1, def.droneCapacity | 0 || 8);
-  const chargeMax = droneChargeCapacity(st);
-  const charge = normalizeDroneCharge(st);
+  const droneStatus = stationDroneStatus(st);
+  const chargeMax = droneStatus.maxCharge;
+  const charge = droneStatus.charge;
   const rechargeMs = Math.max(1000, (Number(def.droneRechargeSeconds) || 20) * 1000);
-  const rechargeProgress = chargeMax > 0 && charge < chargeMax ? Math.max(0, Math.min(1, (Number(st.logisticDroneRechargeMs) || 0) / rechargeMs)) : 1;
+  const chargingSlots = droneStatus.slots.filter((slot) => !activeDroneIds(st).has(slot.id) && (slot.charge | 0) <= 0);
+  const rechargeProgress = chargingSlots.length
+    ? Math.max(0, Math.min(1, chargingSlots.reduce((sum, slot) => sum + Math.max(0, Number(slot.rechargeMs || 0) || 0), 0) / Math.max(1, chargingSlots.length * rechargeMs)))
+    : 1;
   const cargoDrones = Math.max(0, player?.inv?.resources?.[DRONE_KEY] | 0);
   return {
     id: st.id | 0,
@@ -578,8 +737,12 @@ export function buildDroneStationSnapshot(state, player) {
     deliveriesPerCharge: DRONE_DELIVERIES_BEFORE_RECHARGE,
     droneCharge: charge,
     droneChargeMax: chargeMax,
-    chargedDrones: chargeMax > 0 ? Math.floor(charge / DRONE_DELIVERIES_BEFORE_RECHARGE) : 0,
+    availableDrones: droneStatus.available,
+    chargingDrones: droneStatus.charging,
+    fullDrones: droneStatus.full,
+    chargedDrones: droneStatus.available,
     partialDroneCharge: chargeMax > 0 ? charge % DRONE_DELIVERIES_BEFORE_RECHARGE : 0,
+    droneSlots: droneStatus.slots.map((slot) => ({ id: slot.id, charge: slot.charge | 0, rechargeProgress: (slot.charge | 0) > 0 ? 1 : Math.max(0, Math.min(1, Number(slot.rechargeMs || 0) / rechargeMs)) })),
     activeFlights: activeFlightCount(st),
     maxActiveFlights: installed,
     rechargeProgress,
@@ -662,12 +825,16 @@ export function transferDroneStationDrone(state, player, structureId, direction 
   const cap = Math.max(1, def.droneCapacity | 0 || 8);
   const n = Math.max(1, Math.min(999, amount | 0 || 1));
   if (direction === 'withdraw') {
-    const take = Math.min(resources[DRONE_KEY] | 0, n);
+    const activeIds = activeDroneIds(st);
+    const slots = normalizeDroneSlots(st);
+    const removable = slots.filter((slot) => !activeIds.has(slot.id));
+    const take = Math.min(resources[DRONE_KEY] | 0, removable.length, n);
     if (take <= 0) return false;
     const added = addResource(player.inv, DRONE_KEY, take);
     if (added <= 0) return false;
+    const removeIds = new Set(removable.slice(-added).map((slot) => slot.id));
+    st.logisticDroneSlots = slots.filter((slot) => !removeIds.has(slot.id));
     resources[DRONE_KEY] = (resources[DRONE_KEY] | 0) - added;
-    normalizeDroneCharge(st);
   } else {
     const free = Math.max(0, cap - (resources[DRONE_KEY] | 0));
     const take = Math.min(player?.inv?.resources?.[DRONE_KEY] | 0, n, free);
@@ -675,10 +842,13 @@ export function transferDroneStationDrone(state, player, structureId, direction 
     const moved = removeResource(player.inv, DRONE_KEY, take);
     if (moved <= 0) return false;
     resources[DRONE_KEY] = (resources[DRONE_KEY] | 0) + moved;
-    st.logisticDroneCharge = Math.min(droneChargeCapacity(st), (normalizeDroneCharge(st) | 0) + moved * DRONE_DELIVERIES_BEFORE_RECHARGE);
+    normalizeDroneSlots(st);
+    while ((st.logisticDroneSlots?.length || 0) < (resources[DRONE_KEY] | 0)) {
+      st.logisticDroneSlots.push({ id: droneSlotId(st, st.logisticDroneSlots.length), charge: DRONE_DELIVERIES_BEFORE_RECHARGE, rechargeMs: 0 });
+    }
   }
   if ((resources[DRONE_KEY] | 0) <= 0) delete resources[DRONE_KEY];
-  normalizeDroneCharge(st);
+  normalizeDroneSlots(st);
   st.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
   if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);

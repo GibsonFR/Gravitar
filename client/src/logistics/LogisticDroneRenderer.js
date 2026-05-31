@@ -78,6 +78,6 @@ export function drawLogisticDrone(ctx, view, drone, camX, camY, t = 0) {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  const label = `${drone.amount | 0} ${drone.resourceName || 'ressource'}`;
+  const label = `${drone.phase ? `${drone.phase} · ` : ''}${drone.amount | 0} ${drone.resourceName || 'ressource'}`;
   drawLabel(ctx, view, label, p.x, p.y - r - 12 * view.dpr);
 }

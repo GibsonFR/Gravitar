@@ -10,10 +10,11 @@ function missionRows(missions = []) {
   if (!missions.length) return '<div class="logistics-empty">Aucune livraison récente. Configure un coffre demandeur et remplis un coffre de chargement.</div>';
   return missions.map((m) => {
     const isFlight = m.kind === 'flight_start';
+    const isReturn = m.kind === 'drone_return';
     const failed = m.kind === 'delivery_failed';
-    const state = isFlight ? 'En vol' : failed ? 'Échec' : 'Livré';
+    const state = isFlight ? 'Départ station' : isReturn ? 'Retour station' : failed ? 'Échec' : 'Livré';
     return `<div class="logistics-mission-row ${m.interSector ? 'is-intersector' : ''} ${isFlight ? 'is-flight' : ''} ${failed ? 'is-failed' : ''}">
-      <span class="logistics-mission-row__icon">${isFlight ? '✈' : m.interSector ? '⇆' : '⇄'}</span>
+      <span class="logistics-mission-row__icon">${isReturn ? '↩' : isFlight ? '✈' : m.interSector ? '⇆' : '⇄'}</span>
       <div><b>${state} · ${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}</span></div>
     </div>`;
   }).join('');
@@ -79,6 +80,8 @@ export class DroneStationPanelView {
     const connected = station.connectedStations || [];
     const local = station.localChests || {};
     const chargeLabel = station.droneChargeMax > 0 ? `${station.droneCharge | 0}/${station.droneChargeMax | 0} livraisons` : 'aucun drone';
+    const available = station.availableDrones | 0;
+    const charging = station.chargingDrones | 0;
     this.el.innerHTML = `
       <header class="logistics-panel__head">
         <div>
@@ -93,7 +96,7 @@ export class DroneStationPanelView {
           <div class="logistics-card__title">Hangar de drones</div>
           <div class="logistics-drone-hero">
             <div class="logistics-drone-meter"><strong>${station.installedDrones | 0}</strong><span>/ ${station.droneCapacity | 0} drones</span></div>
-            <div class="logistics-drone-status ${station.droneCharge > 0 ? 'is-ok' : 'is-empty'}">${chargeLabel} · ${station.activeFlights | 0}/${station.maxActiveFlights | 0} en vol</div>
+            <div class="logistics-drone-status ${available > 0 ? 'is-ok' : 'is-empty'}">${chargeLabel} · ${available} dispo · ${station.activeFlights | 0}/${station.maxActiveFlights | 0} en vol · ${charging} recharge</div>
           </div>
           <div class="logistics-meter-block">
             <div class="logistics-meter-label"><span>Places station</span><b>${fill}%</b></div>
@@ -104,7 +107,7 @@ export class DroneStationPanelView {
             <div class="logistics-bar logistics-bar--charge"><span style="width:${chargeFill}%"></span></div>
           </div>
           <div class="logistics-meter-block">
-            <div class="logistics-meter-label"><span>Recharge prochaine livraison</span><b>${station.droneCharge >= station.droneChargeMax ? 'plein' : `${rechargeFill}%`}</b></div>
+            <div class="logistics-meter-label"><span>Recharge drones vides</span><b>${station.droneCharge >= station.droneChargeMax ? 'plein' : `${rechargeFill}%`}</b></div>
             <div class="logistics-bar logistics-bar--recharge"><span style="width:${station.droneCharge >= station.droneChargeMax ? 100 : rechargeFill}%"></span></div>
           </div>
           <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · ${station.deliveriesPerCharge | 0} livraisons par drone avant recharge · ${station.activeFlights | 0} mission(s) visible(s) · cadence ${station.nextMissionSeconds > 0 ? `${station.nextMissionSeconds}s` : 'prête'}</div>
@@ -123,7 +126,7 @@ export class DroneStationPanelView {
             <div><b>${local.sectors | 0}</b><span>secteurs</span></div>
           </div>
           <div class="logistics-hint ${station.powered && station.droneCharge > 0 ? 'is-ok' : 'is-warn'}">
-            ${!station.powered ? 'Station non alimentée : les drones ne partent pas et ne rechargent pas.' : station.installedDrones <= 0 ? 'Aucun drone installé : insère des drones logistiques basiques dans la station.' : station.droneCharge <= 0 ? 'Tous les drones sont vides : attends la recharge pour relancer les missions.' : 'Réseau opérationnel : les demandes sont servies automatiquement si une source existe.'}
+            ${!station.powered ? 'Station non alimentée : les drones ne partent pas et ne rechargent pas.' : station.installedDrones <= 0 ? 'Aucun drone installé : insère des drones logistiques basiques dans la station.' : station.droneCharge <= 0 ? 'Tous les drones disponibles sont vides : ils attendent une recharge complète avant de repartir.' : 'Réseau opérationnel : les demandes sont servies automatiquement si une source existe.'}
           </div>
         </section>
         <section class="logistics-card">

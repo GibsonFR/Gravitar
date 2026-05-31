@@ -1,4 +1,4 @@
-// build v207 logistics-drone-transit-visuals
+// build v208 logistics-drone-transit-visuals
 function showBootError(error, title = 'Erreur au chargement du jeu') {
   const message = error?.stack || error?.message || String(error || 'Erreur inconnue');
   console.error('[Gravitar boot]', error);
@@ -20,7 +20,7 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
 
 async function boot() {
   try {
-    const mod = await import('./src/App.js?v=207');
+    const mod = await import('./src/App.js?v=208');
     mod.startApp();
   } catch (err) {
     showBootError(err, 'Erreur au chargement du jeu');
