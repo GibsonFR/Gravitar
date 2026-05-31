@@ -2,6 +2,10 @@ function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
+function pct(value, max) {
+  return Math.max(0, Math.min(100, Math.round((Number(value) || 0) / Math.max(1, Number(max) || 1) * 100)));
+}
+
 function missionRows(missions = []) {
   if (!missions.length) return '<div class="logistics-empty">Aucune livraison récente. Configure un coffre demandeur et remplis un coffre de chargement.</div>';
   return missions.map((m) => `<div class="logistics-mission-row ${m.interSector ? 'is-intersector' : ''}">
@@ -64,9 +68,12 @@ export class DroneStationPanelView {
     const key = JSON.stringify(station);
     if (key === this.lastKey) return;
     this.lastKey = key;
-    const fill = Math.max(0, Math.min(100, Math.round((station.installedDrones / Math.max(1, station.droneCapacity)) * 100)));
+    const fill = pct(station.installedDrones, station.droneCapacity);
+    const chargeFill = pct(station.droneCharge, station.droneChargeMax);
+    const rechargeFill = Math.max(0, Math.min(100, station.rechargeProgressPct | 0));
     const connected = station.connectedStations || [];
     const local = station.localChests || {};
+    const chargeLabel = station.droneChargeMax > 0 ? `${station.droneCharge | 0}/${station.droneChargeMax | 0} livraisons` : 'aucun drone';
     this.el.innerHTML = `
       <header class="logistics-panel__head">
         <div>
@@ -78,12 +85,24 @@ export class DroneStationPanelView {
       </header>
       <div class="logistics-panel__body">
         <section class="logistics-card logistics-card--hero">
-          <div class="logistics-card__title">Drones installés</div>
-          <div class="logistics-drone-meter">
-            <strong>${station.installedDrones | 0}</strong><span>/ ${station.droneCapacity | 0}</span>
+          <div class="logistics-card__title">Hangar de drones</div>
+          <div class="logistics-drone-hero">
+            <div class="logistics-drone-meter"><strong>${station.installedDrones | 0}</strong><span>/ ${station.droneCapacity | 0} drones</span></div>
+            <div class="logistics-drone-status ${station.droneCharge > 0 ? 'is-ok' : 'is-empty'}">${chargeLabel}</div>
           </div>
-          <div class="logistics-bar"><span style="width:${fill}%"></span></div>
-          <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · cadence ${station.nextMissionSeconds > 0 ? `${station.nextMissionSeconds}s` : 'prête'}</div>
+          <div class="logistics-meter-block">
+            <div class="logistics-meter-label"><span>Places station</span><b>${fill}%</b></div>
+            <div class="logistics-bar"><span style="width:${fill}%"></span></div>
+          </div>
+          <div class="logistics-meter-block">
+            <div class="logistics-meter-label"><span>Autonomie drones</span><b>${chargeFill}%</b></div>
+            <div class="logistics-bar logistics-bar--charge"><span style="width:${chargeFill}%"></span></div>
+          </div>
+          <div class="logistics-meter-block">
+            <div class="logistics-meter-label"><span>Recharge prochaine livraison</span><b>${station.droneCharge >= station.droneChargeMax ? 'plein' : `${rechargeFill}%`}</b></div>
+            <div class="logistics-bar logistics-bar--recharge"><span style="width:${station.droneCharge >= station.droneChargeMax ? 100 : rechargeFill}%"></span></div>
+          </div>
+          <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · ${station.deliveriesPerCharge | 0} livraisons par drone avant recharge · cadence ${station.nextMissionSeconds > 0 ? `${station.nextMissionSeconds}s` : 'prête'}</div>
           <div class="logistics-actions">
             <button type="button" data-drone-station-transfer="deposit" data-amount="1" ${station.cargoDrones <= 0 || station.freeSlots <= 0 ? 'disabled' : ''}>Insérer 1</button>
             <button type="button" data-drone-station-transfer="deposit" data-amount="all" ${station.cargoDrones <= 0 || station.freeSlots <= 0 ? 'disabled' : ''}>Tout insérer</button>
@@ -97,6 +116,9 @@ export class DroneStationPanelView {
             <div><b>${local.requester | 0}</b><span>demandeurs</span></div>
             <div><b>${local.buffer | 0}</b><span>tampons</span></div>
             <div><b>${local.sectors | 0}</b><span>secteurs</span></div>
+          </div>
+          <div class="logistics-hint ${station.powered && station.droneCharge > 0 ? 'is-ok' : 'is-warn'}">
+            ${!station.powered ? 'Station non alimentée : les drones ne partent pas et ne rechargent pas.' : station.installedDrones <= 0 ? 'Aucun drone installé : insère des drones logistiques basiques dans la station.' : station.droneCharge <= 0 ? 'Tous les drones sont vides : attends la recharge pour relancer les missions.' : 'Réseau opérationnel : les demandes sont servies automatiquement si une source existe.'}
           </div>
         </section>
         <section class="logistics-card">

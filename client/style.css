@@ -9054,3 +9054,57 @@ button.station-item-icon[draggable="true"]:active,
   .logistics-candidate-row { grid-template-columns: 1fr; align-items: stretch; }
   .logistics-candidate-row button { width: 100%; }
 }
+
+/* v206 — autonomie/recharge drones logistiques */
+.logistics-drone-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.logistics-drone-status {
+  border: 1px solid rgba(126,220,255,.16);
+  background: rgba(126,220,255,.07);
+  color: rgba(210,246,255,.94);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.logistics-drone-status.is-empty {
+  border-color: rgba(255, 160, 110, .24);
+  background: rgba(255, 130, 90, .08);
+  color: rgba(255, 205, 180, .96);
+}
+.logistics-meter-block + .logistics-meter-block {
+  margin-top: 8px;
+}
+.logistics-meter-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: rgba(176,197,224,.82);
+}
+.logistics-meter-label b {
+  color: rgba(226,238,248,.94);
+}
+.logistics-bar--charge span {
+  background: linear-gradient(90deg, rgba(150,255,210,.55), rgba(116,224,255,.95));
+}
+.logistics-bar--recharge span {
+  background: linear-gradient(90deg, rgba(255,204,112,.45), rgba(150,255,210,.92));
+}
+.logistics-hint.is-ok {
+  border-color: rgba(120, 242, 165, .16);
+  background: rgba(120, 242, 165, .055);
+  color: rgba(202, 246, 216, .92);
+}
+.logistics-hint.is-warn {
+  border-color: rgba(255, 184, 92, .18);
+  background: rgba(255, 184, 92, .06);
+  color: rgba(255, 224, 180, .92);
+}
