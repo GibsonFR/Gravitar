@@ -7,7 +7,8 @@ export const MACHINE_TYPES = Object.freeze({
   ELECTRONICS_BENCH: 'electronics_bench',
   INDUSTRIAL_PRESS: 'industrial_press',
   SCIENCE_LAB: 'science_lab',
-  INDUSTRIAL_CONVERTER: CONVERSION_MACHINE_TYPE
+  INDUSTRIAL_CONVERTER: CONVERSION_MACHINE_TYPE,
+  LOGISTIC_DRONE_WORKSHOP: 'logistic_drone_workshop'
 });
 
 export const MACHINE_RECIPES = Object.freeze([
@@ -235,6 +236,16 @@ export const MACHINE_RECIPES = Object.freeze([
     energyUse: 13,
     input: { quartz: 4, sulfur: 3 },
     output: { thermalCeramic: 1 }
+  },
+
+  {
+    id: 'logistic_drone_basic',
+    machineType: MACHINE_TYPES.LOGISTIC_DRONE_WORKSHOP,
+    name: 'Drone logistique basique',
+    seconds: 18,
+    energyUse: 12,
+    input: { steelPlate: 3, copperWire: 4, controlCircuit: 1, lithiumBattery: 1, servomotor: 1 },
+    output: { logisticDroneBasic: 1 }
   },
   {
     id: 'basic_science_pack',

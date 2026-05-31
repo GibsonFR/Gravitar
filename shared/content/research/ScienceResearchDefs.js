@@ -108,6 +108,19 @@ export const RESEARCH_PROJECTS = Object.freeze([
     prereq: ['energy_distribution', 'electronics_processing'],
     tier: 3
   },
+
+  {
+    id: 'advanced_logistics',
+    branch: 'automation',
+    name: 'Logistique avancée',
+    points: 22,
+    energyUse: 30,
+    pointCost: { automationSciencePack: 1, industrialSciencePack: 1, energySciencePack: 1 },
+    unlockBuildings: ['Station de drones logistiques', 'Atelier de drones logistiques'],
+    unlockRecipes: ['Drone logistique basique'],
+    prereq: ['resource_scanning', 'electronics_processing'],
+    tier: 4
+  },
   {
     id: 'bio_processing',
     branch: 'biology',
@@ -248,6 +261,8 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   electronics_bench: 'electronics_processing',
   mining_extractor: 'resource_scanning',
   outpost_core: 'resource_scanning',
+  logistic_drone_station: 'advanced_logistics',
+  logistic_drone_workshop: 'advanced_logistics',
   equipment_fabricator: 'advanced_research',
   industrial_converter: 'pirate_reverse_engineering',
   rocket_workshop: 'defense_turrets',
@@ -320,6 +335,7 @@ export const RECIPE_RESEARCH_REQUIREMENTS = Object.freeze({
   steel_fuel_to_injector: 'advanced_research',
   energy_science_pack: 'electronics_processing',
   advanced_science_pack: 'advanced_research',
+  logistic_drone_basic: 'advanced_logistics',
   anomaly_science_pack: 'alien_anomaly_analysis'});
 
 export function completedResearchSet(researchOrCompleted = []) {

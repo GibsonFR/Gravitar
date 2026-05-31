@@ -729,7 +729,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   const h = (storage1x1 ? 64 : (s.h || s.radius * 2 || 80)) * view.dpr;
   const pal = ownerPalette(s);
   const edge = pal.edge;
-  const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press', 'industrial_converter', 'rocket_workshop', 'science_lab', 'research_station']);
+  const machineTypes = new Set(['furnace', 'high_temp_furnace', 'chemical_refinery', 'electrolyzer', 'electronics_bench', 'industrial_press', 'logistic_drone_workshop', 'industrial_converter', 'rocket_workshop', 'science_lab', 'research_station']);
   const powerTypes = new Set(['solar_panel', 'fuel_generator', 'fuel_tank']);
   const storageTypes = new Set(['storage', 'equipment_storage', 'ammo_storage']);
   const depositTypes = new Set(['resource_deposit']);
@@ -846,6 +846,8 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     const isElectro = s.type === 'electrolyzer';
     const isElectronics = s.type === 'electronics_bench';
     const isPress = s.type === 'industrial_press';
+    const isDroneStation = s.type === 'logistic_drone_station';
+    const isDroneWorkshop = s.type === 'logistic_drone_workshop';
     const isIndustrialConverter = s.type === 'industrial_converter';
     const isRocketWorkshop = s.type === 'rocket_workshop';
     const isScienceLab = s.type === 'science_lab';
@@ -859,6 +861,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       : isChem ? 'rgba(150,235,130,.68)'
       : isElectro ? 'rgba(120,220,255,.72)'
       : isElectronics ? 'rgba(145,176,255,.72)'
+      : isDroneWorkshop ? 'rgba(158,231,255,.82)'
       : isIndustrialConverter ? 'rgba(255,146,232,.82)'
       : isRocketWorkshop ? 'rgba(255,184,92,.84)'
       : isScienceLab ? 'rgba(126,220,255,.78)'
@@ -1212,6 +1215,32 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.shadowColor = 'rgba(0,0,0,.92)';
       ctx.shadowBlur = 3 * view.dpr;
       ctx.fillText('ROCKET', 0, h * 0.36);
+      ctx.restore();
+    } else if (isDroneStation || isDroneWorkshop) {
+      ctx.fillStyle = isDroneStation ? 'rgba(38, 56, 75, .56)' : 'rgba(40, 53, 79, .50)';
+      ctx.strokeStyle = 'rgba(126, 220, 255, .88)';
+      ctx.beginPath();
+      roundedRect(ctx, -w * 0.34, -h * 0.30, w * 0.68, h * 0.60, 12 * view.dpr);
+      ctx.fill();
+      ctx.stroke();
+      ctx.lineWidth = 1.8 * view.dpr;
+      ctx.beginPath();
+      ctx.arc(0, -h * 0.03, Math.min(w, h) * 0.13, 0, Math.PI * 2);
+      ctx.moveTo(-w * 0.24, h * 0.18); ctx.lineTo(-w * 0.08, h * 0.05);
+      ctx.moveTo(w * 0.24, h * 0.18); ctx.lineTo(w * 0.08, h * 0.05);
+      ctx.moveTo(-w * 0.24, -h * 0.22); ctx.lineTo(-w * 0.08, -h * 0.10);
+      ctx.moveTo(w * 0.24, -h * 0.22); ctx.lineTo(w * 0.08, -h * 0.10);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(126,220,255,.22)';
+      ctx.beginPath();
+      ctx.arc(0, -h * 0.03, Math.min(w, h) * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.save();
+      ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(220,246,255,.92)';
+      ctx.fillText(isDroneStation ? 'DRONE' : 'CRAFT', 0, h * 0.32);
       ctx.restore();
     } else if (isIndustrialConverter) {
 

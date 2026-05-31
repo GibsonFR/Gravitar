@@ -499,6 +499,53 @@ export function ensureTestIndustrialConverterBench(state, player, timeMs) {
 }
 
 
+
+export function ensureTestLogisticDronesBench(state, player, timeMs) {
+  if (!state?.structures || !player) return;
+  const worldId = String(player.worldId || '');
+  const sx = SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sx | 0;
+  const sy = SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sy | 0;
+  if ((player.sx | 0) !== sx || (player.sy | 0) !== sy) return;
+  const owner = { ownerId: player.id | 0, ownerKey: player.accountKey || 'test', ownerName: player.pseudo || 'Test', timeMs };
+  const core = ensureTestStructure(state, worldId, 'base_core', sx, sy, -512, 0, owner);
+  if (core) core.claimRadius = Math.max(core.claimRadius || 0, 1600);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -320, -192, owner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -192, -192, owner);
+  ensureTestStructure(state, worldId, 'fuel_generator', sx, sy, -64, -192, owner);
+  const station = ensureTestStructure(state, worldId, 'logistic_drone_station', sx, sy, 96, 96, owner);
+  if (station) {
+    station.storage ??= { kind: 'resources', resources: {}, capacity: 80 };
+    station.storage.kind = 'resources';
+    station.storage.capacity = Math.max(station.storage.capacity || 0, 80);
+    station.storage.resources ??= {};
+    station.storage.resources.logisticDroneBasic = Math.max(station.storage.resources.logisticDroneBasic | 0, 3);
+    station.powered = true;
+  }
+  const workshop = ensureTestStructure(state, worldId, 'logistic_drone_workshop', sx, sy, 352, 96, owner);
+  if (workshop) {
+    workshop.machineRecipeId = workshop.machineRecipeId || 'logistic_drone_basic';
+    workshop.machineEnabled = true;
+    workshop.machineInput = { steelPlate: 18, copperWire: 24, controlCircuit: 6, lithiumBattery: 6, servomotor: 6 };
+    workshop.machineOutput ||= {};
+    workshop.powered = true;
+    workshop.updatedAt = timeMs;
+  }
+  const storage = ensureTestStructure(state, worldId, 'storage', sx, sy, 608, 96, owner);
+  if (storage) {
+    storage.storage ??= { kind: 'resources', resources: {}, capacity: 720 };
+    storage.storage.kind = 'resources';
+    storage.storage.capacity = Math.max(storage.storage.capacity || 0, 720);
+    storage.storage.resources = {
+      steelPlate: 80,
+      copperWire: 120,
+      controlCircuit: 24,
+      lithiumBattery: 24,
+      servomotor: 24,
+      logisticDroneBasic: 4
+    };
+  }
+}
+
 export function ensureTestRocketWorkshopBench(state, player, timeMs) {
   if (!state?.structures || !player) return;
   const worldId = String(player.worldId || '');

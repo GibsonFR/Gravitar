@@ -337,9 +337,9 @@ export function startApp() {
   }
 
   function tryInteractStructureAt(px, py) {
-    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'industrial_converter' || s.type === 'rocket_workshop' || s.type === 'science_lab' || s.type === 'mining_extractor' || s.type === 'research_station' || s.type === 'equipment_fabricator' || s.type === 'equipment_rd_station');
+    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'logistic_drone_station' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'logistic_drone_workshop' || s.type === 'industrial_converter' || s.type === 'rocket_workshop' || s.type === 'science_lab' || s.type === 'mining_extractor' || s.type === 'research_station' || s.type === 'equipment_fabricator' || s.type === 'equipment_rd_station');
     if (!st) return false;
-    if (st.type === 'storage' || st.type === 'equipment_storage' || st.type === 'ammo_storage' || st.type === 'fuel_tank' || st.type === 'fuel_generator') sendCmd('storage_open', { structureId: st.id | 0 });
+    if (st.type === 'storage' || st.type === 'equipment_storage' || st.type === 'ammo_storage' || st.type === 'logistic_drone_station' || st.type === 'fuel_tank' || st.type === 'fuel_generator') sendCmd('storage_open', { structureId: st.id | 0 });
     else if (st.type === 'door') sendCmd('toggle_structure', { structureId: st.id | 0 });
     else if (st.type === 'research_station') sendCmd('research_station_open', { structureId: st.id | 0 });
     else if (st.type === 'equipment_fabricator') sendCmd('equipment_fabricator_open', { structureId: st.id | 0 });

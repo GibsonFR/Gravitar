@@ -16,6 +16,7 @@ export const SPECIAL_SECTORS = {
   TEST_PIRATE_RARE_EQUIPMENT: { sx: 9119, sy: -9100 },
   TEST_ROCKET_WORKSHOP: { sx: 9120, sy: -9100 },
   TEST_ROCKET_MIXER: { sx: 9121, sy: -9100 },
+  TEST_LOGISTIC_DRONES: { sx: 9122, sy: -9100 },
   TEST_BIOME_METALLIC: { sx: 9110, sy: -9100, biomeId: 'metallic', label: 'Type M — métallique' },
   TEST_BIOME_SILICATE: { sx: 9111, sy: -9100, biomeId: 'silicate', label: 'Type S — silicaté' },
   TEST_BIOME_ORGANIC: { sx: 9112, sy: -9100, biomeId: 'organic', label: 'Protobiologique' },
@@ -53,6 +54,7 @@ export function isSpecialDetachedSector(sx, sy) {
   if (sx === SPECIAL_SECTORS.TEST_PIRATE_RARE_EQUIPMENT.sx) return true;
   if (sx === SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sx) return true;
   if (sx === SPECIAL_SECTORS.TEST_ROCKET_MIXER.sx) return true;
+  if (sx === SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sx) return true;
   if (getTestBiomeSector(sx, sy)) return true;
   if (sx === SPECIAL_SECTORS.MOB_BESTIARY.sx) return true;
   if (sx === SPECIAL_SECTORS.STRESS_ARENA.sx) return true;

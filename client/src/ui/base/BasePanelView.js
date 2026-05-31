@@ -53,7 +53,8 @@ const RESOURCE_LABELS = {
   biologySciencePack: 'Science biologique',
   combatSciencePack: 'Science défense',
   advancedSciencePack: 'Science avancée',
-  anomalySciencePack: 'Science anomalie'
+  anomalySciencePack: 'Science anomalie',
+  logisticDroneBasic: 'Drone logistique'
 };
 
 const AUTOMATION_DIRECTIONAL_TYPES = new Set(['conveyor', 'fast_conveyor', 'splitter', 'merger', 'robot_arm', 'fast_arm', 'long_arm']);
@@ -90,6 +91,8 @@ if (kind === 'industrial_press') return `<svg viewBox="0 0 64 64" aria-hidden="t
   if (kind === 'research_station') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 10l18 10v24L32 54 14 44V20l18-10Z" fill="rgba(181,140,255,.08)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M32 10v44M14 20l18 10 18-10M14 44l18-10 18 10" fill="none" stroke="currentColor" stroke-width="2.2" opacity=".8"/><circle cx="32" cy="32" r="6" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>`;
   if (kind === 'equipment_fabricator') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="40" height="32" rx="6" fill="rgba(181,140,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M22 34h20M32 24v20M23 45h18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="22" cy="26" r="3" fill="currentColor" opacity=".75"/><circle cx="42" cy="26" r="3" fill="currentColor" opacity=".75"/></svg>`;
   if (kind === 'equipment_rd_station') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="40" height="32" rx="6" fill="rgba(210,140,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M21 42h22M26 24v12l-5 8M38 24v12l5 8M26 24h12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="40" r="4" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>`;
+  if (kind === 'drone_station') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="13" y="17" width="38" height="30" rx="8" fill="rgba(126,220,255,.10)" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="8" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M12 25h10M42 25h10M12 39h10M42 39h10M32 10v9M32 45v9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
+  if (kind === 'drone_workshop') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="18" width="44" height="30" rx="7" fill="rgba(158,231,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M22 34h20M32 24v20" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="18" cy="26" r="3" fill="currentColor"/><circle cx="46" cy="26" r="3" fill="currentColor"/></svg>`;
   if (kind === 'automation') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 34h34" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M38 24l12 10-12 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="46" r="4" fill="currentColor" opacity=".65"/><circle cx="32" cy="46" r="4" fill="currentColor" opacity=".65"/></svg>`;
   if (kind === 'conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="22" width="48" height="20" rx="4" fill="rgba(110,215,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 28h36M14 36h36" stroke="currentColor" stroke-width="2" opacity=".35"/><path d="M18 32h22M34 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="32" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="46" cy="48" r="3" fill="currentColor" opacity=".5"/></svg>`;
   if (kind === 'fast_conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="18" width="48" height="28" rx="5" fill="rgba(120,255,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M14 24h36M14 40h36" stroke="currentColor" stroke-width="2.5" opacity=".7"/><path d="M16 32h14M28 25l8 7-8 7M38 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -136,6 +139,38 @@ export const BUILD_STRUCTURES = [
     role: 'Mini-base pour exploiter un gisement dans un autre secteur.',
     stats: ['Zone : 5 × 5 cases', 'Limite : 4 par secteur', 'Débloqué avec extracteur minier'],
     cost: { steelPlate: 3, copperWire: 4, controlCircuit: 1 }
+  },
+  {
+    type: 'logistic_drone_station',
+    category: 'automation',
+    title: 'Station de drones logistiques',
+    subtitle: '2 × 2 cases',
+    icon: 'drone_station',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 520,
+    role: 'Stocke et recharge les drones logistiques. Portée : 1 secteur.',
+    stats: ['Capacité : 8 drones', 'Portée : secteur + 8 adjacents', 'Recharge : 20 s'],
+    cost: { steelPlate: 12, controlCircuit: 3, lithiumBattery: 4, copperWire: 16, servomotor: 2 }
+  },
+  {
+    type: 'logistic_drone_workshop',
+    category: 'automation',
+    title: 'Atelier de drones logistiques',
+    subtitle: '2 × 2 cases',
+    icon: 'drone_workshop',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 0,
+    role: 'Fabrique des drones logistiques basiques comme ressource.',
+    stats: ['Recette : drone logistique basique', 'Énergie : 12'],
+    cost: { steelPlate: 8, copperWire: 10, controlCircuit: 2, lithiumBattery: 2, servomotor: 1 }
   },
   {
     type: 'wall',

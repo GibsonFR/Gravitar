@@ -69,7 +69,8 @@ export const ACTIVE_RESOURCE_KEYS_ORDER = [
   "biologySciencePack",
   "combatSciencePack",
   "advancedSciencePack",
-  "anomalySciencePack"
+  "anomalySciencePack",
+  "logisticDroneBasic"
 ];
 export const LEGACY_RESOURCE_KEYS_ORDER = [
   "ice",
@@ -1186,6 +1187,21 @@ export const RESOURCE_DEFS = {
     "resistBias": 0,
     "enemyCommonDrop": false,
     "id": "Compositearmor"
+  },
+  "logisticDroneBasic": {
+    "name": "Drone logistique basique",
+    "cargoPerUnit": 5,
+    "sellPrice": 0,
+    "colorHex": "#7fdcff",
+    "rarity": 3,
+    "baseWeight": 0,
+    "spawnTier": 0,
+    "shapeClass": "Component",
+    "hardnessMultiplier": 1.0,
+    "armorBias": 0,
+    "resistBias": 0,
+    "enemyCommonDrop": false,
+    "id": "LogisticDroneBasic"
   },
   "ice": {
     "name": "Glace d'eau",
