@@ -116,7 +116,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 22,
     energyUse: 30,
     pointCost: { automationSciencePack: 1, industrialSciencePack: 1, energySciencePack: 1 },
-    unlockBuildings: ['Station de drones logistiques', 'Atelier de drones logistiques'],
+    unlockBuildings: ['Station de drones logistiques', 'Atelier de drones logistiques', 'Coffre de chargement', 'Coffre demandeur', 'Coffre tampon logistique'],
     unlockRecipes: ['Drone logistique basique'],
     prereq: ['resource_scanning', 'electronics_processing'],
     tier: 4
@@ -263,6 +263,9 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   outpost_core: 'resource_scanning',
   logistic_drone_station: 'advanced_logistics',
   logistic_drone_workshop: 'advanced_logistics',
+  logistic_chest_provider: 'advanced_logistics',
+  logistic_chest_requester: 'advanced_logistics',
+  logistic_chest_buffer: 'advanced_logistics',
   equipment_fabricator: 'advanced_research',
   industrial_converter: 'pirate_reverse_engineering',
   rocket_workshop: 'defense_turrets',

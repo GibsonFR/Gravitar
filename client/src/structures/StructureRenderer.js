@@ -848,6 +848,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     const isPress = s.type === 'industrial_press';
     const isDroneStation = s.type === 'logistic_drone_station';
     const isDroneWorkshop = s.type === 'logistic_drone_workshop';
+    const isLogisticChest = s.type === 'logistic_chest_provider' || s.type === 'logistic_chest_requester' || s.type === 'logistic_chest_buffer';
     const isIndustrialConverter = s.type === 'industrial_converter';
     const isRocketWorkshop = s.type === 'rocket_workshop';
     const isScienceLab = s.type === 'science_lab';
@@ -861,6 +862,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       : isChem ? 'rgba(150,235,130,.68)'
       : isElectro ? 'rgba(120,220,255,.72)'
       : isElectronics ? 'rgba(145,176,255,.72)'
+      : isLogisticChest ? 'rgba(160,225,190,.78)'
       : isDroneWorkshop ? 'rgba(158,231,255,.82)'
       : isIndustrialConverter ? 'rgba(255,146,232,.82)'
       : isRocketWorkshop ? 'rgba(255,184,92,.84)'
@@ -1215,6 +1217,25 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.shadowColor = 'rgba(0,0,0,.92)';
       ctx.shadowBlur = 3 * view.dpr;
       ctx.fillText('ROCKET', 0, h * 0.36);
+      ctx.restore();
+    } else if (isLogisticChest) {
+      ctx.fillStyle = s.type === 'logistic_chest_provider' ? 'rgba(45, 75, 56, .50)' : s.type === 'logistic_chest_requester' ? 'rgba(46, 60, 88, .50)' : 'rgba(76, 66, 42, .50)';
+      ctx.strokeStyle = s.type === 'logistic_chest_provider' ? 'rgba(141,247,180,.86)' : s.type === 'logistic_chest_requester' ? 'rgba(155,196,255,.86)' : 'rgba(255,225,154,.86)';
+      ctx.beginPath();
+      roundedRect(ctx, -w * 0.32, -h * 0.30, w * 0.64, h * 0.60, 10 * view.dpr);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.rect(-w * 0.20, -h * 0.12, w * 0.40, h * 0.28);
+      ctx.moveTo(-w * 0.18, -h * 0.17); ctx.lineTo(w * 0.18, -h * 0.17);
+      ctx.moveTo(0, -h * 0.25); ctx.lineTo(0, -h * 0.17);
+      ctx.stroke();
+      ctx.save();
+      ctx.font = `${7 * view.dpr}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(230,245,255,.9)';
+      ctx.fillText(s.type === 'logistic_chest_provider' ? 'LOAD' : s.type === 'logistic_chest_requester' ? 'REQ' : 'BUF', 0, h * 0.33);
       ctx.restore();
     } else if (isDroneStation || isDroneWorkshop) {
       ctx.fillStyle = isDroneStation ? 'rgba(38, 56, 75, .56)' : 'rgba(40, 53, 79, .50)';

@@ -544,6 +544,15 @@ export function ensureTestLogisticDronesBench(state, player, timeMs) {
       logisticDroneBasic: 4
     };
   }
+  const provider = ensureTestStructure(state, worldId, 'logistic_chest_provider', sx, sy, 96, 352, owner);
+  if (provider) {
+    provider.storage ??= { kind: 'resources', resources: {}, capacity: 140 };
+    provider.storage.kind = 'resources';
+    provider.storage.capacity = Math.max(provider.storage.capacity || 0, 140);
+    provider.storage.resources = { copper: 60, ironOre: 80 };
+  }
+  ensureTestStructure(state, worldId, 'logistic_chest_requester', sx, sy, 256, 352, owner);
+  ensureTestStructure(state, worldId, 'logistic_chest_buffer', sx, sy, 416, 352, owner);
 }
 
 export function ensureTestRocketWorkshopBench(state, player, timeMs) {

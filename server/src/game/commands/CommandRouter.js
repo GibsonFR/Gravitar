@@ -61,6 +61,11 @@ import { handleRocketWorkshopTransfer } from './RocketWorkshopTransferCommand.js
 import { handleRocketWorkshopClaim } from './RocketWorkshopClaimCommand.js';
 import { handleRocketWorkshopStart } from './RocketWorkshopStartCommand.js';
 import { handleRocketWorkshopToggle } from './RocketWorkshopToggleCommand.js';
+import { handleDroneStationOpen } from './DroneStationOpenCommand.js';
+import { handleDroneStationClose } from './DroneStationCloseCommand.js';
+import { handleDroneStationTransfer } from './DroneStationTransferCommand.js';
+import { handleLogisticChestOpen } from './LogisticChestOpenCommand.js';
+import { handleLogisticChestClose } from './LogisticChestCloseCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -108,6 +113,11 @@ const HANDLERS = {
   rocket_workshop_claim: handleRocketWorkshopClaim,
   rocket_workshop_start: handleRocketWorkshopStart,
   rocket_workshop_toggle: handleRocketWorkshopToggle,
+  drone_station_open: handleDroneStationOpen,
+  drone_station_close: handleDroneStationClose,
+  drone_station_transfer: handleDroneStationTransfer,
+  logistic_chest_open: handleLogisticChestOpen,
+  logistic_chest_close: handleLogisticChestClose,
   research_station_open: handleResearchStationOpen,
   research_station_close: handleResearchStationClose,
   research_station_transfer: handleResearchStationTransfer,

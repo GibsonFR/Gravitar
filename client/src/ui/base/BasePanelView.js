@@ -93,6 +93,7 @@ if (kind === 'industrial_press') return `<svg viewBox="0 0 64 64" aria-hidden="t
   if (kind === 'equipment_rd_station') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="18" width="40" height="32" rx="6" fill="rgba(210,140,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M21 42h22M26 24v12l-5 8M38 24v12l5 8M26 24h12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="32" cy="40" r="4" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>`;
   if (kind === 'drone_station') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="13" y="17" width="38" height="30" rx="8" fill="rgba(126,220,255,.10)" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="8" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M12 25h10M42 25h10M12 39h10M42 39h10M32 10v9M32 45v9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
   if (kind === 'drone_workshop') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="18" width="44" height="30" rx="7" fill="rgba(158,231,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M22 34h20M32 24v20" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="18" cy="26" r="3" fill="currentColor"/><circle cx="46" cy="26" r="3" fill="currentColor"/></svg>`;
+  if (kind === 'logistic_chest') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="13" y="18" width="38" height="30" rx="6" fill="rgba(126,220,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M20 29h24M20 38h24M32 12v10M24 12h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
   if (kind === 'automation') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 34h34" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M38 24l12 10-12 10" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="46" r="4" fill="currentColor" opacity=".65"/><circle cx="32" cy="46" r="4" fill="currentColor" opacity=".65"/></svg>`;
   if (kind === 'conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="22" width="48" height="20" rx="4" fill="rgba(110,215,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 28h36M14 36h36" stroke="currentColor" stroke-width="2" opacity=".35"/><path d="M18 32h22M34 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="32" cy="48" r="3" fill="currentColor" opacity=".5"/><circle cx="46" cy="48" r="3" fill="currentColor" opacity=".5"/></svg>`;
   if (kind === 'fast_conveyor') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="18" width="48" height="28" rx="5" fill="rgba(120,255,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M14 24h36M14 40h36" stroke="currentColor" stroke-width="2.5" opacity=".7"/><path d="M16 32h14M28 25l8 7-8 7M38 25l8 7-8 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -171,6 +172,54 @@ export const BUILD_STRUCTURES = [
     role: 'Fabrique des drones logistiques basiques comme ressource.',
     stats: ['Recette : drone logistique basique', 'Énergie : 12'],
     cost: { steelPlate: 8, copperWire: 10, controlCircuit: 2, lithiumBattery: 2, servomotor: 1 }
+  },
+  {
+    type: 'logistic_chest_provider',
+    category: 'automation',
+    title: 'Coffre de chargement',
+    subtitle: '1 × 1 case',
+    icon: 'logistic_chest',
+    orientation: 'h',
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 260,
+    role: 'Fournit les ressources au réseau de drones.',
+    stats: ['Type : fournisseur', 'Capacité : 140'],
+    cost: { steelPlate: 3, copperWire: 2, controlCircuit: 1 }
+  },
+  {
+    type: 'logistic_chest_requester',
+    category: 'automation',
+    title: 'Coffre demandeur',
+    subtitle: '1 × 1 case',
+    icon: 'logistic_chest',
+    orientation: 'h',
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 260,
+    role: 'Réclame des ressources au réseau de drones.',
+    stats: ['Type : demandeur', 'Capacité : 140'],
+    cost: { steelPlate: 3, copperWire: 4, controlCircuit: 1 }
+  },
+  {
+    type: 'logistic_chest_buffer',
+    category: 'automation',
+    title: 'Coffre tampon logistique',
+    subtitle: '1 × 1 case',
+    icon: 'logistic_chest',
+    orientation: 'h',
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    hp: 300,
+    role: 'Stockage neutre utilisé en réserve par le réseau.',
+    stats: ['Type : tampon', 'Capacité : 180'],
+    cost: { steelPlate: 4, copperWire: 2, controlCircuit: 1 }
   },
   {
     type: 'wall',
