@@ -1246,3 +1246,134 @@ export function setLogisticChestRequest(state, player, structureId, resourceKey,
   if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
   return true;
 }
+
+
+export function buildLogisticMapSnapshot(state, player, timeMs = Date.now()) {
+  if (!state?.structures || !player) return { sectors: [], links: [], flights: [], summary: { stationCount: 0, activeFlights: 0, unmetRequests: 0 } };
+  const ownerKey = playerOwnerKey(player);
+  const worldId = String(player.worldId || 'endless');
+  if (!ownerKey) return { sectors: [], links: [], flights: [], summary: { stationCount: 0, activeFlights: 0, unmetRequests: 0 } };
+
+  const stations = [];
+  const sectorsByKey = new Map();
+
+  function sectorEntry(sx, sy) {
+    const key = `${sx | 0},${sy | 0}`;
+    if (!sectorsByKey.has(key)) {
+      sectorsByKey.set(key, {
+        sx: sx | 0,
+        sy: sy | 0,
+        stationCount: 0,
+        poweredStations: 0,
+        providerCount: 0,
+        requesterCount: 0,
+        bufferCount: 0,
+        unmetRequests: 0,
+        requestCount: 0,
+        activeFlights: 0,
+        incoming: 0,
+        resourcesWanted: []
+      });
+    }
+    return sectorsByKey.get(key);
+  }
+
+  for (const st of state.structures.values()) {
+    if (String(st.worldId || 'endless') !== worldId) continue;
+    if (ownerKeyOf(st) !== ownerKey) continue;
+    if (isDroneStationStructure(st)) {
+      stations.push(st);
+      const e = sectorEntry(st.sx | 0, st.sy | 0);
+      e.stationCount += 1;
+      if (st.powered) e.poweredStations += 1;
+    }
+  }
+
+  for (const st of state.structures.values()) {
+    if (String(st.worldId || 'endless') !== worldId) continue;
+    if (ownerKeyOf(st) !== ownerKey) continue;
+    if (!isLogisticChestStructure(st)) continue;
+    const e = sectorEntry(st.sx | 0, st.sy | 0);
+    if (st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER) e.providerCount += 1;
+    else if (st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER) e.bufferCount += 1;
+    else if (st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER) {
+      e.requesterCount += 1;
+      for (const req of requestEntries(st)) {
+        e.requestCount += 1;
+        if (req.missing > 0) {
+          e.unmetRequests += req.missing | 0;
+          if (!e.resourcesWanted.includes(req.key)) e.resourcesWanted.push(req.key);
+        }
+      }
+    }
+  }
+
+  const links = [];
+  const seenLinks = new Set();
+  for (let i = 0; i < stations.length; i += 1) {
+    for (let j = i + 1; j < stations.length; j += 1) {
+      const a = stations[i];
+      const b = stations[j];
+      const dist = sectorDistance(a, b);
+      if (dist > 1 || dist <= 0) continue;
+      const key = `${a.sx | 0},${a.sy | 0}>${b.sx | 0},${b.sy | 0}`;
+      if (seenLinks.has(key)) continue;
+      seenLinks.add(key);
+      links.push({
+        fromSx: a.sx | 0,
+        fromSy: a.sy | 0,
+        toSx: b.sx | 0,
+        toSy: b.sy | 0,
+        fromPowered: !!a.powered,
+        toPowered: !!b.powered,
+        active: !!a.powered && !!b.powered
+      });
+    }
+  }
+
+  const flightsOut = [];
+  for (const station of stations) {
+    for (const flight of flights(station)) {
+      if (!isActiveFlightState(flight.state)) continue;
+      const snap = flightSnapshot(flight, timeMs);
+      const current = sectorEntry(snap.sx | 0, snap.sy | 0);
+      current.activeFlights += 1;
+      const dest = sectorEntry(flight.toSx | 0, flight.toSy | 0);
+      dest.incoming += Math.max(0, flight.amount | 0);
+      flightsOut.push({
+        id: String(flight.id || ''),
+        sx: snap.sx | 0,
+        sy: snap.sy | 0,
+        fromSx: flight.fromSx | 0,
+        fromSy: flight.fromSy | 0,
+        toSx: flight.toSx | 0,
+        toSy: flight.toSy | 0,
+        homeSx: station.sx | 0,
+        homeSy: station.sy | 0,
+        progress: snap.progress || 0,
+        phase: snap.phase || '',
+        resourceKey: snap.resourceKey || '',
+        resourceName: snap.resourceName || '',
+        amount: snap.amount | 0,
+        interSector: !!snap.interSector
+      });
+    }
+  }
+
+  const sectors = [...sectorsByKey.values()].map((entry) => ({
+    ...entry,
+    resourcesWanted: entry.resourcesWanted.slice(0, 5).map((key) => ({ key, name: resourceName(key), colorHex: RESOURCE_DEFS[key]?.colorHex || '#d0d7e4' }))
+  })).sort((a, b) => a.sx - b.sx || a.sy - b.sy);
+
+  return {
+    sectors,
+    links,
+    flights: flightsOut.slice(0, 80),
+    summary: {
+      stationCount: stations.length,
+      sectorCount: sectors.length,
+      activeFlights: flightsOut.length,
+      unmetRequests: sectors.reduce((sum, s) => sum + (s.unmetRequests | 0), 0)
+    }
+  };
+}

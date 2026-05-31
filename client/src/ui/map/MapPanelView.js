@@ -37,6 +37,10 @@ export class MapPanelView {
     this.bastionInfo = new Map();
     this.bastionList = [];
     this.playerList = [];
+    this.logisticSectors = new Map();
+    this.logisticLinks = [];
+    this.logisticFlights = [];
+    this.logisticSummary = null;
 
     this.el.innerHTML = `
       <div class="map-panel__header">
@@ -50,7 +54,8 @@ export class MapPanelView {
             <button class="ui-btn ui-btn--ghost ui-btn--sm" data-act="zoomIn">+</button>
           </div>
           <div class="map-panel__legend">
-            <div class="map-panel__legend-row"><span class="map-panel__glyph">S</span><span>Station</span></div>
+            <div class="map-panel__legend-row"><span class="map-panel__glyph">S</span><span>Station pirate</span></div>
+            <div class="map-panel__legend-row"><span class="map-panel__glyph map-panel__glyph--drone">D</span><span>Réseau drones</span></div>
             <div class="map-panel__legend-row"><span class="map-panel__glyph">P</span><span>Portail retour</span></div>
             <div class="map-panel__legend-row"><span class="map-panel__glyph map-panel__glyph--hub">H</span><span>Hub [0,0] protégé, sans station</span></div>
             <div class="map-panel__legend-row"><span class="map-panel__glyph">◈</span><span>Bastion</span></div>
@@ -218,7 +223,7 @@ export class MapPanelView {
     const sy = this.lastLayout.currentSy - dy;
 
     if (sx === this.curSx && sy === this.curSy) return { sx, sy };
-    if (!this.visitedInfo.has(`${sx},${sy}`) && !this.bastionInfo.has(`${sx},${sy}`)) return null;
+    if (!this.visitedInfo.has(`${sx},${sy}`) && !this.bastionInfo.has(`${sx},${sy}`) && !this.logisticSectors.has(`${sx},${sy}`)) return null;
     return { sx, sy };
   }
 
@@ -236,6 +241,36 @@ export class MapPanelView {
     this.bastionInfo = new Map();
     this.bastionList = [];
     this.playerList = [];
+    this.logisticSectors = new Map();
+    this.logisticLinks = [];
+    this.logisticFlights = [];
+    this.logisticSummary = mapSnap?.logistics?.summary || null;
+    for (const entry of (mapSnap?.logistics?.sectors || [])) {
+      const sx = entry.sx | 0;
+      const rawSy = entry.sy | 0;
+      const sy = this._toDisplaySy(rawSy);
+      this.logisticSectors.set(`${sx},${sy}`, { ...entry, sx, rawSy, sy });
+    }
+    this.logisticLinks = (mapSnap?.logistics?.links || []).map((link) => ({
+      ...link,
+      fromSx: link.fromSx | 0,
+      fromRawSy: link.fromSy | 0,
+      fromSy: this._toDisplaySy(link.fromSy | 0),
+      toSx: link.toSx | 0,
+      toRawSy: link.toSy | 0,
+      toSy: this._toDisplaySy(link.toSy | 0)
+    }));
+    this.logisticFlights = (mapSnap?.logistics?.flights || []).map((flight) => ({
+      ...flight,
+      sx: flight.sx | 0,
+      sy: this._toDisplaySy(flight.sy | 0),
+      fromSx: flight.fromSx | 0,
+      fromSy: this._toDisplaySy(flight.fromSy | 0),
+      toSx: flight.toSx | 0,
+      toSy: this._toDisplaySy(flight.toSy | 0),
+      homeSx: flight.homeSx | 0,
+      homeSy: this._toDisplaySy(flight.homeSy | 0)
+    }));
     const sectors = mapSnap?.sectors ?? [];
     for (const s of sectors) {
       const sx = (s.sx ?? 0) | 0;
@@ -318,6 +353,9 @@ export class MapPanelView {
       visitedList: this.visitedList,
       bastionList: this.bastionList,
       playerList: this.playerList,
+      logisticSectors: this.logisticSectors,
+      logisticLinks: this.logisticLinks,
+      logisticFlights: this.logisticFlights,
       getVisited: (sx, sy) => this.visitedInfo.get(`${sx | 0},${sy | 0}`) || null,
       getBastion: (sx, sy) => this.bastionInfo.get(`${sx | 0},${sy | 0}`) || null
     });
@@ -351,8 +389,10 @@ export class MapPanelView {
     const visited = this.visitedInfo.get(`${sx},${sy}`) || null;
     const bastion = visited?.bastion || this.bastionInfo.get(`${sx},${sy}`) || null;
     const herePlayers = this.playerList.filter((p) => (p.sx | 0) === (sx | 0) && (p.sy | 0) === (sy | 0));
+    const logistic = this.logisticSectors.get(`${sx},${sy}`) || null;
+    const logisticFlights = this.logisticFlights.filter((f) => (f.sx | 0) === (sx | 0) && (f.sy | 0) === (sy | 0));
 
-    if (!visited && !bastion && !(sx === this.curSx && sy === this.curSy)) {
+    if (!visited && !bastion && !logistic && !(sx === this.curSx && sy === this.curSy)) {
       return {
         main: `[${sx},${sy}]`,
         badge: 'Inconnu',
@@ -363,6 +403,10 @@ export class MapPanelView {
 
     const typeRows = [];
     if (sx === 0 && sy === 0) typeRows.push(`${this._chip('Hub', 'is-hub')} <span>zone protégée, construction interdite</span>`);
+    if (logistic?.stationCount > 0) typeRows.push(`${this._chip('Drones', 'is-logistic')} <span>${logistic.stationCount | 0} station${(logistic.stationCount | 0) > 1 ? 's' : ''} · ${logistic.poweredStations | 0} alimentée${(logistic.poweredStations | 0) > 1 ? 's' : ''}</span>`);
+    if ((logistic?.requesterCount | 0) > 0 || (logistic?.providerCount | 0) > 0 || (logistic?.bufferCount | 0) > 0) typeRows.push(`${this._chip('Coffres', 'is-logistic')} <span>${logistic.providerCount | 0} chargement · ${logistic.requesterCount | 0} demandeur · ${logistic.bufferCount | 0} tampon</span>`);
+    if ((logistic?.unmetRequests | 0) > 0) typeRows.push(`${this._chip('Demandes', 'is-warning')} <span>${logistic.unmetRequests | 0} unité${(logistic.unmetRequests | 0) > 1 ? 's' : ''} demandée${(logistic.unmetRequests | 0) > 1 ? 's' : ''}</span>`);
+    if ((logistic?.activeFlights | 0) > 0 || logisticFlights.length) typeRows.push(`${this._chip('Vols', 'is-logistic')} <span>${Math.max(logistic?.activeFlights | 0, logisticFlights.length)} drone${Math.max(logistic?.activeFlights | 0, logisticFlights.length) > 1 ? 's' : ''} en transit</span>`);
     if ((visited?.stationCount | 0) > 0) typeRows.push(`${this._chip('Station')} <span>${visited.stationCount | 0} station${(visited.stationCount | 0) > 1 ? 's' : ''}</span>`);
     if (visited?.hasReturnPortal) typeRows.push(`${this._chip('Retour')} <span>portail vers le hub</span>`);
     if (bastion) {
@@ -383,16 +427,28 @@ export class MapPanelView {
       return `<div class="map-panel__player-row"><span class="map-panel__player-dot ${p.isMe ? 'is-me' : ''}"></span><span>${this._esc(name)}</span><span class="map-panel__muted">${this._esc(lvl)}</span></div>`;
     });
 
+
+    const logisticRows = [];
+    if (logistic) {
+      if (logistic.stationCount > 0) logisticRows.push(`<span>Stations : ${logistic.stationCount | 0} · alimentées : ${logistic.poweredStations | 0}</span>`);
+      if ((logistic.requesterCount | 0) || (logistic.providerCount | 0) || (logistic.bufferCount | 0)) logisticRows.push(`<span>Coffres : ${logistic.providerCount | 0} chargement · ${logistic.requesterCount | 0} demandeur · ${logistic.bufferCount | 0} tampon</span>`);
+      if ((logistic.unmetRequests | 0) > 0) logisticRows.push(`<span class="map-panel__muted">Demandes manquantes : ${logistic.unmetRequests | 0}</span>`);
+      if ((logistic.incoming | 0) > 0) logisticRows.push(`<span class="map-panel__muted">En transit vers ce secteur : ${logistic.incoming | 0}</span>`);
+      for (const wanted of (logistic.resourcesWanted || []).slice(0, 4)) logisticRows.push(`<span class="map-panel__resource-pill" title="${this._esc(wanted.key)}">${this._esc(wanted.name)}</span>`);
+    }
+    for (const flight of logisticFlights.slice(0, 4)) logisticRows.push(`<span>Drone : ${this._esc(flight.resourceName || flight.resourceKey)} ×${flight.amount | 0} — ${this._esc(flight.phase || 'en vol')}</span>`);
+
     const resourceRows = (visited?.resourceKeys || []).slice(0, 6).map((key, i) => {
       const label = visited?.resourceNames?.[i] || key;
       return `<span class="map-panel__resource-pill" title="${this._esc(key)}">${this._esc(label)}</span>`;
     });
 
-    const badge = sx === 0 && sy === 0 ? 'Hub' : bastion ? (bastion.captured ? 'Capturé' : (bastion.unlocked ? 'Ouvert' : 'Bastion')) : ((visited?.stationCount | 0) > 0 ? 'Station' : 'Normal');
-    const badgeClass = sx === 0 && sy === 0 ? 'is-hub' : bastion ? 'is-bastion' : '';
+    const badge = sx === 0 && sy === 0 ? 'Hub' : bastion ? (bastion.captured ? 'Capturé' : (bastion.unlocked ? 'Ouvert' : 'Bastion')) : ((logistic?.stationCount | 0) > 0 ? 'Drones' : ((visited?.stationCount | 0) > 0 ? 'Station' : 'Normal'));
+    const badgeClass = sx === 0 && sy === 0 ? 'is-hub' : bastion ? 'is-bastion' : ((logistic?.stationCount | 0) > 0 ? 'is-logistic' : '');
     const html = [
       this._renderInfoSection('Activité', playerRows, 'Aucun joueur dans ce secteur.'),
       this._renderInfoSection('Points utiles', typeRows),
+      this._renderInfoSection('Réseau drones', logisticRows, 'Aucune activité logistique dans ce secteur.'),
       this._renderInfoSection('Ressources probables', resourceRows, 'Ressources inconnues.')
     ].join('');
 

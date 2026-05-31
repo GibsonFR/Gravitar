@@ -3,6 +3,7 @@ import { SECTOR } from '../sector/SectorDefs.js';
 import { getSectorSummary } from './SectorSummary.js';
 import { getBastionColor, getBastionEffectSummary, getBastionGlyph } from '../bastion/BastionTypes.js';
 import { getBastionUnlockText, isBastionUnlockedForPlayer } from '../bastion/BastionSession.js';
+import { buildLogisticMapSnapshot } from '../structures/StructureLogistics.js';
 
 export function createPlayerMapState() {
   return {
@@ -74,7 +75,8 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
     activeRadius: SECTOR.sessionActiveRadius | 0,
     sectors,
     bastions,
-    players
+    players,
+    logistics: buildLogisticMapSnapshot(state, player, timeMs)
   };
 }
 

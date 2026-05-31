@@ -120,6 +120,8 @@ export class LogisticChestPanelView {
   captureScroll() {
     const out = new Map();
     this.el.querySelectorAll('[data-scroll-key]').forEach((node) => out.set(node.dataset.scrollKey || '', node.scrollTop));
+    const body = this.el.querySelector('.logistics-panel__body');
+    if (body) out.set('__body__', body.scrollTop);
     return out;
   }
 
@@ -129,6 +131,8 @@ export class LogisticChestPanelView {
       const key = node.dataset.scrollKey || '';
       if (map.has(key)) node.scrollTop = map.get(key) || 0;
     });
+    const body = this.el.querySelector('.logistics-panel__body');
+    if (body && map.has('__body__')) body.scrollTop = map.get('__body__') || 0;
   }
 
   update(store) {
@@ -158,7 +162,7 @@ export class LogisticChestPanelView {
         </div>
         <button type="button" class="logistics-panel__close" data-logistic-chest-close="1">×</button>
       </header>
-      <div class="logistics-panel__body logistics-panel__body--chest-v214">
+      <div class="logistics-panel__body logistics-panel__body--chest-v214" data-scroll-key="body">
         <section class="logistics-card logistics-card--role">
           <div class="logistics-card__title">Rôle</div>
           <div class="logistics-empty">${escapeHtml(chest.description || '')}</div>
