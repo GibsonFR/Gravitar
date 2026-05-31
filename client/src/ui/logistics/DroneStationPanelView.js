@@ -11,11 +11,12 @@ function missionRows(missions = []) {
   return missions.map((m) => {
     const isFlight = m.kind === 'flight_start';
     const isReturn = m.kind === 'drone_return';
-    const failed = m.kind === 'delivery_failed';
-    const state = isFlight ? 'Départ station' : isReturn ? 'Retour station' : failed ? 'Échec' : 'Livré';
+    const destroyed = m.kind === 'drone_destroyed';
+    const failed = m.kind === 'delivery_failed' || destroyed;
+    const state = destroyed ? 'Drone détruit' : isFlight ? 'Départ station' : isReturn ? 'Retour station' : failed ? 'Échec' : 'Livré';
     return `<div class="logistics-mission-row ${m.interSector ? 'is-intersector' : ''} ${isFlight ? 'is-flight' : ''} ${failed ? 'is-failed' : ''}">
-      <span class="logistics-mission-row__icon">${isReturn ? '↩' : isFlight ? '✈' : m.interSector ? '⇆' : '⇄'}</span>
-      <div><b>${state} · ${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}</span></div>
+      <span class="logistics-mission-row__icon">${destroyed ? '✖' : isReturn ? '↩' : isFlight ? '✈' : m.interSector ? '⇆' : '⇄'}</span>
+      <div><b>${state} · ${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}${m.attackerName ? ` · ${escapeHtml(m.attackerName)}` : ''}</span></div>
     </div>`;
   }).join('');
 }

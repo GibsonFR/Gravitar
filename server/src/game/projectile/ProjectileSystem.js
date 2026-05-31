@@ -10,6 +10,7 @@ import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { sameWorld } from '../modes/GameModes.js';
 import { canPlayerDamageStructure, distanceSqToStructureRect } from '../structures/StructureSystem.js';
 import { STRUCTURE_TYPES } from '../structures/StructureDefs.js';
+import { damageLogisticDroneByProjectile } from '../structures/StructureLogistics.js';
 
 function circleHitsRect(cx, cy, radius, wall) {
   const w = wall.w || wall.radius * 2;
@@ -155,6 +156,10 @@ export function updateProjectiles(state, dt, timeMs = null) {
       }
     }
 
+    if (!hit && sourcePlayerForPvp && !hostileToPlayers && !demoProjectile) {
+      hit = damageLogisticDroneByProjectile(state, proj, oldX, oldY, sourcePlayerForPvp, timeMs);
+    }
+
     if (!hit && !hostileToPlayers && !demoProjectile) {
       for (const mob of state.mobs.values()) {
         if (mob.id === proj.sourceId) continue;
@@ -192,9 +197,11 @@ export function updateProjectiles(state, dt, timeMs = null) {
 
       const sourcePlayer = state.players.get(proj.sourceId) ?? null;
       const sourceEntity = sourcePlayer ?? sourceEntityForCollision ?? null;
-      applyDamage(state, hit, proj.damage, sourcePlayer, { timeMs, crit: !!proj.crit, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
+      if (hit.kind !== 'logistic_drone') {
+        applyDamage(state, hit, proj.damage, sourcePlayer, { timeMs, crit: !!proj.crit, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
+      }
       const hitStillExists = hit.kind !== 'mob' || state.mobs.has(hit.id);
-      if (hitStillExists && hit.kind !== 'structure') {
+      if (hitStillExists && hit.kind !== 'structure' && hit.kind !== 'logistic_drone') {
         applyStatusSpecs(state, sourceEntity, hit, proj.onHitStatuses);
         if (sourcePlayer) onProjectileImpactForFrame(state, sourcePlayer, hit, proj, timeMs);
       }

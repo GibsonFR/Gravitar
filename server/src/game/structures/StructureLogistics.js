@@ -12,6 +12,7 @@ const MISSION_LOG_MAX = 10;
 const DRONE_DELIVERIES_BEFORE_RECHARGE = 5;
 const LOGISTIC_FLIGHT_MAX = 32;
 const LOGISTIC_DRONE_SPEED = 260;
+const LOGISTIC_DRONE_HP = 35;
 const SECTOR_EDGE = 1880;
 
 export function isDroneStationStructure(st) {
@@ -418,6 +419,8 @@ function createFlight(state, station, droneSlot, provider, requester, key, amoun
     returnArriveAt,
     arriveAt: returnArriveAt,
     durationMs: returnArriveAt - timeMs,
+    hp: LOGISTIC_DRONE_HP,
+    maxHp: LOGISTIC_DRONE_HP,
     fromId: provider.id | 0,
     toId: requester.id | 0,
     fromSx: provider.sx | 0,
@@ -561,6 +564,27 @@ function q(v, decimals = 1) {
   return Math.round(n * m) / m;
 }
 
+function distPointToSegmentSq(px, py, ax, ay, bx, by) {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const lenSq = abx * abx + aby * aby;
+  if (lenSq <= 0.000001) {
+    const dx = px - bx;
+    const dy = py - by;
+    return dx * dx + dy * dy;
+  }
+  const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lenSq));
+  const x = ax + abx * t;
+  const y = ay + aby * t;
+  const dx = px - x;
+  const dy = py - y;
+  return dx * dx + dy * dy;
+}
+
+function playerOwnerKey(player) {
+  return String(player?.accountKey || player?.accountName || player?.pseudo || `guest-${player?.id | 0}`).toLowerCase();
+}
+
 
 function interpolateSegment(a, b, progress) {
   let sx = a.sx | 0;
@@ -632,8 +656,54 @@ function flightSnapshot(flight, timeMs) {
     stationLabel: flight.stationLabel || home.label || '',
     interSector: !!flight.interSector,
     ownerName: flight.ownerName || '',
+    vitals: { hp: q(flight.hp ?? LOGISTIC_DRONE_HP, 0), maxHp: q(flight.maxHp ?? LOGISTIC_DRONE_HP, 0) },
     tint: RESOURCE_DEFS[flight.resourceKey]?.colorHex || '#9edcff'
   };
+}
+
+export function damageLogisticDroneByProjectile(state, proj, oldX, oldY, sourcePlayer, timeMs = Date.now()) {
+  if (!state?.structures || !proj || !sourcePlayer) return null;
+  const attackerKey = playerOwnerKey(sourcePlayer);
+  if (!attackerKey) return null;
+  for (const station of state.structures.values()) {
+    if (!isDroneStationStructure(station)) continue;
+    if (String(station.worldId || 'endless') !== String(sourcePlayer.worldId || 'endless')) continue;
+    if (ownerKeyOf(station) === attackerKey) continue;
+    for (const flight of flights(station)) {
+      if (!isActiveFlightState(flight.state)) continue;
+      const snap = flightSnapshot(flight, timeMs);
+      if ((snap.sx | 0) !== (proj.sx | 0) || (snap.sy | 0) !== (proj.sy | 0)) continue;
+      const radius = Math.max(8, Number(snap.radius || 16)) + Math.max(0, Number(proj.radius || 0));
+      if (distPointToSegmentSq(snap.x || 0, snap.y || 0, oldX || proj.x || 0, oldY || proj.y || 0, proj.x || 0, proj.y || 0) > radius * radius) continue;
+      flight.hp = Math.max(0, Number(flight.hp ?? LOGISTIC_DRONE_HP) - Math.max(1, Number(proj.damage || 0)));
+      flight.maxHp = Math.max(1, Number(flight.maxHp || LOGISTIC_DRONE_HP));
+      station.updatedAt = timeMs;
+      if (flight.hp <= 0) {
+        flight.state = 'cancelled';
+        pushMissionLog(station, {
+          kind: 'drone_destroyed',
+          phase: 'destroyed',
+          resourceKey: flight.resourceKey || '',
+          resourceName: flight.resourceName || resourceName(flight.resourceKey),
+          amount: flight.amount | 0,
+          fromId: flight.fromId | 0,
+          toId: flight.toId | 0,
+          fromSx: flight.fromSx | 0,
+          fromSy: flight.fromSy | 0,
+          toSx: flight.toSx | 0,
+          toSy: flight.toSy | 0,
+          interSector: !!flight.interSector,
+          attackerName: sourcePlayer.pseudo || sourcePlayer.name || 'joueur',
+          stationLabel: flight.stationLabel || 'station',
+          fromLabel: flight.fromLabel || 'source',
+          toLabel: flight.toLabel || 'destination'
+        });
+      }
+      if (String(station.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+      return { id: snap.id, kind: 'logistic_drone', sx: snap.sx | 0, sy: snap.sy | 0, x: snap.x || 0, y: snap.y || 0, radius: snap.radius || 16, stats: { hp: Math.max(0, flight.hp | 0), maxHp: LOGISTIC_DRONE_HP } };
+    }
+  }
+  return null;
 }
 
 export function buildLogisticDroneSnapshots(structures, inSector, timeMs = Date.now()) {

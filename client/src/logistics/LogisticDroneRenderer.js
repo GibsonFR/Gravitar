@@ -78,6 +78,19 @@ export function drawLogisticDrone(ctx, view, drone, camX, camY, t = 0) {
   ctx.globalAlpha = 1;
   ctx.restore();
 
+  const vitals = drone.vitals || null;
+  if (vitals && Number(vitals.maxHp || 0) > 0) {
+    const bw = 34 * view.dpr;
+    const bh = 4 * view.dpr;
+    const pct = Math.max(0, Math.min(1, Number(vitals.hp || 0) / Math.max(1, Number(vitals.maxHp || 1))));
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, .62)';
+    ctx.fillRect(p.x - bw * 0.5, p.y + r + 4 * view.dpr, bw, bh);
+    ctx.fillStyle = pct > .45 ? 'rgba(126, 242, 165, .92)' : 'rgba(255, 138, 112, .94)';
+    ctx.fillRect(p.x - bw * 0.5, p.y + r + 4 * view.dpr, bw * pct, bh);
+    ctx.restore();
+  }
+
   const label = `${drone.phase ? `${drone.phase} · ` : ''}${drone.amount | 0} ${drone.resourceName || 'ressource'}`;
   drawLabel(ctx, view, label, p.x, p.y - r - 12 * view.dpr);
 }
