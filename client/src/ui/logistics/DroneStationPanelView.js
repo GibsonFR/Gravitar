@@ -45,11 +45,18 @@ function missionRows(missions = []) {
     const isFlight = m.kind === 'flight_start';
     const isReturn = m.kind === 'drone_return';
     const destroyed = m.kind === 'drone_destroyed';
-    const failed = m.kind === 'delivery_failed' || destroyed;
-    const state = destroyed ? 'Drone détruit' : isFlight ? 'Départ station' : isReturn ? 'Retour station' : failed ? 'Échec' : 'Livré';
+    const cancelled = m.kind === 'mission_cancelled';
+    const failed = m.kind === 'delivery_failed' || destroyed || cancelled;
+    const state = destroyed ? 'Drone détruit' : cancelled ? 'Mission annulée' : isFlight ? 'Départ station' : isReturn ? 'Retour station' : failed ? 'Échec' : 'Livré';
+    const extra = [
+      m.reason ? String(m.reason).replaceAll('_', ' ') : '',
+      (m.returned | 0) > 0 ? `retourné ${m.returned | 0}` : '',
+      (m.lost | 0) > 0 ? `perdu ${m.lost | 0}` : '',
+      m.attackerName ? `${escapeHtml(m.attackerName)}` : ''
+    ].filter(Boolean).join(' · ');
     return `<div class="logistics-mission-row ${m.interSector ? 'is-intersector' : ''} ${isFlight ? 'is-flight' : ''} ${failed ? 'is-failed' : ''}">
-      <span class="logistics-mission-row__icon">${destroyed ? '✖' : isReturn ? '↩' : isFlight ? '✈' : m.interSector ? '⇆' : '⇄'}</span>
-      <div><b>${state} · ${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}${m.attackerName ? ` · ${escapeHtml(m.attackerName)}` : ''}</span></div>
+      <span class="logistics-mission-row__icon">${destroyed ? '✖' : cancelled ? '!' : isReturn ? '↩' : isFlight ? '✈' : m.interSector ? '⇆' : '⇄'}</span>
+      <div><b>${state} · ${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}${extra ? ` · ${escapeHtml(extra)}` : ''}</span></div>
     </div>`;
   }).join('');
 }

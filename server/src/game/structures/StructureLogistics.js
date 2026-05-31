@@ -163,7 +163,7 @@ function buildNetworkDiagnostics(state, station) {
   const chests = networkLogisticChests(state, station);
   const providers = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER || st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER);
   const requesters = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER);
-  const active = flights(station).filter((flight) => isActiveFlightState(flight.state));
+  const active = activeNetworkFlights(state, station).map(({ flight }) => flight);
   const lines = [];
 
   for (const requester of requesters) {
@@ -213,6 +213,84 @@ function buildNetworkDiagnostics(state, station) {
     diagnostics,
     lines: lines.slice(0, 12)
   };
+}
+
+
+function activeNetworkDroneStations(state, station) {
+  const out = [];
+  for (const st of state?.structures?.values?.() || []) {
+    if (!isDroneStationStructure(st)) continue;
+    if (!sameOwner(station, st)) continue;
+    if (!sameWorld(station, st)) continue;
+    if (!isSectorInDroneNetwork(state, station, st.sx | 0, st.sy | 0) && !isSectorInDroneNetwork(state, st, station.sx | 0, station.sy | 0)) continue;
+    out.push(st);
+  }
+  return out;
+}
+
+function activeNetworkFlights(state, station) {
+  const out = [];
+  for (const st of activeNetworkDroneStations(state, station)) {
+    for (const flight of flights(st)) if (isActiveFlightState(flight.state)) out.push({ station: st, flight });
+  }
+  return out;
+}
+
+function incomingForRequesterKey(state, station, requester, key) {
+  return activeNetworkFlights(state, station)
+    .filter(({ flight }) => (flight.toId | 0) === (requester.id | 0) && String(flight.resourceKey || '') === String(key || '') && !flight.delivered)
+    .reduce((sum, { flight }) => sum + Math.max(0, flight.amount | 0), 0);
+}
+
+function sourceReservedFromProviderKey(state, station, provider, key) {
+  // Most cargo is removed from the source when a flight starts. This helper is kept for future queued missions
+  // and for diagnostics; current active flights therefore should normally reserve 0 additional source stock.
+  return activeNetworkFlights(state, station)
+    .filter(({ flight }) => (flight.fromId | 0) === (provider.id | 0) && String(flight.resourceKey || '') === String(key || '') && isActiveFlightState(flight.state))
+    .reduce((sum, { flight }) => sum + Math.max(0, flight.amount | 0), 0) * 0;
+}
+
+function isValidLogisticEndpoint(state, station, st, expectedType = '') {
+  if (!state?.structures?.has?.(st?.id | 0)) return false;
+  if (!st || !sameOwner(station, st) || !sameWorld(station, st)) return false;
+  if (expectedType === 'requester' && st.type !== STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER) return false;
+  if (expectedType === 'source' && st.type !== STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER && st.type !== STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER) return false;
+  return isSectorInDroneNetwork(state, station, st.sx | 0, st.sy | 0);
+}
+
+function addToStorageIfFits(st, key, amount) {
+  const n = Math.max(0, amount | 0);
+  if (!st || !RESOURCE_DEFS[key] || n <= 0) return 0;
+  const fit = Math.min(n, storageRemainingUnits(st, key));
+  if (fit <= 0) return 0;
+  storageResources(st)[key] = (storageResources(st)[key] | 0) + fit;
+  return fit;
+}
+
+function fallbackCargoTargets(state, station, preferredProvider = null) {
+  const out = [];
+  if (preferredProvider && isValidLogisticEndpoint(state, station, preferredProvider, 'source')) out.push(preferredProvider);
+  for (const st of networkLogisticChests(state, station)) {
+    if (st.type !== STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER && st.type !== STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER) continue;
+    if (out.some((x) => (x.id | 0) === (st.id | 0))) continue;
+    out.push(st);
+  }
+  return out;
+}
+
+function returnCargoToNetwork(state, station, preferredProvider, key, amount, timeMs) {
+  let remaining = Math.max(0, amount | 0);
+  let returned = 0;
+  for (const target of fallbackCargoTargets(state, station, preferredProvider)) {
+    if (remaining <= 0) break;
+    const moved = addToStorageIfFits(target, key, remaining);
+    if (moved > 0) {
+      returned += moved;
+      remaining -= moved;
+      target.updatedAt = timeMs;
+    }
+  }
+  return { returned, lost: remaining };
 }
 
 function activeStationFlights(station, timeMs = Date.now()) {
@@ -553,29 +631,108 @@ function deliverFlightCargo(state, station, flight, timeMs) {
   const key = String(flight.resourceKey || '');
   const amount = Math.max(0, flight.amount | 0);
   let delivered = 0;
-  if (requester && isLogisticChestStructure(requester) && sameOwner(station, requester) && RESOURCE_DEFS[key]) {
-    const fit = storageRemainingUnits(requester, key);
-    delivered = Math.min(amount, fit);
-    if (delivered > 0) {
-      storageResources(requester)[key] = (storageResources(requester)[key] | 0) + delivered;
-      requester.updatedAt = timeMs;
-    }
+  let returned = 0;
+  let lost = 0;
+
+  if (!RESOURCE_DEFS[key] || amount <= 0) {
+    flight.delivered = true;
+    pushMissionLog(station, {
+      kind: 'delivery_failed',
+      phase: 'invalid_cargo',
+      resourceKey: key,
+      resourceName: flight.resourceName || resourceName(key),
+      amount,
+      reason: 'cargo_invalide',
+      stationLabel: flight.stationLabel || 'station',
+      fromLabel: flight.fromLabel || 'source',
+      toLabel: flight.toLabel || 'destination'
+    });
+    return false;
   }
-  const remainder = amount - delivered;
-  if (remainder > 0 && provider && isLogisticChestStructure(provider) && sameOwner(station, provider) && RESOURCE_DEFS[key]) {
-    const fitBack = Math.min(remainder, storageRemainingUnits(provider, key));
-    if (fitBack > 0) {
-      storageResources(provider)[key] = (storageResources(provider)[key] | 0) + fitBack;
-      provider.updatedAt = timeMs;
-    }
+
+  const requesterValid = isValidLogisticEndpoint(state, station, requester, 'requester');
+  if (requesterValid) {
+    delivered = addToStorageIfFits(requester, key, amount);
+    if (delivered > 0) requester.updatedAt = timeMs;
   }
+
+  const remainder = Math.max(0, amount - delivered);
+  if (remainder > 0) {
+    const result = returnCargoToNetwork(state, station, provider, key, remainder, timeMs);
+    returned = result.returned;
+    lost = result.lost;
+  }
+
+  flight.delivered = true;
+  if (delivered > 0) {
+    pushMissionLog(station, {
+      kind: 'delivery',
+      phase: 'delivered_returning',
+      resourceKey: key,
+      resourceName: flight.resourceName || resourceName(key),
+      amount: delivered,
+      returned,
+      lost,
+      reason: returned || lost ? 'destination_partiellement_pleine' : '',
+      fromId: flight.fromId | 0,
+      toId: flight.toId | 0,
+      fromSx: flight.fromSx | 0,
+      fromSy: flight.fromSy | 0,
+      toSx: flight.toSx | 0,
+      toSy: flight.toSy | 0,
+      interSector: !!flight.interSector,
+      stationLabel: flight.stationLabel || 'station',
+      fromLabel: flight.fromLabel || 'source',
+      toLabel: flight.toLabel || 'destination'
+    });
+  } else {
+    pushMissionLog(station, {
+      kind: 'delivery_failed',
+      phase: requesterValid ? 'destination_full' : 'destination_missing',
+      resourceKey: key,
+      resourceName: flight.resourceName || resourceName(key),
+      amount,
+      returned,
+      lost,
+      reason: requesterValid ? 'coffre_destination_plein' : 'coffre_destination_introuvable',
+      fromId: flight.fromId | 0,
+      toId: flight.toId | 0,
+      fromSx: flight.fromSx | 0,
+      fromSy: flight.fromSy | 0,
+      toSx: flight.toSx | 0,
+      toSy: flight.toSy | 0,
+      interSector: !!flight.interSector,
+      stationLabel: flight.stationLabel || 'station',
+      fromLabel: flight.fromLabel || 'source',
+      toLabel: flight.toLabel || 'destination'
+    });
+  }
+  station.updatedAt = timeMs;
+  return delivered > 0;
+}
+
+function cancelFlightWithReturn(state, station, flight, reason, timeMs) {
+  if (!flight || !isActiveFlightState(flight.state)) return false;
+  const key = String(flight.resourceKey || '');
+  let returned = 0;
+  let lost = 0;
+  if (!flight.delivered && RESOURCE_DEFS[key] && (flight.amount | 0) > 0) {
+    const provider = state?.structures?.get?.(flight.fromId | 0) || null;
+    const result = returnCargoToNetwork(state, station, provider, key, flight.amount | 0, timeMs);
+    returned = result.returned;
+    lost = result.lost;
+  }
+  flight.state = 'cancelled';
   flight.delivered = true;
   pushMissionLog(station, {
-    kind: delivered > 0 ? 'delivery' : 'delivery_failed',
-    phase: 'delivered_returning',
+    kind: 'mission_cancelled',
+    phase: 'cancelled',
+    reason,
     resourceKey: key,
     resourceName: flight.resourceName || resourceName(key),
-    amount: delivered || amount,
+    amount: flight.amount | 0,
+    returned,
+    lost,
     fromId: flight.fromId | 0,
     toId: flight.toId | 0,
     fromSx: flight.fromSx | 0,
@@ -588,7 +745,20 @@ function deliverFlightCargo(state, station, flight, timeMs) {
     toLabel: flight.toLabel || 'destination'
   });
   station.updatedAt = timeMs;
-  return delivered > 0;
+  return true;
+}
+
+function validateActiveFlight(state, station, flight, timeMs) {
+  if (!flight || !isActiveFlightState(flight.state)) return false;
+  if (!RESOURCE_DEFS[String(flight.resourceKey || '')] || (flight.amount | 0) <= 0) {
+    return cancelFlightWithReturn(state, station, flight, 'cargo_invalide', timeMs);
+  }
+  const requester = state?.structures?.get?.(flight.toId | 0) || null;
+  if (!isValidLogisticEndpoint(state, station, requester, 'requester')) {
+    return cancelFlightWithReturn(state, station, flight, 'coffre_destination_introuvable', timeMs);
+  }
+  // The source may be destroyed after pickup. The drone already carries the resource, so this is not fatal.
+  return false;
 }
 
 function updateFlights(state, station, timeMs) {
@@ -598,6 +768,10 @@ function updateFlights(state, station, timeMs) {
   for (const flight of list) {
     const stateName = String(flight.state || 'to_source');
     if (stateName === 'complete' || stateName === 'cancelled') continue;
+    if (validateActiveFlight(state, station, flight, timeMs)) {
+      changed = true;
+      continue;
+    }
     if (stateName === 'to_source' && timeMs >= (Number(flight.sourceArriveAt) || 0)) {
       flight.state = 'to_destination';
       changed = true;
@@ -812,16 +986,21 @@ function tryRunOneMission(state, station, timeMs) {
   const requesters = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER);
   const providers = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER || st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER);
   for (const requester of requesters) {
+    if (!isValidLogisticEndpoint(state, station, requester, 'requester')) continue;
     const reqs = requestEntries(requester).filter((r) => r.missing > 0);
     for (const req of reqs) {
       const key = req.key;
+      const incoming = incomingForRequesterKey(state, station, requester, key);
+      const needAfterIncoming = Math.max(0, (req.missing | 0) - incoming);
+      if (needAfterIncoming <= 0) continue;
       const fit = storageRemainingUnits(requester, key);
       if (fit <= 0) continue;
       for (const provider of providers) {
         if ((provider.id | 0) === (requester.id | 0)) continue;
-        const available = storageResources(provider)[key] | 0;
+        if (!isValidLogisticEndpoint(state, station, provider, 'source')) continue;
+        const available = Math.max(0, (storageResources(provider)[key] | 0) - sourceReservedFromProviderKey(state, station, provider, key));
         if (available <= 0) continue;
-        const amount = Math.max(0, Math.min(DRONE_CARGO, available, req.missing, fit));
+        const amount = Math.max(0, Math.min(DRONE_CARGO, available, needAfterIncoming, fit));
         if (amount <= 0) continue;
         const claimed = claimDroneForMission(station);
         if (!claimed) return false;
