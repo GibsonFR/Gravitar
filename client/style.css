@@ -2680,6 +2680,8 @@ button.station-item-icon[draggable="true"]:active,
   border-radius: 0 14px 14px 14px;
   overflow: hidden;
   backdrop-filter: blur(8px);
+  user-select: none;
+  touch-action: none;
 }
 .players-panel.is-collapsed .players-panel__body { display: none; }
 .players-panel__top {
@@ -8596,10 +8598,11 @@ button.station-item-icon[draggable="true"]:active,
 .build-pin-hud {
   position: fixed;
   top: 92px;
-  right: 18px;
+  left: calc(100vw - 378px);
+  right: auto;
   width: min(360px, calc(100vw - 36px));
   max-height: calc(100vh - 128px);
-  z-index: 95;
+  z-index: 260;
   color: rgba(236, 244, 255, .96);
   pointer-events: auto;
   border: 1px solid rgba(255, 214, 120, .22);
@@ -8625,7 +8628,16 @@ button.station-item-icon[draggable="true"]:active,
   padding: 13px 14px 11px;
   border-bottom: 1px solid rgba(255, 214, 120, .12);
   background: radial-gradient(circle at 12% 0%, rgba(255, 194, 84, .14), transparent 42%);
+  cursor: grab;
 }
+
+.build-pin-hud.is-dragging .build-pin-hud__head {
+  cursor: grabbing;
+}
+.build-pin-hud button {
+  touch-action: manipulation;
+}
+
 .build-pin-hud__head button {
   width: 28px;
   height: 28px;

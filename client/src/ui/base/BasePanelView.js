@@ -666,6 +666,7 @@ function formatCostWithStock(store, cost = {}) {
 }
 
 const BUILD_PIN_STORAGE_KEY = 'gravitar.buildPins.v1';
+const BUILD_PIN_HUD_POS_KEY = 'gravitar.buildPinHud.pos.v1';
 
 function loadBuildPins() {
   try {
@@ -682,6 +683,38 @@ function loadBuildPins() {
 
 function saveBuildPins(pins = []) {
   try { localStorage.setItem(BUILD_PIN_STORAGE_KEY, JSON.stringify(pins)); } catch {}
+}
+
+function loadBuildPinHudPos() {
+  try {
+    const raw = localStorage.getItem(BUILD_PIN_HUD_POS_KEY);
+    const pos = raw ? JSON.parse(raw) : null;
+    const x = Number(pos?.x);
+    const y = Number(pos?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return { x, y };
+  } catch {
+    return null;
+  }
+}
+
+function saveBuildPinHudPos(pos) {
+  try {
+    if (!pos) localStorage.removeItem(BUILD_PIN_HUD_POS_KEY);
+    else localStorage.setItem(BUILD_PIN_HUD_POS_KEY, JSON.stringify({ x: Math.round(pos.x), y: Math.round(pos.y) }));
+  } catch {}
+}
+
+function clampBuildPinHudPos(pos, el = null) {
+  const width = Math.max(260, el?.offsetWidth || 360);
+  const height = Math.max(160, el?.offsetHeight || 420);
+  const margin = 8;
+  const maxX = Math.max(margin, window.innerWidth - width - margin);
+  const maxY = Math.max(margin, window.innerHeight - height - margin);
+  return {
+    x: Math.max(margin, Math.min(maxX, Number(pos?.x) || margin)),
+    y: Math.max(margin, Math.min(maxY, Number(pos?.y) || margin))
+  };
 }
 
 function aggregatePinCosts(pins = []) {
@@ -923,6 +956,7 @@ export class BasePanelView {
     this.pinnedBuilds = loadBuildPins();
     this.pinHud = document.createElement('aside');
     this.pinHud.className = 'build-pin-hud is-hidden';
+    this.pinHudDrag = null;
     document.body.appendChild(this.pinHud);
     this.el = document.createElement('div');
     this.el.className = 'base-panel';
@@ -990,7 +1024,14 @@ export class BasePanelView {
       ev.stopPropagation();
       this.togglePin(pinBtn.dataset.detailPinType || '');
     });
-    this.pinHud.addEventListener('click', (ev) => this.handlePinHudClick(ev));
+    this.pinHud.addEventListener('pointerdown', (ev) => this.handlePinHudPointerDown(ev), { capture: true });
+    this.pinHud.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }, { capture: true });
+    window.addEventListener('pointermove', (ev) => this.handlePinHudPointerMove(ev));
+    window.addEventListener('pointerup', () => this.finishPinHudDrag());
+    window.addEventListener('resize', () => this.clampPinHudIntoView());
     this.refresh();
     this.renderPinHud();
   }
@@ -1032,25 +1073,73 @@ export class BasePanelView {
     this.persistPins();
   }
 
-  handlePinHudClick(ev) {
+  applyPinHudPosition(pos = null) {
+    if (!this.pinHud) return;
+    const next = clampBuildPinHudPos(pos || loadBuildPinHudPos() || { x: window.innerWidth - 378, y: 92 }, this.pinHud);
+    this.pinHud.style.left = `${next.x}px`;
+    this.pinHud.style.top = `${next.y}px`;
+    this.pinHud.style.right = 'auto';
+    this.pinHud.style.bottom = 'auto';
+  }
+
+  clampPinHudIntoView() {
+    if (!this.pinHud || this.pinHud.classList.contains('is-hidden')) return;
+    const rect = this.pinHud.getBoundingClientRect();
+    const pos = clampBuildPinHudPos({ x: rect.left, y: rect.top }, this.pinHud);
+    this.applyPinHudPosition(pos);
+    saveBuildPinHudPos(pos);
+  }
+
+  handlePinHudPointerDown(ev) {
     const target = ev.target;
     if (!(target instanceof Element)) return;
-    const act = target.closest('[data-build-pin-act]');
-    if (!act) return;
-    ev.preventDefault();
     ev.stopPropagation();
-    const type = act.dataset.pinType || '';
-    const action = act.dataset.buildPinAct || '';
-    if (action === 'inc') this.adjustPin(type, 1);
-    else if (action === 'dec') this.adjustPin(type, -1);
-    else if (action === 'remove') this.removePin(type);
-    else if (action === 'clear') this.clearPins();
+    const act = target.closest('[data-build-pin-act]');
+    if (act) {
+      ev.preventDefault();
+      const type = act.dataset.pinType || '';
+      const action = act.dataset.buildPinAct || '';
+      if (action === 'inc') this.adjustPin(type, 1);
+      else if (action === 'dec') this.adjustPin(type, -1);
+      else if (action === 'remove') this.removePin(type);
+      else if (action === 'clear') this.clearPins();
+      return;
+    }
+    const handle = target.closest('[data-build-pin-drag]');
+    if (!handle || target.closest('button')) return;
+    ev.preventDefault();
+    const rect = this.pinHud.getBoundingClientRect();
+    this.pinHudDrag = {
+      pointerId: ev.pointerId,
+      dx: ev.clientX - rect.left,
+      dy: ev.clientY - rect.top
+    };
+    this.pinHud.classList.add('is-dragging');
+    try { this.pinHud.setPointerCapture?.(ev.pointerId); } catch {}
+  }
+
+  handlePinHudPointerMove(ev) {
+    if (!this.pinHudDrag || !this.pinHud) return;
+    ev.preventDefault();
+    const next = clampBuildPinHudPos({ x: ev.clientX - this.pinHudDrag.dx, y: ev.clientY - this.pinHudDrag.dy }, this.pinHud);
+    this.applyPinHudPosition(next);
+  }
+
+  finishPinHudDrag() {
+    if (!this.pinHudDrag || !this.pinHud) return;
+    this.pinHudDrag = null;
+    this.pinHud.classList.remove('is-dragging');
+    const rect = this.pinHud.getBoundingClientRect();
+    const pos = clampBuildPinHudPos({ x: rect.left, y: rect.top }, this.pinHud);
+    this.applyPinHudPosition(pos);
+    saveBuildPinHudPos(pos);
   }
 
   renderPinHud() {
     if (!this.pinHud) return;
     const pins = (this.pinnedBuilds || []).filter((pin) => !!structureDef(pin.type));
     this.pinHud.classList.toggle('is-hidden', !pins.length);
+    if (pins.length) this.applyPinHudPosition();
     if (!pins.length) {
       this.pinHud.innerHTML = '';
       return;
@@ -1077,7 +1166,7 @@ export class BasePanelView {
         </div>`;
     }).join('');
     this.pinHud.innerHTML = `
-      <div class="build-pin-hud__head">
+      <div class="build-pin-hud__head" data-build-pin-drag="1">
         <div>
           <div class="build-pin-hud__eyebrow">Objectif construction</div>
           <div class="build-pin-hud__title">${ready ? 'Prêt à construire' : `${missingTotal} ressource${missingTotal > 1 ? 's' : ''} manquante${missingTotal > 1 ? 's' : ''}`}</div>
