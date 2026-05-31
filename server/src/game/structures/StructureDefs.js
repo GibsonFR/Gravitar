@@ -2,6 +2,7 @@ export const BASE_TILE_SIZE = 64;
 
 export const STRUCTURE_TYPES = {
   BASE_CORE: 'base_core',
+  OUTPOST_CORE: 'outpost_core',
   WALL: 'wall',
   DOOR: 'door',
   STORAGE: 'storage',
@@ -52,6 +53,25 @@ export const STRUCTURE_DEFS = {
     color: '#244e68',
     borderColor: '#8de7ff',
     cost: { scrap: 20, ironOre: 12, copper: 6 }
+  },
+  [STRUCTURE_TYPES.OUTPOST_CORE]: {
+    id: STRUCTURE_TYPES.OUTPOST_CORE,
+    name: 'Noyau d’avant-poste',
+    description: 'Petit noyau 1 × 1 pour exploiter un gisement dans un secteur distant.',
+    radius: 32,
+    tilesX: 1,
+    tilesY: 1,
+    w: BASE_TILE_SIZE,
+    h: BASE_TILE_SIZE,
+    maxHp: 360,
+    solid: false,
+    claimRadius: BASE_TILE_SIZE * 2.5,
+    maxPerOwnerPerSector: 4,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    color: '#244d49',
+    borderColor: '#8af6d3',
+    cost: { steelPlate: 3, copperWire: 4, controlCircuit: 1 }
   },
   [STRUCTURE_TYPES.WALL]: {
     id: STRUCTURE_TYPES.WALL,

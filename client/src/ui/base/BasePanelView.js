@@ -64,6 +64,7 @@ function isDirectionalAutomation(type) {
 
 function iconSvg(kind) {
   if (kind === 'core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7l21 12v26L32 57 11 45V19L32 7z" fill="rgba(101,215,255,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="32" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity=".85"/><path d="M32 12v8M32 44v8M14 22l7 4M43 38l7 4M14 42l7-4M43 26l7-4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".75"/></svg>`;
+  if (kind === 'outpost_core') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="14" y="14" width="36" height="36" rx="8" fill="rgba(138,246,211,.12)" stroke="currentColor" stroke-width="3"/><path d="M32 19l13 8v14l-13 8-13-8V27l13-8Z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" opacity=".9"/><path d="M32 27v10M27 32h10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="32" cy="32" r="4" fill="currentColor" opacity=".8"/></svg>`;
   if (kind === 'wall') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="22" width="52" height="20" rx="3" fill="rgba(120,190,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M14 22v20M24 22v20M34 22v20M44 22v20M54 22v20" stroke="currentColor" stroke-width="2" opacity=".72"/><path d="M10 32h44" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>`;
   if (kind === 'door') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="7" y="19" width="50" height="26" rx="4" fill="rgba(135,217,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M18 22v20M46 22v20" stroke="currentColor" stroke-width="2.4" opacity=".75"/><path d="M24 32h16M40 32l-5-5M40 32l-5 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   if (kind === 'equipment_storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 16h36v34H14V16z" fill="rgba(139,184,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M22 24h20M22 32h20M22 40h12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="45" cy="43" r="6" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>`;
@@ -118,6 +119,23 @@ export const BUILD_STRUCTURES = [
     role: 'Définit ta zone de construction.',
     stats: ['Zone : 16 × 16 cases', '1 noyau actif'],
     cost: { scrap: 20, ironOre: 12, copper: 6 }
+  },
+  {
+    type: 'outpost_core',
+    category: 'construction',
+    title: 'Noyau d’avant-poste',
+    subtitle: '1 × 1 case',
+    icon: 'outpost_core',
+    orientation: 'h',
+    tilesX: 1,
+    tilesY: 1,
+    w: 64,
+    h: 64,
+    claimRadius: BASE_TILE * 2.5,
+    hp: 360,
+    role: 'Mini-base pour exploiter un gisement dans un autre secteur.',
+    stats: ['Zone : 5 × 5 cases', 'Limite : 4 par secteur', 'Débloqué avec extracteur minier'],
+    cost: { steelPlate: 3, copperWire: 4, controlCircuit: 1 }
   },
   {
     type: 'wall',
@@ -828,6 +846,19 @@ function sameSector(a, b) {
   return (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
 }
 
+function isCoreType(type) {
+  const t = String(type || '').toLowerCase();
+  return t === 'base_core' || t === 'outpost_core';
+}
+
+function isBaseCore(type) {
+  return String(type || '').toLowerCase() === 'base_core';
+}
+
+function isOutpostCore(type) {
+  return String(type || '').toLowerCase() === 'outpost_core';
+}
+
 function canPreviewOverlapStructure(def, st) {
   return def?.type === 'mining_extractor' && st?.type === 'resource_deposit';
 }
@@ -850,7 +881,7 @@ function findOwnCore(store, me, rect) {
   let best = null;
   let bestD2 = Infinity;
   for (const st of store?.structures?.values?.() || []) {
-    if (st?.type !== 'base_core' || !st.owned || !sameSector(st, me)) continue;
+    if (!isCoreType(st?.type) || !st.owned || !sameSector(st, me)) continue;
     if (!isRectInside(rect, claimRect(st))) continue;
     const dx = (st.x || 0) - (rect.left + rect.right) * 0.5;
     const dy = (st.y || 0) - (rect.top + rect.bottom) * 0.5;
@@ -864,11 +895,19 @@ function isProtectedEndlessHub(me) {
   return String(me?.worldId || 'endless') === 'endless' && (me?.sx | 0) === 0 && (me?.sy | 0) === 0;
 }
 
-function hasOwnCore(store) {
+function hasOwnBaseCore(store) {
   for (const st of store?.structures?.values?.() || []) {
-    if (st?.type === 'base_core' && st.owned) return true;
+    if (isBaseCore(st?.type) && st.owned) return true;
   }
   return false;
+}
+
+function countOwnOutpostsInSector(store, me) {
+  let n = 0;
+  for (const st of store?.structures?.values?.() || []) {
+    if (isOutpostCore(st?.type) && st.owned && sameSector(st, me)) n += 1;
+  }
+  return n;
 }
 
 function validatePreview(store, me, def, x, y, orientation) {
@@ -879,13 +918,15 @@ function validatePreview(store, me, def, x, y, orientation) {
   if (!isRectInside(r, sectorBuildRect())) return { ok: false, reason: 'Bord du secteur' };
   if (isProtectedEndlessHub(me)) return { ok: false, reason: 'Hub protégé : construis hors [0,0]' };
 
-  const ownCore = def.type === 'base_core' ? null : findOwnCore(store, me, r);
-  if (def.type === 'base_core') {
-    if (hasOwnCore(store)) return { ok: false, reason: 'Noyau déjà posé' };
+  const coreType = isCoreType(def.type);
+  const ownCore = coreType ? null : findOwnCore(store, me, r);
+  if (coreType) {
+    if (isBaseCore(def.type) && hasOwnBaseCore(store)) return { ok: false, reason: 'Noyau principal déjà posé' };
+    if (isOutpostCore(def.type) && countOwnOutpostsInSector(store, me) >= 4) return { ok: false, reason: 'Limite : 4 avant-postes par secteur' };
     const claim = { left: x - (def.claimRadius || 0), right: x + (def.claimRadius || 0), top: y - (def.claimRadius || 0), bottom: y + (def.claimRadius || 0) };
     if (!isRectInside(claim, sectorBuildRect())) return { ok: false, reason: 'Zone trop proche du bord' };
   } else if (!ownCore) {
-    return { ok: false, reason: 'Hors base' };
+    return { ok: false, reason: 'Hors noyau' };
   }
 
   for (const st of store?.structures?.values?.() || []) {
@@ -920,7 +961,7 @@ function findRepairableStructureAt(store, me, x, y) {
   let bestArea = Infinity;
   for (const st of store?.structures?.values?.() || []) {
     if (!st?.owned || !sameSector(st, me)) continue;
-    if (st.type === 'base_core') continue;
+    if (isCoreType(st.type)) continue;
     const hp = structureHealthRatio(st);
     if (!hp.damaged) continue;
     const r = entityRect(st);

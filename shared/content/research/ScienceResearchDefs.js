@@ -103,7 +103,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 10,
     energyUse: 14,
     pointCost: { basicSciencePack: 1, automationSciencePack: 1, energySciencePack: 1 },
-    unlockBuildings: ['Extracteur minier'],
+    unlockBuildings: ['Extracteur minier', 'Noyau d’avant-poste'],
     unlockRecipes: [],
     prereq: ['energy_distribution', 'electronics_processing'],
     tier: 3
@@ -247,6 +247,7 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   electrolyzer: 'advanced_industry',
   electronics_bench: 'electronics_processing',
   mining_extractor: 'resource_scanning',
+  outpost_core: 'resource_scanning',
   equipment_fabricator: 'advanced_research',
   industrial_converter: 'pirate_reverse_engineering',
   rocket_workshop: 'defense_turrets',

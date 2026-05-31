@@ -1,5 +1,5 @@
 import { SECTOR } from '../sector/SectorDefs.js';
-import { BASE_TILE_SIZE, getStructureDef } from './StructureDefs.js';
+import { BASE_TILE_SIZE, STRUCTURE_TYPES, getStructureDef } from './StructureDefs.js';
 import { createStructure } from './StructureFactory.js';
 import { removeResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
@@ -84,6 +84,19 @@ function isResourceDepositEntity(st) {
   return String(st?.type || '').toLowerCase() === 'resource_deposit';
 }
 
+function isCoreType(type) {
+  const t = String(type || '').toLowerCase();
+  return t === STRUCTURE_TYPES.BASE_CORE || t === STRUCTURE_TYPES.OUTPOST_CORE;
+}
+
+function isBaseCoreType(type) {
+  return String(type || '').toLowerCase() === STRUCTURE_TYPES.BASE_CORE;
+}
+
+function isOutpostCoreType(type) {
+  return String(type || '').toLowerCase() === STRUCTURE_TYPES.OUTPOST_CORE;
+}
+
 function canOverlapStructure(def, st) {
   if (!def || !st) return false;
   if (def.id === 'mining_extractor' && isResourceDepositEntity(st)) return true;
@@ -133,7 +146,7 @@ function findOwnCore(state, player, sx, sy, rect) {
   let best = null;
   let bestD2 = Infinity;
   for (const st of state.structures.values()) {
-    if (st.type !== 'base_core') continue;
+    if (!isCoreType(st.type)) continue;
     if (!inSameWorld(st, player)) continue;
     if ((st.sx | 0) !== (sx | 0) || (st.sy | 0) !== (sy | 0)) continue;
     if (String(st.ownerKey || '').toLowerCase() !== key) continue;
@@ -164,17 +177,21 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   if (dist > (def.buildRange || 1100)) return { ok: false, error: 'too_far' };
 
   const key = ownerKey(player);
-  if (def.id === 'base_core') {
+  if (isCoreType(def.id)) {
+    let outpostsInSector = 0;
     for (const st of state.structures.values()) {
-      if (st.type !== 'base_core') continue;
+      if (!isCoreType(st.type)) continue;
       if (!inSameWorld(st, player)) continue;
-      if (String(st.ownerKey || '').toLowerCase() === key) return { ok: false, error: 'core_exists' };
+      const sameOwner = String(st.ownerKey || '').toLowerCase() === key;
+      if (isBaseCoreType(def.id) && isBaseCoreType(st.type) && sameOwner) return { ok: false, error: 'core_exists' };
+      if (isOutpostCoreType(def.id) && isOutpostCoreType(st.type) && sameOwner && (st.sx | 0) === sx && (st.sy | 0) === sy) outpostsInSector += 1;
       if ((st.sx | 0) === sx && (st.sy | 0) === sy) {
         const halfA = Math.max(1, Number(st.claimRadius) || BASE_TILE_SIZE * 8);
-        const halfB = Math.max(1, Number(def.claimRadius) || BASE_TILE_SIZE * 8);
-        if (Math.abs(st.x - px) < halfA + halfB + BASE_TILE_SIZE * 2 && Math.abs(st.y - py) < halfA + halfB + BASE_TILE_SIZE * 2) return { ok: false, error: 'too_close_to_base' };
+        const halfB = Math.max(1, Number(def.claimRadius) || BASE_TILE_SIZE * 2.5);
+        if (Math.abs(st.x - px) < halfA + halfB + BASE_TILE_SIZE && Math.abs(st.y - py) < halfA + halfB + BASE_TILE_SIZE) return { ok: false, error: 'too_close_to_base' };
       }
     }
+    if (isOutpostCoreType(def.id) && outpostsInSector >= Math.max(1, def.maxPerOwnerPerSector | 0 || 4)) return { ok: false, error: 'outpost_limit_sector' };
     const claim = { left: px - (def.claimRadius || 0), right: px + (def.claimRadius || 0), top: py - (def.claimRadius || 0), bottom: py + (def.claimRadius || 0) };
     if (!rectInside(claim, sectorBuildRect())) return { ok: false, error: 'too_close_to_sector_edge' };
   } else if (!findOwnCore(state, player, sx, sy, r)) {

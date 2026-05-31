@@ -151,6 +151,11 @@ function depositDisplayName(s) {
   return String(s?.depositLabel || DEPOSIT_DISPLAY_NAMES[s?.depositResourceKey] || s?.depositResourceKey || 'Gisement');
 }
 
+function isCoreType(type) {
+  const t = String(type || '').toLowerCase();
+  return t === 'base_core' || t === 'outpost_core';
+}
+
 function depositRatio(s) {
 
   if (s?.depositInfinite || Number(s?.depositMax) < 0 || Number(s?.depositRemaining) < 0) return 1;
@@ -717,7 +722,7 @@ function drawResourceDepositBody(ctx, view, s, w, h) {
 
 export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null) {
   if (!s) return;
-  if (s.type === 'base_core') drawClaimSquare(ctx, view, s, camX, camY);
+  if (isCoreType(s.type)) drawClaimSquare(ctx, view, s, camX, camY);
   const p = worldToScreen(view, s.x || 0, s.y || 0, camX, camY);
   const storage1x1 = s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage';
   const w = (storage1x1 ? 64 : (s.w || s.radius * 2 || 80)) * view.dpr;
@@ -776,6 +781,25 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     ctx.fillStyle = s.owned ? 'rgba(126,232,255,.18)' : 'rgba(255,120,130,.15)';
     ctx.beginPath();
     ctx.arc(0, 0, Math.min(w, h) * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (s.type === 'outpost_core') {
+    const rr = 12 * view.dpr;
+    ctx.beginPath();
+    roundedRect(ctx, -w * 0.5, -h * 0.5, w, h, rr);
+    ctx.fill();
+    ctx.stroke();
+    drawFootprintCells(ctx, view, w, h, 1, 1);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = s.owned ? 'rgba(168,255,226,.48)' : 'rgba(255,150,150,.32)';
+    ctx.lineWidth = 1.45 * view.dpr;
+    ctx.beginPath();
+    ctx.rect(-w * 0.30, -h * 0.30, w * 0.60, h * 0.60);
+    ctx.moveTo(-w * 0.18, 0); ctx.lineTo(w * 0.18, 0);
+    ctx.moveTo(0, -h * 0.18); ctx.lineTo(0, h * 0.18);
+    ctx.stroke();
+    ctx.fillStyle = s.owned ? 'rgba(138,246,211,.20)' : 'rgba(255,120,130,.15)';
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(w, h) * 0.09, 0, Math.PI * 2);
     ctx.fill();
   } else if (s.type === 'wall' || s.type === 'door') {
     const rr = Math.min(9 * view.dpr, Math.min(w, h) * 0.24);
@@ -1269,8 +1293,8 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
   }
   ctx.restore();
   drawStructureBar(ctx, view, s, p.x, p.y);
-  if (s.energy && (s.type === 'base_core' || s.type === 'solar_panel' || s.type === 'fuel_generator')) {
-    const label = s.type === 'base_core'
+  if (s.energy && (isCoreType(s.type) || s.type === 'solar_panel' || s.type === 'fuel_generator')) {
+    const label = isCoreType(s.type)
       ? `${Math.round(Number(s.energy.production) || 0)} / ${Math.round(Number(s.energy.consumption) || 0)} ⚡`
       : `${Math.round(Number(s.energy.output) || 0)} ⚡`;
     ctx.save();
@@ -1325,7 +1349,7 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
     ctx.restore();
   }
 
-  const claim = preview.type === 'base_core'
+  const claim = isCoreType(preview.type)
     ? { x: preview.x, y: preview.y, half: preview.claimRadius || 0 }
     : preview.ownCore ? { x: preview.ownCore.x, y: preview.ownCore.y, half: preview.ownCore.claimRadius || 0 } : null;
   if (claim?.half) {

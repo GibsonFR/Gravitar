@@ -10,6 +10,11 @@ const FUEL_ENERGY_SECONDS = {
 
 const ENERGY_SAVE_INTERVAL_MS = 5000;
 
+function isCoreType(type) {
+  const t = String(type || '').toLowerCase();
+  return t === STRUCTURE_TYPES.BASE_CORE || t === STRUCTURE_TYPES.OUTPOST_CORE;
+}
+
 function isStructureAliveLocal(structure) {
   if (!structure) return false;
   if (structure.damageable === false) return true;
@@ -107,7 +112,7 @@ export function updateBaseEnergy(state, dt, timeMs = Date.now()) {
   }
 
   for (const core of state.structures.values()) {
-    if (core.type !== STRUCTURE_TYPES.BASE_CORE || !isStructureAliveLocal(core)) continue;
+    if (!isCoreType(core.type) || !isStructureAliveLocal(core)) continue;
     const children = structuresInCore(state, core);
     let production = 0;
     let consumption = 0;
