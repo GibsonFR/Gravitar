@@ -20,6 +20,7 @@ const NODE_POS = {
   energy_distribution: [345, 245],
   advanced_industry: [345, 405],
   resource_scanning: [630, 60],
+  advanced_logistics: [930, 95],
   electronics_processing: [630, 230],
   bio_processing: [630, 390],
   defense_turrets: [630, 550],
