@@ -17,7 +17,8 @@ import {
   buildProjectileSnapshots,
   buildStationSnapshots,
   buildStructureAutomationSnapshots,
-  buildStructureSnapshots
+  buildStructureSnapshots,
+  buildLogisticDroneSnapshots
 } from './builders/BuildWorldEntitySnapshots.js';
 
 function sameSector(entity, sx, sy) {
@@ -80,6 +81,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
     staticWorld,
     projectiles: buildProjectileSnapshots(state.projectiles, nearDynamic),
+    logisticDrones: buildLogisticDroneSnapshots(state.structures, nearDynamic, timeMs),
     areaEffects: [
       ...buildAreaEffectSnapshots(state.areaEffects, nearDynamic),
       ...buildAreaEffectSnapshots(state.testEffectZones, nearDynamic)

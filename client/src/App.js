@@ -15,6 +15,7 @@ import { drawPortals } from './portal/PortalRenderer.js';
 import { drawAsteroid } from './asteroid/AsteroidRenderer.js';
 import { drawProjectile } from './projectile/ProjectileRenderer.js';
 import { drawLoot } from './loot/LootRenderer.js';
+import { drawLogisticDrone } from './logistics/LogisticDroneRenderer.js';
 import { drawShip } from './entities/ship/ShipRenderer.js';
 import { drawAreaEffect } from './abilities/AreaEffectRenderer.js';
 import { drawMob } from './mob/MobRenderer.js';
@@ -825,6 +826,7 @@ export function startApp() {
     for (const mob of store.mobs.values()) drawMob(ctx, view, mob, camX, camY, t);
     if (graphicsOptions.showFx) fxStore.sync(store, t);
     for (const l of store.loots.values()) drawLoot(ctx, view, l, camX, camY);
+    for (const d of store.logisticDrones.values()) drawLogisticDrone(ctx, view, d, camX, camY, t);
     if (graphicsOptions.showFx) fxStore.drawTrails(ctx, view, camX, camY, t);
     for (const p of store.projectiles.values()) drawProjectile(ctx, view, p, camX, camY);
     for (const effect of store.areaEffects.values()) drawAreaEffect(ctx, view, effect, camX, camY, t);

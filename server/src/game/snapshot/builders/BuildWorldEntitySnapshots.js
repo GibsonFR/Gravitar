@@ -3,6 +3,7 @@ import { buildStatusSnapshot } from '../../status/StatusView.js';
 import { isStructureProtectedByCore, canPlayerDamageStructure } from '../../structures/StructureSystem.js';
 import { RESOURCE_DEFS } from '../../inventory/ResourceDefs.js';
 import { getStructureDef } from '../../structures/StructureDefs.js';
+import { buildLogisticDroneSnapshots } from '../../structures/StructureLogistics.js';
 
 function q(value, decimals = 1) {
   const n = Number(value);
@@ -386,3 +387,5 @@ export function buildLootSnapshots(loots, inSector) {
       color: loot.color
     }));
 }
+
+export { buildLogisticDroneSnapshots };

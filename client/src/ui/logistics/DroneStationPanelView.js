@@ -8,10 +8,15 @@ function pct(value, max) {
 
 function missionRows(missions = []) {
   if (!missions.length) return '<div class="logistics-empty">Aucune livraison récente. Configure un coffre demandeur et remplis un coffre de chargement.</div>';
-  return missions.map((m) => `<div class="logistics-mission-row ${m.interSector ? 'is-intersector' : ''}">
-    <span class="logistics-mission-row__icon">${m.interSector ? '⇆' : '⇄'}</span>
-    <div><b>${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}</span></div>
-  </div>`).join('');
+  return missions.map((m) => {
+    const isFlight = m.kind === 'flight_start';
+    const failed = m.kind === 'delivery_failed';
+    const state = isFlight ? 'En vol' : failed ? 'Échec' : 'Livré';
+    return `<div class="logistics-mission-row ${m.interSector ? 'is-intersector' : ''} ${isFlight ? 'is-flight' : ''} ${failed ? 'is-failed' : ''}">
+      <span class="logistics-mission-row__icon">${isFlight ? '✈' : m.interSector ? '⇆' : '⇄'}</span>
+      <div><b>${state} · ${escapeHtml(m.resourceName || m.resourceKey || 'Ressource')} ×${m.amount | 0}</b><span>${escapeHtml(m.fromLabel || 'source')} → ${escapeHtml(m.toLabel || 'destination')}</span></div>
+    </div>`;
+  }).join('');
 }
 
 export class DroneStationPanelView {
@@ -88,7 +93,7 @@ export class DroneStationPanelView {
           <div class="logistics-card__title">Hangar de drones</div>
           <div class="logistics-drone-hero">
             <div class="logistics-drone-meter"><strong>${station.installedDrones | 0}</strong><span>/ ${station.droneCapacity | 0} drones</span></div>
-            <div class="logistics-drone-status ${station.droneCharge > 0 ? 'is-ok' : 'is-empty'}">${chargeLabel}</div>
+            <div class="logistics-drone-status ${station.droneCharge > 0 ? 'is-ok' : 'is-empty'}">${chargeLabel} · ${station.activeFlights | 0}/${station.maxActiveFlights | 0} en vol</div>
           </div>
           <div class="logistics-meter-block">
             <div class="logistics-meter-label"><span>Places station</span><b>${fill}%</b></div>
@@ -102,7 +107,7 @@ export class DroneStationPanelView {
             <div class="logistics-meter-label"><span>Recharge prochaine livraison</span><b>${station.droneCharge >= station.droneChargeMax ? 'plein' : `${rechargeFill}%`}</b></div>
             <div class="logistics-bar logistics-bar--recharge"><span style="width:${station.droneCharge >= station.droneChargeMax ? 100 : rechargeFill}%"></span></div>
           </div>
-          <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · ${station.deliveriesPerCharge | 0} livraisons par drone avant recharge · cadence ${station.nextMissionSeconds > 0 ? `${station.nextMissionSeconds}s` : 'prête'}</div>
+          <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · ${station.deliveriesPerCharge | 0} livraisons par drone avant recharge · ${station.activeFlights | 0} mission(s) visible(s) · cadence ${station.nextMissionSeconds > 0 ? `${station.nextMissionSeconds}s` : 'prête'}</div>
           <div class="logistics-actions">
             <button type="button" data-drone-station-transfer="deposit" data-amount="1" ${station.cargoDrones <= 0 || station.freeSlots <= 0 ? 'disabled' : ''}>Insérer 1</button>
             <button type="button" data-drone-station-transfer="deposit" data-amount="all" ${station.cargoDrones <= 0 || station.freeSlots <= 0 ? 'disabled' : ''}>Tout insérer</button>

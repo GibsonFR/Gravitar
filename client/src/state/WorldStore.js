@@ -15,6 +15,7 @@ export class WorldStore {
     this.automationVisuals = new Map();
     this.portals = new Map();
     this.projectiles = new Map();
+    this.logisticDrones = new Map();
     this.areaEffects = new Map();
     this.loots = new Map();
     this.pendingSfx = [];
@@ -514,6 +515,7 @@ export class WorldStore {
     if (Array.isArray(msg.structureAutomation)) this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
     if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles);
+    if (Array.isArray(msg.logisticDrones)) this._syncMap(this.logisticDrones, msg.logisticDrones);
     if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);
     if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots);
   }
@@ -769,6 +771,7 @@ export class WorldStore {
     this._smoothMap(this.players, dynamicAlpha, dt);
     this._smoothMap(this.mobs, dynamicAlpha, dt);
     this._smoothMap(this.projectiles, fastAlpha, dt);
+    this._smoothMap(this.logisticDrones, fastAlpha, dt);
     this._smoothMap(this.areaEffects, fastAlpha, dt);
     this._smoothMap(this.loots, fastAlpha, dt);
     this._tickAsteroids(dt);

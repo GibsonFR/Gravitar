@@ -9108,3 +9108,21 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(255, 184, 92, .06);
   color: rgba(255, 224, 180, .92);
 }
+.logistics-mission-row.is-flight {
+  border-color: rgba(126, 220, 255, .26);
+  background: rgba(126, 220, 255, .055);
+}
+.logistics-mission-row.is-flight .logistics-mission-row__icon {
+  border-color: rgba(126, 220, 255, .34);
+  background: rgba(126, 220, 255, .12);
+  color: rgba(210, 250, 255, .98);
+}
+.logistics-mission-row.is-failed {
+  border-color: rgba(255, 120, 120, .26);
+  background: rgba(255, 80, 80, .055);
+}
+.logistics-mission-row.is-failed .logistics-mission-row__icon {
+  border-color: rgba(255, 120, 120, .34);
+  background: rgba(255, 80, 80, .12);
+  color: rgba(255, 200, 190, .98);
+}
