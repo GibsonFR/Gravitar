@@ -9289,3 +9289,122 @@ button.station-item-icon[draggable="true"]:active,
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
+/* v214 — Coffre demandeur retravaillé : demandes + transfert manuel */
+.logistics-panel--chest {
+  width: min(1080px, calc(100vw - 36px));
+  max-height: min(780px, calc(100vh - 36px));
+}
+.logistics-panel__body--chest-v214 {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .86fr);
+  align-items: start;
+}
+.logistics-panel__body--chest-v214 .logistics-card--role {
+  grid-column: 1 / -1;
+}
+.logistics-card--wide {
+  grid-column: 1 / -1;
+}
+.logistics-transfer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.logistics-transfer-box {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 13px;
+  background: rgba(255,255,255,.025);
+  overflow: hidden;
+}
+.logistics-transfer-box h3 {
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(126,220,255,.84);
+}
+.logistics-scroll {
+  max-height: 250px;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.logistics-scroll::-webkit-scrollbar { width: 10px; }
+.logistics-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.logistics-resource-row--interactive {
+  grid-template-columns: 10px minmax(0, 1fr) 42px minmax(145px, auto);
+}
+.logistics-resource-row__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.logistics-resource-row__actions,
+.logistics-candidate-row__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.logistics-resource-row__actions button,
+.logistics-candidate-row__actions button {
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 9px;
+  border: 1px solid rgba(126,220,255,.18);
+  background: rgba(126,220,255,.075);
+  color: rgba(220,246,255,.96);
+  font-weight: 800;
+  cursor: pointer;
+}
+.logistics-resource-row__actions button:last-child {
+  min-width: 74px;
+}
+.logistics-request-row__sub {
+  margin-top: 5px;
+  font-size: 11px;
+  color: rgba(176,197,224,.78);
+}
+.logistics-request-row__actions--wide {
+  justify-content: stretch;
+}
+.logistics-request-row__actions--wide button {
+  flex: 1 1 46px;
+  min-width: 42px;
+}
+.logistics-request-row__actions--wide button:last-child {
+  flex: 1.6 1 80px;
+  color: rgba(255,210,190,.96);
+  border-color: rgba(255,140,110,.22);
+  background: rgba(255,100,80,.055);
+}
+@media (max-width: 900px) {
+  .logistics-panel__body--chest-v214,
+  .logistics-transfer-grid {
+    grid-template-columns: 1fr;
+  }
+  .logistics-resource-row--interactive {
+    grid-template-columns: 10px minmax(0, 1fr) 42px;
+  }
+  .logistics-resource-row__actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+  .logistics-resource-row__actions button {
+    flex: 1 1 auto;
+  }
+}

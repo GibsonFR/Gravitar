@@ -1114,6 +1114,7 @@ export function buildLogisticChestSnapshot(state, player) {
     capacity: Math.max(0, Number(st.storage?.capacity ?? def.storageCapacity ?? 0) || 0),
     used: getStorageUsed(st),
     resources: buildResourceEntries(resources),
+    cargoResources: buildResourceEntries(player?.inv?.resources || {}),
     modeLabel: type === 'provider' ? 'Fournisseur' : type === 'requester' ? 'Demandeur' : 'Tampon',
     description: def.description || '',
     requests: requestEntries(st),
@@ -1152,6 +1153,41 @@ export function closeLogisticChest(player) {
   if (!player) return false;
   player.openLogisticChestId = 0;
   player.forceFullUiSnapshot = true;
+  return true;
+}
+
+
+export function transferLogisticChestResource(state, player, structureId, resourceKey, amount = 1, direction = 'deposit', timeMs = Date.now()) {
+  const st = state?.structures?.get?.(structureId | 0);
+  if (!canPlayerAccessLogisticsStructure(state, player, st) || st.type !== STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER) return false;
+  const key = String(resourceKey || '');
+  const def = RESOURCE_DEFS[key];
+  if (!def) return false;
+  const qty = Math.max(1, Math.min(999999, Math.floor(Number(amount) || 1)));
+  const resources = storageResources(st);
+
+  if (direction === 'withdraw') {
+    const have = Math.max(0, resources[key] | 0);
+    const take = Math.min(have, qty);
+    if (take <= 0) return false;
+    const moved = addResource(player.inv, key, take);
+    if (moved <= 0) return false;
+    resources[key] = have - moved;
+    if ((resources[key] | 0) <= 0) delete resources[key];
+  } else {
+    const unit = Number(def.cargoPerUnit) || 1;
+    const capacity = getStorageCapacity(st);
+    const freeCargo = capacity > 0 ? Math.max(0, capacity - getStorageUsed(st)) : 999999;
+    const fit = Math.min(qty, Math.floor(freeCargo / Math.max(0.0001, unit)));
+    if (fit <= 0) return false;
+    const moved = removeResource(player.inv, key, fit);
+    if (moved <= 0) return false;
+    resources[key] = (resources[key] | 0) + moved;
+  }
+
+  st.updatedAt = timeMs;
+  player.forceFullUiSnapshot = true;
+  if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
   return true;
 }
 
