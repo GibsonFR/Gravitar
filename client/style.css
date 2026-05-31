@@ -9126,3 +9126,140 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(255, 80, 80, .12);
   color: rgba(255, 200, 190, .98);
 }
+
+/* v211 — diagnostic réseau drones */
+.logistics-panel--drone {
+  width: min(940px, calc(100vw - 36px));
+}
+.logistics-card--wide {
+  border-color: rgba(150, 255, 210, .15);
+}
+.logistics-diagnostics,
+.logistics-routes,
+.logistics-demand-list {
+  display: grid;
+  gap: 8px;
+}
+.logistics-demand-list {
+  margin-top: 10px;
+}
+.logistics-diagnostic-note {
+  border: 1px solid rgba(126,220,255,.12);
+  background: rgba(126,220,255,.045);
+  color: rgba(200, 224, 244, .92);
+  border-radius: 11px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.logistics-diagnostic-note.is-ok {
+  border-color: rgba(120, 242, 165, .16);
+  background: rgba(120, 242, 165, .055);
+  color: rgba(205, 246, 218, .94);
+}
+.logistics-diagnostic-note.is-warn {
+  border-color: rgba(255, 184, 92, .18);
+  background: rgba(255, 184, 92, .06);
+  color: rgba(255, 224, 180, .94);
+}
+.logistics-demand-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.025);
+  border-radius: 12px;
+  padding: 9px 10px;
+}
+.logistics-demand-row b,
+.logistics-route-row b {
+  display: block;
+  font-size: 12px;
+}
+.logistics-demand-row span,
+.logistics-route-row__path {
+  display: block;
+  margin-top: 3px;
+  color: rgba(176,197,224,.78);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.logistics-demand-row__nums {
+  font-size: 11px;
+  color: rgba(205, 220, 238, .86);
+  white-space: nowrap;
+}
+.logistics-demand-row em {
+  justify-self: end;
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid rgba(126,220,255,.16);
+  padding: 4px 7px;
+  color: rgba(210, 240, 255, .92);
+}
+.logistics-demand-row.is-ready {
+  border-color: rgba(120, 242, 165, .16);
+  background: rgba(120, 242, 165, .04);
+}
+.logistics-demand-row.is-incoming {
+  border-color: rgba(126, 220, 255, .18);
+  background: rgba(126, 220, 255, .045);
+}
+.logistics-demand-row.is-missing_source {
+  border-color: rgba(255, 184, 92, .18);
+  background: rgba(255, 184, 92, .052);
+}
+.logistics-route-row {
+  border: 1px solid rgba(126,220,255,.14);
+  background: rgba(126,220,255,.045);
+  border-radius: 12px;
+  padding: 10px;
+}
+.logistics-route-row.is-intersector {
+  border-color: rgba(255,204,112,.22);
+  background: rgba(255,184,92,.045);
+}
+.logistics-route-row__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.logistics-route-row__top span {
+  color: rgba(226,238,248,.92);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.logistics-route-row__bars,
+.logistics-route-row__hp {
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,.08);
+  margin-top: 8px;
+}
+.logistics-route-row__bars span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(126,220,255,.50), rgba(150,255,210,.92));
+}
+.logistics-route-row__hp {
+  height: 4px;
+  margin-top: 5px;
+}
+.logistics-route-row__hp span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(120,242,165,.92), rgba(255,204,112,.85));
+}
+@media (max-width: 680px) {
+  .logistics-demand-row { grid-template-columns: 1fr; align-items: stretch; }
+  .logistics-demand-row em { justify-self: start; }
+  .logistics-route-row__top { display: block; }
+}

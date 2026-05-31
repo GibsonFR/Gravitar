@@ -158,6 +158,88 @@ function countLogisticChests(state, player, center) {
   return counts;
 }
 
+
+function buildNetworkDiagnostics(state, station) {
+  const chests = networkLogisticChests(state, station);
+  const providers = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER || st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER);
+  const requesters = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER);
+  const active = flights(station).filter((flight) => isActiveFlightState(flight.state));
+  const lines = [];
+
+  for (const requester of requesters) {
+    for (const req of requestEntries(requester).filter((entry) => entry.missing > 0)) {
+      const key = req.key;
+      const sourceUnits = providers.reduce((sum, provider) => sum + Math.max(0, storageResources(provider)[key] | 0), 0);
+      const incoming = active
+        .filter((flight) => (flight.toId | 0) === (requester.id | 0) && String(flight.resourceKey || '') === key && !flight.delivered)
+        .reduce((sum, flight) => sum + Math.max(0, flight.amount | 0), 0);
+      const remainingAfterIncoming = Math.max(0, (req.missing | 0) - incoming);
+      const status = remainingAfterIncoming <= 0 ? 'incoming' : sourceUnits > 0 ? 'ready' : 'missing_source';
+      lines.push({
+        requesterId: requester.id | 0,
+        requesterLabel: `${chestLabel(requester)} [${requester.sx | 0},${requester.sy | 0}]`,
+        resourceKey: key,
+        resourceName: resourceName(key),
+        target: req.target | 0,
+        current: req.current | 0,
+        missing: req.missing | 0,
+        incoming,
+        sourceUnits,
+        remainingAfterIncoming,
+        status
+      });
+    }
+  }
+
+  const diagnostics = [];
+  if (!station.powered) diagnostics.push({ level: 'warn', text: 'Station non alimentée : départs et recharges interrompus.' });
+  if (installedDrones(station) <= 0) diagnostics.push({ level: 'warn', text: 'Aucun drone installé dans la station.' });
+  if (!requesters.length) diagnostics.push({ level: 'info', text: 'Aucun coffre demandeur dans le réseau couvert.' });
+  if (!providers.length) diagnostics.push({ level: 'info', text: 'Aucun coffre de chargement ou tampon dans le réseau couvert.' });
+  if (requesters.length && providers.length && !lines.length) diagnostics.push({ level: 'ok', text: 'Aucune demande en manque pour le moment.' });
+  const missingSources = lines.filter((line) => line.status === 'missing_source').length;
+  const ready = lines.filter((line) => line.status === 'ready').length;
+  const incoming = lines.filter((line) => line.status === 'incoming').length;
+  if (missingSources) diagnostics.push({ level: 'warn', text: `${missingSources} demande(s) sans source disponible.` });
+  if (ready) diagnostics.push({ level: 'ok', text: `${ready} demande(s) prêtes à être livrées.` });
+  if (incoming) diagnostics.push({ level: 'ok', text: `${incoming} demande(s) déjà couvertes par des drones en vol.` });
+
+  return {
+    status: !station.powered || installedDrones(station) <= 0 || missingSources ? 'warn' : 'ok',
+    requestCount: lines.length,
+    readyCount: ready,
+    incomingCount: incoming,
+    missingSourceCount: missingSources,
+    diagnostics,
+    lines: lines.slice(0, 12)
+  };
+}
+
+function activeStationFlights(station, timeMs = Date.now()) {
+  return flights(station)
+    .filter((flight) => isActiveFlightState(flight.state))
+    .map((flight) => {
+      const snap = flightSnapshot(flight, timeMs);
+      const remainingMs = Math.max(0, Number(flight.returnArriveAt || flight.arriveAt || 0) - timeMs);
+      return {
+        id: String(flight.id || ''),
+        phase: snap.phase,
+        resourceKey: flight.resourceKey || '',
+        resourceName: flight.resourceName || resourceName(flight.resourceKey),
+        amount: flight.amount | 0,
+        progressPct: Math.round((snap.progress || 0) * 100),
+        remainingSeconds: Math.round(remainingMs / 100) / 10,
+        interSector: !!flight.interSector,
+        fromLabel: flight.fromLabel || 'source',
+        toLabel: flight.toLabel || 'destination',
+        stationLabel: flight.stationLabel || 'station',
+        hp: Math.max(0, Math.round(Number(flight.hp ?? LOGISTIC_DRONE_HP))),
+        maxHp: Math.max(1, Math.round(Number(flight.maxHp || LOGISTIC_DRONE_HP)))
+      };
+    })
+    .slice(0, 16);
+}
+
 function missionLog(st) {
   if (!Array.isArray(st.logisticMissionLog)) st.logisticMissionLog = [];
   return st.logisticMissionLog;
@@ -826,6 +908,8 @@ export function buildDroneStationSnapshot(state, player) {
     connectedStations: countDroneStations(state, player, st),
     localChests: countLogisticChests(state, player, st),
     routeMode: 'inter_sector_v1',
+    diagnostics: buildNetworkDiagnostics(state, st),
+    activeRoutes: activeStationFlights(st, Date.now()),
     missions: (st.logisticMissionLog || []).slice(0, MISSION_LOG_MAX)
   };
 }

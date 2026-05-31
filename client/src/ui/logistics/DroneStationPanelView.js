@@ -6,6 +6,39 @@ function pct(value, max) {
   return Math.max(0, Math.min(100, Math.round((Number(value) || 0) / Math.max(1, Number(max) || 1) * 100)));
 }
 
+
+function routeRows(routes = []) {
+  if (!routes.length) return '<div class="logistics-empty">Aucun drone en vol actuellement.</div>';
+  return routes.map((r) => {
+    const hpPct = pct(r.hp || 0, r.maxHp || 1);
+    return `<div class="logistics-route-row ${r.interSector ? 'is-intersector' : ''}">
+      <div class="logistics-route-row__top"><b>${escapeHtml(r.phase || 'en vol')} · ${escapeHtml(r.resourceName || 'Ressource')} ×${r.amount | 0}</b><span>${r.progressPct | 0}% · ${Number(r.remainingSeconds || 0).toFixed(1)}s</span></div>
+      <div class="logistics-route-row__path">${escapeHtml(r.stationLabel || 'station')} → ${escapeHtml(r.fromLabel || 'source')} → ${escapeHtml(r.toLabel || 'destination')} → retour</div>
+      <div class="logistics-route-row__bars"><span style="width:${r.progressPct | 0}%"></span></div>
+      <div class="logistics-route-row__hp"><span style="width:${hpPct}%"></span></div>
+    </div>`;
+  }).join('');
+}
+
+function diagnosticRows(diag = null) {
+  const notes = diag?.diagnostics || [];
+  const lines = diag?.lines || [];
+  const noteHtml = notes.length
+    ? notes.map((n) => `<div class="logistics-diagnostic-note is-${escapeHtml(n.level || 'info')}">${escapeHtml(n.text || '')}</div>`).join('')
+    : '<div class="logistics-empty">Aucun diagnostic disponible.</div>';
+  const demandHtml = lines.length
+    ? lines.map((line) => {
+      const label = line.status === 'incoming' ? 'en vol' : line.status === 'ready' ? 'source trouvée' : 'source absente';
+      return `<div class="logistics-demand-row is-${escapeHtml(line.status || 'info')}">
+        <div><b>${escapeHtml(line.resourceName || line.resourceKey || 'Ressource')}</b><span>${escapeHtml(line.requesterLabel || 'coffre demandeur')}</span></div>
+        <div class="logistics-demand-row__nums">manque ${line.missing | 0} · en vol ${line.incoming | 0} · source ${line.sourceUnits | 0}</div>
+        <em>${escapeHtml(label)}</em>
+      </div>`;
+    }).join('')
+    : '<div class="logistics-empty">Aucune demande active en manque.</div>';
+  return `${noteHtml}<div class="logistics-demand-list">${demandHtml}</div>`;
+}
+
 function missionRows(missions = []) {
   if (!missions.length) return '<div class="logistics-empty">Aucune livraison récente. Configure un coffre demandeur et remplis un coffre de chargement.</div>';
   return missions.map((m) => {
@@ -130,8 +163,16 @@ export class DroneStationPanelView {
             ${!station.powered ? 'Station non alimentée : les drones ne partent pas et ne rechargent pas.' : station.installedDrones <= 0 ? 'Aucun drone installé : insère des drones logistiques basiques dans la station.' : station.droneCharge <= 0 ? 'Tous les drones disponibles sont vides : ils attendent une recharge complète avant de repartir.' : 'Réseau opérationnel : les demandes sont servies automatiquement si une source existe.'}
           </div>
         </section>
+        <section class="logistics-card logistics-card--wide">
+          <div class="logistics-card__title">Diagnostic réseau</div>
+          <div class="logistics-diagnostics">${diagnosticRows(station.diagnostics || null)}</div>
+        </section>
         <section class="logistics-card">
-          <div class="logistics-card__title">Missions réseau</div>
+          <div class="logistics-card__title">Drones en vol</div>
+          <div class="logistics-routes">${routeRows(station.activeRoutes || [])}</div>
+        </section>
+        <section class="logistics-card">
+          <div class="logistics-card__title">Historique réseau</div>
           <div class="logistics-missions">${missionRows(station.missions || [])}</div>
         </section>
         <section class="logistics-card logistics-card--muted">
