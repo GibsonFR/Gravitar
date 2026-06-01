@@ -26,4 +26,8 @@ function tickEntityStatuses(state, entity, dt, timeMs) {
 export function updateStatuses(state, dt, timeMs = null) {
   for (const player of state.players.values()) tickEntityStatuses(state, player, dt, timeMs);
   for (const mob of state.mobs.values()) tickEntityStatuses(state, mob, dt, timeMs);
+  for (const asteroid of state.asteroids.values()) tickEntityStatuses(state, asteroid, dt, timeMs);
+  if (state.structures?.values) {
+    for (const structure of state.structures.values()) tickEntityStatuses(state, structure, dt, timeMs);
+  }
 }

@@ -5,7 +5,7 @@ const SIGIL_RUNE_MARK_KEY = 'sigil_runes';
 
 function buildSigilRuneSnapshot(entity) {
   const entry = getStatusEntry(entity, I.MARK, { markKey: SIGIL_RUNE_MARK_KEY });
-  if (!entry || (entry.stacks ?? 0) <= 0) return null;
+  if (!entry || (entry.stacks ?? 0) <= 0 || (entry.durationLeft ?? 0) <= 0) return null;
   return {
     id: entry.id,
     name: 'Runes de contrainte',

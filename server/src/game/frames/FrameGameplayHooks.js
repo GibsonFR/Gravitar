@@ -358,6 +358,52 @@ function clearSigilRunes(target) {
   removeStatus(target, I.MARK, { markKey: SIGIL_MARK_KEY });
 }
 
+
+function getSigilTargetKey(target) {
+  if (!target) return '';
+  const kind = target.kind || target.type || 'entity';
+  return `${kind}:${target.id ?? target.worldId ?? ''}`;
+}
+
+function tickSigilTrailHitCooldowns(fs, dt) {
+  const map = fs?.trailHitCooldownById;
+  if (!map) return;
+  for (const key of Object.keys(map)) {
+    map[key] = Math.max(0, (map[key] || 0) - dt);
+    if (map[key] <= 0) delete map[key];
+  }
+}
+
+function canSigilTrailHit(fs, target) {
+  const key = getSigilTargetKey(target);
+  return key && ((fs?.trailHitCooldownById?.[key] ?? 0) <= 0);
+}
+
+function markSigilTrailHit(fs, target, cooldown = 0.35) {
+  const key = getSigilTargetKey(target);
+  if (!key) return;
+  if (!fs.trailHitCooldownById) fs.trailHitCooldownById = Object.create(null);
+  fs.trailHitCooldownById[key] = Math.max(0.05, cooldown);
+}
+
+function getSigilRuneBonusDamage(owner, tuning, runeCount) {
+  const runes = Math.max(0, runeCount | 0);
+  if (runes <= 0) return 0;
+  return runes * (tuning.passive.runeDamageFlatPerRune + getWeaponReferenceDamage(owner) * tuning.passive.runeDamageWeaponPctPerRune);
+}
+
+function applySigilRuneBonusDamage(state, owner, target, tuning, timeMs, sourceSlot = '', runeCountOverride = null) {
+  const runeCount = runeCountOverride == null ? getSigilRuneCount(target) : runeCountOverride;
+  const bonus = getSigilRuneBonusDamage(owner, tuning, runeCount);
+  if (bonus <= 0) return 0;
+  applyDamage(state, target, bonus, owner, {
+    timeMs,
+    sourceSlot,
+    visualKind: 'sigil_rune_bonus'
+  });
+  return bonus;
+}
+
 function consumeSigilRunes(target, count) {
   const entry = getSigilRuneEntry(target);
   if (!entry) return 0;
@@ -653,23 +699,43 @@ function tickVanguard(state, player, dt, timeMs) {
 
 function tickSigilTrail(state, player, dt, timeMs) {
   const fs = getSigilState(player);
-  if (!fs || fs.trailLeft <= 0) return;
+  if (!fs) return;
+  tickSigilTrailHitCooldowns(fs, dt);
+
+  if (fs.trailLeft <= 0) {
+    fs.trailHitCooldownById = Object.create(null);
+    return;
+  }
+
   fs.trailLeft = Math.max(0, fs.trailLeft - dt);
-  if (fs.trailLeft <= 0 || fs.trailSlowPct <= 0 || fs.trailSlowDuration <= 0) return;
+  if (fs.trailLeft <= 0) {
+    fs.trailHitCooldownById = Object.create(null);
+    return;
+  }
+
   const a = getSigilA(player);
   const e = getSigilE(player);
   const r = getSigilR(player);
+  const trailWidth = Math.max(24, e.eTrailWidth ?? 34);
+
   forEachHostileEntityInSector(state, player, (target) => {
-    const rr = 16 + (target.radius ?? 0);
+    if (!canSigilTrailHit(fs, target)) return;
+    const rr = trailWidth + (target.radius ?? 0);
     if (linePointDistance(target.x, target.y, fs.trailStartX, fs.trailStartY, fs.trailEndX, fs.trailEndY) > rr) return;
+
     const runesBefore = getSigilRuneCount(target);
-    applyStatus(target, I.SLOW, fs.trailSlowDuration, {
-      sourceId: player.id,
-      hostile: true,
-      value: fs.trailSlowPct,
-      label: 'E',
-      timeMs
-    });
+    applySigilRuneBonusDamage(state, player, target, a, timeMs, 'E', runesBefore);
+
+    if (fs.trailSlowPct > 0 && fs.trailSlowDuration > 0) {
+      applyStatus(target, I.SLOW, fs.trailSlowDuration, {
+        sourceId: player.id,
+        hostile: true,
+        value: fs.trailSlowPct,
+        label: 'E',
+        timeMs
+      });
+    }
+
     if (e.eGroundedDurationOnMaxRunes > 0 && runesBefore >= a.passive.maxRunes) {
       applyStatus(target, I.GROUNDED, e.eGroundedDurationOnMaxRunes, {
         sourceId: player.id,
@@ -678,13 +744,15 @@ function tickSigilTrail(state, player, dt, timeMs) {
         timeMs
       });
     }
+
     applySigilRunes(player, target, a, 1, timeMs);
     maybeSlowFromSigilRunes(player, target, a, timeMs);
     maybeDetonateSigilRunes(state, player, target, timeMs, {
       sourceSlot: 'E',
       applyStunDuration: fs.ultLeft > 0 ? r.ultDetonationStunDuration : 0
     });
-  });
+    markSigilTrailHit(fs, target, 0.35);
+  }, { includeAsteroids: true });
 }
 
 function tickSigil(state, player, dt, timeMs) {
@@ -1125,8 +1193,7 @@ function handleSigilProjectileImpact(state, owner, target, projectile, timeMs) {
   const runesBefore = getSigilRuneCount(target);
 
   if (runesBefore > 0) {
-    const bonus = runesBefore * (a.passive.runeDamageFlatPerRune + getWeaponReferenceDamage(owner) * a.passive.runeDamageWeaponPctPerRune);
-    if (bonus > 0) applyDamage(state, target, bonus, owner, { timeMs });
+    applySigilRuneBonusDamage(state, owner, target, a, timeMs, projectile.sourceAbilitySlot || '', runesBefore);
     maybeSlowFromSigilRunes(owner, target, a, timeMs);
   }
 
@@ -1244,8 +1311,15 @@ export function onAreaEffectTickForFrame(state, owner, target, effect, timeMs) {
   if (!owner || owner.frameId !== SHIP_FRAME_IDS.SIGIL || effect?.slot !== 'Z') return;
   const fs = getSigilState(owner);
   if (!fs) return;
+
+  const a = getSigilA(owner);
+  const z = getSigilZ(owner);
   const r = getSigilR(owner);
-  maybeSlowFromSigilRunes(owner, target, getSigilA(owner), timeMs);
+  const runesBefore = getSigilRuneCount(target);
+
+  applySigilRuneBonusDamage(state, owner, target, a, timeMs, 'Z', runesBefore);
+  if (z.zRunePulseStacks > 0) applySigilRunes(owner, target, a, z.zRunePulseStacks, timeMs);
+  maybeSlowFromSigilRunes(owner, target, a, timeMs);
   maybeDetonateSigilRunes(state, owner, target, timeMs, {
     sourceSlot: 'Z',
     applyStunDuration: fs.ultLeft > 0 ? r.ultDetonationStunDuration : 0
@@ -1496,16 +1570,7 @@ function castSigilZ(state, player, timeMs) {
         value: z.zZoneSlowPct,
         hostile: true,
         label: 'Z'
-      },
-      z.zRunePulseStacks > 0 ? ((innerState, source, target) => ({
-        effectId: I.MARK,
-        duration: z.passive.runeDuration * ((getSigilState(source)?.ultLeft ?? 0) > 0 ? (1 + getSigilR(source).ultRuneDurationBonusPct) : 1),
-        hostile: true,
-        markKey: SIGIL_MARK_KEY,
-        stacks: z.zRunePulseStacks,
-        maxStacks: z.passive.maxRunes,
-        label: 'Rune'
-      })) : null
+      }
     ].filter(Boolean)
   });
 

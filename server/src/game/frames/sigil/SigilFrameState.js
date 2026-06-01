@@ -11,6 +11,7 @@ export function createSigilFrameState() {
     trailEndY: 0,
     trailSlowPct: 0,
     trailSlowDuration: 0,
+    trailHitCooldownById: Object.create(null),
     veilLeft: 0,
     ultLeft: 0,
     ultDetonationStunUsed: false,
