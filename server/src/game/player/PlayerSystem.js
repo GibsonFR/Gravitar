@@ -24,6 +24,7 @@ import { buildRocketAmmoStatusSpecs, consumeRocketAmmo, getActiveRocketAmmoDef }
 import { getBastionDamageMultiplier, getBastionMoveSpeedMultiplier } from '../bastion/BastionBuffs.js';
 import { distanceSqToStructureRect } from '../structures/StructureSystem.js';
 import { findAccessibleStorageNearPlayer } from '../structures/StructureStorage.js';
+import { updatePlayerBaseIntrusion } from '../structures/StructureIntrusion.js';
 
 function getEquippedDefByCategory(player, categoryId) {
   return getEquippedEquipmentDefs(player).find((def) => def?.categoryId === categoryId) || null;
@@ -557,6 +558,7 @@ export function updatePlayer(state, p, dt, timeMs = null) {
 
   updatePlayerFacing(state, p);
   tickStatBlock(p.stats, dt);
+  updatePlayerBaseIntrusion(state, p, timeMs);
 
   if (p.rocketTap) {
     const target = screenToWorld(p, p.mouseSx, p.mouseSy);

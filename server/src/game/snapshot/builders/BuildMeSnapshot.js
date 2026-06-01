@@ -22,6 +22,7 @@ import { buildEquipmentFabricatorSnapshot } from '../../structures/StructureEqui
 import { buildEquipmentRDStationSnapshot } from '../../structures/StructureEquipmentRDStation.js';
 import { buildRocketWorkshopSnapshot } from '../../structures/StructureRocketWorkshop.js';
 import { buildDroneStationSnapshot, buildLogisticChestSnapshot } from '../../structures/StructureLogistics.js';
+import { buildHostileBaseIntrusionSnapshot } from '../../structures/StructureIntrusion.js';
 
 
 function getFrameTempShieldAmount(player) {
@@ -158,7 +159,8 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     derived: buildDerivedSnapshot(player),
     bastions: buildBastionBuffSnapshot(player),
     sfx: drainPlayerSfx(player),
-    transition: buildTransitionSnapshot(player, timeMs)
+    transition: buildTransitionSnapshot(player, timeMs),
+    baseIntrusion: buildHostileBaseIntrusionSnapshot(player)
   };
 }
 
@@ -207,6 +209,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
     },
     statuses: buildStatusSnapshot(player, 4),
     sfx: drainPlayerSfx(player),
-    transition: buildTransitionSnapshot(player, timeMs)
+    transition: buildTransitionSnapshot(player, timeMs),
+    baseIntrusion: buildHostileBaseIntrusionSnapshot(player)
   };
 }
