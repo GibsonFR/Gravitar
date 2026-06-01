@@ -323,24 +323,73 @@ function buildStatusTooltip(status) {
   return { title: name, accent: p, lines };
 }
 
+function wrapTooltipLine(ctx, line, maxWidth) {
+  const raw = String(line ?? '').trim();
+  if (!raw) return [''];
+  if (ctx.measureText(raw).width <= maxWidth) return [raw];
+  const prefixMatch = raw.match(/^([✓○•\-–]|Palier\s+[IVX]+\s*:)\s+/u);
+  const indent = prefixMatch ? '   ' : raw.startsWith('Évolution') ? '  ' : '';
+  const words = raw.split(/\s+/u);
+  const out = [];
+  let cur = '';
+  for (const word of words) {
+    const next = cur ? `${cur} ${word}` : word;
+    if (ctx.measureText(next).width <= maxWidth || !cur) {
+      cur = next;
+      continue;
+    }
+    out.push(cur);
+    cur = `${indent}${word}`;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function buildWrappedTooltipLines(ctx, lines, maxWidth) {
+  const out = [];
+  for (const line of lines.filter(Boolean)) {
+    out.push(...wrapTooltipLine(ctx, line, maxWidth));
+  }
+  return out;
+}
+
 function drawBox(ctx, view, tip, mx, my) {
   const dpr = view.dpr;
-  const pad = 11;
-  const lineH = 15;
-  const titleH = 20;
+  const pad = 12;
+  const lineH = 15.5;
+  const titleH = 22;
+  const footerH = 0;
+  const screenPad = 8;
   ctx.save();
   ctx.font = `12px Segoe UI`;
-  const lines = tip.lines.filter(Boolean).slice(0, 26);
-  const textW = Math.max(ctx.measureText(tip.title).width, ...lines.map(l => ctx.measureText(l).width));
-  const w = Math.min(430, Math.max(250, textW + pad * 2));
-  const h = pad * 2 + titleH + lines.length * lineH + 4;
+
+  const rawLines = tip.lines.filter(Boolean);
+  const maxAllowedW = Math.max(320, Math.min(620, view.cssW - screenPad * 2));
+  const minW = Math.min(330, maxAllowedW);
+  const titleW = ctx.measureText(tip.title).width + pad * 2;
+  const desiredTextW = Math.max(...rawLines.map((l) => Math.min(ctx.measureText(l).width, maxAllowedW - pad * 2)), titleW - pad * 2, minW - pad * 2);
+  const w = Math.min(maxAllowedW, Math.max(minW, desiredTextW + pad * 2));
+  const wrappedLines = buildWrappedTooltipLines(ctx, rawLines, w - pad * 2);
+  const maxVisibleLines = Math.max(12, Math.floor((view.cssH - 34 - pad * 2 - titleH) / lineH));
+  const clipped = wrappedLines.length > maxVisibleLines;
+  const lines = clipped ? wrappedLines.slice(0, Math.max(1, maxVisibleLines - 1)).concat('…') : wrappedLines;
+  const h = Math.min(view.cssH - screenPad * 2, pad * 2 + titleH + lines.length * lineH + 6 + footerH);
+
   let x = mx + 18;
   let y = my - h - 14;
-  if (x + w > view.cssW - 8) x = view.cssW - w - 8;
-  if (y < 8) y = my + 18;
+  if (x + w > view.cssW - screenPad) x = view.cssW - w - screenPad;
+  if (x < screenPad) x = screenPad;
+  if (y < screenPad) y = my + 18;
+  if (y + h > view.cssH - screenPad) y = view.cssH - h - screenPad;
+
   const a = tip.accent ?? { r: 160, g: 210, b: 255 };
-  fillRoundedRect(ctx, dpr, x, y, w, h, 10, 'rgba(7,10,16,0.96)', rgba(a.r, a.g, a.b, 0.60), 1.4);
-  fillRoundedRect(ctx, dpr, x + 2, y + 2, w - 4, h - 4, 8, 'rgba(13,18,28,0.94)', 'rgba(255,255,255,0.03)');
+  fillRoundedRect(ctx, dpr, x, y, w, h, 10, 'rgba(7,10,16,0.97)', rgba(a.r, a.g, a.b, 0.62), 1.4);
+  fillRoundedRect(ctx, dpr, x + 2, y + 2, w - 4, h - 4, 8, 'rgba(13,18,28,0.95)', 'rgba(255,255,255,0.03)');
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect((x + 4) * dpr, (y + 4) * dpr, (w - 8) * dpr, (h - 8) * dpr);
+  ctx.clip();
   ctx.fillStyle = rgba(a.r, a.g, a.b, 0.95);
   ctx.font = `800 ${13 * dpr}px Segoe UI`;
   ctx.textAlign = 'left';
@@ -353,6 +402,7 @@ function drawBox(ctx, view, tip, mx, my) {
     ctx.fillText(line, (x + pad) * dpr, yy * dpr);
     yy += lineH;
   }
+  ctx.restore();
   ctx.restore();
 }
 

@@ -7,6 +7,7 @@ import { buildPlayerDirectorySnapshot } from './builders/BuildPlayerDirectory.js
 import { getSessionElapsedMs, getSessionRemainingMs } from '../bastion/BastionSession.js';
 import { buildPlayerSnapshots } from './builders/BuildPlayerSnapshots.js';
 import { buildModeSnapshot } from '../modes/GameModes.js';
+import { isCamouflaged, canSeeCamouflaged } from '../status/StatusRack.js';
 import {
   buildAreaEffectSnapshots,
   buildAsteroidSnapshots,
@@ -29,6 +30,14 @@ function sameWorld(entity, worldId) {
   return String(entity.worldId || 'endless') === String(worldId);
 }
 
+function canObserveCamouflagedEntity(me, entity) {
+  if (!entity) return false;
+  if (!isCamouflaged(entity)) return true;
+  if (me && entity.kind === 'player' && entity.id === me.id) return true;
+  if (!me) return false;
+  return canSeeCamouflaged(me, entity);
+}
+
 function buildVisibilityPredicates(me) {
   const sx = me ? (me.sx | 0) : 0;
   const sy = me ? (me.sy | 0) : 0;
@@ -40,9 +49,10 @@ function buildVisibilityPredicates(me) {
   // pas seulement une bulle autour du joueur. Le contenu procédural du secteur est
   // déjà créé par ensureSectorLoaded(); le problème visible venait surtout du
   // culling snapshot qui masquait les astéroïdes/mobs/stations lointains.
-  const sectorEntity = (entity) => inMySector(entity);
-  const playerInMyWorldAndSector = (entity) => inMyWorldAndSector(entity);
-  return { inMySector, nearDynamic: sectorEntity, nearStatic: sectorEntity, playerInMyWorldAndSector };
+  const sectorEntity = (entity) => inMySector(entity) && canObserveCamouflagedEntity(me, entity);
+  const staticEntity = (entity) => inMySector(entity);
+  const playerInMyWorldAndSector = (entity) => inMyWorldAndSector(entity) && canObserveCamouflagedEntity(me, entity);
+  return { inMySector, nearDynamic: sectorEntity, nearStatic: staticEntity, playerInMyWorldAndSector };
 }
 
 export function buildSnapshot(state, playerId, timeMs, options = {}) {
