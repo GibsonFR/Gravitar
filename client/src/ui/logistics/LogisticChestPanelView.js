@@ -1,6 +1,5 @@
-function escapeHtml(txt) {
-  return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-}
+import { ScrollPreserver } from '../common/ScrollPreserver.js';
+import { escapeHtml } from '../common/EscapeHtml.js';
 
 function rows(resources = [], opts = {}) {
   if (!resources.length) return '<div class="logistics-empty">Vide.</div>';
@@ -66,6 +65,7 @@ export class LogisticChestPanelView {
     this.lastKey = '';
     this.el = document.createElement('section');
     this.el.className = 'logistics-panel logistics-panel--chest is-hidden';
+    this.scrollPreserver = new ScrollPreserver(this.el);
 
     this.el.addEventListener('pointerdown', (ev) => {
       const target = ev.target;
@@ -118,21 +118,11 @@ export class LogisticChestPanelView {
   }
 
   captureScroll() {
-    const out = new Map();
-    this.el.querySelectorAll('[data-scroll-key]').forEach((node) => out.set(node.dataset.scrollKey || '', node.scrollTop));
-    const body = this.el.querySelector('.logistics-panel__body');
-    if (body) out.set('__body__', body.scrollTop);
-    return out;
+    return this.scrollPreserver.capture();
   }
 
   restoreScroll(map) {
-    if (!map?.size) return;
-    this.el.querySelectorAll('[data-scroll-key]').forEach((node) => {
-      const key = node.dataset.scrollKey || '';
-      if (map.has(key)) node.scrollTop = map.get(key) || 0;
-    });
-    const body = this.el.querySelector('.logistics-panel__body');
-    if (body && map.has('__body__')) body.scrollTop = map.get('__body__') || 0;
+    this.scrollPreserver.restore(map);
   }
 
   update(store) {

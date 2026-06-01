@@ -9855,3 +9855,25 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(170, 205, 255, 0.22);
   border-radius: 999px;
 }
+
+/* v232c — machine/logistics UI foundation extension */
+.machine-panel__resource-scroll {
+  max-height: 230px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 4px;
+}
+.machine-panel__resource-scroll + .machine-panel__subhead {
+  margin-top: 16px;
+}
+.machine-panel__resource-scroll::-webkit-scrollbar { width: 10px; }
+.machine-panel__resource-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+@media (max-height: 760px) {
+  .machine-panel__resource-scroll { max-height: 170px; }
+}

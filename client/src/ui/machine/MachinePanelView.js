@@ -1,10 +1,9 @@
-function escapeHtml(txt) {
-  return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-}
+import { ScrollPreserver } from '../common/ScrollPreserver.js';
+import { escapeHtml, formatNumber } from '../common/EscapeHtml.js';
 
 function fmt(n) {
   const v = Number(n) || 0;
-  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+  return formatNumber(v, 1);
 }
 
 function lockLabel(recipe) {
@@ -48,6 +47,7 @@ export class MachinePanelView {
     this.lastKey = '';
     this.el = document.createElement('div');
     this.el.className = 'machine-panel is-hidden';
+    this.scrollPreserver = new ScrollPreserver(this.el);
 
     const stopUiEvent = (ev) => {
       ev.preventDefault();
@@ -151,6 +151,7 @@ export class MachinePanelView {
     this.el.classList.remove('is-hidden');
     const key = JSON.stringify({ machine, tab: this.tab, t: Math.floor(Date.now() / 250) });
     if (key === this.lastKey) return;
+    const scrollState = this.scrollPreserver.capture();
     this.lastKey = key;
 
     if (machine.machineType === 'extractor') {
@@ -175,7 +176,7 @@ export class MachinePanelView {
           </div>
           <button class="machine-panel__close" type="button" data-close-machine="1">×</button>
         </div>
-        <div class="machine-panel__body">
+        <div class="machine-panel__body" data-scroll-key="machine-body">
           <div class="machine-panel__production">
             <div class="machine-panel__recipe-banner">
               <div class="machine-panel__recipe-title">Source : ${escapeHtml(machine.depositLabel || 'Aucun gisement')}</div>
@@ -206,11 +207,12 @@ export class MachinePanelView {
               </section>
               <section class="machine-panel__box">
                 <h3>Buffer <span>${Math.round(machine.outputUsed || 0)} / ${Math.round(machine.outputCapacity || 0)}</span></h3>
-                ${extractorRows(machine.output || [], machine.id)}
+                <div class="machine-panel__resource-scroll" data-scroll-key="machine-extractor-output">${extractorRows(machine.output || [], machine.id)}</div>
               </section>
             </div>
           </div>
         </div>`;
+      this.scrollPreserver.restore(scrollState);
       return;
     }
 
@@ -224,7 +226,7 @@ export class MachinePanelView {
     const busy = !!job?.active;
 
     const selectHtml = `
-      <div class="machine-panel__select-grid">
+      <div class="machine-panel__select-grid" data-scroll-key="machine-recipes">
         ${recipes.map((r) => `
           <button type="button" class="machine-panel__recipe-card ${r.id === machine.selectedRecipeId ? 'is-selected' : ''} ${r.locked ? 'is-locked' : ''}" data-select-recipe="${escapeHtml(r.id)}" ${busy || r.locked ? 'disabled' : ''}>
             <strong>${escapeHtml(r.name)}</strong>
@@ -262,9 +264,9 @@ export class MachinePanelView {
           <section class="machine-panel__box">
             <h3>Entrée <span>${fmt(machine.inputUsed)} / ${fmt(machine.inputCapacity)}</span></h3>
             <div class="machine-panel__need">${fmtList(selected.input, true)}</div>
-            ${resourceRows(machine.cargoResources || [], 'Insérer', 'deposit', 'input', machine.id, busy)}
+            <div class="machine-panel__resource-scroll" data-scroll-key="machine-cargo">${resourceRows(machine.cargoResources || [], 'Insérer', 'deposit', 'input', machine.id, busy)}</div>
             <div class="machine-panel__subhead">Dans la machine</div>
-            ${resourceRows(machine.input || [], 'Reprendre', 'withdraw', 'input', machine.id, false)}
+            <div class="machine-panel__resource-scroll" data-scroll-key="machine-input">${resourceRows(machine.input || [], 'Reprendre', 'withdraw', 'input', machine.id, false)}</div>
           </section>
           <section class="machine-panel__box machine-panel__center">
             <button class="machine-panel__produce ${enabled ? 'is-off' : 'is-on'}" type="button" data-machine-toggle="1" data-enabled="${enabled ? '0' : '1'}">
@@ -276,7 +278,7 @@ export class MachinePanelView {
           <section class="machine-panel__box">
             <h3>Sortie <span>${fmt(machine.outputUsed)} / ${fmt(machine.outputCapacity)}</span></h3>
             <div class="machine-panel__need">${fmtList(selected.output, false)}</div>
-            ${outputContent}
+            <div class="machine-panel__resource-scroll" data-scroll-key="machine-output">${outputContent}</div>
           </section>
         </div>
       </div>` : '<div class="machine-panel__empty">Choisis une recette.</div>';
@@ -294,9 +296,10 @@ export class MachinePanelView {
         <button type="button" data-machine-tab="select" class="${activeTab === 'select' ? 'is-active' : ''}">Recette</button>
         <button type="button" data-machine-tab="production" class="${activeTab === 'production' ? 'is-active' : ''}">Production</button>
       </div>
-      <div class="machine-panel__body">
+      <div class="machine-panel__body" data-scroll-key="machine-body">
         ${activeTab === 'select' ? selectHtml : productionHtml}
       </div>
     `;
+    this.scrollPreserver.restore(scrollState);
   }
 }

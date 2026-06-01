@@ -1,6 +1,5 @@
-function escapeHtml(txt) {
-  return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-}
+import { ScrollPreserver } from '../common/ScrollPreserver.js';
+import { escapeHtml } from '../common/EscapeHtml.js';
 
 function pct(value, max) {
   return Math.max(0, Math.min(100, Math.round((Number(value) || 0) / Math.max(1, Number(max) || 1) * 100)));
@@ -68,6 +67,7 @@ export class DroneStationPanelView {
     this.lastKey = '';
     this.el = document.createElement('section');
     this.el.className = 'logistics-panel logistics-panel--drone is-hidden';
+    this.scrollPreserver = new ScrollPreserver(this.el);
     this.el.addEventListener('pointerdown', (ev) => {
       const target = ev.target;
       if (!(target instanceof Element)) return;
@@ -103,19 +103,11 @@ export class DroneStationPanelView {
 
 
   captureScroll() {
-    const map = new Map();
-    this.el.querySelectorAll('[data-logistics-scroll]').forEach((node) => {
-      map.set(node.getAttribute('data-logistics-scroll'), node.scrollTop || 0);
-    });
-    return map;
+    return this.scrollPreserver.capture();
   }
 
   restoreScroll(map) {
-    if (!map?.size) return;
-    this.el.querySelectorAll('[data-logistics-scroll]').forEach((node) => {
-      const key = node.getAttribute('data-logistics-scroll');
-      if (map.has(key)) node.scrollTop = map.get(key) || 0;
-    });
+    this.scrollPreserver.restore(map);
   }
 
   renderKey(station) {
@@ -187,7 +179,7 @@ export class DroneStationPanelView {
         </div>
         <button type="button" class="logistics-panel__close" data-drone-station-close="1">×</button>
       </header>
-      <div class="logistics-panel__body" data-logistics-scroll="body">
+      <div class="logistics-panel__body" data-scroll-key="body">
         <section class="logistics-card logistics-card--hero">
           <div class="logistics-card__title">Hangar de drones</div>
           <div class="logistics-drone-hero">
@@ -231,11 +223,11 @@ export class DroneStationPanelView {
         </section>
         <section class="logistics-card">
           <div class="logistics-card__title">Drones en vol</div>
-          <div class="logistics-routes" data-logistics-scroll="routes">${routeRows(station.activeRoutes || [])}</div>
+          <div class="logistics-routes" data-scroll-key="routes">${routeRows(station.activeRoutes || [])}</div>
         </section>
         <section class="logistics-card">
           <div class="logistics-card__title">Historique réseau</div>
-          <div class="logistics-missions" data-logistics-scroll="missions">${missionRows(station.missions || [])}</div>
+          <div class="logistics-missions" data-scroll-key="missions">${missionRows(station.missions || [])}</div>
         </section>
         <section class="logistics-card logistics-card--muted">
           <div class="logistics-card__title">Stations connectées</div>
