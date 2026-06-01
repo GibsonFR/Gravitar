@@ -31,6 +31,21 @@ function q(v, fallback = 0) {
   return Number.isFinite(v) ? v : fallback;
 }
 
+function clonePositiveResourceMap(map = {}) {
+  const out = {};
+  if (!map || typeof map !== 'object') return out;
+  for (const [key, amount] of Object.entries(map)) {
+    const n = Math.max(0, Number(amount) | 0);
+    if (key && n > 0) out[String(key)] = n;
+  }
+  return out;
+}
+
+function clonePlainObject(value, fallback = null) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
+  return { ...value };
+}
+
 export function createStructure(state, type, sx, sy, x, y, options = {}) {
   const def = getStructureDef(type);
   if (!def) return null;
@@ -80,8 +95,8 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     rocketWorkshopEnabled: options.rocketWorkshopEnabled !== false,
     rocketWorkshopJob: options.rocketWorkshopJob && typeof options.rocketWorkshopJob === 'object' ? { ...options.rocketWorkshopJob } : null,
     machineOutput: options.machineOutput && typeof options.machineOutput === 'object' ? { ...options.machineOutput } : {},
-    scienceInput: options.scienceInput && typeof options.scienceInput === 'object' ? { ...options.scienceInput } : {},
-    researchJob: options.researchJob && typeof options.researchJob === 'object' ? { ...options.researchJob } : null,
+    scienceInput: clonePositiveResourceMap(options.scienceInput),
+    researchJob: clonePlainObject(options.researchJob, null),
     researchEnabled: options.researchEnabled !== false,
     researchStatus: String(options.researchStatus || ''),
     machineRecipeId: String(options.machineRecipeId || ''),
@@ -144,6 +159,10 @@ export function serializeStructure(structure) {
     rocketWorkshopEnabled: structure.rocketWorkshopEnabled !== false,
     rocketWorkshopJob: structure.rocketWorkshopJob || null,
     machineOutput: structure.machineOutput || {},
+    scienceInput: clonePositiveResourceMap(structure.scienceInput),
+    researchJob: clonePlainObject(structure.researchJob, null),
+    researchEnabled: structure.researchEnabled !== false,
+    researchStatus: String(structure.researchStatus || ''),
     machineRecipeId: structure.machineRecipeId || '',
     machineEnabled: structure.machineEnabled !== false,
     machineJob: structure.machineJob || null,
@@ -193,6 +212,10 @@ export function hydrateStructure(state, saved) {
     rocketWorkshopEnabled: s.rocketWorkshopEnabled !== false,
     rocketWorkshopJob: s.rocketWorkshopJob || null,
     machineOutput: s.machineOutput || {},
+    scienceInput: s.scienceInput || {},
+    researchJob: s.researchJob || null,
+    researchEnabled: s.researchEnabled !== false,
+    researchStatus: s.researchStatus || '',
     machineRecipeId: s.machineRecipeId || '',
     machineEnabled: s.machineEnabled !== false,
     machineJob: s.machineJob || null,

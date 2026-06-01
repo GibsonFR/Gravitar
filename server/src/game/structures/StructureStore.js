@@ -87,16 +87,35 @@ export function createStructureStore() {
     loadIntoState(state) {
       if (!state?.structures) return 0;
       let count = 0;
+      let researchStationsRestored = 0;
+      let researchInputsRestored = 0;
+      let researchJobsRestored = 0;
       let maxId = state.ids?.nextEntityId || 10000;
       for (const saved of db.structures || []) {
         if (String(saved?.worldId || 'endless') !== 'endless') continue;
+        const hadResearchInput = String(saved?.type || '').toLowerCase() === 'research_station'
+          && saved?.scienceInput
+          && typeof saved.scienceInput === 'object'
+          && Object.values(saved.scienceInput).some((amount) => (amount | 0) > 0);
+        const hadResearchJob = String(saved?.type || '').toLowerCase() === 'research_station'
+          && !!saved?.researchJob?.projectId;
         const st = hydrateStructure(state, saved);
         if (!st || (st.damageable !== false && st.stats.hp <= 0)) continue;
         state.structures.set(st.id, st);
         maxId = Math.max(maxId, (st.id | 0) + 1);
         count += 1;
+        if (String(st.type || '').toLowerCase() === 'research_station') {
+          researchStationsRestored += 1;
+          if (hadResearchInput) researchInputsRestored += 1;
+          if (hadResearchJob) researchJobsRestored += 1;
+        }
       }
       if (state.ids) state.ids.nextEntityId = Math.max(state.ids.nextEntityId | 0, maxId | 0);
+      if (researchStationsRestored > 0) {
+        console.log(`[structures] Research station restored: ${researchStationsRestored}`);
+        if (researchInputsRestored > 0) console.log(`[structures] Research input restored: ${researchInputsRestored}`);
+        if (researchJobsRestored > 0) console.log(`[structures] Research progress resumed: ${researchJobsRestored}`);
+      }
       return count;
     },
     saveFromState(state) {

@@ -2,6 +2,7 @@ import { getStructureDef } from './StructureDefs.js';
 import { isStructureOwner, distanceSqToStructureRect, findAliveCoreForStructure } from './StructureSystem.js';
 import { addResource, removeResource, canAddResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
+import { buildEndlessSave } from '../accounts/AccountStore.js';
 import {
   SCIENCE_PACKS,
   RESEARCH_BRANCHES,
@@ -17,6 +18,17 @@ const RESEARCH_RANGE = 280;
 const SCIENCE_CAPACITY = 240;
 const RESEARCH_SAVE_INTERVAL_MS = 5000;
 const POINT_MS = RESEARCH_POINT_SECONDS * 1000;
+
+function saveResearchStationState(state, station) {
+  if (String(station?.worldId || 'endless') !== 'endless') return;
+  state?.structureStore?.saveFromState?.(state);
+}
+
+function saveResearchOwnerState(state, player) {
+  if (!player?.accountKey) return;
+  if (String(player.worldId || 'endless') !== 'endless') return;
+  state?.accounts?.saveEndless?.(player.accountKey, buildEndlessSave(player));
+}
 
 export function ensurePlayerResearch(player) {
   if (!player.research || typeof player.research !== 'object') player.research = { completed: [], unlocked: [] };
@@ -302,7 +314,10 @@ export function cancelResearchProjectGlobal(state, player, timeMs = Date.now()) 
     st.updatedAt = timeMs;
     changed = true;
   }
-  if (changed) player.forceFullUiSnapshot = true;
+  if (changed) {
+    player.forceFullUiSnapshot = true;
+    state?.structureStore?.saveFromState?.(state);
+  }
   return { ok: changed };
 }
 
@@ -396,6 +411,7 @@ export function transferResearchScience(state, player, stationId, resourceKey, d
 
   station.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
+  saveResearchStationState(state, station);
   return { ok: true };
 }
 
@@ -425,6 +441,7 @@ export function startResearchProject(state, player, stationId, projectId, timeMs
   station.researchEnabled = true;
   station.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
+  saveResearchStationState(state, station);
   return { ok: true };
 }
 
@@ -434,6 +451,7 @@ export function toggleResearchStation(state, player, stationId, enabled = true, 
   station.researchEnabled = !!enabled;
   station.updatedAt = timeMs;
   player.forceFullUiSnapshot = true;
+  saveResearchStationState(state, station);
   return { ok: true };
 }
 
@@ -455,6 +473,7 @@ export function updateResearchStations(state, timeMs, dtMs) {
       station.researchJob = null;
       station.researchStatus = '';
       station.updatedAt = timeMs;
+      shouldSave ||= String(station.worldId || 'endless') === 'endless';
       continue;
     }
 
@@ -512,6 +531,7 @@ export function updateResearchStations(state, timeMs, dtMs) {
       if (!research.completed.includes(project.id)) research.completed.push(project.id);
       for (const unlock of unlockList(project)) if (!research.unlocked.includes(unlock)) research.unlocked.push(unlock);
       owner.forceFullUiSnapshot = true;
+      saveResearchOwnerState(state, owner);
     }
     station.researchJob = null;
     station.researchStatus = 'complete';
