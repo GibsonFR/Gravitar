@@ -68,6 +68,42 @@ const BASE_CATEGORY_COUNTS = Object.freeze({
   [ITEM_CATEGORY_IDS.CONVERTER]: 7
 });
 
+const PIRATE_CATEGORY_COUNTS = Object.freeze({
+  [ITEM_CATEGORY_IDS.WEAPON]: 2,
+  [ITEM_CATEGORY_IDS.LAUNCHER]: 1,
+  [ITEM_CATEGORY_IDS.DEFENSE]: 1,
+  [ITEM_CATEGORY_IDS.ENGINE]: 1,
+  [ITEM_CATEGORY_IDS.MODULE]: 3,
+  [ITEM_CATEGORY_IDS.AMMO]: 4,
+  [ITEM_CATEGORY_IDS.CONVERTER]: 0
+});
+
+
+const PIRATE_CATEGORY_MAX_COUNTS = Object.freeze({
+  [ITEM_CATEGORY_IDS.WEAPON]: 3,
+  [ITEM_CATEGORY_IDS.LAUNCHER]: 2,
+  [ITEM_CATEGORY_IDS.DEFENSE]: 2,
+  [ITEM_CATEGORY_IDS.ENGINE]: 2,
+  [ITEM_CATEGORY_IDS.MODULE]: 4,
+  [ITEM_CATEGORY_IDS.AMMO]: 5,
+  [ITEM_CATEGORY_IDS.CONVERTER]: 0
+});
+
+function capPirateVisibleItems(items) {
+  const counts = new Map();
+  const out = [];
+  for (const item of items || []) {
+    const categoryId = item?.categoryId;
+    const max = PIRATE_CATEGORY_MAX_COUNTS[categoryId] ?? 0;
+    if (max <= 0) continue;
+    const cur = counts.get(categoryId) || 0;
+    if (cur >= max) continue;
+    counts.set(categoryId, cur + 1);
+    out.push(item);
+  }
+  return out;
+}
+
 function categorySeedOffset(categoryId) {
   let h = 0;
   const str = String(categoryId || '');
@@ -83,7 +119,15 @@ function stationDistanceTierBonus(sx = 0, sy = 0) {
   return 0;
 }
 
-function targetCountForCategory(categoryId, tech, specialty) {
+function targetCountForCategory(categoryId, tech, specialty, pirate = false, pirateTier = 1) {
+  if (pirate) {
+    const base = PIRATE_CATEGORY_COUNTS[categoryId] ?? 0;
+    if (base <= 0) return 0;
+    const frontierBonus = Math.max(0, (pirateTier | 0) - 3) >= 1 && categoryId === ITEM_CATEGORY_IDS.MODULE ? 1 : 0;
+    const ammoBonus = categoryId === ITEM_CATEGORY_IDS.AMMO && (pirateTier | 0) >= 4 ? 1 : 0;
+    return clamp(base + frontierBonus + ammoBonus, 1, categoryId === ITEM_CATEGORY_IDS.AMMO ? 5 : 4);
+  }
+
   const base = BASE_CATEGORY_COUNTS[categoryId] ?? 6;
   const techBonus = tech ? (categoryId === ITEM_CATEGORY_IDS.AMMO || categoryId === ITEM_CATEGORY_IDS.CONVERTER ? 2 : 1) : 0;
   const specialtyBonus = specialty?.countBias?.[categoryId] ?? 0;
@@ -102,10 +146,11 @@ function seededShuffle(items, seed) {
   return out;
 }
 
-function chooseCategoryOffers(all, categoryId, rng, stationSeed, tech, specialty, tierGate, sx, sy) {
-  const count = targetCountForCategory(categoryId, tech, specialty);
+function chooseCategoryOffers(all, categoryId, rng, stationSeed, tech, specialty, tierGate, sx, sy, pirate = false, pirateTier = 1) {
+  const count = targetCountForCategory(categoryId, tech, specialty, pirate, pirateTier);
+  if (count <= 0) return [];
   const specialtyTierBonus = specialty?.tierBias?.[categoryId] ?? 0;
-  const effectiveTierGate = clamp(tierGate + specialtyTierBonus + stationDistanceTierBonus(sx, sy), 1, 10);
+  const effectiveTierGate = clamp(tierGate + specialtyTierBonus + stationDistanceTierBonus(sx, sy) + (pirate ? Math.max(0, (pirateTier | 0) - 1) : 0), 1, 10);
   let pool = all.filter((item) => item?.categoryId === categoryId && (item?.tier | 0) <= effectiveTierGate);
   if (!pool.length) pool = all.filter((item) => item?.categoryId === categoryId);
   if (!pool.length) return [];
@@ -150,33 +195,35 @@ function chooseCategoryOffers(all, categoryId, rng, stationSeed, tech, specialty
 function selectStationOffers(all, rng, stationSeed, tech, pirate, specialty, tierGate, sx, sy, localResourcePool, pirateTier = 0) {
   const items = [];
   for (const categoryId of ITEM_CATEGORY_ORDER) {
-    items.push(...chooseCategoryOffers(all, categoryId, rng, stationSeed, tech, specialty, tierGate, sx, sy));
+    items.push(...chooseCategoryOffers(all, categoryId, rng, stationSeed, tech, specialty, tierGate, sx, sy, pirate, pirateTier));
   }
   const sorted = items.sort(compareStockItems);
   let visibleItems = sorted;
   if (pirate) {
     const pirateEffectiveTier = clamp(tierGate + stationDistanceTierBonus(sx, sy) + Math.max(0, pirateTier | 0), 1, 10);
+    const guaranteedCount = clamp(1 + Math.floor(Math.max(1, pirateTier | 0) / 2), 1, 3);
     const guaranteedPirateItems = seededShuffle(
       all.filter((item) => item?.pirateOnly && (item.tier | 0) <= pirateEffectiveTier),
       stationSeed ^ 0x176a11
-    ).slice(0, 8);
+    ).slice(0, guaranteedCount);
     const seen = new Set();
-    visibleItems = [...guaranteedPirateItems, ...sorted].filter((item) => {
+    visibleItems = capPirateVisibleItems([...guaranteedPirateItems, ...sorted].filter((item) => {
       const id = String(item?.id || '');
       if (!id || seen.has(id)) return false;
       seen.add(id);
       return true;
-    });
+    }));
   }
   return visibleItems.map((item, index) => {
     const variance = priceVarianceForItem(rng, tech, item);
-    const pirateMult = pirate ? 1.08 : 1;
+    const pirateMult = pirate ? 1.18 + Math.max(0, (pirateTier | 0) - 1) * 0.035 : 1;
     const specialtyMult = specialty?.priceBias?.[item.categoryId] ?? 1;
     // Distance should unlock better/tiered stock, not multiply prices by hundreds in far/test sectors.
     // Keep only a small frontier premium tied to the same tier bonus used for item selection.
     const frontierPremium = stationDistanceTierBonus(sx, sy);
-    const distanceMult = 1 + frontierPremium * 0.08;
-    const priceCredits = Math.max(1, Math.round((item.priceCredits || 0) * variance * pirateMult * specialtyMult * distanceMult));
+    const distanceMult = 1 + frontierPremium * (pirate ? 0.05 : 0.08);
+    const tierPriceMult = pirate ? 1 + Math.max(0, (item.tier | 0) - 1) * 0.10 : 1;
+    const priceCredits = Math.max(1, Math.round((item.priceCredits || 0) * variance * pirateMult * specialtyMult * distanceMult * tierPriceMult));
     return {
       itemId: item.id,
       priceCredits,

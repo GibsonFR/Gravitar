@@ -3,6 +3,7 @@ import { hash2D_Mix } from '../../util/HashUtil.js';
 import { RESOURCE_DEFS, RESOURCE_KEYS_ORDER, getResourceDef } from '../../inventory/ResourceDefs.js';
 import { ITEM_CATEGORY_IDS } from '../../../../../shared/content/items/ItemCategoryIds.js';
 import { getItemDef } from '../../../../../shared/content/items/ItemDefs.js';
+import { getResourceEconomyProfile, getResourceEconomicUnitValue } from '../../economy/PirateResourceEconomy.js';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -81,29 +82,29 @@ function weightedPickDistinct(rng, entries, count, item) {
   return out;
 }
 
-function computeResourceAmount(item, def, offerPriceCredits, isPrimary, localResourcePool = null) {
-  const sellUnit = Math.max(1, Number(def?.sellPrice || 1));
-  const rarity = Math.max(1, def?.rarity | 0);
-  const spawnTier = Math.max(1, def?.spawnTier | 0);
+function computeResourceAmount(item, resourceKey, def, offerPriceCredits, isPrimary, localResourcePool = null) {
+  const profile = getResourceEconomyProfile(resourceKey);
+  const unitValue = Math.max(1, profile?.unitValue || getResourceEconomicUnitValue(resourceKey) || Number(def?.sellPrice || 1));
+  const rarity = Math.max(1, profile?.rarity || def?.rarity | 0 || 1);
+  const spawnTier = Math.max(1, profile?.spawnTier || def?.spawnTier | 0 || 1);
   const tier = Math.max(1, item?.tier | 0);
   const budget = Math.max(24, Number(offerPriceCredits || item?.priceCredits || 0));
 
-  let pressure = budget / (sellUnit * (isPrimary ? 5.1 : 7.2));
-  pressure *= 1 + (tier - 1) * 0.22;
+  const resourceShare = isPrimary ? 0.32 : 0.18;
+  let amount = (budget * resourceShare) / unitValue;
+  amount *= 1 + (tier - 1) * 0.08;
+
   const localSpawnCap = Math.max(1, localResourcePool?.maxSpawnTier | 0);
-  pressure *= 0.96 + Math.min(0.18, Math.max(0, localSpawnCap - 1) * 0.02);
-  pressure *= 1 + Math.max(0, rarity - 1) * 0.18;
-  pressure *= 1 + Math.max(0, spawnTier - 1) * 0.08;
+  amount *= 0.94 + Math.min(0.16, Math.max(0, localSpawnCap - 1) * 0.018);
+  amount *= 1 + Math.max(0, rarity - 1) * 0.04;
+  amount *= 1 + Math.max(0, spawnTier - 1) * 0.025;
 
-  if (def?.id === 'Scrap' || def?.id === 'Copper' || def?.id === 'IronVein') {
-    pressure *= isPrimary ? 1.55 : 1.15;
-  }
+  if (profile?.category === 'raw_common') amount *= isPrimary ? 1.35 : 1.12;
+  if (profile?.category === 'industrial' || profile?.category === 'science' || profile?.category === 'anomaly') amount *= 0.76;
+  if (item?.categoryId === ITEM_CATEGORY_IDS.AMMO) amount *= 0.72;
 
-  if (item?.categoryId === ITEM_CATEGORY_IDS.AMMO) pressure *= 0.82;
-  if (item?.categoryId === ITEM_CATEGORY_IDS.CONVERTER) pressure *= 1.1;
-
-  const amount = Math.round(clamp(pressure, 1, 56));
-  return Math.max(1, amount);
+  const cap = profile?.category === 'raw_common' ? 72 : profile?.category === 'raw_rare' ? 42 : 24;
+  return Math.max(1, Math.round(clamp(amount, 1, cap)));
 }
 
 export function generateOfferResourceCosts(seed, item, offerPriceCredits, localResourcePool = null) {
@@ -117,7 +118,7 @@ export function generateOfferResourceCosts(seed, item, offerPriceCredits, localR
   const picked = weightedPickDistinct(rng, candidates, Math.min(want, candidates.length), item);
   const costs = picked.map((entry, index) => ({
     resourceKey: entry.key,
-    amount: computeResourceAmount(item, entry.def, offerPriceCredits, index === 0, localResourcePool)
+    amount: computeResourceAmount(item, entry.key, entry.def, offerPriceCredits, index === 0, localResourcePool)
   }));
   costs.sort((a, b) => {
     const ad = getResourceDef(a.resourceKey);
