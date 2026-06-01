@@ -2,6 +2,17 @@ import { buildStatBlockSnapshot } from '../../stats/StatBlockSnapshot.js';
 import { buildStatusSnapshot } from '../../status/StatusView.js';
 import { buildFrameUiState } from '../../frames/FrameGameplayHooks.js';
 
+function getFrameTempShieldAmount(player) {
+  if (!Array.isArray(player?.frameTempShields)) return 0;
+  return player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0);
+}
+
+function buildPlayerVitals(player) {
+  const vitals = buildStatBlockSnapshot(player.stats);
+  const tempShield = getFrameTempShieldAmount(player);
+  return tempShield > 0 ? { ...vitals, tempShield } : vitals;
+}
+
 export function buildPlayerSnapshots(players, inSector, timeMs) {
   return [...players.values()]
     .filter(inSector)
@@ -19,7 +30,7 @@ export function buildPlayerSnapshots(players, inSector, timeMs) {
       rot: player.rot ?? 0,
       radius: player.radius,
       engine: player.engine,
-      vitals: buildStatBlockSnapshot(player.stats),
+      vitals: buildPlayerVitals(player),
       autoTargetKind: player.autoTargetKind,
       autoTargetId: player.autoTargetId,
       groundMarkerX: player.groundMarkerX,

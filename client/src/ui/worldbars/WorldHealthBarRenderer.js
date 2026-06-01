@@ -8,6 +8,17 @@ function drawSingleBar(ctx, view, x, y, width, height, ratio, palette) {
   ctx.fillRect(x * view.dpr, y * view.dpr, (width * ratio) * view.dpr, height * view.dpr);
 }
 
+function drawTempShieldOverlay(ctx, view, x, y, width, height, ratio) {
+  if (ratio <= 0) return;
+  const dpr = view.dpr;
+  const overlayH = Math.max(1.5, height * 0.42);
+  const yy = y - overlayH - 1;
+  ctx.fillStyle = rgba(126, 222, 255, 0.26);
+  ctx.fillRect(x * dpr, yy * dpr, width * dpr, overlayH * dpr);
+  ctx.fillStyle = rgba(188, 244, 255, 0.92);
+  ctx.fillRect(x * dpr, yy * dpr, (width * ratio) * dpr, overlayH * dpr);
+}
+
 export function drawWorldHealthBars(ctx, view, entity, camX, camY, config) {
   const vitals = entity?.vitals;
   if (!vitals || !config?.bars?.length) return;
@@ -26,7 +37,13 @@ export function drawWorldHealthBars(ctx, view, entity, camX, camY, config) {
       continue;
     }
 
-    drawSingleBar(ctx, view, x, y, width, bar.height ?? 4, ratio, bar.palette);
-    y += (bar.height ?? 4) + (bar.gapAfter ?? 0);
+    const barHeight = bar.height ?? 4;
+    drawSingleBar(ctx, view, x, y, width, barHeight, ratio, bar.palette);
+    if (bar.valueKey === 'shield') {
+      const tempShield = Math.max(0, vitals.tempShield ?? 0);
+      const tempRatio = clamp(tempShield / maxValue, 0, 1);
+      drawTempShieldOverlay(ctx, view, x, y, width, barHeight, tempRatio);
+    }
+    y += barHeight + (bar.gapAfter ?? 0);
   }
 }

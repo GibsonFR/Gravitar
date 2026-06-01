@@ -504,6 +504,36 @@ function drawFrameTrail(ctx, view, p, camX, camY, t) {
   ctx.restore();
 }
 
+
+function drawFramePulse(ctx, dpr, sx, sy, baseRadius, fs, t) {
+  const left = Math.max(0, fs?.pulseLeft ?? 0);
+  if (left <= 0) return;
+  const total = 0.50;
+  const k = Math.max(0, Math.min(1, 1 - left / total));
+  const kind = fs.pulseKind || '';
+  const radius = Math.max(baseRadius + 14, fs.pulseRadius || baseRadius + 36);
+  const color = kind.includes('vanguard')
+    ? { r: 120, g: 220, b: 255 }
+    : kind.includes('meditation')
+      ? { r: 130, g: 218, b: 255 }
+      : { r: 246, g: 202, b: 96 };
+  ctx.save();
+  ctx.strokeStyle = rgba(color.r, color.g, color.b, 0.62 * (1 - k));
+  ctx.lineWidth = (2.4 - k * 0.8) * dpr;
+  ctx.beginPath();
+  ctx.arc(sx * dpr, sy * dpr, (baseRadius + (radius - baseRadius) * k) * dpr, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = rgba(255, 255, 255, 0.22 * (1 - k));
+  ctx.lineWidth = 1.1 * dpr;
+  ctx.setLineDash([6 * dpr, 7 * dpr]);
+  ctx.lineDashOffset = -t * 25 * dpr;
+  ctx.beginPath();
+  ctx.arc(sx * dpr, sy * dpr, (baseRadius + 8 + (radius - baseRadius) * k * 0.75) * dpr, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
 function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
   const fs = p.frameState;
   if (!fs) return;
@@ -546,6 +576,7 @@ function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
     ctx.stroke();
     ctx.restore();
   }
+  drawFramePulse(ctx, dpr, sx, sy, r, fs, t);
   if (fs.kind === 'vanguard') {
     drawContinuousHeatAura(ctx, dpr, sx, sy, r, fs.passiveStacks ?? 0, fs.passiveMaxStacks ?? 10, t);
     if ((fs.empoweredCharges ?? 0) > 0) drawChevronBurst(ctx, dpr, sx, sy, r + 12, { r: 255, g: 210, b: 92 }, fs.empoweredCharges, t, p.rot ?? -Math.PI / 2);
@@ -626,6 +657,17 @@ function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
         ctx.lineTo((sx + Math.cos(a) * (r + 16)) * dpr, (sy + Math.sin(a) * (r + 16)) * dpr);
         ctx.stroke();
       }
+      ctx.restore();
+    }
+    if ((fs.harpoonUnitPhaseLeft ?? 0) > 0) {
+      ctx.save();
+      ctx.strokeStyle = rgba(255, 232, 168, 0.42 + 0.12 * Math.sin(t * 9));
+      ctx.lineWidth = 1.4 * dpr;
+      ctx.setLineDash([4 * dpr, 6 * dpr]);
+      ctx.beginPath();
+      ctx.arc(sx * dpr, sy * dpr, (r + 21) * dpr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.restore();
     }
     if ((fs.meditationLeft ?? 0) > 0) {

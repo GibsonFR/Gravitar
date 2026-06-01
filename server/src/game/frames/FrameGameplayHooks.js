@@ -119,6 +119,24 @@ function grantFrameTempShield(player, amount, duration, label = '') {
   return amount;
 }
 
+function triggerFramePulse(player, kind, radius = 0, duration = 0.45) {
+  const fs = player?.frameState?.[player.frameId];
+  if (!fs) return;
+  fs.pulseKind = kind || '';
+  fs.pulseRadius = Math.max(0, radius || 0);
+  fs.pulseLeft = Math.max(fs.pulseLeft || 0, duration);
+}
+
+function tickFramePulse(player, dt) {
+  const fs = player?.frameState?.[player.frameId];
+  if (!fs || (fs.pulseLeft ?? 0) <= 0) return;
+  fs.pulseLeft = Math.max(0, fs.pulseLeft - dt);
+  if (fs.pulseLeft <= 0) {
+    fs.pulseKind = '';
+    fs.pulseRadius = 0;
+  }
+}
+
 function tickFrameTempShields(player, dt) {
   if (!Array.isArray(player.frameTempShields) || player.frameTempShields.length <= 0) return;
   player.frameTempShields = player.frameTempShields
@@ -574,6 +592,7 @@ function handleInertialPhaseExit(state, player, timeMs) {
   if (tuning.exitShieldPctMaxShield > 0) {
     grantFrameTempShield(player, player.stats.maxShield * tuning.exitShieldPctMaxShield, 4.0, 'E');
   }
+  triggerFramePulse(player, 'vanguard_phase_exit', tuning.exitRadius || 90, 0.42);
   let hits = 0;
   if (tuning.exitRadius > 0 && tuning.groundedDuration > 0) {
     forEachHostileInRadius(state, player, player.x, player.y, tuning.exitRadius, (target) => {
@@ -637,15 +656,33 @@ function tickSigilTrail(state, player, dt, timeMs) {
   if (!fs || fs.trailLeft <= 0) return;
   fs.trailLeft = Math.max(0, fs.trailLeft - dt);
   if (fs.trailLeft <= 0 || fs.trailSlowPct <= 0 || fs.trailSlowDuration <= 0) return;
+  const a = getSigilA(player);
+  const e = getSigilE(player);
+  const r = getSigilR(player);
   forEachHostileEntityInSector(state, player, (target) => {
     const rr = 16 + (target.radius ?? 0);
     if (linePointDistance(target.x, target.y, fs.trailStartX, fs.trailStartY, fs.trailEndX, fs.trailEndY) > rr) return;
+    const runesBefore = getSigilRuneCount(target);
     applyStatus(target, I.SLOW, fs.trailSlowDuration, {
       sourceId: player.id,
       hostile: true,
       value: fs.trailSlowPct,
       label: 'E',
       timeMs
+    });
+    if (e.eGroundedDurationOnMaxRunes > 0 && runesBefore >= a.passive.maxRunes) {
+      applyStatus(target, I.GROUNDED, e.eGroundedDurationOnMaxRunes, {
+        sourceId: player.id,
+        hostile: true,
+        label: 'E',
+        timeMs
+      });
+    }
+    applySigilRunes(player, target, a, 1, timeMs);
+    maybeSlowFromSigilRunes(player, target, a, timeMs);
+    maybeDetonateSigilRunes(state, player, target, timeMs, {
+      sourceSlot: 'E',
+      applyStunDuration: fs.ultLeft > 0 ? r.ultDetonationStunDuration : 0
     });
   });
 }
@@ -680,6 +717,21 @@ function tickSigil(state, player, dt, timeMs) {
   updateFrameBonuses(player);
 }
 
+
+function applyBulwarkAnchorPulse(state, player, tuning, timeMs, label = 'A') {
+  if (!tuning?.anchorPulseRadius || !tuning?.anchorPulseSlowPct) return;
+  triggerFramePulse(player, label === 'A-end' ? 'bulwark_anchor_exit' : 'bulwark_anchor', tuning.anchorPulseRadius, 0.46);
+  forEachHostileInRadius(state, player, player.x, player.y, tuning.anchorPulseRadius, (target) => {
+    applyStatus(target, I.SLOW, tuning.anchorPulseSlowDuration, {
+      sourceId: player.id,
+      hostile: true,
+      value: tuning.anchorPulseSlowPct,
+      label: 'A',
+      timeMs
+    });
+  });
+}
+
 function resolveBulwarkStormTick(state, player, timeMs) {
   const fs = getBulwarkState(player);
   if (!fs || fs.stormLeft <= 0) return;
@@ -700,6 +752,17 @@ function resolveBulwarkStormTick(state, player, timeMs) {
       label: 'R',
       timeMs
     });
+    if (tuning.stormCentralGroundedDuration > 0) {
+      const inner = tuning.stormInnerRadius + (target.radius ?? 0);
+      if (distSq(player.x, player.y, target.x, target.y) <= inner * inner) {
+        applyStatus(target, I.GROUNDED, tickEvery + 0.15, {
+          sourceId: player.id,
+          hostile: true,
+          label: 'R',
+          timeMs
+        });
+      }
+    }
     if (tuning.stormArmorStealPerSecond > 0) {
       const entry = getBulwarkStormArmorEntry(fs, target.id);
       entry.seenThisTick = true;
@@ -744,10 +807,15 @@ function tickBulwark(state, player, dt, timeMs) {
 
   tickBulwarkPlates(player, dt);
   if (fs.harpoonHasteLeft > 0) fs.harpoonHasteLeft = Math.max(0, fs.harpoonHasteLeft - dt);
+  if (fs.harpoonUnitPhaseLeft > 0) fs.harpoonUnitPhaseLeft = Math.max(0, fs.harpoonUnitPhaseLeft - dt);
   if (fs.breachLeft > 0) fs.breachLeft = Math.max(0, fs.breachLeft - dt);
   if (fs.breachPlateLockLeft > 0) fs.breachPlateLockLeft = Math.max(0, fs.breachPlateLockLeft - dt);
 
-  if (fs.anchorLeft > 0) fs.anchorLeft = Math.max(0, fs.anchorLeft - dt);
+  if (fs.anchorLeft > 0) {
+    const prev = fs.anchorLeft;
+    fs.anchorLeft = Math.max(0, fs.anchorLeft - dt);
+    if (prev > 0 && fs.anchorLeft <= 0) applyBulwarkAnchorPulse(state, player, getBulwarkA(player), timeMs, 'A-end');
+  }
 
   if (fs.meditationLeft > 0) {
     const tuning = getBulwarkE(player);
@@ -776,6 +844,7 @@ function tickBulwark(state, player, dt, timeMs) {
       const armor = getBulwarkArmor(player);
       const shieldGain = player.stats.maxHp * tuning.meditationShieldPctMaxHp + armor * tuning.meditationShieldArmorPct;
       grantFrameTempShield(player, shieldGain, 4.0, 'E');
+      triggerFramePulse(player, 'bulwark_meditation_exit', tuning.meditationPulseRadius || 180, 0.50);
       if (tuning.meditationPulseRadius > 0 && tuning.meditationFinalSlowPct > 0) {
         forEachHostileInRadius(state, player, player.x, player.y, tuning.meditationPulseRadius, (target) => {
           applyStatus(target, I.SLOW, tuning.meditationFinalSlowDuration, {
@@ -846,6 +915,7 @@ function tickBulwark(state, player, dt, timeMs) {
 
 export function tickFrameGameplay(state, player, dt, timeMs) {
   tickFrameTempShields(player, dt);
+  tickFramePulse(player, dt);
   resolvePendingFrameCast(state, player, timeMs);
   if (player.frameId === SHIP_FRAME_IDS.VANGUARD) return tickVanguard(state, player, dt, timeMs);
   if (player.frameId === SHIP_FRAME_IDS.SIGIL) return tickSigil(state, player, dt, timeMs);
@@ -1169,6 +1239,19 @@ function handleBulwarkProjectileImpact(state, owner, target, projectile, timeMs)
   }
 }
 
+
+export function onAreaEffectTickForFrame(state, owner, target, effect, timeMs) {
+  if (!owner || owner.frameId !== SHIP_FRAME_IDS.SIGIL || effect?.slot !== 'Z') return;
+  const fs = getSigilState(owner);
+  if (!fs) return;
+  const r = getSigilR(owner);
+  maybeSlowFromSigilRunes(owner, target, getSigilA(owner), timeMs);
+  maybeDetonateSigilRunes(state, owner, target, timeMs, {
+    sourceSlot: 'Z',
+    applyStunDuration: fs.ultLeft > 0 ? r.ultDetonationStunDuration : 0
+  });
+}
+
 export function onProjectileImpactForFrame(state, owner, target, projectile, timeMs) {
   if (!owner) return;
   if (owner.frameId === SHIP_FRAME_IDS.VANGUARD) return handleVanguardProjectileImpact(state, owner, target, projectile, timeMs);
@@ -1465,17 +1548,6 @@ function castSigilE(state, player, timeMs) {
   fs.trailEndY = clientDash ? player.y : toY;
   fs.trailSlowPct = e.eTrailSlowPct;
   fs.trailSlowDuration = e.eTrailSlowDuration;
-  if (e.eGroundedDurationOnMaxRunes > 0) {
-    forEachHostileInRadius(state, player, player.x, player.y, e.eGroundedCheckRadius || 260, (target) => {
-      if (getSigilRuneCount(target) < (e.passive?.maxRunes ?? 5)) return;
-      applyStatus(target, I.GROUNDED, e.eGroundedDurationOnMaxRunes, {
-        sourceId: player.id,
-        hostile: true,
-        label: 'E',
-        timeMs
-      });
-    });
-  }
   player.cooldownELeft = e.baseCooldown;
   return true;
 }
@@ -1511,6 +1583,7 @@ function castBulwarkA(state, player, timeMs) {
   fs.anchorPulseRadius = a.anchorPulseRadius;
   fs.anchorPulseSlowPct = a.anchorPulseSlowPct;
   fs.anchorPulseSlowDuration = a.anchorPulseSlowDuration;
+  applyBulwarkAnchorPulse(state, player, a, timeMs, 'A');
   player.cooldownALeft = a.baseCooldown;
   return true;
 }
@@ -1522,6 +1595,8 @@ function castBulwarkZ(state, player, timeMs, options = {}) {
   if (!options.resolvingCast && beginFrameCast(player, 'Z', z, timeMs)) return true;
   if (!options.resolvingCast && !consumeEnergy(player.stats, z.energyCost)) return false;
   consumeBulwarkMaxPlatesForAbility(player);
+  const fs = getBulwarkState(player);
+  if (fs) fs.harpoonUnitPhaseLeft = Math.max(fs.harpoonUnitPhaseLeft || 0, z.harpoonTauntDuration);
   const world = getCastMouseWorld(player, options.cast);
   const dir = norm(world.x - player.x, world.y - player.y);
   const armor = getBulwarkArmor(player);
@@ -1629,7 +1704,10 @@ export function buildFrameUiState(player, timeMs) {
       trailEndY: fs.trailEndY || 0,
       ultLeft: fs.ultLeft,
       tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
-      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null
+      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null,
+      pulseLeft: fs.pulseLeft || 0,
+      pulseKind: fs.pulseKind || '',
+      pulseRadius: fs.pulseRadius || 0
     };
   }
 
@@ -1651,7 +1729,10 @@ export function buildFrameUiState(player, timeMs) {
       trailEndY: fs.trailEndY || 0,
       ultLeft: fs.ultLeft,
       tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
-      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null
+      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null,
+      pulseLeft: fs.pulseLeft || 0,
+      pulseKind: fs.pulseKind || '',
+      pulseRadius: fs.pulseRadius || 0
     };
   }
 
@@ -1672,7 +1753,11 @@ export function buildFrameUiState(player, timeMs) {
       stormArmorReturning: Object.values(fs.stormArmorById || {}).filter((entry) => entry?.returning).length,
       stormShieldGained: fs.stormShieldGained || 0,
       tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
-      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null
+      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null,
+      harpoonUnitPhaseLeft: fs.harpoonUnitPhaseLeft || 0,
+      pulseLeft: fs.pulseLeft || 0,
+      pulseKind: fs.pulseKind || '',
+      pulseRadius: fs.pulseRadius || 0
     };
   }
 

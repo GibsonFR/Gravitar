@@ -102,7 +102,8 @@ export function getBulwarkAbilityTuning(slot, investedLevel = 1, totalArmor = 0)
     stormStealCap: 0,
     stormShieldGainPctMaxShieldPerTick: 0,
     stormShieldGainTickInterval: 0,
-    stormShieldGainCapPctMaxShield: 0
+    stormShieldGainCapPctMaxShield: 0,
+    stormCentralGroundedDuration: 0
   };
 
   if (slot === 'A') {
@@ -164,6 +165,7 @@ export function getBulwarkAbilityTuning(slot, investedLevel = 1, totalArmor = 0)
     tuning.stormBaseDpsPct = 0.08 + 0.002 * (investedLevel - 1);
     tuning.stormSlowPct = 0.20;
     tuning.stormTauntedDamageAmpPct = phase >= 2 ? 0.12 : 0;
+    tuning.stormCentralGroundedDuration = phase >= 3 ? 0.65 : 0;
     tuning.stormExposureStunThreshold = phase >= 5 ? 2.60 : 0;
     tuning.stormExposureStunDuration = phase >= 5 ? 1.0 : 0;
     tuning.stormPullStrength = phase >= 5 ? 60 : 0;

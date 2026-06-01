@@ -9,6 +9,7 @@ import { buildAbilityHudState, buildProgressionSnapshot } from '../../progressio
 import { getMoveSpeedMultiplier } from '../../status/StatusMotion.js';
 import { getEquippedEquipmentDefs } from '../../equipment/EquipmentBonuses.js';
 import { ITEM_CATEGORY_IDS } from '../../../../../shared/content/items/ItemCategoryIds.js';
+import { buildStatBlockSnapshot } from '../../stats/StatBlockSnapshot.js';
 import { getActiveRocketAmmoDef } from '../../rocket/RocketAmmoRules.js';
 import { buildBastionBuffSnapshot, getBastionCooldownRecoveryMultiplier, getBastionDamageMultiplier, getBastionMoveSpeedMultiplier } from '../../bastion/BastionBuffs.js';
 import { getSectorSummary } from '../../../../../shared/proc/SectorSummary.js';
@@ -22,6 +23,17 @@ import { buildEquipmentRDStationSnapshot } from '../../structures/StructureEquip
 import { buildRocketWorkshopSnapshot } from '../../structures/StructureRocketWorkshop.js';
 import { buildDroneStationSnapshot, buildLogisticChestSnapshot } from '../../structures/StructureLogistics.js';
 
+
+function getFrameTempShieldAmount(player) {
+  if (!Array.isArray(player?.frameTempShields)) return 0;
+  return player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0);
+}
+
+function buildPlayerVitals(player) {
+  const vitals = buildStatBlockSnapshot(player.stats);
+  const tempShield = getFrameTempShieldAmount(player);
+  return tempShield > 0 ? { ...vitals, tempShield } : vitals;
+}
 
 function buildCurrentSectorBiomeSnapshot(player, state = null) {
   const sx = player?.sx | 0;
@@ -107,6 +119,7 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     },
     frameId: player.frameId,
     frameName: player.frameName,
+    vitals: buildPlayerVitals(player),
     sx: player.sx | 0,
     sy: player.sy | 0,
     sectorBiome: buildCurrentSectorBiomeSnapshot(player, state),
@@ -163,6 +176,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
     },
     frameId: player.frameId,
     frameName: player.frameName,
+    vitals: buildPlayerVitals(player),
     sx: player.sx | 0,
     sy: player.sy | 0,
     sectorBiome: buildCurrentSectorBiomeSnapshot(player, state),
