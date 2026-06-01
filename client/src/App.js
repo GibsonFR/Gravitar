@@ -49,6 +49,8 @@ import { ResearchStationPanelView } from './ui/research/ResearchStationPanelView
 import { EquipmentFabricatorPanelView } from './ui/equipment/EquipmentFabricatorPanelView.js';
 import { EquipmentRDStationPanelView } from './ui/equipment/EquipmentRDStationPanelView.js';
 import { ResearchTreePanelView } from './ui/research/ResearchTreePanelView.js';
+import { ActiveQuestPanelView } from './ui/quests/ActiveQuestPanelView.js';
+import { getQuestIconSvg } from './ui/quests/QuestIconSvg.js';
 import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
 
@@ -237,6 +239,9 @@ export function startApp() {
   uiRoot.appendChild(equipmentRDStationPanel.el);
   const researchTreePanel = new ResearchTreePanelView(sendCmd);
   dock.registerPanel({ id: 'research-tree', title: 'Recherche', iconMarkup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M11 3v6l-5 8a3 3 0 0 0 2.6 4.5h6.8A3 3 0 0 0 18 17l-5-8V3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 16h8M10 12h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>', panelEl: researchTreePanel.el, shellClass: 'ui-panel-shell--research-tree', group: 'game' });
+
+  const activeQuestPanel = new ActiveQuestPanelView(sendCmd);
+  dock.registerPanel({ id: 'active-quests', title: 'Quêtes', iconMarkup: getQuestIconSvg(), panelEl: activeQuestPanel.el, shellClass: 'ui-panel-shell--active-quests', group: 'game' });
 
   window.addEventListener('keydown', (ev) => {
     const tag = String(ev.target?.tagName || '').toLowerCase();
@@ -880,6 +885,8 @@ export function startApp() {
     equipmentFabricatorPanel.update(store);
     equipmentRDStationPanel.update(store);
     researchTreePanel.update(store);
+    activeQuestPanel.update(store.myState);
+    dock.setBadge('active-quests', store.myState?.activeQuests?.activeCount ? `${store.myState.activeQuests.activeCount | 0}` : '');
     playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
     stationWindow.update(store.myState, store.stations);

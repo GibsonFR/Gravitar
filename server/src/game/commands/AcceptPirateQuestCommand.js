@@ -15,7 +15,14 @@ export function handleAcceptPirateQuest(state, player, msg, timeMs = Date.now())
   const quest = findStationQuest(station, msg.questId);
   if (!quest) return false;
   ensurePlayerPirateState(player);
-  const ok = acceptPirateQuest(player, { ...quest, stationId: station.id | 0, acceptedAtMs: timeMs | 0 });
+  const ok = acceptPirateQuest(player, {
+    ...quest,
+    stationId: station.id | 0,
+    stationName: station.name || 'Station pirate',
+    stationSx: station.sx | 0,
+    stationSy: station.sy | 0,
+    acceptedAtMs: timeMs | 0
+  });
   if (!ok) return false;
   player.forceFullUiSnapshot = true;
   player.uiHint = `Quête acceptée : ${quest.name || 'quête pirate'}`;

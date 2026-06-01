@@ -41,7 +41,13 @@ export function ensurePlayerPirateState(player) {
       rewardReputationXp: Math.max(0, progress.rewardReputationXp | 0 || 0),
       targetMobId: progress.targetMobId || '',
       targetName: progress.targetName || '',
-      resourceKey: progress.resourceKey || ''
+      resourceKey: progress.resourceKey || '',
+      stationId: progress.stationId | 0 || 0,
+      stationName: progress.stationName || 'Station pirate',
+      stationSx: Number.isFinite(progress.stationSx) ? progress.stationSx | 0 : 0,
+      stationSy: Number.isFinite(progress.stationSy) ? progress.stationSy | 0 : 0,
+      description: progress.description || '',
+      acceptedAtMs: Math.max(0, progress.acceptedAtMs | 0 || 0)
     };
     if (cleanId !== questId) delete player.pirate.questProgress[questId];
   }
@@ -100,7 +106,11 @@ export function acceptPirateQuest(player, quest) {
     required: Math.max(1, quest.required | 0 || 1),
     rewardCredits: Math.max(0, quest.rewardCredits | 0 || 0),
     rewardReputationXp: Math.max(0, quest.rewardReputationXp | 0 || 0),
-    acceptedAtMs: Math.max(0, quest.acceptedAtMs | 0 || 0)
+    acceptedAtMs: Math.max(0, quest.acceptedAtMs | 0 || 0),
+    stationName: quest.stationName || 'Station pirate',
+    stationSx: Number.isFinite(quest.stationSx) ? quest.stationSx | 0 : 0,
+    stationSy: Number.isFinite(quest.stationSy) ? quest.stationSy | 0 : 0,
+    description: quest.description || ''
   };
   return true;
 }
