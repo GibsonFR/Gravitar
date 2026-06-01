@@ -8,6 +8,35 @@ function drawSingleBar(ctx, view, x, y, width, height, ratio, palette) {
   ctx.fillRect(x * view.dpr, y * view.dpr, (width * ratio) * view.dpr, height * view.dpr);
 }
 
+
+function getSigilRuneStatus(entity) {
+  const statuses = entity?.statuses ?? [];
+  return statuses.find((s) => s?.id === 'mark' && (s.markKey === 'sigil_runes' || s.label === 'Rune')) || null;
+}
+
+function drawSigilRunePips(ctx, view, x, y, width, entity) {
+  const rune = getSigilRuneStatus(entity);
+  if (!rune) return 0;
+  const dpr = view.dpr;
+  const max = Math.max(1, rune.maxStacks ?? 5);
+  const stacks = clamp(rune.stacks ?? 0, 0, max);
+  const pipGap = 2;
+  const pipW = Math.max(4, Math.min(9, (width - pipGap * (max - 1)) / max));
+  const totalW = pipW * max + pipGap * (max - 1);
+  const startX = x + width * 0.5 - totalW * 0.5;
+  const yy = y - 8;
+  for (let i = 0; i < max; i += 1) {
+    const filled = i < stacks;
+    const px = startX + i * (pipW + pipGap);
+    ctx.fillStyle = filled ? rgba(201, 124, 255, 0.92) : rgba(49, 38, 66, 0.72);
+    ctx.fillRect(px * dpr, yy * dpr, pipW * dpr, 4 * dpr);
+    ctx.strokeStyle = filled ? rgba(246, 222, 255, 0.72) : rgba(118, 86, 148, 0.36);
+    ctx.lineWidth = 0.8 * dpr;
+    ctx.strokeRect(px * dpr, yy * dpr, pipW * dpr, 4 * dpr);
+  }
+  return 9;
+}
+
 function drawTempShieldOverlay(ctx, view, x, y, width, height, ratio) {
   if (ratio <= 0) return;
   const dpr = view.dpr;
@@ -27,6 +56,7 @@ export function drawWorldHealthBars(ctx, view, entity, camX, camY, config) {
   const width = config.width;
   const x = screen.x - width * 0.5;
   let y = screen.y + (config.offsetY ?? 0);
+  y -= drawSigilRunePips(ctx, view, x, y, width, entity);
 
   for (const bar of config.bars) {
     const value = vitals[bar.valueKey] ?? 0;

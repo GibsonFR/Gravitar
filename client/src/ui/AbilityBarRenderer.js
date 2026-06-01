@@ -119,6 +119,13 @@ export function drawAbilityCard(ctx, dpr, x, y, w, h, slot, active, accent, fram
     drawPips(ctx, dpr, x + 9, y + h - 4, w - 18, filledPips, maxPips, unlocked ? accent : { r: 92, g: 98, b: 116 });
   }
 
+  if (!isUtility && unlocked && (slot?.tuning?.castTime ?? 0) > 0) {
+    ctx.fillStyle = rgba(190, 224, 255, 0.82);
+    ctx.font = `${7.5 * dpr}px Segoe UI`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${(slot.tuning.castTime).toFixed(2)}s`, (x + 7) * dpr, (y + h - 7) * dpr);
+  }
+
   drawCooldownOverlay(ctx, dpr, x, y, w, h, cooldownRatio);
 
   if (cooldownRatio > 0.001) {

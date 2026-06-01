@@ -1,6 +1,11 @@
 import { rgba } from '../core/Math.js';
 
 function colorForProjectile(p) {
+  const frame = p.sourceFrameId || '';
+  const slot = p.visualSlot || p.sourceAbilitySlot || '';
+  if (frame === 'vanguard' && slot === 'A') return { r: 108, g: 232, b: 255 };
+  if (frame === 'sigil' && slot === 'A') return { r: 202, g: 126, b: 255 };
+  if (frame === 'bulwark' && slot === 'Z') return { r: 238, g: 190, b: 112 };
   if (p.visualKind === 'rocket') {
     if (p.visualAmmoEffect === 'slow') return { r: 112, g: 190, b: 255 };
     if (p.visualAmmoEffect === 'burn') return { r: 255, g: 142, b: 72 };
@@ -13,6 +18,16 @@ function colorForProjectile(p) {
   if (p.sourceAbilitySlot === 'E') return { r: 92, g: 255, b: 190 };
   if (p.sourceAbilitySlot === 'R') return { r: 255, g: 205, b: 96 };
   return p.tint ?? { r: 130, g: 225, b: 255 };
+}
+
+
+function impactKindForProjectile(p) {
+  const frame = p.sourceFrameId || '';
+  const slot = p.visualSlot || p.sourceAbilitySlot || '';
+  if (frame === 'vanguard' && slot === 'A') return 'vanguard-pierce';
+  if (frame === 'sigil' && slot === 'A') return 'sigil-rune';
+  if (frame === 'bulwark' && slot === 'Z') return 'bulwark-harpoon';
+  return p.visualKind === 'rocket' ? 'rocket' : 'hit';
 }
 
 function isNearSector(item, me) {
@@ -100,7 +115,9 @@ export class VisualFxStore {
         end: isRocket ? Math.max(30, old.splashRadius || 34) : Math.max(13, (old.radius || 3) + 10),
         color,
         rays: isRocket ? 12 : (old.crit ? 10 : 6),
-        kind: isRocket ? 'rocket' : 'hit'
+        kind: impactKindForProjectile(old),
+        frameId: old.sourceFrameId || '',
+        slot: old.visualSlot || old.sourceAbilitySlot || ''
       });
       this.trails.delete(id);
     }
@@ -214,7 +231,35 @@ export class VisualFxStore {
       const c = fx.color;
       const sx = (fx.x - camX + view.cssW * 0.5) * dpr;
       const sy = (fx.y - camY + view.cssH * 0.5) * dpr;
-      const rays = fx.rays || 6;
+      if (fx.kind === 'sigil-rune') {
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(t * 4.2 + fx.x * 0.01);
+        ctx.strokeStyle = rgba(c.r, c.g, c.b, fade * 0.64);
+        ctx.lineWidth = Math.max(1, 1.6 * fade) * dpr;
+        ctx.beginPath();
+        const hexR = Math.max(4, fx.end * (0.35 + 0.35 * k)) * dpr;
+        for (let j = 0; j < 6; j += 1) {
+          const aa = -Math.PI / 2 + j * Math.PI / 3;
+          const px = Math.cos(aa) * hexR;
+          const py = Math.sin(aa) * hexR;
+          if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
+      if (fx.kind === 'bulwark-harpoon') {
+        ctx.strokeStyle = rgba(c.r, c.g, c.b, fade * 0.58);
+        ctx.lineWidth = Math.max(1, 2.4 * fade) * dpr;
+        ctx.beginPath();
+        ctx.moveTo(sx - fx.end * 0.45 * dpr, sy);
+        ctx.lineTo(sx + fx.end * 0.45 * dpr, sy);
+        ctx.moveTo(sx, sy - fx.end * 0.45 * dpr);
+        ctx.lineTo(sx, sy + fx.end * 0.45 * dpr);
+        ctx.stroke();
+      }
+      const rays = fx.kind === 'vanguard-pierce' ? 4 : (fx.rays || 6);
       const base = fx.end * (0.35 + 0.55 * k);
       for (let i = 0; i < rays; i += 1) {
         const a = (Math.PI * 2 * i) / rays + (fx.x * 0.017 + fx.y * 0.011);
@@ -310,7 +355,7 @@ export class VisualFxStore {
     ctx.beginPath();
     ctx.arc(sx, sy, Math.max(1, r * dpr), 0, Math.PI * 2);
     ctx.stroke();
-    if (fx.kind === 'rocket' || fx.kind === 'area-open') {
+    if (fx.kind === 'rocket' || fx.kind === 'area-open' || fx.kind === 'sigil-rune' || fx.kind === 'bulwark-harpoon') {
       ctx.fillStyle = rgba(c.r, c.g, c.b, fade * 0.08);
       ctx.beginPath();
       ctx.arc(sx, sy, Math.max(1, r * dpr), 0, Math.PI * 2);

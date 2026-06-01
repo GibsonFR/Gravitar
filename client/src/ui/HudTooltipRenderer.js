@@ -15,6 +15,7 @@ function fmt(v, digits = 1) {
   return v >= 10 ? v.toFixed(0) : v.toFixed(digits);
 }
 function pct(v, digits = 0) { return `${((v ?? 0) * 100).toFixed(digits)}%`; }
+function castLine(t) { return (t?.castTime ?? 0) > 0 ? `Temps d’incantation : ${fmt(t.castTime, 2)} s.` : ''; }
 
 function buildPassiveTooltip(myState, me) {
   const fs = myState?.frameState ?? {};
@@ -58,7 +59,8 @@ function buildPassiveTooltip(myState, me) {
 function vanguardAbility(slot, s) {
   const t = s.tuning ?? {};
   if (slot === 'A') return [
-    `Tir linéaire : ${fmt(t.damageFlat)} + ${pct(t.damagePct, 0)} des dégâts d’arme.`,
+    castLine(t),
+    `Projectile linéaire rapide : ${fmt(t.damageFlat)} + ${pct(t.damagePct, 0)} des dégâts d’attaque automatique.`,
     `Portée ${fmt(t.projectileRange, 0)}, largeur ${fmt(t.projectileWidth, 0)}.`,
     `Charge ${t.empowerCharges ?? 0} auto renforcée(s), cap selon phase.`,
     t.pierceCount > 0 ? 'Traverse une cible supplémentaire.' : '',
@@ -72,15 +74,16 @@ function vanguardAbility(slot, s) {
     t.cleanseSlowAndRoot ? 'Purge ralentissement et root à l’activation.' : ''
   ];
   if (slot === 'E') return [
-    `Phase : ${pct(t.damageReductionPct)} réduction de dégâts pendant ${fmt(t.phaseDuration)} s.`,
+    castLine(t),
+    `Phase inertielle : ${pct(t.damageReductionPct)} réduction de dégâts pendant ${fmt(t.phaseDuration)} s.`,
     t.spellShieldDuration > 0 ? `À la sortie : bouclier anti-sort ${fmt(t.spellShieldDuration)} s.` : '',
     t.exitRadius > 0 ? `Onde de sortie : Grounded ${fmt(t.groundedDuration)} s dans ${fmt(t.exitRadius, 0)}.` : '',
-    t.exitShieldPctMaxShield > 0 ? `Rend ${pct(t.exitShieldPctMaxShield)} du bouclier max.` : '',
+    t.exitShieldPctMaxShield > 0 ? `Une fois la phase écoulée : bouclier temporaire égal à ${pct(t.exitShieldPctMaxShield)} du bouclier max.` : '',
     t.restoreAChargeOnMaxHeat ? 'Si lancé à 10 Surchauffe : rend 1 charge de A à la fin.' : ''
   ];
   return [
     `Frénésie ${fmt(t.ultDuration)} s : +${pct(t.ultAttackSpeedPct)} cadence, +${pct(t.ultMoveSpeedPct)} vitesse.`,
-    `Autos : +${pct(t.ultEmpowerPct)} dégâts pendant R.`,
+    `+${pct(t.ultEmpowerPct)} dégâts infligés pendant R.`,
     t.ultBurnDuration > 0 ? `Auto sur cible marquée par A : Brûlure ${fmt(t.ultBurnDuration)} s.` : '',
     t.unstoppableDuration > 0 ? `Z pendant R : Inarrêtable ${fmt(t.unstoppableDuration)} s.` : '',
     t.ultCloseAStunDuration > 0 ? `A proche pendant R : Étourdissement ${fmt(t.ultCloseAStunDuration)} s.` : ''
@@ -90,23 +93,24 @@ function vanguardAbility(slot, s) {
 function sigilAbility(slot, s) {
   const t = s.tuning ?? {};
   if (slot === 'A') return [
-    `Projectile runique : ${fmt(t.aImpactDamageFlat)} + ${pct(t.aImpactDamagePct)} dégâts d’arme.`,
+    castLine(t),
+    `Trait runique traversant : ${fmt(t.aImpactDamageFlat)} + ${pct(t.aImpactDamagePct)} dégâts d’attaque automatique.`,
     'Pose 1 rune. Les runes amplifient les prochaines touches.',
     t.aPierceCount > 0 ? 'Phase 2 : traverse largement les cibles.' : '',
-    t.aRevealThreshold > 0 ? `À ${t.aRevealThreshold} runes : révèle la cible.` : '',
-    t.aHealCutThreshold > 0 ? `À ${t.aHealCutThreshold} runes : anti-soin ${pct(t.aHealCutPct)}.` : '',
-    t.aDetonationStasisDuration > 0 ? 'Détonation maximale : stase courte.' : ''
+    t.aRevealThreshold > 0 ? `Si la cible avait déjà ${t.aRevealThreshold} runes : Révélation.` : '',
+    t.aHealCutThreshold > 0 ? `Si la cible avait déjà ${t.aHealCutThreshold} runes : réduction de soins ${pct(t.aHealCutPct)}.` : '',
+    t.aDetonationStasisDuration > 0 ? 'Première détonation à 5 runes : Stase courte.' : ''
   ];
   if (slot === 'Z') return [
     `Zone ${fmt(t.zZoneRadius, 0)} pendant ${fmt(t.zZoneDuration)} s.`,
     `Dégâts/s : ${fmt(t.zZoneDamageFlatPerSecond)} + ${pct(t.zZoneDamageWeaponPctPerSecond)} arme.`,
     `Ralentit de ${pct(t.zZoneSlowPct)}.`,
-    t.zRunePulseStacks > 0 ? 'Pulse : ajoute des runes aux ennemis dans la zone.' : '',
+    t.zRunePulseStacks > 0 ? 'Chaque pulse ajoute des runes et peut déclencher une détonation à 5 runes.' : '',
     t.zCanRecastClose ? 'Réactivation : ferme la zone et contrôle les cibles runées.' : ''
   ];
   if (slot === 'E') return [
     `Dash de ${fmt(t.eDashDistance, 0)} et camouflage ${fmt(t.eCamouflageDuration)} s.`,
-    t.eTrailSlowPct > 0 ? `Traînée : slow ${pct(t.eTrailSlowPct)} pendant ${fmt(t.eTrailSlowDuration)} s.` : '',
+    t.eTrailSlowPct > 0 ? `Traînée : ralentissement ${pct(t.eTrailSlowPct)} pendant ${fmt(t.eTrailSlowDuration)} s, pose des runes et peut détoner.` : '',
     t.aEmpowerFromVeilDamagePct > 0 ? `A lancé depuis le voile : +${pct(t.aEmpowerFromVeilDamagePct)} dégâts.` : '',
     t.eSpellShieldOnEndDuration > 0 ? `Fin du voile : bouclier anti-sort ${fmt(t.eSpellShieldOnEndDuration)} s.` : ''
   ];
@@ -115,7 +119,7 @@ function sigilAbility(slot, s) {
     `Runes durent +${pct(t.ultRuneDurationBonusPct)}.`,
     `Cooldown de A multiplié par x${fmt(t.ultACooldownMultiplier, 2)}.`,
     `Vol de vie : ${pct(t.ultLifestealPct, 1)}.`,
-    t.ultDetonationStunDuration > 0 ? `Détonation max : stun ${fmt(t.ultDetonationStunDuration)} s.` : ''
+    t.ultDetonationStunDuration > 0 ? `Première détonation à 5 runes pendant R : étourdissement ${fmt(t.ultDetonationStunDuration)} s.` : ''
   ];
 }
 
@@ -129,12 +133,14 @@ function bulwarkAbility(slot, s) {
     t.anchorSingleHitCapPctMaxHp > 0 ? `Cap de gros hit : ${pct(t.anchorSingleHitCapPctMaxHp)} PV max.` : ''
   ];
   if (slot === 'Z') return [
-    `Harpon ${fmt(t.harpoonRange, 0)} : ${fmt(t.harpoonDamageFlat)} + ${pct(t.harpoonDamageWeaponPct)} arme + armure.`,
+    castLine(t),
+    `Harpon ${fmt(t.harpoonRange, 0)} : ${fmt(t.harpoonDamageFlat)} + ${pct(t.harpoonDamageWeaponPct)} attaque automatique + armure.`,
     `Provoque ${fmt(t.harpoonTauntDuration)} s.`,
     t.harpoonArmorShredPct > 0 ? `Shred armure ${pct(t.harpoonArmorShredPct)} pendant ${fmt(t.harpoonArmorShredDuration)} s.` : '',
     t.harpoonGroundedDuration > 0 ? `Grounded ${fmt(t.harpoonGroundedDuration)} s.` : '',
     t.harpoonDashDistance > 0 ? 'Dash vers la cible touchée.' : '',
-    t.harpoonPullStrength > 0 ? 'Tire la cible vers toi.' : ''
+    t.harpoonPullStrength > 0 ? 'Tire la cible vers toi.' : '',
+    'Échec : Brèche de coque, perte d’armure et de ténacité.'
   ];
   if (slot === 'E') return [
     `Méditation ${fmt(t.meditationDuration)} s : réduction ${pct(t.meditationDamageReductionPct)}.`,
@@ -145,9 +151,10 @@ function bulwarkAbility(slot, s) {
     t.meditationFinalGroundedDuration > 0 ? `Fin : Grounded ${fmt(t.meditationFinalGroundedDuration)} s.` : ''
   ];
   return [
-    `Tempête ${fmt(t.stormDuration)} s, rayon ${fmt(t.stormRadius, 0)}.`,
-    `Dégâts/s : ${fmt(t.stormBaseDpsFlat)} + ${pct(t.stormBaseDpsPct)} arme.`,
-    `Ralentit de ${pct(t.stormSlowPct)}.`,
+    `Tempête ${fmt(t.stormDuration)} s, rayon externe ${fmt(t.stormRadius, 0)} et centre ${fmt(t.stormInnerRadius, 0)}.`,
+    `Dégâts/s : ${fmt(t.stormBaseDpsFlat)} + ${pct(t.stormBaseDpsPct)} attaque automatique.`,
+    `Ralentit de ${pct(t.stormSlowPct)} et vole de l’armure par cible.`,
+    t.stormCentralGroundedDuration > 0 ? 'Le rayon central cloue les cibles au sol.' : '',
     t.stormTauntedDamageAmpPct > 0 ? `Cibles provoquées : +${pct(t.stormTauntedDamageAmpPct)} dégâts subis.` : '',
     t.stormExposureStunThreshold > 0 ? `Exposition prolongée : stun ${fmt(t.stormExposureStunDuration)} s.` : '',
     t.stormPullStrength > 0 ? 'La tempête attire périodiquement les ennemis.' : ''
@@ -162,7 +169,7 @@ function buildAbilityTooltip(myState, me, slot) {
   const builders = { vanguard: vanguardAbility, sigil: sigilAbility, bulwark: bulwarkAbility };
   const lines = (builders[frameId]?.(slot, s) ?? []).filter(Boolean);
   lines.push(`Niveau ${s.investedLevel ?? 0}/${slot === 'R' ? 5 : 15} — phase ${s.phase ?? 0}.`);
-  if (s.energyCost != null) lines.push(`Coût ${fmt(s.energyCost, 0)} énergie — Recast ${fmt(s.cooldownMax ?? 0)} s.`);
+  if (s.energyCost != null) lines.push(`Coût ${fmt(s.energyCost, 0)} énergie — Délai de rechargement ${fmt(s.cooldownMax ?? 0)} s.`);
   if (!s.unlocked) lines.push(s.canUpgrade ? 'Clique ou Ctrl+' + slot + ' pour débloquer.' : `Verrouillé : ${s.upgradeReason || 'point requis'}.`);
   return {
     title: `${slot} — ${def.abilities?.[slot]?.label ?? s.label}`,

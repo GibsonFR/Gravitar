@@ -9,6 +9,8 @@ export function buildStatusSnapshot(entity, maxCount = 8) {
     baseDuration: entry.baseDuration,
     value: entry.value,
     stacks: entry.stacks,
+    maxStacks: entry.maxStacks,
+    markKey: entry.markKey,
     label: entry.label,
     primaryColor: entry.primaryColor,
     secondaryColor: entry.secondaryColor
