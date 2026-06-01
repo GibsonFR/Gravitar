@@ -1,3 +1,4 @@
+import { ScrollPreserver } from '../common/ScrollPreserver.js';
 function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
@@ -92,6 +93,7 @@ export class EquipmentRDStationPanelView {
     this.lastKey = '';
     this.selectedItemId = '';
     this.selectedSciences = [];
+    this.scrollPreserver = new ScrollPreserver(this.el);
     this.bind();
   }
 
@@ -294,6 +296,7 @@ export class EquipmentRDStationPanelView {
 
     const canStart = !!data.inputItem && this.selectedSciences.length > 0 && !active && data.powered && !data.outputItem;
 
+    const scroll = this.scrollPreserver.capture();
     this.el.innerHTML = `
       <div class="equipment-fab__head">
         <div>
@@ -310,19 +313,20 @@ export class EquipmentRDStationPanelView {
           ${rdItemSlot(data.inputItem, 'input', data.id, 'Glisse/charge un objet')}
           ${rdItemSlot(data.outputItem, 'output', data.id, 'Sortie R&D')}
           <h3>Objets disponibles</h3>
-          <div class="equipment-rd__items ${active || data.inputItem ? 'is-busy' : ''}">${itemCards}</div>
+          <div class="equipment-rd__items equipment-fab__scroll ${active || data.inputItem ? 'is-busy' : ''}" data-scroll-key="equipment-rd-items">${itemCards}</div>
         </section>
         <section>
           <h3>Sciences en machine</h3>
           <div class="equipment-rd__hint">Dépose des sciences dans le buffer, puis choisis jusqu’à 3 slots.</div>
-          <div class="equipment-fab__deposit-grid">${scienceDepositRows}</div>
-          <div class="equipment-fab__io-mini">${rdScienceRows(data.scienceInput || [], data.id)}</div>
+          <div class="equipment-fab__deposit-grid equipment-fab__scroll" data-scroll-key="equipment-rd-cargo-science">${scienceDepositRows}</div>
+          <div class="equipment-fab__io-mini equipment-fab__scroll" data-scroll-key="equipment-rd-buffer-science">${rdScienceRows(data.scienceInput || [], data.id)}</div>
           <div class="equipment-rd__slots">${scienceSlots}</div>
           <div class="equipment-rd__score">Score science : <b>${scienceScore(this.selectedSciences, data.sciences || [])}</b> · variation finale ±60%</div>
-          <div class="equipment-rd__science-list ${active ? 'is-busy' : ''}">${sciences}</div>
+          <div class="equipment-rd__science-list equipment-fab__scroll ${active ? 'is-busy' : ''}" data-scroll-key="equipment-rd-sciences">${sciences}</div>
           <button class="equipment-rd__start" type="button" data-equipment-rd-start="1" data-structure="${data.id | 0}" data-item="${escapeHtml(data.inputItem?.itemId || '')}" ${canStart ? '' : 'disabled'}>Lancer R&D</button>
         </section>
       </div>
     `;
+    this.scrollPreserver.restore(scroll);
   }
 }

@@ -1,3 +1,4 @@
+import { ScrollPreserver } from '../common/ScrollPreserver.js';
 function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
@@ -134,6 +135,7 @@ export class EquipmentFabricatorPanelView {
     this.category = 'engine';
     this.moduleFamily = 'cargo';
     this.lastKey = '';
+    this.scrollPreserver = new ScrollPreserver(this.el);
     this.bind();
   }
 
@@ -287,6 +289,7 @@ export class EquipmentFabricatorPanelView {
       </button>
     `).join('');
 
+    const scroll = this.scrollPreserver.capture();
     this.el.innerHTML = `
       <div class="equipment-fab__head">
         <div>
@@ -302,18 +305,18 @@ export class EquipmentFabricatorPanelView {
         <section>
           <h3>Input</h3>
           <div class="equipment-fab__cap">${data.inputUsed | 0}/${data.inputCapacity | 0}</div>
-          ${bufferRows(data.input || [], data.id, 'input')}
+          <div class="equipment-fab__scroll" data-scroll-key="equipment-fab-input">${bufferRows(data.input || [], data.id, 'input')}</div>
         </section>
         <section>
           <h3>Output</h3>
           <div class="equipment-fab__cap">${data.outputUsed | 0}/${data.outputCapacity | 0}</div>
-          ${outputItemRows(data.outputItems || [], data.id)}
+          <div class="equipment-fab__scroll" data-scroll-key="equipment-fab-output">${outputItemRows(data.outputItems || [], data.id)}</div>
         </section>
       </div>
       <div class="equipment-fab__machine-layout">
         <section>
           <h3>Recettes</h3>
-          <div class="equipment-fab__recipe-list">${list}</div>
+          <div class="equipment-fab__recipe-list equipment-fab__scroll" data-scroll-key="equipment-fab-recipes">${list}</div>
         </section>
         <section>
           <h3>Production</h3>
@@ -329,7 +332,7 @@ export class EquipmentFabricatorPanelView {
               <div class="equipment-fab__sub">Entrée requise</div>
               <div class="equipment-fab__resources">${resourceList(selected.input || [])}</div>
               <div class="equipment-fab__sub">Charger depuis le cargo</div>
-              <div class="equipment-fab__deposit-grid">${cargoDepositRows(selected, data.id)}</div>
+              <div class="equipment-fab__deposit-grid equipment-fab__scroll" data-scroll-key="equipment-fab-cargo">${cargoDepositRows(selected, data.id)}</div>
               <div class="equipment-fab__sub">Base</div>
               <div class="equipment-fab__bonus">${bonusList(selected.baseBonuses || {})}${weaponProfileList(selected.weaponProfile || null)}${launcherProfileList(selected.launcherProfile || null)}</div>
               ${selected.locked ? `<div class="equipment-fab__lock">Requiert : ${escapeHtml(selected.requiredResearchName || selected.requiredResearchId || 'recherche')}</div>` : ''}
@@ -338,5 +341,6 @@ export class EquipmentFabricatorPanelView {
         </section>
       </div>
     `;
+    this.scrollPreserver.restore(scroll);
   }
 }

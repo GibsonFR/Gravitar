@@ -1,3 +1,4 @@
+import { ScrollPreserver } from '../common/ScrollPreserver.js';
 function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
@@ -181,8 +182,10 @@ export class RocketWorkshopPanelView {
     this.currentId = 0;
     this.lastKey = '';
     this.dynamic = null;
+    this.scrollPreserver = null;
     this.el = document.createElement('div');
     this.el.className = 'rocket-workshop is-hidden';
+    this.scrollPreserver = new ScrollPreserver(this.el);
 
     const routePointerAction = (ev) => {
       const target = ev.target;
@@ -264,20 +267,11 @@ export class RocketWorkshopPanelView {
   }
 
   captureScroll() {
-    const map = new Map();
-    this.el.querySelectorAll('[data-scroll-save]').forEach((node) => {
-      map.set(node.getAttribute('data-scroll-save'), node.scrollTop);
-    });
-    return map;
+    return this.scrollPreserver.capture();
   }
 
   restoreScroll(map) {
-    if (!map?.size) return;
-    this.el.querySelectorAll('[data-scroll-save]').forEach((node) => {
-      const key = node.getAttribute('data-scroll-save');
-      if (!map.has(key)) return;
-      node.scrollTop = map.get(key) || 0;
-    });
+    this.scrollPreserver.restore(map);
   }
 
   setDynamicRefs() {
@@ -379,7 +373,7 @@ export class RocketWorkshopPanelView {
               </div>
               <div class="rocket-workshop__section-pill">Cargo</div>
             </div>
-            <div class="rocket-workshop__scroll" data-scroll-save="cargo">${resourceGroups(workshop.cargoResources || [], 'Tout déposer', 'deposit', workshop.id, 'Aucune ressource utile disponible.')}</div>
+            <div class="rocket-workshop__scroll" data-scroll-key="rocket-cargo">${resourceGroups(workshop.cargoResources || [], 'Tout déposer', 'deposit', workshop.id, 'Aucune ressource utile disponible.')}</div>
           </section>
 
           <section class="rocket-workshop__panel">
@@ -396,14 +390,14 @@ export class RocketWorkshopPanelView {
                   <span>Mélange actuel</span>
                   <b>${Math.round(workshop.inputUsed || 0)} / ${Math.round(workshop.inputCapacity || 0)}</b>
                 </div>
-                <div class="rocket-workshop__scroll" data-scroll-save="input">${resourceGroups(workshop.input || [], 'Tout reprendre', 'withdraw', workshop.id, 'Aucune ressource dans l’entrée.')}</div>
+                <div class="rocket-workshop__scroll" data-scroll-key="rocket-input">${resourceGroups(workshop.input || [], 'Tout reprendre', 'withdraw', workshop.id, 'Aucune ressource dans l’entrée.')}</div>
               </div>
               <div class="rocket-workshop__subpanel">
                 <div class="rocket-workshop__subhead">
                   <span>Sortie roquettes</span>
                   <b>${Math.round(workshop.outputUsed || 0)} / ${Math.round(workshop.outputCapacity || 0)}</b>
                 </div>
-                <div class="rocket-workshop__scroll" data-scroll-save="output">${outputCards(workshop.output || [], workshop.id)}</div>
+                <div class="rocket-workshop__scroll" data-scroll-key="rocket-output">${outputCards(workshop.output || [], workshop.id)}</div>
               </div>
             </div>
           </section>
