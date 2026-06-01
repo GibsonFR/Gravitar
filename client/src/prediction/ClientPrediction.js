@@ -345,6 +345,68 @@ export class ClientPrediction {
     input.forceSend = true;
   }
 
+  cancelLocalControl(me, dt = 0, input = null) {
+    const local = this.store?.localPrediction || null;
+    if (local) {
+      local.hasMoveTarget = false;
+      local.hold = false;
+      local.moveX = Number.isFinite(me?._serverX) ? me._serverX : finite(me?.x, 0);
+      local.moveY = Number.isFinite(me?._serverY) ? me._serverY : finite(me?.y, 0);
+      local.selectedKind = '';
+      local.selectedId = 0;
+      local.selectedUntil = 0;
+      local.attackKind = '';
+      local.attackId = 0;
+      local.attackUntil = 0;
+      local.localAbilityAuthorityUntil = 0;
+      local.localFrameState = null;
+      local.localDerived = null;
+      local.abilityMovementLockUntil = 0;
+    }
+
+    if (this.store?.myState) {
+      this.store.myState.selectedKind = '';
+      this.store.myState.selectedId = 0;
+    }
+
+    if (input) {
+      input.rightDown = false;
+      input.holdActive = false;
+      input.forceSend = true;
+      input.actions = [];
+    }
+
+    const sx = Number.isFinite(me?._serverX) ? me._serverX : finite(me?.x, 0);
+    const sy = Number.isFinite(me?._serverY) ? me._serverY : finite(me?.y, 0);
+    const svx = Number.isFinite(me?._serverVx) ? me._serverVx : finite(me?.vx, 0);
+    const svy = Number.isFinite(me?._serverVy) ? me._serverVy : finite(me?.vy, 0);
+
+    if (me) {
+      const dx = sx - finite(me.x, sx);
+      const dy = sy - finite(me.y, sy);
+      const dist = Math.hypot(dx, dy);
+      if (dist > 140 || !Number.isFinite(dt) || dt <= 0) {
+        me.x = sx;
+        me.y = sy;
+      } else if (dist > 0.01) {
+        const t = Math.min(1, Math.max(0.30, dt * 24));
+        me.x += dx * t;
+        me.y += dy * t;
+      }
+      me.vx = svx;
+      me.vy = svy;
+      me._localThrust = Math.min(1, Math.hypot(svx, svy) / 260);
+      me._keepLocalPoseUntil = 0;
+      me._localDashUntil = 0;
+      me._clientDashGrace = 0;
+      me._forceServerPose = false;
+      pinLocalEntityTarget(me);
+    }
+
+    this.localAutoCooldown = 0;
+    this.lastLocalAutoTarget = null;
+  }
+
   handleAbilityEdges(me, input, worldMouse) {
     for (const slot of ['A', 'Z', 'E', 'R']) {
       const down = !!input[slot.toLowerCase()];
