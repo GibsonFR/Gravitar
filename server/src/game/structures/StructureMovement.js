@@ -88,7 +88,59 @@ function isResourceDepositEntity(st) {
 }
 
 function canOverlapStructure(def, st) {
+  if (isResourceDepositEntity(st)) return true;
   return def?.id === STRUCTURE_TYPES.MINING_EXTRACTOR && isResourceDepositEntity(st);
+}
+
+function isBlockingStructureForMove(other) {
+  if (!other) return false;
+  if (isResourceDepositEntity(other)) return false;
+  return isStructureAlive(other);
+}
+
+function numericId(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? (n | 0) : 0;
+}
+
+function sameLogicalStructure(a, b, id = 0) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const aid = numericId(a.id);
+  const bid = numericId(b.id);
+  const expectedId = numericId(id);
+  if (expectedId && (aid === expectedId || bid === expectedId)) return aid === bid || aid === expectedId || bid === expectedId;
+  return !!aid && aid === bid;
+}
+
+function sameOldFootprintAsMovingStructure(other, moving, before) {
+  if (!other || !moving || !before) return false;
+  if (String(other.type || '').toLowerCase() !== String(moving.type || '').toLowerCase()) return false;
+  if (String(other.ownerKey || '').toLowerCase() !== String(moving.ownerKey || '').toLowerCase()) return false;
+  if ((other.sx | 0) !== (moving.sx | 0) || (other.sy | 0) !== (moving.sy | 0)) return false;
+  const dx = Math.abs((Number(other.x) || 0) - (Number(before.x) || 0));
+  const dy = Math.abs((Number(other.y) || 0) - (Number(before.y) || 0));
+  if (dx > 0.01 || dy > 0.01) return false;
+  const ow = Math.round(Number(other.w) || 0);
+  const oh = Math.round(Number(other.h) || 0);
+  const mw = Math.round(Number(moving.w) || 0);
+  const mh = Math.round(Number(moving.h) || 0);
+  return ow === mw && oh === mh;
+}
+
+function structureDebug(other) {
+  if (!other) return null;
+  return {
+    id: other.id | 0,
+    type: other.type,
+    name: other.name || '',
+    x: Math.round((Number(other.x) || 0) * 10) / 10,
+    y: Math.round((Number(other.y) || 0) * 10) / 10,
+    w: Math.round((Number(other.w) || 0) * 10) / 10,
+    h: Math.round((Number(other.h) || 0) * 10) / 10,
+    hp: Math.round(Number(other.stats?.hp ?? 0)),
+    ownerKey: String(other.ownerKey || '')
+  };
 }
 
 function findOwnCoreForRect(state, player, sx, sy, rect) {
@@ -158,15 +210,29 @@ export function canMoveStructure(state, player, structureId, x, y, orientation =
 
   let overlappedDeposit = null;
   for (const other of state?.structures?.values?.() || []) {
-    if (!other || (other.id | 0) === id) continue;
+    if (!other) continue;
+    if (sameLogicalStructure(other, st, id) || sameOldFootprintAsMovingStructure(other, st, before)) continue;
     if (!inSameWorld(other, player)) continue;
     if ((other.sx | 0) !== sx || (other.sy | 0) !== sy) continue;
+    if (!isBlockingStructureForMove(other)) {
+      if (isResourceDepositEntity(other) && rectsOverlap(rect, getStructureRect(other), 0)) overlappedDeposit = other;
+      continue;
+    }
     if (!rectsOverlap(rect, getStructureRect(other), 0)) continue;
     if (canOverlapStructure(def, other)) {
       if (isResourceDepositEntity(other)) overlappedDeposit = other;
       continue;
     }
-    return { ok: false, error: 'blocked_by_structure', debug: { structureId: id, blockedBy: other.id | 0, blockedType: other.type, before, target: { x: snapped.x, y: snapped.y, orientation: nextOrientation } } };
+    return {
+      ok: false,
+      error: 'blocked_by_structure',
+      debug: {
+        structureId: id,
+        blockedBy: structureDebug(other),
+        before,
+        target: { x: snapped.x, y: snapped.y, orientation: nextOrientation, rect }
+      }
+    };
   }
 
   for (const wall of state?.asteroids?.values?.() || []) {
@@ -190,7 +256,7 @@ export function canMoveStructure(state, player, structureId, x, y, orientation =
 
 export function moveStructure(state, player, structureId, x, y, orientation = null, timeMs = Date.now()) {
   const check = canMoveStructure(state, player, structureId, x, y, orientation);
-  if (!check.ok) return { ok: false, error: check.error };
+  if (!check.ok) return { ok: false, error: check.error, debug: check.debug || null };
   const st = check.structure;
   st.x = check.x;
   st.y = check.y;
