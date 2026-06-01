@@ -11,8 +11,13 @@ export function handleMoveStructure(state, player, msg, timeMs) {
   const result = moveStructure(state, player, msg.structureId, x, y, msg.orientation || null, timeMs);
   player.forceFullUiSnapshot = true;
   player.forceFullUiSnapshotReason = result.ok ? 'move_structure' : result.error;
-  if (!result.ok) player.hint = moveErrorHint(result.error);
-  else player.hint = `${result.structure?.name || 'Structure'} déplacée`;
+  if (!result.ok) {
+    player.hint = moveErrorHint(result.error);
+    if (result.debug) console.warn('[move_structure:refused]', result.error, result.debug);
+    else console.warn('[move_structure:refused]', result.error, { structureId: msg.structureId, x, y, orientation: msg.orientation || null });
+  } else {
+    player.hint = `${result.structure?.name || 'Structure'} déplacée`;
+  }
   player._optimisticHintLeft = 1.2;
   return !!result.ok;
 }

@@ -42,6 +42,18 @@ function rectInside(inner, outer) {
   return inner.left >= outer.left - eps && inner.right <= outer.right + eps && inner.top >= outer.top - eps && inner.bottom <= outer.bottom + eps;
 }
 
+function pointInsideRect(x, y, rect) {
+  const eps = 0.001;
+  return x >= rect.left - eps && x <= rect.right + eps && y >= rect.top - eps && y <= rect.bottom + eps;
+}
+
+function rectAcceptedByClaim(rect, core) {
+  const claim = claimRect(core);
+  const cx = (rect.left + rect.right) * 0.5;
+  const cy = (rect.top + rect.bottom) * 0.5;
+  return rectInside(rect, claim) || pointInsideRect(cx, cy, claim);
+}
+
 function sectorBuildRect() {
   return {
     left: -SECTOR.half + BASE_TILE_SIZE,
@@ -90,7 +102,7 @@ function findOwnCoreForRect(state, player, sx, sy, rect) {
     if ((st.sx | 0) !== (sx | 0) || (st.sy | 0) !== (sy | 0)) continue;
     if (!isStructureOwner(player, st)) continue;
     if (!isStructureAlive(st)) continue;
-    if (!rectInside(rect, claimRect(st))) continue;
+    if (!rectAcceptedByClaim(rect, st)) continue;
     const dx = (st.x || 0) - cx;
     const dy = (st.y || 0) - cy;
     const d2 = dx * dx + dy * dy;
@@ -120,6 +132,7 @@ export function canMoveStructure(state, player, structureId, x, y, orientation =
   if (!id) return { ok: false, error: 'invalid_structure' };
   const st = state?.structures?.get?.(id);
   if (!st) return { ok: false, error: 'not_found' };
+  const before = { x: st.x, y: st.y, orientation: st.orientation || 'h', baseCoreId: st.baseCoreId | 0 || 0 };
   if (!inSameWorld(st, player)) return { ok: false, error: 'wrong_world' };
   if ((st.sx | 0) !== (player.sx | 0) || (st.sy | 0) !== (player.sy | 0)) return { ok: false, error: 'wrong_sector' };
   if (!isStructureOwner(player, st)) return { ok: false, error: 'not_owner' };
@@ -141,7 +154,7 @@ export function canMoveStructure(state, player, structureId, x, y, orientation =
   const sx = st.sx | 0;
   const sy = st.sy | 0;
   const core = findOwnCoreForRect(state, player, sx, sy, rect);
-  if (!core) return { ok: false, error: 'need_nearby_core' };
+  if (!core) return { ok: false, error: 'need_nearby_core', debug: { structureId: id, type: st.type, before, target: { x: snapped.x, y: snapped.y, orientation: nextOrientation }, rect } }; 
 
   let overlappedDeposit = null;
   for (const other of state?.structures?.values?.() || []) {
@@ -153,19 +166,19 @@ export function canMoveStructure(state, player, structureId, x, y, orientation =
       if (isResourceDepositEntity(other)) overlappedDeposit = other;
       continue;
     }
-    return { ok: false, error: 'blocked_by_structure' };
+    return { ok: false, error: 'blocked_by_structure', debug: { structureId: id, blockedBy: other.id | 0, blockedType: other.type, before, target: { x: snapped.x, y: snapped.y, orientation: nextOrientation } } };
   }
 
   for (const wall of state?.asteroids?.values?.() || []) {
     if (!wall.solid && !wall.bastionWall) continue;
     if ((wall.sx | 0) !== sx || (wall.sy | 0) !== sy) continue;
-    if (rectsOverlap(rect, entityRect(wall), 0)) return { ok: false, error: 'blocked' };
+    if (rectsOverlap(rect, entityRect(wall), 0)) return { ok: false, error: 'blocked', debug: { structureId: id, blockedBy: wall.id | 0, blockedType: wall.kind || 'asteroid', before, target: { x: snapped.x, y: snapped.y, orientation: nextOrientation } } };
   }
 
   for (const station of state?.stations?.values?.() || []) {
     if ((station.sx | 0) !== sx || (station.sy | 0) !== sy) continue;
     const d = Math.hypot((station.x || 0) - snapped.x, (station.y || 0) - snapped.y);
-    if (d < (station.radius || 80) + Math.max(rect.w, rect.h) * 0.5 + 80) return { ok: false, error: 'too_close_to_station' };
+    if (d < (station.radius || 80) + Math.max(rect.w, rect.h) * 0.5 + 80) return { ok: false, error: 'too_close_to_station', debug: { structureId: id, stationId: station.id | 0, before, target: { x: snapped.x, y: snapped.y, orientation: nextOrientation } } };
   }
 
   if (def.id === STRUCTURE_TYPES.MINING_EXTRACTOR) {

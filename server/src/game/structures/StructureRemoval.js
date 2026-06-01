@@ -1,6 +1,45 @@
-import { STRUCTURE_TYPES } from './StructureDefs.js';
+import { STRUCTURE_TYPES, getStructureDef } from './StructureDefs.js';
 import { hasStorageItems, isStorageStructure } from './StructureStorage.js';
+import { addResource } from '../inventory/InventorySystem.js';
+import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { getStructureClaimRect, getStructureRect } from './StructureSystem.js';
+
+
+function normalizedRefundCost(st) {
+  const def = getStructureDef(st?.type);
+  const out = {};
+  for (const [key, value] of Object.entries(def?.cost || {})) {
+    const amount = Math.max(0, Math.floor(Number(value) || 0));
+    if (amount > 0 && RESOURCE_DEFS[key]) out[key] = amount;
+  }
+  return out;
+}
+
+function cargoUsedByResources(resources) {
+  let used = 0;
+  for (const [key, amount] of Object.entries(resources || {})) {
+    const def = RESOURCE_DEFS[key];
+    const n = Math.max(0, Math.floor(Number(amount) || 0));
+    if (def && n > 0) used += (Number(def.cargoPerUnit) || 1) * n;
+  }
+  return used;
+}
+
+function canRefundToCargo(player, refund) {
+  const inv = player?.inv;
+  if (!inv?.resources) return false;
+  const needed = cargoUsedByResources(refund);
+  return (Number(inv.cargoUsed) || 0) + needed <= (Number(inv.cargoMax) || 0);
+}
+
+function grantRefund(player, refund) {
+  const granted = {};
+  for (const [key, amount] of Object.entries(refund || {})) {
+    const added = addResource(player.inv, key, amount | 0);
+    if (added > 0) granted[key] = added;
+  }
+  return granted;
+}
 
 function ownerKey(player) {
   return String(player.accountKey || player.accountName || player.pseudo || `guest-${player.id | 0}`).toLowerCase();
@@ -48,7 +87,10 @@ export function removeStructure(state, player, structureId, _timeMs = Date.now()
   if (st.type === STRUCTURE_TYPES.BASE_CORE && coreProtectsAnyStructure(state, st)) return { ok: false, error: 'core_has_structures' };
   const d = Math.hypot((st.x || 0) - (player.x || 0), (st.y || 0) - (player.y || 0));
   if (d > 1400) return { ok: false, error: 'too_far' };
+  const refund = normalizedRefundCost(st);
+  if (!canRefundToCargo(player, refund)) return { ok: false, error: 'cargo_full_for_refund', refund };
   state.structures.delete(id);
+  const grantedRefund = grantRefund(player, refund);
   if (!isTestPlayer(player) && String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
-  return { ok: true, removed: st };
+  return { ok: true, removed: st, refund: grantedRefund };
 }
