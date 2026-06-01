@@ -16,6 +16,11 @@ function fmt(v, digits = 1) {
 }
 function pct(v, digits = 0) { return `${((v ?? 0) * 100).toFixed(digits)}%`; }
 function castLine(t) { return (t?.castTime ?? 0) > 0 ? `Temps d’incantation : ${fmt(t.castTime, 2)} s.` : ''; }
+function seconds(v) { return `${fmt(v, 2)} s`; }
+function rangeLine(label, v) { return Number.isFinite(v) && v > 0 ? `${label} : ${fmt(v, 0)}.` : ''; }
+function phaseLine(n, text, activePhase = 0) { return `${activePhase >= n ? '✓' : '○'} Palier ${n} : ${text}`; }
+function scalingLine(text) { return `Évolution : ${text}`; }
+function passiveHeader(text) { return `Base : ${text}`; }
 
 function buildPassiveTooltip(myState, me) {
   const fs = myState?.frameState ?? {};
@@ -25,139 +30,210 @@ function buildPassiveTooltip(myState, me) {
       title: 'Passif — Surchauffe',
       accent: { r: 223, g: 179, b: 94 },
       lines: [
-        'Les attaques et compétences qui touchent donnent 1 charge pendant 5 s.',
-        `Charges : ${fs.passiveStacks ?? 0}/${fs.passiveMaxStacks ?? 10}.`,
-        'Par charge : cadence, vitesse moteur et résistance aux ralentissements.',
-        'À 6 charges : ténacité. À 10 charges : Z/E déclenche la ténacité de surchauffe.',
-        fs.passiveDecaying ? 'Décroissance active : perte rapide de charges.' : `Décroissance dans ${fmt(fs.passiveDecayLeft ?? 0)} s.`
+        passiveHeader('chaque attaque automatique ou compétence qui touche donne 1 charge pendant 5 s, jusqu’à 10.'),
+        `État actuel : ${fs.passiveStacks ?? 0}/${fs.passiveMaxStacks ?? 10} charge(s).`,
+        'Par charge : +4% cadence d’attaque, +1.5% vitesse moteur, +1.5% résistance aux ralentissements.',
+        'À partir de 6 charges : +20% ténacité.',
+        'À 10 charges : la prochaine activation de Z ou E donne aussi +35% ténacité pendant 0.85 s.',
+        'Après 5 s sans toucher : perd 1 charge toutes les 0.20 s.',
+        fs.passiveDecaying ? 'Décroissance active.' : `Décroissance dans ${fmt(fs.passiveDecayLeft ?? 0)} s.`
       ]
     };
   }
   if (frameId === 'sigil') {
     return {
-      title: 'Passif — Runes',
+      title: 'Passif — Runes de contrainte',
       accent: { r: 198, g: 128, b: 255 },
       lines: [
-        'Les tirs et sorts posent des runes sur les cibles.',
-        '3 runes : ralentissement. 5 runes : détonation automatique.',
-        `Délai de détonation : ${fmt(fs.detonationCooldownLeft ?? 0)} s.`
+        passiveHeader('attaques automatiques et compétences donnent 1 Rune pendant 7 s, jusqu’à 5.'),
+        'Chaque Rune déjà présente ajoute 2 + 8% des dégâts d’attaque automatique aux autos et compétences.',
+        'À 3 Runes : la cible subit Ralentissement 12%.',
+        'À 5 Runes : la prochaine compétence détonante consomme les Runes.',
+        'Détonation : 18 + 45% des dégâts d’attaque automatique + 6% de l’énergie maximale actuelle.',
+        'Une même cible ne peut subir la détonation qu’une fois toutes les 1.2 s.',
+        `Délai de détonation actuel : ${fmt(fs.detonationCooldownLeft ?? 0)} s.`
       ]
     };
   }
   return {
-    title: 'Passif — Plaques réactives',
+    title: 'Passif — Carapace de siège',
     accent: { r: 236, g: 196, b: 96 },
     lines: [
-      'Les gros dégâts reçus génèrent des plaques temporaires.',
-      `Plaques : ${fs.passiveStacks ?? 0}/${fs.passiveMaxStacks ?? 5}.`,
-      'Chaque plaque donne armure, réduction de dégâts et ténacité.',
-      'À pleine charge : bouclier et attaques renforcées par l’armure.'
+      passiveHeader('subir un contrôle ou un burst de 7% de coque max en 0.75 s donne 1 Plaque.'),
+      `Plaques : ${fs.passiveStacks ?? 0}/${fs.passiveMaxStacks ?? 5}. ICD : 0.45 s. Durée : 7 s.`,
+      'Par Plaque : +4 armure, +2% réduction de dégâts, +4% ténacité.',
+      'Permanent : dégâts bonus d’auto = 18% de l’armure totale ; impact bonus = 8% de l’armure totale.',
+      'À 5 Plaques : la prochaine compétence consomme les Plaques et donne un bouclier 4 s.',
+      'Bouclier : 10% coque max + 35% armure totale.',
+      'Pendant 4 s : conversions renforcées à 24% et 12% de l’armure totale.'
     ]
   };
 }
 
 function vanguardAbility(slot, s) {
   const t = s.tuning ?? {};
+  const phase = s.phase ?? t.phase ?? 0;
   if (slot === 'A') return [
+    'Type : projectile linéaire rapide.',
     castLine(t),
-    `Projectile linéaire rapide : ${fmt(t.damageFlat)} + ${pct(t.damagePct, 0)} des dégâts d’attaque automatique.`,
-    `Portée ${fmt(t.projectileRange, 0)}, largeur ${fmt(t.projectileWidth, 0)}.`,
-    `Charge ${t.empowerCharges ?? 0} auto renforcée(s), cap selon phase.`,
-    t.pierceCount > 0 ? 'Traverse une cible supplémentaire.' : '',
-    t.damageAmpPct > 0 ? `Applique Vulnérabilité ${pct(t.damageAmpPct)} pendant ${fmt(t.damageAmpDuration)} s.` : '',
-    t.disarmDuration > 0 ? `Sur cible déjà vulnérable : Désarmement ${fmt(t.disarmDuration)} s.` : ''
+    `Portée ${fmt(t.projectileRange, 0)}, largeur ${fmt(t.projectileWidth, 1)}, coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Dégâts : ${fmt(t.damageFlat, 1)} + ${pct(t.damagePct, 1)} des dégâts de l’attaque automatique actuelle.`,
+    scalingLine('+2 dégâts de base, +2% coefficient AA, +0.30 largeur tous les 2 niveaux, -0.05 s CD tous les 3 niveaux jusqu’à 3.4 s.'),
+    `Auto renforcée : ${fmt(t.empowerFlat, 1)} + ${pct(t.empowerPct, 1)} des dégâts AA. Charges générées : ${t.empowerCharges ?? phase}.`,
+    phaseLine(1, 'touche la première cible et charge 1 auto renforcée.', phase),
+    phaseLine(2, 'traverse 1 cible supplémentaire.', phase),
+    phaseLine(3, 'applique Vulnérabilité aux dégâts 8% pendant 2.0 s.', phase),
+    phaseLine(4, 'si la cible est déjà ralentie ou clouée au sol, rend 8 énergie.', phase),
+    phaseLine(5, 'si la cible est déjà vulnérable, applique Désarmement 0.55 s.', phase)
   ];
   if (slot === 'Z') return [
-    `Ruée de ${fmt(t.dashDistance, 0)} puis +${pct(t.moveBoostPct)} vitesse pendant ${fmt(t.moveBoostDuration)} s.`,
-    t.trailSlowPct > 0 ? `Traînée : Ralentissement ${pct(t.trailSlowPct)} pendant ${fmt(t.trailSlowDuration)} s.` : '',
-    t.comboWindowDuration > 0 ? `Fenêtre combo : prochain A +${pct(t.comboProjectileSpeedPct)} vitesse projectile et +${pct(t.comboDamagePct)} dégâts.` : '',
-    t.cleanseSlowAndRoot ? 'Purge ralentissement et root à l’activation.' : ''
+    'Type : ruée courte suivie d’une accélération.',
+    `Distance ${fmt(t.dashDistance, 0)}, coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Effet : +${pct(t.moveBoostPct, 1)} vitesse moteur pendant ${fmt(t.moveBoostDuration, 2)} s.`,
+    scalingLine('+0.6% vitesse, +4 distance, +0.03 s durée par niveau ; -0.15 s CD aux niveaux 2/5/8/11/14/17/20/23/26/29.'),
+    phaseLine(1, 'ruée simple et accélération.', phase),
+    phaseLine(2, 'laisse une traînée 1.2 s qui applique Ralentissement 18% pendant 1.2 s.', phase),
+    phaseLine(3, 'le prochain A dans 1.5 s gagne +20% vitesse projectile et +12% dégâts.', phase),
+    phaseLine(4, 'purge ralentissements et enracinements à l’activation.', phase),
+    phaseLine(5, 'si A touche pendant la fenêtre, réduit le CD restant de Z de 35%.', phase)
   ];
   if (slot === 'E') return [
+    'Type : défense active.',
     castLine(t),
-    `Phase inertielle : ${pct(t.damageReductionPct)} réduction de dégâts pendant ${fmt(t.phaseDuration)} s.`,
-    t.spellShieldDuration > 0 ? `À la sortie : bouclier anti-sort ${fmt(t.spellShieldDuration)} s.` : '',
-    t.exitRadius > 0 ? `Onde de sortie : Grounded ${fmt(t.groundedDuration)} s dans ${fmt(t.exitRadius, 0)}.` : '',
-    t.exitShieldPctMaxShield > 0 ? `Une fois la phase écoulée : bouclier temporaire égal à ${pct(t.exitShieldPctMaxShield)} du bouclier max.` : '',
-    t.restoreAChargeOnMaxHeat ? 'Si lancé à 10 Surchauffe : rend 1 charge de A à la fin.' : ''
+    `Durée ${fmt(t.phaseDuration, 2)} s, coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Effet : réduit les dégâts subis de ${pct(t.damageReductionPct, 1)} pendant la phase.`,
+    scalingLine('+0.02 s durée par niveau jusqu’à 0.85 s au niveau 21 puis +0.01 s ; +0.6% réduction tous les 2 niveaux ; -0.12 s CD tous les 3 niveaux jusqu’à 13.5 s.'),
+    phaseLine(1, 'défense active simple.', phase),
+    phaseLine(2, 'une fois la phase écoulée, donne Bouclier anti-sort 0.45 s.', phase),
+    phaseLine(3, 'une fois la phase écoulée, onde rayon 90 qui applique Cloué au sol 0.8 s.', phase),
+    phaseLine(4, 'une fois la phase écoulée, bouclier = 10% du bouclier max +0.4% par niveau après 12.', phase),
+    phaseLine(5, 'si lancé sous 10 charges de Surchauffe, rend 1 charge de A.', phase)
   ];
   return [
-    `Frénésie ${fmt(t.ultDuration)} s : +${pct(t.ultAttackSpeedPct)} cadence, +${pct(t.ultMoveSpeedPct)} vitesse.`,
-    `+${pct(t.ultEmpowerPct)} dégâts infligés pendant R.`,
-    t.ultBurnDuration > 0 ? `Auto sur cible marquée par A : Brûlure ${fmt(t.ultBurnDuration)} s.` : '',
-    t.unstoppableDuration > 0 ? `Z pendant R : Inarrêtable ${fmt(t.unstoppableDuration)} s.` : '',
-    t.ultCloseAStunDuration > 0 ? `A proche pendant R : Étourdissement ${fmt(t.ultCloseAStunDuration)} s.` : ''
+    'Type : mode offensif.',
+    `Durée ${fmt(t.ultDuration, 2)} s, coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Effet : +${pct(t.ultAttackSpeedPct, 1)} cadence, +${pct(t.ultMoveSpeedPct, 1)} vitesse, +${pct(t.ultEmpowerPct, 1)} dégâts infligés.`,
+    `Éliminations : prolongent de ${fmt(t.extensionDuration, 2)} s, jusqu’à ${fmt(t.extensionMaxBonusDuration, 2)} s gagnées.`,
+    scalingLine('+0.8% cadence, +0.5% vitesse, +0.45% dégâts par niveau ; -0.5 s CD tous les 2 niveaux jusqu’à 58 s.'),
+    phaseLine(1, 'mode offensif simple.', phase),
+    phaseLine(2, 'autos sur cible déjà touchée par A appliquent Brûlure 1.8 s : 10 + 25% dégâts AA.', phase),
+    phaseLine(3, 'Z pendant R donne Inarrêtable 0.35 s.', phase),
+    phaseLine(4, 'autos sur cible à moins de 160 rendent 3 énergie.', phase),
+    phaseLine(5, 'si A touche une cible à moins de 200 pendant R, Étourdissement 0.45 s.', phase)
   ];
 }
 
 function sigilAbility(slot, s) {
   const t = s.tuning ?? {};
+  const phase = s.phase ?? t.phase ?? 0;
   if (slot === 'A') return [
+    'Type : trait linéaire traversant.',
     castLine(t),
-    `Trait runique traversant : ${fmt(t.aImpactDamageFlat)} + ${pct(t.aImpactDamagePct)} dégâts d’attaque automatique.`,
-    'Pose 1 rune. Les runes amplifient les prochaines touches.',
-    t.aPierceCount > 0 ? 'Phase 2 : traverse largement les cibles.' : '',
-    t.aRevealThreshold > 0 ? `Si la cible avait déjà ${t.aRevealThreshold} runes : Révélation.` : '',
-    t.aHealCutThreshold > 0 ? `Si la cible avait déjà ${t.aHealCutThreshold} runes : réduction de soins ${pct(t.aHealCutPct)}.` : '',
-    t.aDetonationStasisDuration > 0 ? 'Première détonation à 5 runes : Stase courte.' : ''
+    `Portée ${fmt(t.aProjectileRange, 0)}, largeur ${fmt(t.aProjectileWidth, 1)}, coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Dégâts : ${fmt(t.aImpactDamageFlat, 1)} + ${pct(t.aImpactDamagePct, 1)} des dégâts de l’attaque automatique actuelle.`,
+    scalingLine('+2.4 dégâts, +1.8% coefficient AA, +0.4 largeur tous les 2 niveaux ; -0.07 s CD par niveau jusqu’à 3.7 s.'),
+    'Synergie passive : applique 1 Rune, applique le bonus des Runes déjà présentes, puis peut déclencher la détonation à 5 Runes.',
+    phaseLine(1, 'applique 1 Rune à chaque cible touchée.', phase),
+    phaseLine(2, 'traverse toutes les cibles jusqu’à la portée maximale.', phase),
+    phaseLine(3, 'si la cible avait déjà 3 Runes ou plus avant l’impact, Révélation 1.6 s.', phase),
+    phaseLine(4, 'la première cible ayant déjà 5 Runes subit Réduction de soins 30% pendant 2.5 s.', phase),
+    phaseLine(5, 'la première détonation de 5 Runes applique Stase 0.40 s.', phase)
   ];
   if (slot === 'Z') return [
-    `Zone ${fmt(t.zZoneRadius, 0)} pendant ${fmt(t.zZoneDuration)} s.`,
-    `Dégâts/s : ${fmt(t.zZoneDamageFlatPerSecond)} + ${pct(t.zZoneDamageWeaponPctPerSecond)} arme.`,
-    `Ralentit de ${pct(t.zZoneSlowPct)}.`,
-    t.zRunePulseStacks > 0 ? 'Chaque pulse ajoute des runes et peut déclencher une détonation à 5 runes.' : '',
-    t.zCanRecastClose ? 'Réactivation : ferme la zone et contrôle les cibles runées.' : ''
+    'Type : zone posée à distance.',
+    `Portée de pose ${fmt(t.zCastRange, 0)}, rayon ${fmt(t.zZoneRadius, 1)}, durée ${fmt(t.zZoneDuration, 2)} s.`,
+    `Coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Dégâts/s : ${fmt(t.zZoneDamageFlatPerSecond, 1)} + ${pct(t.zZoneDamageWeaponPctPerSecond, 1)} des dégâts AA par seconde.`,
+    scalingLine('+1.4 dégâts/s, +1.6% coefficient AA/s, +2.5 rayon, +0.08 s durée par niveau ; -0.08 s CD jusqu’à 13.6 s.'),
+    'Synergie passive : les ticks peuvent appliquer Rune, bonus par Rune déjà présente, et détonation à 5 Runes.',
+    phaseLine(1, 'la zone applique Ralentissement 22%.', phase),
+    phaseLine(2, 'chaque seconde passée dans la zone donne 1 Rune supplémentaire.', phase),
+    phaseLine(3, 'peut être réactivée une fois pour fermer le sceau avant la fin.', phase),
+    phaseLine(4, 'à la fermeture, attire les cibles présentes de 120 vers le centre.', phase),
+    phaseLine(5, 'à la fermeture, les cibles ayant 3 Runes ou plus subissent Suppression 0.7 s.', phase)
   ];
   if (slot === 'E') return [
-    `Dash de ${fmt(t.eDashDistance, 0)} et camouflage ${fmt(t.eCamouflageDuration)} s.`,
-    t.eTrailSlowPct > 0 ? `Traînée : ralentissement ${pct(t.eTrailSlowPct)} pendant ${fmt(t.eTrailSlowDuration)} s, pose des runes et peut détoner.` : '',
-    t.aEmpowerFromVeilDamagePct > 0 ? `A lancé depuis le voile : +${pct(t.aEmpowerFromVeilDamagePct)} dégâts.` : '',
-    t.eSpellShieldOnEndDuration > 0 ? `Fin du voile : bouclier anti-sort ${fmt(t.eSpellShieldOnEndDuration)} s.` : ''
+    'Type : déplacement bref et défense technique.',
+    `Dash ${fmt(t.eDashDistance, 0)}, voile ${fmt(t.eTrailDuration, 2)} s, camouflage ${fmt(t.eCamouflageDuration, 2)} s.`,
+    `Coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    scalingLine('+5 distance, +0.03 s camouflage, +0.03 s traînée par niveau ; -0.10 s CD jusqu’à 15.1 s.'),
+    'Synergie passive : la traînée touche, applique Rune, applique bonus par Rune déjà présente, et peut détoner à 5 Runes.',
+    phaseLine(1, 'déplacement simple et camouflage bref.', phase),
+    phaseLine(2, 'la traînée applique Ralentissement 18%.', phase),
+    phaseLine(3, 'le premier A lancé pendant le camouflage inflige +14% dégâts.', phase),
+    phaseLine(4, 'une fois le voile écoulé, Bouclier anti-sort 0.40 s.', phase),
+    phaseLine(5, 'si la traînée touche une cible qui avait déjà 5 Runes, Cloué au sol 0.8 s.', phase)
   ];
   return [
-    `Convergence ${fmt(t.ultDuration)} s.`,
-    `Runes durent +${pct(t.ultRuneDurationBonusPct)}.`,
-    `Cooldown de A multiplié par x${fmt(t.ultACooldownMultiplier, 2)}.`,
-    `Vol de vie : ${pct(t.ultLifestealPct, 1)}.`,
-    t.ultDetonationStunDuration > 0 ? `Première détonation à 5 runes pendant R : étourdissement ${fmt(t.ultDetonationStunDuration)} s.` : ''
+    'Type : mode de domination de zone.',
+    `Durée ${fmt(t.ultDuration, 2)} s, coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Effet : Runes durent +${pct(t.ultRuneDurationBonusPct, 1)}, CD de A ×${fmt(t.ultACooldownMultiplier, 3)}, vol de sort ${pct(t.ultLifestealPct, 2)}.`,
+    scalingLine('+0.9% durée des Runes, -0.008 coefficient CD de A tous les 2 niveaux, +0.55% vol de sort par niveau ; -0.45 s CD jusqu’à 57 s.'),
+    phaseLine(1, 'mode de burst de Runes.', phase),
+    phaseLine(2, 'toutes les cibles touchées par A sont révélées pendant 2 s.', phase),
+    phaseLine(3, 'les cibles à 4 Runes ou plus subissent Réduction de soins 30%.', phase),
+    phaseLine(4, 'si Z est lancé pendant R, Sigil gagne Camouflage 0.45 s à la fermeture ou fin de zone.', phase),
+    phaseLine(5, 'la première détonation de 5 Runes de chaque activation donne Étourdissement 0.35 s.', phase)
   ];
 }
 
 function bulwarkAbility(slot, s) {
   const t = s.tuning ?? {};
+  const phase = s.phase ?? t.phase ?? 0;
   if (slot === 'A') return [
-    `Ancrage ${fmt(t.anchorDuration)} s : armure +${fmt(t.anchorArmorFlat)}.`,
-    `Réduction ${pct(t.anchorDamageReductionPct)} et reflet ${pct(t.anchorReflectPct)}.`,
-    t.anchorPulseRadius > 0 ? `Pulse slow ${pct(t.anchorPulseSlowPct)} dans ${fmt(t.anchorPulseRadius, 0)}.` : '',
-    t.anchorTauntedBonusFlat > 0 ? 'Bonus de dégâts contre les cibles provoquées.' : '',
-    t.anchorSingleHitCapPctMaxHp > 0 ? `Cap de gros hit : ${pct(t.anchorSingleHitCapPctMaxHp)} PV max.` : ''
+    'Type : posture défensive.',
+    `Durée ${fmt(t.anchorDuration, 2)} s, coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Effet : -${pct(t.anchorSelfSlowPct, 1)} vitesse, +${fmt(t.anchorArmorFlat, 1)} armure, ${pct(t.anchorDamageReductionPct, 1)} réduction de dégâts.`,
+    `Réflexion : ${pct(t.anchorReflectPct, 1)} des dégâts reçus après mitigation, min ${fmt(t.anchorReflectMinDamage, 1)}, max ${fmt(t.anchorReflectMaxDamage, 1)}.`,
+    scalingLine('+0.50 armure, +0.30% réduction, -0.15% ralentissement, +0.035 s durée par niveau ; -0.14 s CD jusqu’à 11.9 s.'),
+    'Pendant A : les coefficients de conversion du passif sont augmentés de 50%.',
+    phaseLine(1, 'posture défensive simple.', phase),
+    phaseLine(2, 'les dégâts absorbés uniquement par le bouclier déclenchent aussi la réflexion.', phase),
+    phaseLine(3, 'à l’activation puis à la fin, onde rayon 150 qui ralentit 25% pendant 1 s.', phase),
+    phaseLine(4, 'autos contre cible sous Provocation : 6 + 8% armure totale en dégâts bonus, +0.55 plat/niveau.', phase),
+    phaseLine(5, 'pendant la durée, aucun hit unique ne peut retirer plus de 20% de la coque max.', phase)
   ];
   if (slot === 'Z') return [
+    'Type : projectile linéaire de Provocation.',
     castLine(t),
-    `Harpon ${fmt(t.harpoonRange, 0)} : ${fmt(t.harpoonDamageFlat)} + ${pct(t.harpoonDamageWeaponPct)} attaque automatique + armure.`,
-    `Provoque ${fmt(t.harpoonTauntDuration)} s.`,
-    t.harpoonArmorShredPct > 0 ? `Shred armure ${pct(t.harpoonArmorShredPct)} pendant ${fmt(t.harpoonArmorShredDuration)} s.` : '',
-    t.harpoonGroundedDuration > 0 ? `Grounded ${fmt(t.harpoonGroundedDuration)} s.` : '',
-    t.harpoonDashDistance > 0 ? 'Dash vers la cible touchée.' : '',
-    t.harpoonPullStrength > 0 ? 'Tire la cible vers toi.' : '',
-    'Échec : Brèche de coque, perte d’armure et de ténacité.'
+    `Portée ${fmt(t.harpoonRange, 0)}, largeur ${fmt(t.harpoonWidth, 0)}, vitesse ${fmt(t.harpoonProjectileSpeed, 0)}.`,
+    `Coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Dégâts : ${fmt(t.harpoonDamageFlat, 1)} + ${pct(t.harpoonDamageWeaponPct, 1)} dégâts bonus AA + ${pct(t.harpoonDamageArmorPct, 1)} armure totale.`,
+    `Base : Provocation ${fmt(t.harpoonTauntDuration, 2)} s, +${pct(t.harpoonSelfHastePct, 1)} vitesse vers la cible, passage à travers les unités pendant la Provocation.`,
+    scalingLine('+4.5 dégâts, +1.2% coefficient AA bonus, +0.70% armure, +2 portée tous les 2 niveaux ; -0.14 s CD jusqu’à 15.9 s.'),
+    phaseLine(1, 'projectile simple de Provocation.', phase),
+    phaseLine(2, 'Réduction d’armure 12% pendant 4 s, +0.30% par niveau.', phase),
+    phaseLine(3, 'Cloué au sol pendant les 1.0 premières secondes de Provocation, +0.015 s/niveau.', phase),
+    phaseLine(4, 'si touché à plus de 180, Bulwark rue de 120 vers la cible.', phase),
+    phaseLine(5, 'attire la cible de 110 ; si dans R, attraction vers le centre de R et Provocation +0.40 s.', phase),
+    'Échec : Brèche de coque 2.25 s, -45% armure totale, -50% ténacité, pas de Plaque pendant 1.25 s.'
   ];
   if (slot === 'E') return [
-    `Méditation ${fmt(t.meditationDuration)} s : réduction ${pct(t.meditationDamageReductionPct)}.`,
-    `Soigne les PV manquants et donne un bouclier à la fin.`,
-    t.meditationCastUnstoppableDuration > 0 ? `Début : Inarrêtable ${fmt(t.meditationCastUnstoppableDuration)} s.` : '',
-    t.meditationPulseRadius > 0 ? `Fin : slow dans ${fmt(t.meditationPulseRadius, 0)}.` : '',
-    t.meditationCleanseSilenceDisarmRoot ? 'Purge silence, désarmement et root.' : '',
-    t.meditationFinalGroundedDuration > 0 ? `Fin : Grounded ${fmt(t.meditationFinalGroundedDuration)} s.` : ''
+    'Type : canal défensif.',
+    `Durée ${fmt(t.meditationDuration, 2)} s, coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Effet : -${pct(t.meditationSelfSlowPct, 1)} vitesse, ${pct(t.meditationDamageReductionPct, 1)} réduction de dégâts.`,
+    `Soin : ${pct(t.meditationHealMissingPctPerSecond, 2)} de la coque manquante par seconde.`,
+    `Fin : bouclier ${pct(t.meditationShieldPctMaxHp, 2)} coque max + ${pct(t.meditationShieldArmorPct, 2)} armure totale pendant 4 s.`,
+    scalingLine('+0.55% réduction, +0.22% soin/s, +0.02 s durée, -0.08% ralentissement, -0.12 s CD jusqu’à 14.4 s.'),
+    'Base : les réductions de soins subies sont réduites de 40%.',
+    phaseLine(1, 'canal défensif simple.', phase),
+    phaseLine(2, 'Inarrêtable 0.50 s à l’activation.', phase),
+    phaseLine(3, 'impulsion toutes les 0.85 s, rayon 170, Ralentissement 20% pendant 1 s.', phase),
+    phaseLine(4, 'purge Enracinement, Désarmement et Silence à l’activation.', phase),
+    phaseLine(5, 'hit cap 16% coque max ; à la fin, onde rayon 180 Cloué au sol 1.25 s.', phase)
   ];
   return [
-    `Tempête ${fmt(t.stormDuration)} s, rayon externe ${fmt(t.stormRadius, 0)} et centre ${fmt(t.stormInnerRadius, 0)}.`,
-    `Dégâts/s : ${fmt(t.stormBaseDpsFlat)} + ${pct(t.stormBaseDpsPct)} attaque automatique.`,
-    `Ralentit de ${pct(t.stormSlowPct)} et vole de l’armure par cible.`,
-    t.stormCentralGroundedDuration > 0 ? 'Le rayon central cloue les cibles au sol.' : '',
-    t.stormTauntedDamageAmpPct > 0 ? `Cibles provoquées : +${pct(t.stormTauntedDamageAmpPct)} dégâts subis.` : '',
-    t.stormExposureStunThreshold > 0 ? `Exposition prolongée : stun ${fmt(t.stormExposureStunDuration)} s.` : '',
-    t.stormPullStrength > 0 ? 'La tempête attire périodiquement les ennemis.' : ''
+    'Type : aura de duel.',
+    `Durée ${fmt(t.stormDuration, 2)} s, rayon externe ${fmt(t.stormRadius, 0)}, rayon central ${fmt(t.stormInnerRadius, 0)}.`,
+    `Coût ${fmt(s.energyCost ?? t.energyCost, 0)} énergie, recharge ${fmt(s.cooldownMax ?? t.baseCooldown, 2)} s.`,
+    `Dégâts/s : ${fmt(t.stormBaseDpsFlat, 1)} + ${pct(t.stormBaseDpsPct, 1)} armure totale par seconde. Ralentissement ${pct(t.stormSlowPct, 1)}.`,
+    `Vol d’armure : 2 armure toutes les 0.5 s, cap ${fmt(t.stormStealCap, 0)} par cible ; retour après 2 s hors zone puis restitution sur 2 s.`,
+    scalingLine('+1.6 dégâts/s, +0.20% armure/s, rayons +1.4/+0.55 tous les 2 niveaux, +0.04 s durée, -1.25 s CD jusqu’à 72.5 s.'),
+    phaseLine(1, 'aura de dégâts, ralentissement et vol d’armure.', phase),
+    phaseLine(2, '+15% vitesse vers cibles provoquées dans la zone ; autos contre elles +12% dégâts.', phase),
+    phaseLine(3, 'les cibles dans le rayon central sont Clouées au sol.', phase),
+    phaseLine(4, 'toutes les 1.2 s, bouclier 3% coque max par cible récente, max 9% par activation.', phase),
+    phaseLine(5, '2.60 s d’exposition : Étourdissement 1.0 s ; cibles provoquées attirées de 60 toutes les 0.8 s pendant 1.6 s.', phase)
   ];
 }
 
@@ -254,7 +330,7 @@ function drawBox(ctx, view, tip, mx, my) {
   const titleH = 20;
   ctx.save();
   ctx.font = `12px Segoe UI`;
-  const lines = tip.lines.filter(Boolean).slice(0, 8);
+  const lines = tip.lines.filter(Boolean).slice(0, 26);
   const textW = Math.max(ctx.measureText(tip.title).width, ...lines.map(l => ctx.measureText(l).width));
   const w = Math.min(430, Math.max(250, textW + pad * 2));
   const h = pad * 2 + titleH + lines.length * lineH + 4;
