@@ -111,6 +111,8 @@ export class WorldStore {
         if (Number.isFinite(next.rot)) merged.rot = next.rot;
         merged._serverX = next.x;
         merged._serverY = next.y;
+        merged._serverVx = Number.isFinite(next.vx) ? next.vx : 0;
+        merged._serverVy = Number.isFinite(next.vy) ? next.vy : 0;
         merged._tx = next.x;
         merged._ty = next.y;
         merged._snapDistanceSq = 0;

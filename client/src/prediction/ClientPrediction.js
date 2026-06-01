@@ -314,7 +314,7 @@ export class ClientPrediction {
     }
 
     if (hasAuthoritativeControlStatus(me) || hasAuthoritativeControlStatus(this.store.myState)) {
-      this.cancelLocalControl(me);
+      this.cancelLocalControl(me, dt, input);
       return;
     }
 
