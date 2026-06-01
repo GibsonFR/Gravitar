@@ -1,7 +1,6 @@
 import { ScrollPreserver } from '../common/ScrollPreserver.js';
-function escapeHtml(txt) {
-  return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-}
+import { escapeHtml } from '../common/EscapeHtml.js';
+import { renderMachineHeader, renderMachineMetricStrip, machineStateClass } from '../common/MachineUiComponents.js';
 
 const CATEGORY_ORDER = ['engine', 'weapon', 'launcher', 'defense', 'module'];
 const CATEGORY_LABELS = {
@@ -289,16 +288,28 @@ export class EquipmentFabricatorPanelView {
       </button>
     `).join('');
 
+    const uiState = machineStateClass({ powered: !!data.powered, enabled: true, busy: !!data.job?.active, danger: !data.powered });
+    const headerHtml = renderMachineHeader({
+      eyebrow: 'Industrie',
+      title: data.name || 'Atelier d’équipement',
+      meta: data.powered ? 'Alimenté' : 'Sans énergie',
+      state: uiState,
+      closeAttr: 'data-equipment-fab-close="1"',
+      badges: [
+        { label: data.powered ? 'Alimenté' : 'Sans énergie', className: data.powered ? 'is-ok' : 'is-danger' },
+        { label: selected?.canCraft ? 'Craft prêt' : 'En attente', className: selected?.canCraft ? 'is-ok' : 'is-warning' }
+      ]
+    });
+    const metricsHtml = renderMachineMetricStrip([
+      { label: 'Input', value: `${data.inputUsed | 0}/${data.inputCapacity | 0}` },
+      { label: 'Output', value: `${data.outputUsed | 0}/${data.outputCapacity | 0}` },
+      { label: 'Catégorie', value: CATEGORY_LABELS[this.category] || this.category },
+      { label: 'Recettes', value: `${filtered.length}` }
+    ]);
     const scroll = this.scrollPreserver.capture();
     this.el.innerHTML = `
-      <div class="equipment-fab__head">
-        <div>
-          <div class="equipment-fab__eyebrow">Industrie</div>
-          <div class="equipment-fab__title">${escapeHtml(data.name || 'Atelier d’équipement')}</div>
-          <div class="equipment-fab__meta">${data.powered ? 'Alimenté' : 'Sans énergie'}</div>
-        </div>
-        <button type="button" class="equipment-fab__close" data-equipment-fab-close="1">×</button>
-      </div>
+      ${headerHtml}
+      ${metricsHtml}
       <div class="equipment-fab__tabs">${tabs}</div>
       ${moduleSubtabs}
       <div class="equipment-fab__io-strip">

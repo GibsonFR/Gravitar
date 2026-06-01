@@ -1,5 +1,6 @@
 import { ScrollPreserver } from '../common/ScrollPreserver.js';
 import { escapeHtml, formatNumber } from '../common/EscapeHtml.js';
+import { renderMachineHeader, renderMachineMetricStrip, renderMachineProgress, renderMachineStatusCard, machineStateClass } from '../common/MachineUiComponents.js';
 
 function fmt(n) {
   const v = Number(n) || 0;
@@ -167,33 +168,38 @@ export class MachinePanelView {
       const energyLine = energy ? `${prod} production · ${conso} consommation · ${surplus} surplus` : 'Aucun noyau alimenté';
       const energyPct = energy ? Math.max(0, Math.min(100, Math.round((conso / Math.max(1, prod)) * 100))) : 0;
       const energyWarn = machine.enabled !== false && use > 0 && !machine.powered;
+      const extractorUiState = machineStateClass({ powered: !!machine.powered, enabled: machine.enabled !== false, busy: powered, danger: energyWarn });
+      const extractorHeader = renderMachineHeader({
+        eyebrow: 'Industrie',
+        title: machine.name || 'Extracteur minier',
+        meta: `${status} · ${machine.energyUse | 0} énergie active`,
+        state: extractorUiState,
+        closeAttr: 'data-close-machine="1"',
+        badges: [
+          { label: machine.enabled !== false ? 'Activé' : 'Arrêté', className: machine.enabled !== false ? 'is-ok' : 'is-warning' },
+          { label: machine.powered ? 'Alimenté' : 'Sans énergie', className: machine.powered ? 'is-ok' : 'is-danger' }
+        ]
+      });
+      const extractorMetrics = renderMachineMetricStrip([
+        { label: 'Énergie active', value: `${machine.energyUse | 0}` },
+        { label: 'Buffer', value: `${Math.round(machine.outputUsed || 0)} / ${Math.round(machine.outputCapacity || 0)}` },
+        { label: 'Gisement', value: machine.depositLabel || 'Aucun' }
+      ]);
       this.el.innerHTML = `
-        <div class="machine-panel__head">
-          <div>
-            <div class="machine-panel__eyebrow">Industrie</div>
-            <div class="machine-panel__title">${escapeHtml(machine.name || 'Extracteur minier')}</div>
-            <div class="machine-panel__meta ${powerClass}">${escapeHtml(status)} · ${machine.energyUse | 0} énergie active</div>
-          </div>
-          <button class="machine-panel__close" type="button" data-close-machine="1">×</button>
-        </div>
+        ${extractorHeader}
+        ${extractorMetrics}
         <div class="machine-panel__body" data-scroll-key="machine-body">
           <div class="machine-panel__production">
             <div class="machine-panel__recipe-banner">
               <div class="machine-panel__recipe-title">Source : ${escapeHtml(machine.depositLabel || 'Aucun gisement')}</div>
               <div class="machine-panel__recipe-stats">Cycle d’extraction · buffer ${Math.round(machine.outputUsed || 0)} / ${Math.round(machine.outputCapacity || 0)}</div>
             </div>
-            <div class="machine-panel__progress">
-              <div class="machine-panel__progress-head"><span>${escapeHtml(status)}</span><b>${progressPct}%</b></div>
-              <div class="machine-panel__bar"><span style="width:${progressPct}%"></span></div>
-            </div>
+            ${renderMachineProgress({ label: status, value: progressPct, right: `${progressPct}%`, state: extractorUiState })}
             <div class="machine-panel__cols">
               <section class="machine-panel__box">
                 <h3>Énergie <span>${use | 0} active</span></h3>
                 <div class="machine-panel__empty">${escapeHtml(energyLine)}</div>
-                <div class="machine-panel__progress mini">
-                  <div class="machine-panel__progress-head"><span>Charge réseau</span><b>${energyPct}%</b></div>
-                  <div class="machine-panel__bar"><span style="width:${energyPct}%"></span></div>
-                </div>
+                ${renderMachineProgress({ label: 'Charge réseau', value: energyPct, right: `${energyPct}%`, state: energyWarn ? 'is-danger' : 'is-ok', compact: true })}
                 <div class="machine-panel__hint ${energyWarn ? 'is-danger' : ''}">
                   ${energyWarn ? 'Pas assez d’énergie : extraction arrêtée.' : 'L’extracteur consomme son énergie uniquement quand il est actif.'}
                 </div>
@@ -244,14 +250,10 @@ export class MachinePanelView {
     const outputContent = outputRows.length
       ? resourceRows(outputRows, 'Récupérer', 'withdraw', 'output', machine.id, false)
       : `<div class="machine-panel__empty">${busy ? 'Production en cours : la sortie se remplit à la fin du cycle.' : (lastProduced ? `Dernier cycle produit : ${escapeHtml(lastProduced)}. Si la sortie est vide, elle a été récupérée par l’automation.` : 'Vide.')}</div>`;
-    const progressHtml = job?.active ? `
-      <div class="machine-panel__progress">
-        <div class="machine-panel__progress-head">
-          <span>${job.paused ? 'En pause' : 'Production'}</span>
-          <b>${fmt(job.remainingSeconds)}s restantes</b>
-        </div>
-        <div class="machine-panel__bar"><span style="width:${progressPct}%"></span></div>
-      </div>` : '<div class="machine-panel__idle">Aucune production en cours.</div>';
+    const machineUiState = machineStateClass({ powered: !!machine.powered, enabled, busy, danger: enabled && !machine.powered });
+    const progressHtml = job?.active
+      ? renderMachineProgress({ label: job.paused ? 'En pause' : 'Production', value: progressPct, right: `${fmt(job.remainingSeconds)}s restantes`, state: job.paused ? 'is-warning' : machineUiState })
+      : '<div class="machine-panel__idle">Aucune production en cours.</div>';
 
     const productionHtml = selected ? `
       <div class="machine-panel__production">
@@ -283,15 +285,27 @@ export class MachinePanelView {
         </div>
       </div>` : '<div class="machine-panel__empty">Choisis une recette.</div>';
 
+    const headerHtml = renderMachineHeader({
+      eyebrow: 'Industrie',
+      title: machine.name || 'Machine',
+      meta: `${powerLabel} · ${machine.energyUse | 0} énergie active`,
+      state: machineUiState,
+      closeAttr: 'data-close-machine="1"',
+      badges: [
+        { label: enabled ? 'Activée' : 'Arrêtée', className: enabled ? 'is-ok' : 'is-warning' },
+        { label: machine.powered ? 'Alimentée' : 'Sans énergie', className: machine.powered ? 'is-ok' : 'is-danger' },
+        busy ? { label: 'Cycle', className: 'is-warning' } : null
+      ]
+    });
+    const metricsHtml = renderMachineMetricStrip([
+      { label: 'Entrée', value: `${fmt(machine.inputUsed)} / ${fmt(machine.inputCapacity)}` },
+      { label: 'Sortie', value: `${fmt(machine.outputUsed)} / ${fmt(machine.outputCapacity)}` },
+      { label: 'Énergie', value: `${machine.energyUse | 0}` }
+    ]);
+
     this.el.innerHTML = `
-      <div class="machine-panel__head">
-        <div>
-          <div class="machine-panel__eyebrow">Industrie</div>
-          <div class="machine-panel__title">${escapeHtml(machine.name || 'Machine')}</div>
-          <div class="machine-panel__meta ${powerClass}">${escapeHtml(powerLabel)} · ${machine.energyUse | 0} énergie active</div>
-        </div>
-        <button class="machine-panel__close" type="button" data-close-machine="1">×</button>
-      </div>
+      ${headerHtml}
+      ${metricsHtml}
       <div class="machine-panel__tabs">
         <button type="button" data-machine-tab="select" class="${activeTab === 'select' ? 'is-active' : ''}">Recette</button>
         <button type="button" data-machine-tab="production" class="${activeTab === 'production' ? 'is-active' : ''}">Production</button>

@@ -1,4 +1,5 @@
 import { ScrollPreserver } from '../common/ScrollPreserver.js';
+import { renderMachineHeader, renderMachineMetricStrip, machineStateClass } from '../common/MachineUiComponents.js';
 function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
@@ -328,16 +329,30 @@ export class RocketWorkshopPanelView {
       statCard('Cycle', `${recipe.seconds | 0}s`),
       statCard('Énergie', `${workshop.energyUse | 0}`)
     ].join('');
+    const uiState = machineStateClass({ powered: !!workshop.powered, enabled: workshop.enabled !== false, busy: !!workshop.job?.active, danger: workshop.enabled !== false && !workshop.powered });
+    const headerHtml = renderMachineHeader({
+      eyebrow: 'Industrie · munitions',
+      title: workshop.name || 'Atelier de roquettes',
+      meta: `${workshop.powered ? 'Alimenté' : 'Sans énergie'} · ${workshop.energyUse | 0} énergie active`,
+      state: uiState,
+      closeAttr: 'data-close-rocket-workshop="1"',
+      badges: [
+        { label: workshop.enabled !== false ? 'Activé' : 'Arrêté', className: workshop.enabled !== false ? 'is-ok' : 'is-warning' },
+        { label: workshop.powered ? 'Alimenté' : 'Sans énergie', className: workshop.powered ? 'is-ok' : 'is-danger' },
+        workshop.job?.active ? { label: 'Production', className: 'is-warning' } : null
+      ]
+    });
+    const metricsHtml = renderMachineMetricStrip([
+      { label: 'Mix', value: `${Math.round(workshop.inputUsed || 0)} / ${Math.round(workshop.inputCapacity || 0)}` },
+      { label: 'Sortie', value: `${Math.round(workshop.outputUsed || 0)} / ${Math.round(workshop.outputCapacity || 0)}` },
+      { label: 'Énergie', value: `${workshop.energyUse | 0}` },
+      { label: 'Statut', value: workshop.canRun ? 'Prêt' : 'En attente' }
+    ]);
 
     return `
-      <div class="rocket-workshop__head">
-        <div>
-          <div class="rocket-workshop__eyebrow">Industrie · munitions</div>
-          <div class="rocket-workshop__title">${escapeHtml(workshop.name || 'Atelier de roquettes')}</div>
-          <div class="rocket-workshop__meta" data-role="status-line"></div>
-        </div>
-        <button class="rocket-workshop__close" type="button" data-close-rocket-workshop="1">×</button>
-      </div>
+      ${headerHtml}
+      <div class="rocket-workshop__meta" data-role="status-line" hidden></div>
+      ${metricsHtml}
       <div class="rocket-workshop__body">
         <div class="rocket-workshop__layout">
           <section class="rocket-workshop__panel rocket-workshop__panel--hero">

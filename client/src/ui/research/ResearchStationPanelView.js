@@ -1,7 +1,6 @@
 import { ScrollPreserver } from '../common/ScrollPreserver.js';
-function escapeHtml(txt) {
-  return String(txt || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
+import { escapeHtml } from '../common/EscapeHtml.js';
+import { renderMachineHeader, renderMachineMetricStrip, renderMachineProgress, machineStateClass } from '../common/MachineUiComponents.js';
 
 function describeStatus(status, powered, enabled) {
   if (!enabled) return 'Station désactivée';
@@ -105,24 +104,42 @@ export class ResearchStationPanelView {
     const hasActive = !!data.activeProjectId;
     const progress = progressPercent(data.progress);
 
-    this.el.innerHTML = `
-      <header class="research-station-lite__head">
-        <div>
-          <div class="research-station-lite__eyebrow">Station de recherche</div>
-          <div class="research-station-lite__title">${escapeHtml(data.name || 'Station de recherche')}</div>
-          <div class="research-station-lite__meta">${escapeHtml(status)} · ${data.inputUsed | 0}/${data.inputCapacity | 0} packs · ${data.pointSeconds | 0}s / point</div>
-        </div>
-        <button type="button" class="research-station-lite__close" data-close-research-station="1">×</button>
-      </header>
+    const uiState = machineStateClass({ powered: !!data.powered, enabled: data.enabled !== false, busy: hasActive });
+    const headerHtml = renderMachineHeader({
+      eyebrow: 'Station de recherche',
+      title: data.name || 'Station de recherche',
+      meta: `${status} · ${data.inputUsed | 0}/${data.inputCapacity | 0} packs · ${data.pointSeconds | 0}s / point`,
+      state: uiState,
+      closeAttr: 'data-close-research-station="1"',
+      badges: [
+        { label: data.powered ? 'Alimentée' : 'Sans énergie', className: data.powered ? 'is-ok' : 'is-warning' },
+        { label: data.enabled ? 'Active' : 'Désactivée', className: data.enabled ? 'is-ok' : 'is-warning' }
+      ]
+    });
+    const metricsHtml = renderMachineMetricStrip([
+      { label: 'Packs', value: `${data.inputUsed | 0}/${data.inputCapacity | 0}` },
+      { label: 'Recherche', value: hasActive ? `${data.pointsDone | 0}/${data.pointsTotal | 0} points` : 'Aucune' },
+      { label: 'Cycle', value: `${data.pointSeconds | 0}s / point` }
+    ]);
+    const progressHtml = renderMachineProgress({
+      label: hasActive ? (data.activeProjectName || 'Recherche active') : 'Recherche active',
+      value: progress,
+      right: hasActive ? `${progress}%` : '—',
+      state: uiState
+    });
 
-      <section class="research-station-lite__active">
+    this.el.innerHTML = `
+      ${headerHtml}
+      ${metricsHtml}
+
+      <section class="research-station-lite__active machine-ui__status-card ${uiState}">
         <div>
           <h3>Recherche active</h3>
           <strong>${hasActive ? escapeHtml(data.activeProjectName || '') : 'Aucune recherche active'}</strong>
           <p>${hasActive ? `${data.pointsDone | 0}/${data.pointsTotal | 0} points · ${progress}% · lancée depuis l’onglet Recherche` : 'Choisis une technologie dans l’onglet Recherche. Cette station consommera les packs chargés ici.'}</p>
         </div>
         <div class="research-station-lite__right">
-          <div class="research-station-lite__bar"><span style="width:${progress}%"></span></div>
+          ${progressHtml}
           <button type="button" data-research-toggle="1" data-structure="${data.id | 0}" data-enabled="${data.enabled ? 'true' : 'false'}">${data.enabled ? 'Désactiver' : 'Activer'}</button>
         </div>
       </section>

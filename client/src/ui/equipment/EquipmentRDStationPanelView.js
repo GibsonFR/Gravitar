@@ -1,7 +1,6 @@
 import { ScrollPreserver } from '../common/ScrollPreserver.js';
-function escapeHtml(txt) {
-  return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-}
+import { escapeHtml } from '../common/EscapeHtml.js';
+import { renderMachineHeader, renderMachineMetricStrip, renderMachineProgress, machineStateClass } from '../common/MachineUiComponents.js';
 
 function resourcePill(r) {
   return `<span class="equipment-fab__res ${r.have <= 0 ? 'is-missing' : ''}" style="--res:${escapeHtml(r.colorHex || '#fff')}"><i></i>${escapeHtml(r.name)}<em>${r.have | 0}</em></span>`;
@@ -296,16 +295,28 @@ export class EquipmentRDStationPanelView {
 
     const canStart = !!data.inputItem && this.selectedSciences.length > 0 && !active && data.powered && !data.outputItem;
 
+    const uiState = machineStateClass({ powered: !!data.powered, enabled: true, busy: !!active, danger: !data.powered });
+    const headerHtml = renderMachineHeader({
+      eyebrow: 'R&D',
+      title: data.name || 'Station R&D',
+      meta: `${data.powered ? 'Alimentée' : 'Sans énergie'} · ${data.seconds | 0}s`,
+      state: uiState,
+      closeAttr: 'data-equipment-rd-close="1"',
+      badges: [
+        { label: data.powered ? 'Alimentée' : 'Sans énergie', className: data.powered ? 'is-ok' : 'is-danger' },
+        active ? { label: 'Analyse', className: 'is-warning' } : { label: 'Disponible', className: 'is-ok' }
+      ]
+    });
+    const metricsHtml = renderMachineMetricStrip([
+      { label: 'Input', value: data.inputItem ? data.inputItem.name : 'Vide' },
+      { label: 'Output', value: data.outputItem ? data.outputItem.name : 'Vide' },
+      { label: 'Sciences', value: `${(data.scienceInput || []).reduce((sum, r) => sum + (r.amount | 0), 0)}` },
+      { label: 'Durée', value: `${data.seconds | 0}s` }
+    ]);
     const scroll = this.scrollPreserver.capture();
     this.el.innerHTML = `
-      <div class="equipment-fab__head">
-        <div>
-          <div class="equipment-fab__eyebrow">R&D</div>
-          <div class="equipment-fab__title">${escapeHtml(data.name || 'Station R&D')}</div>
-          <div class="equipment-fab__meta">${data.powered ? 'Alimentée' : 'Sans énergie'} · ${data.seconds | 0}s</div>
-        </div>
-        <button type="button" class="equipment-fab__close" data-equipment-rd-close="1">×</button>
-      </div>
+      ${headerHtml}
+      ${metricsHtml}
       ${activeHtml}
       <div class="equipment-rd__layout">
         <section>
