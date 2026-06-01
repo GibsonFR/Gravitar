@@ -4,7 +4,7 @@ import { applyDamage } from '../combat/DamageSystem.js';
 import { applyStatusSpecs } from '../status/StatusApplication.js';
 import { isUntargetable } from '../status/StatusMotion.js';
 import { WORLD } from '../constants.js';
-import { onProjectileImpactForFrame } from '../frames/FrameGameplayHooks.js';
+import { onProjectileImpactForFrame, onProjectileExpireForFrame } from '../frames/FrameGameplayHooks.js';
 import { getSimulationTimeMs } from '../util/Time.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { sameWorld } from '../modes/GameModes.js';
@@ -269,6 +269,8 @@ export function updateProjectiles(state, dt, timeMs = null) {
       Math.abs(proj.x) > WORLD.halfW + 400 ||
       Math.abs(proj.y) > WORLD.halfH + 400
     ) {
+      const sourcePlayer = state.players.get(proj.sourceId) ?? null;
+      if (sourcePlayer) onProjectileExpireForFrame(state, sourcePlayer, proj, timeMs);
       state.projectiles.delete(proj.id);
     }
   }

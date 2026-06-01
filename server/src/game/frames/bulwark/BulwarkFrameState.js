@@ -19,12 +19,15 @@ export function createBulwarkFrameState() {
     meditationFinalGroundedDuration: 0,
     harpoonHasteLeft: 0,
     harpoonHastePct: 0,
+    breachLeft: 0,
+    breachPlateLockLeft: 0,
     stormLeft: 0,
     stormTickLeft: 0,
     stormPullTickLeft: 0,
     stormShieldTickLeft: 0,
     stormShieldGained: 0,
     stormArmorStolen: 0,
+    stormArmorById: Object.create(null),
     stormExposureById: Object.create(null)
   };
 }

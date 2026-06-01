@@ -18,6 +18,9 @@ export function switchPlayerFrame(player, frameId) {
   player.cooldownRLeft = 0;
   player.frameState = createFrameState(def.id);
   player.frameBonuses = {};
+  player.pendingFrameCast = null;
+  player.frameTempShields = [];
+  player.frameArmorPenaltyFlat = 0;
 
   syncPlayerFrameStats(player, { preserveRatios: true, restoreVitals: false });
   return def;

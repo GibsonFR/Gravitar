@@ -443,6 +443,34 @@ function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
   if (!fs) return;
   const dpr = view.dpr;
   const r = (p.radius ?? 18) + 22;
+  if ((fs.tempShield ?? 0) > 0) {
+    const alpha = 0.24 + 0.08 * Math.sin(t * 6);
+    ctx.save();
+    ctx.strokeStyle = rgba(132, 214, 255, alpha);
+    ctx.lineWidth = 1.8 * dpr;
+    ctx.beginPath();
+    ctx.arc(sx * dpr, sy * dpr, (r + 5) * dpr, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (fs.pendingCast) {
+    const started = Number(fs.pendingCast.startedAtMs) || 0;
+    const resolve = Number(fs.pendingCast.resolveAtMs) || 0;
+    const nowMs = Date.now();
+    const ratio = resolve > started ? Math.max(0, Math.min(1, (nowMs - started) / (resolve - started))) : 1;
+    ctx.save();
+    ctx.strokeStyle = rgba(245, 252, 255, 0.54);
+    ctx.lineWidth = 2.2 * dpr;
+    ctx.beginPath();
+    ctx.arc(sx * dpr, sy * dpr, (r + 21) * dpr, -Math.PI * 0.5, -Math.PI * 0.5 + ratio * Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = rgba(120, 220, 255, 0.18);
+    ctx.lineWidth = 1 * dpr;
+    ctx.beginPath();
+    ctx.arc(sx * dpr, sy * dpr, (r + 21) * dpr, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (fs.kind === 'vanguard') {
     drawContinuousHeatAura(ctx, dpr, sx, sy, r, fs.passiveStacks ?? 0, fs.passiveMaxStacks ?? 10, t);
     if ((fs.empoweredCharges ?? 0) > 0) drawChevronBurst(ctx, dpr, sx, sy, r + 12, { r: 255, g: 210, b: 92 }, fs.empoweredCharges, t, p.rot ?? -Math.PI / 2);

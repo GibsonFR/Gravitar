@@ -12,6 +12,8 @@ export function createPlayerAbilityState(frameRuntime) {
     cooldownZLeft: 0,
     cooldownELeft: 0,
     cooldownRLeft: 0,
-    abilityCatalog: { ...frameRuntime.abilityCatalog }
+    abilityCatalog: { ...frameRuntime.abilityCatalog },
+    pendingFrameCast: null,
+    frameTempShields: []
   };
 }

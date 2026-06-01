@@ -65,6 +65,67 @@ function getWeaponReferenceDamage(player) {
   return base * (player?.progressionBonuses?.damageMult ?? 1);
 }
 
+function getCastMouseWorld(player, cast = null) {
+  if (cast && Number.isFinite(cast.targetX) && Number.isFinite(cast.targetY)) return { x: cast.targetX, y: cast.targetY };
+  return getAbilityMouseWorld(player);
+}
+
+function getCooldownKey(slot) {
+  return `cooldown${slot}Left`;
+}
+
+function beginFrameCast(player, slot, tuning, timeMs) {
+  const castTime = Math.max(0, tuning?.castTime ?? 0);
+  if (castTime <= 0) return false;
+  const key = getCooldownKey(slot);
+  if ((player[key] ?? 0) > 0) return true;
+  if (!consumeEnergy(player.stats, tuning.energyCost)) return true;
+  const world = getAbilityMouseWorld(player);
+  player.pendingFrameCast = {
+    frameId: player.frameId,
+    slot,
+    startedAtMs: timeMs,
+    resolveAtMs: timeMs + Math.ceil(castTime * 1000),
+    targetX: world.x,
+    targetY: world.y
+  };
+  player[key] = tuning.baseCooldown;
+  return true;
+}
+
+function resolvePendingFrameCast(state, player, timeMs) {
+  const cast = player?.pendingFrameCast;
+  if (!cast) return;
+  if (cast.frameId !== player.frameId || timeMs < (cast.resolveAtMs || 0)) return;
+  player.pendingFrameCast = null;
+  if (cast.frameId === SHIP_FRAME_IDS.VANGUARD) {
+    if (cast.slot === 'A') castVanguardA(state, player, timeMs, { resolvingCast: true, cast });
+    else if (cast.slot === 'E') castVanguardE(state, player, timeMs, { resolvingCast: true, cast });
+    return;
+  }
+  if (cast.frameId === SHIP_FRAME_IDS.SIGIL) {
+    if (cast.slot === 'A') castSigilA(state, player, timeMs, { resolvingCast: true, cast });
+    return;
+  }
+  if (cast.frameId === SHIP_FRAME_IDS.BULWARK) {
+    if (cast.slot === 'Z') castBulwarkZ(state, player, timeMs, { resolvingCast: true, cast });
+  }
+}
+
+function grantFrameTempShield(player, amount, duration, label = '') {
+  if (!player?.stats || amount <= 0 || duration <= 0) return 0;
+  if (!Array.isArray(player.frameTempShields)) player.frameTempShields = [];
+  player.frameTempShields.push({ amount, left: duration, label });
+  return amount;
+}
+
+function tickFrameTempShields(player, dt) {
+  if (!Array.isArray(player.frameTempShields) || player.frameTempShields.length <= 0) return;
+  player.frameTempShields = player.frameTempShields
+    .map((s) => ({ ...s, left: Math.max(0, (s.left ?? 0) - dt), amount: Math.max(0, s.amount ?? 0) }))
+    .filter((s) => s.left > 0 && s.amount > 0);
+}
+
 function getBulwarkArmor(player) {
   return Math.max(0, (player?.baseArmor ?? 0) + (player?.frameBonuses?.armorFlat ?? 0));
 }
@@ -110,6 +171,27 @@ function findClosestHostileInRadius(state, owner, x, y, radius) {
     }
   });
   return best;
+}
+
+function findEntityInStateById(state, id) {
+  if (!state || id == null) return null;
+  return state.players?.get?.(id) || state.mobs?.get?.(id) || state.asteroids?.get?.(id) || null;
+}
+
+function applyFrameArmorPenalty(entity, delta) {
+  if (!entity || !Number.isFinite(delta) || delta === 0) return;
+  entity.frameArmorPenaltyFlat = Math.max(0, (entity.frameArmorPenaltyFlat || 0) + delta);
+}
+
+function clearBulwarkStormArmorSteal(state, fs) {
+  const byId = fs?.stormArmorById || null;
+  if (!byId) return;
+  for (const [id, amount] of Object.entries(byId)) {
+    const target = findEntityInStateById(state, Number(id) || id);
+    if (target && amount > 0) applyFrameArmorPenalty(target, -amount);
+  }
+  fs.stormArmorById = Object.create(null);
+  fs.stormArmorStolen = 0;
 }
 
 function getA(player) { return getVanguardAbilityTuning('A', Math.max(1, getAbilityInvestedLevel(player, 'A'))); }
@@ -274,9 +356,7 @@ function grantBulwarkPlateShield(player) {
   if (!player?.stats) return 0;
   const armor = getBulwarkArmor(player);
   const shieldGain = player.stats.maxHp * BULWARK_PASSIVE.plateShieldPctMaxHp + armor * BULWARK_PASSIVE.plateShieldArmorPct;
-  if (shieldGain <= 0) return 0;
-  player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + shieldGain);
-  return shieldGain;
+  return grantFrameTempShield(player, shieldGain, BULWARK_PASSIVE.empoweredDuration, 'Plaques');
 }
 
 function consumeBulwarkMaxPlatesForAbility(player) {
@@ -290,7 +370,7 @@ function consumeBulwarkMaxPlatesForAbility(player) {
 
 function registerBulwarkBurstDamage(player, amount) {
   const fs = getBulwarkState(player);
-  if (!fs || amount <= 0) return false;
+  if (!fs || amount <= 0 || (fs.breachPlateLockLeft ?? 0) > 0) return false;
   fs.recentDamageWindowLeft = BULWARK_PASSIVE.plateBurstWindow;
   fs.recentDamageTaken = (fs.recentDamageTaken || 0) + amount;
   if (fs.plateGainIcdLeft > 0) return false;
@@ -356,14 +436,17 @@ function updateFrameBonuses(player) {
     player.frameBonuses = {
       moveHaste: -(fs?.anchorLeft > 0 ? anchor.anchorSelfSlowPct : 0) - (fs?.meditationLeft > 0 ? meditation.meditationSelfSlowPct : 0),
       slowResist: player.progressionBonuses?.slowResist ?? 0,
-      tenacity: (player.progressionBonuses?.tenacity ?? 0) + plates * BULWARK_PASSIVE.plateTenacityPerPlate,
+      tenacity: (player.progressionBonuses?.tenacity ?? 0) + plates * BULWARK_PASSIVE.plateTenacityPerPlate - (fs?.breachLeft > 0 ? 0.50 : 0),
       attackSpeed: 0,
       ultEmpowerPct: 0,
       outgoingDamageMult: 1,
       incomingDamageReductionPct: plates * BULWARK_PASSIVE.plateDamageReductionPerPlate
         + (fs?.anchorLeft > 0 ? anchor.anchorDamageReductionPct : 0)
         + (fs?.meditationLeft > 0 ? meditation.meditationDamageReductionPct : 0),
-      armorFlat: plates * BULWARK_PASSIVE.plateArmorPerPlate + (fs?.anchorLeft > 0 ? fs.anchorArmorFlat : 0) + (fs?.stormArmorStolen ?? 0)
+      armorFlat: plates * BULWARK_PASSIVE.plateArmorPerPlate
+        + (fs?.anchorLeft > 0 ? fs.anchorArmorFlat : 0)
+        + (fs?.stormArmorStolen ?? 0)
+        - (fs?.breachLeft > 0 ? Math.max(0, player.baseArmor ?? 0) * 0.45 : 0)
     };
     return;
   }
@@ -403,7 +486,7 @@ function handleInertialPhaseExit(state, player, timeMs) {
     });
   }
   if (tuning.exitShieldPctMaxShield > 0) {
-    player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + player.stats.maxShield * tuning.exitShieldPctMaxShield);
+    grantFrameTempShield(player, player.stats.maxShield * tuning.exitShieldPctMaxShield, 4.0, 'E');
   }
   let hits = 0;
   if (tuning.exitRadius > 0 && tuning.groundedDuration > 0) {
@@ -528,7 +611,16 @@ function resolveBulwarkStormTick(state, player, timeMs) {
       timeMs
     });
     if (tuning.stormArmorStealPerSecond > 0) {
-      fs.stormArmorStolen = Math.min(tuning.stormStealCap || 0, (fs.stormArmorStolen || 0) + tuning.stormArmorStealPerSecond * tickEvery);
+      if (!fs.stormArmorById) fs.stormArmorById = Object.create(null);
+      const key = String(target.id);
+      const already = fs.stormArmorById[key] || 0;
+      const perTick = tuning.stormArmorStealPerSecond * tickEvery;
+      const gain = Math.max(0, Math.min(perTick, (tuning.stormStealCap || 0) - already));
+      if (gain > 0) {
+        fs.stormArmorById[key] = already + gain;
+        fs.stormArmorStolen = (fs.stormArmorStolen || 0) + gain;
+        applyFrameArmorPenalty(target, gain);
+      }
     }
     if (hasStatus(target, I.TAUNT) && tuning.stormTauntedDamageAmpPct > 0) {
       applyStatus(target, I.DAMAGE_AMP, tickEvery + 0.2, {
@@ -560,6 +652,8 @@ function tickBulwark(state, player, dt, timeMs) {
 
   tickBulwarkPlates(player, dt);
   if (fs.harpoonHasteLeft > 0) fs.harpoonHasteLeft = Math.max(0, fs.harpoonHasteLeft - dt);
+  if (fs.breachLeft > 0) fs.breachLeft = Math.max(0, fs.breachLeft - dt);
+  if (fs.breachPlateLockLeft > 0) fs.breachPlateLockLeft = Math.max(0, fs.breachPlateLockLeft - dt);
 
   if (fs.anchorLeft > 0) fs.anchorLeft = Math.max(0, fs.anchorLeft - dt);
 
@@ -589,7 +683,7 @@ function tickBulwark(state, player, dt, timeMs) {
     if (prev > 0 && fs.meditationLeft <= 0) {
       const armor = getBulwarkArmor(player);
       const shieldGain = player.stats.maxHp * tuning.meditationShieldPctMaxHp + armor * tuning.meditationShieldArmorPct;
-      player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + shieldGain);
+      grantFrameTempShield(player, shieldGain, 4.0, 'E');
       if (tuning.meditationPulseRadius > 0 && tuning.meditationFinalSlowPct > 0) {
         forEachHostileInRadius(state, player, player.x, player.y, tuning.meditationPulseRadius, (target) => {
           applyStatus(target, I.SLOW, tuning.meditationFinalSlowDuration, {
@@ -626,7 +720,7 @@ function tickBulwark(state, player, dt, timeMs) {
         const cap = player.stats.maxHp * (stormTuning.stormShieldGainCapPctMaxShield || 0);
         const gain = Math.min(player.stats.maxHp * stormTuning.stormShieldGainPctMaxShieldPerTick, Math.max(0, cap - (fs.stormShieldGained || 0)));
         if (gain > 0) {
-          player.stats.shield = Math.min(player.stats.maxShield, player.stats.shield + gain);
+          grantFrameTempShield(player, gain, Math.max(0.5, fs.stormLeft || 0.5), 'R');
           fs.stormShieldGained = (fs.stormShieldGained || 0) + gain;
         }
         fs.stormShieldTickLeft += Math.max(0.1, stormTuning.stormShieldGainTickInterval || 1.2);
@@ -645,7 +739,7 @@ function tickBulwark(state, player, dt, timeMs) {
     }
   } else {
     fs.stormExposureById = Object.create(null);
-    fs.stormArmorStolen = 0;
+    clearBulwarkStormArmorSteal(state, fs);
     fs.stormShieldGained = 0;
   }
 
@@ -653,6 +747,8 @@ function tickBulwark(state, player, dt, timeMs) {
 }
 
 export function tickFrameGameplay(state, player, dt, timeMs) {
+  tickFrameTempShields(player, dt);
+  resolvePendingFrameCast(state, player, timeMs);
   if (player.frameId === SHIP_FRAME_IDS.VANGUARD) return tickVanguard(state, player, dt, timeMs);
   if (player.frameId === SHIP_FRAME_IDS.SIGIL) return tickSigil(state, player, dt, timeMs);
   if (player.frameId === SHIP_FRAME_IDS.BULWARK) return tickBulwark(state, player, dt, timeMs);
@@ -982,13 +1078,24 @@ export function onProjectileImpactForFrame(state, owner, target, projectile, tim
   if (owner.frameId === SHIP_FRAME_IDS.BULWARK) return handleBulwarkProjectileImpact(state, owner, target, projectile, timeMs);
 }
 
-function castVanguardA(state, player, timeMs) {
+export function onProjectileExpireForFrame(state, owner, projectile, timeMs) {
+  if (!owner || owner.frameId !== SHIP_FRAME_IDS.BULWARK) return;
+  if (projectile?.sourceAbilitySlot !== 'Z') return;
+  const fs = getBulwarkState(owner);
+  if (!fs) return;
+  fs.breachLeft = Math.max(fs.breachLeft || 0, 2.25);
+  fs.breachPlateLockLeft = Math.max(fs.breachPlateLockLeft || 0, 1.25);
+  fs.recentDamageTaken = 0;
+}
+
+function castVanguardA(state, player, timeMs, options = {}) {
   if (getAbilityInvestedLevel(player, 'A') <= 0) return false;
   const a = getA(player);
-  if (player.cooldownALeft > 0) return false;
-  if (!consumeEnergy(player.stats, a.energyCost)) return false;
+  if (player.cooldownALeft > 0 && !options.resolvingCast) return false;
+  if (!options.resolvingCast && beginFrameCast(player, 'A', a, timeMs)) return true;
+  if (!options.resolvingCast && !consumeEnergy(player.stats, a.energyCost)) return false;
 
-  const world = getAbilityMouseWorld(player);
+  const world = getCastMouseWorld(player, options.cast);
   const dir = norm(world.x - player.x, world.y - player.y);
   const fs = getVanguardState(player);
   const combo = fs.comboWindowLeft > 0;
@@ -1014,7 +1121,7 @@ function castVanguardA(state, player, timeMs) {
     hitIds: new Set(),
     sourceFrameId: player.frameId
   });
-  player.cooldownALeft = a.baseCooldown;
+  if (!options.resolvingCast) player.cooldownALeft = a.baseCooldown;
   return true;
 }
 
@@ -1091,16 +1198,17 @@ function castVanguardZ(state, player, timeMs) {
   return true;
 }
 
-function castVanguardE(state, player, timeMs) {
+function castVanguardE(state, player, timeMs, options = {}) {
   if (getAbilityInvestedLevel(player, 'E') <= 0) return false;
   const e = getE(player);
-  if (player.cooldownELeft > 0) return false;
-  if (!consumeEnergy(player.stats, e.energyCost)) return false;
+  if (player.cooldownELeft > 0 && !options.resolvingCast) return false;
+  if (!options.resolvingCast && beginFrameCast(player, 'E', e, timeMs)) return true;
+  if (!options.resolvingCast && !consumeEnergy(player.stats, e.energyCost)) return false;
   const fs = getVanguardState(player);
   fs.phaseLeft = Math.max(fs.phaseLeft, e.phaseDuration);
   fs.phaseStartedAtMaxHeat = fs.passiveStacks >= VANGUARD_PASSIVE.maxStacks;
   applyOverheatTenacity(player, e, timeMs);
-  player.cooldownELeft = e.baseCooldown;
+  if (!options.resolvingCast) player.cooldownELeft = e.baseCooldown;
   return true;
 }
 
@@ -1116,13 +1224,14 @@ function castVanguardR(state, player, timeMs) {
   return true;
 }
 
-function castSigilA(state, player, timeMs) {
+function castSigilA(state, player, timeMs, options = {}) {
   if (getAbilityInvestedLevel(player, 'A') <= 0) return false;
   const a = getSigilA(player);
-  if (player.cooldownALeft > 0) return false;
-  if (!consumeEnergy(player.stats, a.energyCost)) return false;
+  if (player.cooldownALeft > 0 && !options.resolvingCast) return false;
+  if (!options.resolvingCast && beginFrameCast(player, 'A', a, timeMs)) return true;
+  if (!options.resolvingCast && !consumeEnergy(player.stats, a.energyCost)) return false;
 
-  const world = getAbilityMouseWorld(player);
+  const world = getCastMouseWorld(player, options.cast);
   const dir = norm(world.x - player.x, world.y - player.y);
   const fs = getSigilState(player);
   let damage = getWeaponReferenceDamage(player) * a.aImpactDamagePct + a.aImpactDamageFlat;
@@ -1136,7 +1245,7 @@ function castSigilA(state, player, timeMs) {
   });
 
   const ult = getSigilR(player);
-  player.cooldownALeft = a.baseCooldown * (fs.ultLeft > 0 ? ult.ultACooldownMultiplier : 1);
+  if (!options.resolvingCast) player.cooldownALeft = a.baseCooldown * (fs.ultLeft > 0 ? ult.ultACooldownMultiplier : 1);
   return true;
 }
 
@@ -1304,13 +1413,14 @@ function castBulwarkA(state, player, timeMs) {
   return true;
 }
 
-function castBulwarkZ(state, player, timeMs) {
+function castBulwarkZ(state, player, timeMs, options = {}) {
   if (getAbilityInvestedLevel(player, 'Z') <= 0) return false;
   const z = getBulwarkZ(player);
-  if (player.cooldownZLeft > 0) return false;
-  if (!consumeEnergy(player.stats, z.energyCost)) return false;
+  if (player.cooldownZLeft > 0 && !options.resolvingCast) return false;
+  if (!options.resolvingCast && beginFrameCast(player, 'Z', z, timeMs)) return true;
+  if (!options.resolvingCast && !consumeEnergy(player.stats, z.energyCost)) return false;
   consumeBulwarkMaxPlatesForAbility(player);
-  const world = getAbilityMouseWorld(player);
+  const world = getCastMouseWorld(player, options.cast);
   const dir = norm(world.x - player.x, world.y - player.y);
   const armor = getBulwarkArmor(player);
   const damage = z.harpoonDamageFlat + getWeaponReferenceDamage(player) * z.harpoonDamageWeaponPct + armor * z.harpoonDamageArmorPct;
@@ -1320,7 +1430,7 @@ function castBulwarkZ(state, player, timeMs) {
     hitIds: new Set(),
     sourceFrameId: player.frameId
   });
-  player.cooldownZLeft = z.baseCooldown;
+  if (!options.resolvingCast) player.cooldownZLeft = z.baseCooldown;
   return true;
 }
 
@@ -1357,7 +1467,9 @@ function castBulwarkR(state, player, timeMs) {
   fs.stormPullTickLeft = r.stormPullInterval || 0;
   fs.stormShieldTickLeft = r.stormShieldGainTickInterval || 1.2;
   fs.stormShieldGained = 0;
+  clearBulwarkStormArmorSteal(state, fs);
   fs.stormArmorStolen = 0;
+  fs.stormArmorById = Object.create(null);
   fs.stormExposureById = Object.create(null);
   player.cooldownRLeft = r.baseCooldown;
   return true;
@@ -1407,7 +1519,9 @@ export function buildFrameUiState(player, timeMs) {
       comboWindowLeft: fs.comboWindowLeft,
       moveBoostLeft: fs.moveBoostLeft,
       phaseLeft: fs.phaseLeft,
-      ultLeft: fs.ultLeft
+      ultLeft: fs.ultLeft,
+      tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
+      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null
     };
   }
 
@@ -1422,7 +1536,9 @@ export function buildFrameUiState(player, timeMs) {
       detonationCooldownLeft: fs.detonationCooldownLeft,
       zoneActive: !!fs.zoneEffectId,
       veilLeft: fs.veilLeft,
-      ultLeft: fs.ultLeft
+      ultLeft: fs.ultLeft,
+      tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
+      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null
     };
   }
 
@@ -1437,9 +1553,12 @@ export function buildFrameUiState(player, timeMs) {
       anchorLeft: fs.anchorLeft,
       meditationLeft: fs.meditationLeft,
       stormLeft: fs.stormLeft,
+      breachLeft: fs.breachLeft || 0,
       empoweredLeft: fs.empoweredLeft || 0,
       stormArmorStolen: fs.stormArmorStolen || 0,
-      stormShieldGained: fs.stormShieldGained || 0
+      stormShieldGained: fs.stormShieldGained || 0,
+      tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
+      pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null
     };
   }
 

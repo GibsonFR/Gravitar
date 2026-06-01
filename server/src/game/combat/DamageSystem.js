@@ -70,7 +70,7 @@ function forceClientPoseTransition(player, label, timeMs, durationMs = 520) {
 
 function getEffectiveArmor(target, sourcePlayer) {
   if (target?.kind !== 'player') return 0;
-  const rawArmor = Math.max(0, (target.baseArmor ?? 0) + (target.frameBonuses?.armorFlat ?? 0));
+  const rawArmor = Math.max(0, (target.baseArmor ?? 0) + (target.frameBonuses?.armorFlat ?? 0) - (target.frameArmorPenaltyFlat ?? 0));
   const pen = Math.max(0, sourcePlayer?.progressionBonuses?.armorPenFlat ?? 0);
   return Math.max(0, rawArmor - pen);
 }
@@ -79,6 +79,24 @@ function applyArmorReduction(amount, armor) {
   if (!Number.isFinite(amount) || amount <= 0) return 0;
   if (!Number.isFinite(armor) || armor <= 0) return amount;
   return amount * (100 / (100 + armor));
+}
+
+
+function absorbFrameTempShields(target, amount) {
+  if (!Array.isArray(target?.frameTempShields) || amount <= 0) return { remaining: amount, absorbed: 0 };
+  let remaining = amount;
+  let absorbed = 0;
+  for (const shield of target.frameTempShields) {
+    if (remaining <= 0) break;
+    const available = Math.max(0, shield.amount || 0);
+    if (available <= 0) continue;
+    const take = Math.min(available, remaining);
+    shield.amount = available - take;
+    remaining -= take;
+    absorbed += take;
+  }
+  target.frameTempShields = target.frameTempShields.filter((shield) => (shield.left ?? 0) > 0 && (shield.amount ?? 0) > 0);
+  return { remaining, absorbed };
 }
 
 function applyDamageWithShieldPen(target, finalAmount, sourcePlayer, bypassShield) {
@@ -343,11 +361,13 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     target.lastHitAt = timeMs;
 
     if (!options.ignoreBreakOnHit) breakStatusesOnExternalHit(target, timeMs);
-    const died = applyDamageWithShieldPen(target, finalAmount, sourcePlayer, bypassShield);
-    onDamageTakenByFrame(state, target, finalAmount, sourcePlayer, timeMs, options);
-    grantLifesteal(sourcePlayer, finalAmount);
+    const tempShield = absorbFrameTempShields(target, finalAmount);
+    const effectiveDamage = tempShield.remaining;
+    const died = effectiveDamage > 0 ? applyDamageWithShieldPen(target, effectiveDamage, sourcePlayer, bypassShield) : false;
+    onDamageTakenByFrame(state, target, finalAmount, sourcePlayer, timeMs, { ...options, tempShieldAbsorbed: tempShield.absorbed });
+    grantLifesteal(sourcePlayer, effectiveDamage);
     if (!died) {
-      triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs);
+      triggerItemProcsAfterDamage(state, target, sourcePlayer, effectiveDamage, shielded || tempShield.absorbed > 0, options, timeMs);
       return;
     }
 

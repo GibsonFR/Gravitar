@@ -1,4 +1,6 @@
 import { STATUS_EFFECT_IDS as I } from '../../../../shared/content/status/StatusEffectIds.js';
+import { SHIP_FRAME_IDS } from '../../../../shared/content/frames/ShipFrameIds.js';
+import { BULWARK_PASSIVE } from '../../../../shared/content/frames/bulwark/BulwarkFrameSpec.js';
 import { getStatusEffectDef } from '../../../../shared/content/status/StatusEffectDefs.js';
 import { STATUS_EFFECT_FAMILIES as FAM } from '../../../../shared/content/status/StatusEffectFamilies.js';
 import {
@@ -22,6 +24,40 @@ function baseIdOf(key) {
 
 function isUnstoppableBlocked(effectId) {
   return effectId === I.STUN || effectId === I.ROOT || effectId === I.GROUNDED || effectId === I.KNOCKUP || effectId === I.SUPPRESS || effectId === I.SLEEP || effectId === I.FEAR || effectId === I.CHARM || effectId === I.TAUNT || effectId === I.PULL || effectId === I.KNOCKBACK || effectId === I.BUMP;
+}
+
+
+function isBulwarkPlateControl(effectId) {
+  return effectId === I.STUN
+    || effectId === I.TAUNT
+    || effectId === I.SUPPRESS
+    || effectId === I.ROOT
+    || effectId === I.DISARM
+    || effectId === I.SILENCE
+    || effectId === I.KNOCKUP
+    || effectId === I.KNOCKBACK
+    || effectId === I.BUMP;
+}
+
+function grantBulwarkPlateFromControl(entity, effectId, hostile) {
+  if (!hostile || entity?.frameId !== SHIP_FRAME_IDS.BULWARK || !isBulwarkPlateControl(effectId)) return;
+  const fs = entity.frameState?.bulwark;
+  if (!fs || (fs.plateGainIcdLeft ?? 0) > 0 || (fs.breachPlateLockLeft ?? 0) > 0) return;
+  if (!Array.isArray(fs.plateDurations)) fs.plateDurations = [];
+  if (fs.plateDurations.length >= BULWARK_PASSIVE.maxPlates) {
+    let idx = 0;
+    let best = Infinity;
+    for (let i = 0; i < fs.plateDurations.length; i += 1) {
+      if (fs.plateDurations[i] < best) {
+        best = fs.plateDurations[i];
+        idx = i;
+      }
+    }
+    fs.plateDurations[idx] = BULWARK_PASSIVE.plateDuration;
+  } else {
+    fs.plateDurations.push(BULWARK_PASSIVE.plateDuration);
+  }
+  fs.plateGainIcdLeft = BULWARK_PASSIVE.plateGainInternalCooldown;
 }
 
 function defaultValueFor(effectId, value) {
@@ -126,6 +162,8 @@ export function applyStatus(entity, effectId, duration, options = {}) {
     const tenacity = clamp(getStatusValue(entity, I.TENACITY, 0) + (entity?.frameBonuses?.tenacity ?? 0), 0, 0.8);
     finalDuration *= (1 - tenacity);
   }
+
+  grantBulwarkPlateFromControl(entity, effectId, !!options.hostile);
 
   const rack = ensureStatusRack(entity);
   const key = markKeyFor(effectId, options);
