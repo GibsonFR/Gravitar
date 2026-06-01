@@ -1,3 +1,5 @@
+import { CONTROL_BINDING_DEFS, findControlConflicts, keyCodeToLabel, eventToBindingCode, loadKeyBindings, resetKeyBindings, saveKeyBindings } from '../../input/KeyBindings.js';
+
 const DEFAULT_SETTINGS = Object.freeze({
   masterVolume: 0,
   musicVolume: -18,
@@ -43,6 +45,9 @@ export class OptionsPanelView {
   constructor(onChange) {
     this.onChange = typeof onChange === 'function' ? onChange : null;
     this.settings = loadSettings();
+    this.keyBindings = loadKeyBindings();
+    this.captureControlId = '';
+    this.boundCapture = null;
     this.el = document.createElement('section');
     this.el.className = 'options-panel';
     this.el.innerHTML = `
@@ -66,13 +71,12 @@ export class OptionsPanelView {
           ${this.renderToggle('Effets visuels', 'showFx')}
         </section>
         <section class="options-section">
-          <div class="options-section__title">Contrôles</div>
-          <div class="options-controls">
-            <div><span>Construire</span><b>clic gauche</b></div>
-            <div><span>Orienter</span><b>O</b></div>
-            <div><span>Annuler</span><b>Échap</b></div>
-            <div><span>Déconstruction</span><b>menu Build</b></div>
+          <div class="options-section__title options-section__title--split">
+            <span>Contrôles</span>
+            <button type="button" class="options-reset-controls" data-reset-controls="1">Réinitialiser</button>
           </div>
+          <div class="options-controls" data-controls-list="1"></div>
+          <div class="options-controls__hint" data-controls-hint="1">Clique sur une touche pour la remplacer. Les doublons sont signalés.</div>
         </section>
       </div>
     `;
@@ -91,7 +95,101 @@ export class OptionsPanelView {
       if (ev.target.type === 'checkbox') this.settings[key] = !!ev.target.checked;
       this.save();
     });
+    this.el.addEventListener('click', (ev) => {
+      const target = ev.target;
+      if (!(target instanceof Element)) return;
+      const bind = target.closest('[data-control-bind]');
+      if (bind) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.startControlCapture(bind.dataset.controlBind || '');
+        return;
+      }
+      const reset = target.closest('[data-reset-controls]');
+      if (reset) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.keyBindings = resetKeyBindings();
+        this.renderControls();
+        this.emitChange();
+      }
+    });
     this.refreshAll();
+    this.renderControls();
+  }
+
+  emitChange() {
+    this.onChange?.({ ...this.settings, controls: this.getKeyBindings() });
+  }
+
+  renderControls() {
+    const list = this.el.querySelector('[data-controls-list]');
+    if (!list) return;
+    const conflicts = findControlConflicts(this.keyBindings);
+    const conflictIds = new Set(conflicts.flatMap((entry) => entry.ids));
+    let currentGroup = '';
+    const html = [];
+    for (const def of CONTROL_BINDING_DEFS) {
+      if (def.group !== currentGroup) {
+        currentGroup = def.group;
+        html.push(`<div class="options-controls__group">${this.escape(def.group)}</div>`);
+      }
+      const active = this.captureControlId === def.id;
+      const conflict = conflictIds.has(def.id);
+      html.push(`
+        <button type="button" class="options-control-row ${active ? 'is-capturing' : ''} ${conflict ? 'is-conflict' : ''}" data-control-bind="${this.escape(def.id)}">
+          <span>${this.escape(def.label)}</span>
+          <b>${active ? 'Appuie sur une touche…' : this.escape(keyCodeToLabel(this.keyBindings[def.id]))}</b>
+        </button>
+      `);
+    }
+    list.innerHTML = html.join('');
+    const hint = this.el.querySelector('[data-controls-hint]');
+    if (hint) {
+      hint.textContent = conflicts.length
+        ? `Conflit : ${conflicts.map((entry) => keyCodeToLabel(entry.code)).join(', ')} utilisé plusieurs fois.`
+        : 'Clique sur une touche pour la remplacer. Les doublons sont signalés.';
+      hint.classList.toggle('is-warning', conflicts.length > 0);
+    }
+  }
+
+  startControlCapture(controlId) {
+    if (!CONTROL_BINDING_DEFS.some((def) => def.id === controlId)) return;
+    this.stopControlCapture(false);
+    this.captureControlId = controlId;
+    this.renderControls();
+    this.boundCapture = (ev) => this.captureControlEvent(ev);
+    window.addEventListener('keydown', this.boundCapture, { capture: true });
+    window.addEventListener('mousedown', this.boundCapture, { capture: true });
+    window.addEventListener('wheel', this.boundCapture, { capture: true, passive: false });
+  }
+
+  stopControlCapture(render = true) {
+    if (this.boundCapture) {
+      window.removeEventListener('keydown', this.boundCapture, { capture: true });
+      window.removeEventListener('mousedown', this.boundCapture, { capture: true });
+      window.removeEventListener('wheel', this.boundCapture, { capture: true });
+    }
+    this.boundCapture = null;
+    this.captureControlId = '';
+    if (render) this.renderControls();
+  }
+
+  captureControlEvent(ev) {
+    const controlId = this.captureControlId;
+    if (!controlId) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+    const code = eventToBindingCode(ev);
+    if (!code) return;
+    this.keyBindings = saveKeyBindings({ ...this.keyBindings, [controlId]: code });
+    this.stopControlCapture(true);
+    this.emitChange();
+  }
+
+  escape(txt) {
+    return String(txt || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   renderSlider(label, key, min = 0, max = 1, step = 0.01) {
@@ -125,8 +223,10 @@ export class OptionsPanelView {
 
   save() {
     localStorage.setItem('spacefrontier.options', JSON.stringify(this.settings));
-    this.onChange?.(this.settings);
+    this.emitChange();
   }
 
-  getSettings() { return { ...this.settings }; }
+  getSettings() { return { ...this.settings, controls: this.getKeyBindings() }; }
+
+  getKeyBindings() { return { ...this.keyBindings }; }
 }

@@ -3,6 +3,7 @@ import { WorldStore } from './state/WorldStore.js';
 import { NetClient } from './net/NetClient.js';
 import { createInputState } from './input/InputState.js';
 import { InputController } from './input/InputController.js';
+import { isControlMatch } from './input/KeyBindings.js';
 import { AudioSystem } from './audio/AudioSystem.js';
 
 import { drawStars, drawGrid } from './render/BackgroundRenderer.js';
@@ -247,10 +248,11 @@ export function startApp() {
     const tag = String(ev.target?.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || ev.target?.isContentEditable) return;
     if (!basePanel.hasActivePlacement?.()) return;
-    if (ev.key === 'Escape') {
+    const bindings = optionsPanel.getKeyBindings();
+    if (isControlMatch(bindings, 'buildCancel', ev)) {
       basePanel.cancel();
       ev.preventDefault();
-    } else if (String(ev.key || '').toLowerCase() === 'o') {
+    } else if (isControlMatch(bindings, 'buildRotate', ev)) {
       if (basePanel.rotate()) ev.preventDefault();
     }
   });
@@ -295,6 +297,7 @@ export function startApp() {
   uiRoot.appendChild(sessionSetup.el);
 
   new InputController(canvas, input, {
+    getKeyBindings: () => optionsPanel.getKeyBindings(),
     onFrameSelect: (frameId) => {
       if (store.myState?.sessionSetup?.pending ?? true) {
         sessionSetup.selectFrame(frameId);

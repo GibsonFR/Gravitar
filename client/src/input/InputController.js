@@ -1,3 +1,5 @@
+import { isControlMatch } from './KeyBindings.js';
+
 function isEditableTarget(target) {
   if (!target) return false;
   const tag = String(target.tagName || '').toLowerCase();
@@ -8,6 +10,7 @@ export class InputController {
   constructor(canvas, input, handlers = {}) {
     this.canvas = canvas;
     this.input = input;
+    this.getKeyBindings = typeof handlers.getKeyBindings === 'function' ? handlers.getKeyBindings : (() => ({}));
 
     const queueAction = (action) => {
       if (!Array.isArray(input.actions)) input.actions = [];
@@ -87,50 +90,50 @@ export class InputController {
     window.addEventListener('keydown', (ev) => {
       if (isEditableTarget(ev.target)) return;
       if (ev.repeat) return;
-      const k = ev.key;
-      const lower = k.toLowerCase();
+      const bindings = this.getKeyBindings();
 
-      if (ev.ctrlKey && ['a', 'z', 'e', 'r'].includes(lower)) {
-        handlers.onAbilityUpgrade?.(lower.toUpperCase());
-        ev.preventDefault();
-        return;
+      if (ev.ctrlKey) {
+        if (isControlMatch(bindings, 'abilityA', ev)) { handlers.onAbilityUpgrade?.('A'); ev.preventDefault(); return; }
+        if (isControlMatch(bindings, 'abilityZ', ev)) { handlers.onAbilityUpgrade?.('Z'); ev.preventDefault(); return; }
+        if (isControlMatch(bindings, 'abilityE', ev)) { handlers.onAbilityUpgrade?.('E'); ev.preventDefault(); return; }
+        if (isControlMatch(bindings, 'abilityR', ev)) { handlers.onAbilityUpgrade?.('R'); ev.preventDefault(); return; }
       }
 
-      if (ev.code === 'Space' || k === ' ') {
+      if (isControlMatch(bindings, 'cameraLock', ev)) {
         input.cameraLocked = !input.cameraLocked;
         input.cameraToggleQueued = true;
         ev.preventDefault();
         return;
       }
 
-      if (lower === 'a') input.a = true;
-      if (lower === 'z') input.z = true;
-      if (lower === 'e') input.e = true;
-      if (lower === 'r') input.r = true;
-      if (lower === 'd') { input.interactTap = true; queueAction({ type: 'interact' }); }
-      if (lower === 'f') input.rocketTap = true;
-      if (lower === 'x') {
+      if (isControlMatch(bindings, 'abilityA', ev)) input.a = true;
+      if (isControlMatch(bindings, 'abilityZ', ev)) input.z = true;
+      if (isControlMatch(bindings, 'abilityE', ev)) input.e = true;
+      if (isControlMatch(bindings, 'abilityR', ev)) input.r = true;
+      if (isControlMatch(bindings, 'interact', ev)) { input.interactTap = true; queueAction({ type: 'interact' }); }
+      if (isControlMatch(bindings, 'rocket', ev)) input.rocketTap = true;
+      if (isControlMatch(bindings, 'rocketSlot0', ev)) {
         handlers.onRocketSlotSwitch?.(0);
         ev.preventDefault();
         return;
       }
-      if (lower === 'c') {
+      if (isControlMatch(bindings, 'rocketSlot1', ev)) {
         handlers.onRocketSlotSwitch?.(1);
         ev.preventDefault();
         return;
       }
-      if (k === '1') handlers.onFrameSelect?.('vanguard');
-      if (k === '2') handlers.onFrameSelect?.('sigil');
-      if (k === '3') handlers.onFrameSelect?.('bulwark');
+      if (isControlMatch(bindings, 'frameVanguard', ev)) handlers.onFrameSelect?.('vanguard');
+      if (isControlMatch(bindings, 'frameSigil', ev)) handlers.onFrameSelect?.('sigil');
+      if (isControlMatch(bindings, 'frameBulwark', ev)) handlers.onFrameSelect?.('bulwark');
     });
 
     window.addEventListener('keyup', (ev) => {
       if (isEditableTarget(ev.target)) return;
-      const lower = ev.key.toLowerCase();
-      if (lower === 'a') input.a = false;
-      if (lower === 'z') input.z = false;
-      if (lower === 'e') input.e = false;
-      if (lower === 'r') input.r = false;
+      const bindings = this.getKeyBindings();
+      if (isControlMatch(bindings, 'abilityA', ev)) input.a = false;
+      if (isControlMatch(bindings, 'abilityZ', ev)) input.z = false;
+      if (isControlMatch(bindings, 'abilityE', ev)) input.e = false;
+      if (isControlMatch(bindings, 'abilityR', ev)) input.r = false;
     });
   }
 }
