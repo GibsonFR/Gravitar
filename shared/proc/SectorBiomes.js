@@ -3,7 +3,7 @@ import { hash2D_Mix } from './HashUtil.js';
 export const SECTOR_BIOMES = {
   hub: {
     id: 'hub',
-    name: 'Hub spatial',
+    name: 'Hub sécurisé',
     shortName: 'Hub',
     description: 'Zone de départ protégée, ressources communes et faible danger.',
     colorHex: '#78c8ff',
@@ -11,48 +11,48 @@ export const SECTOR_BIOMES = {
   },
   metallic: {
     id: 'metallic',
-    name: 'Astéroïdes de type M',
-    shortName: 'Type M',
-    description: 'Population d’astéroïdes métalliques, proche de la classification spectrale M, riche en métaux structurels.',
+    name: 'Ceinture métallique',
+    shortName: 'Métallique',
+    description: 'Secteur dense en astéroïdes ferriques et alliages bruts, riche en métaux structurels.',
     colorHex: '#a8b2bd',
     resources: ['ironOre', 'copper', 'nickelOre', 'aluminiumOre', 'titaniumOre', 'cobaltOre']
   },
   silicate: {
     id: 'silicate',
-    name: 'Astéroïdes de type S',
-    shortName: 'Type S',
-    description: 'Population d’astéroïdes pierreux/silicatés, proche de la classification S, utile à l’électronique et aux matériaux optiques.',
+    name: 'Champ cristallin',
+    shortName: 'Cristallin',
+    description: 'Secteur pierreux riche en silice, quartz et matériaux utiles à l’électronique avancée.',
     colorHex: '#d8c9a3',
     resources: ['silicon', 'quartz', 'graphite', 'boronOre', 'berylliumOre', 'rareEarthOre']
   },
   organic: {
     id: 'organic',
-    name: 'Nuage protobiologique',
-    shortName: 'Protobio',
+    name: 'Nuage organique',
+    shortName: 'Organique',
     description: 'Région enrichie en composés carbonés et colonies biologiques primitives, source de biomasse industrielle.',
     colorHex: '#77d18b',
     resources: ['biomass', 'chitin', 'organicLipids', 'enzymes', 'proteinFibers', 'spores']
   },
   volatile: {
     id: 'volatile',
-    name: 'Champ de volatils glacés',
-    shortName: 'Volatils',
+    name: 'Banquise hydrocarburée',
+    shortName: 'Glacé',
     description: 'Région froide riche en glaces, hydrocarbures et composés volatils utilisables pour carburant et chimie industrielle.',
     colorHex: '#6fc6ff',
     resources: ['waterIce', 'hydrogenIce', 'methaneIce', 'ammoniaIce', 'hydrocarbons', 'sulfur']
   },
   nuclear: {
     id: 'nuclear',
-    name: 'Gisements d’actinides',
-    shortName: 'Actinides',
+    name: 'Zone radioactive',
+    shortName: 'Radioactif',
     description: 'Zone rare contenant des éléments lourds et isotopes exploitables pour réacteurs et technologies à haute énergie.',
     colorHex: '#b6ff5c',
     resources: ['uraniumOre', 'thoriumOre', 'unstableIsotopes', 'berylliumOre', 'leadOre']
   },
   anomaly: {
     id: 'anomaly',
-    name: 'Débris technologiques anciens',
-    shortName: 'Débris anciens',
+    name: 'Anomalie ancienne',
+    shortName: 'Anomalique',
     description: 'Champ de débris artificiels non identifiés, source de matériaux précurseurs et technologies impossibles à produire au début.',
     colorHex: '#c08cff',
     resources: ['unknownTechFragment', 'ancientSuperconductor', 'precursorNanomaterial', 'containedAntimatter', 'strangeMatter']
