@@ -155,7 +155,11 @@ export function applyCommand(state, player, rawMsg, timeMs) {
   const fn = HANDLERS[msg.cmd] ?? null;
   if (!fn) return { ok: false, error: 'unknown_command' };
   try {
-    const ok = !!fn(state, player, msg, timeMs);
+    const result = fn(state, player, msg, timeMs);
+    if (result && typeof result === 'object' && Object.prototype.hasOwnProperty.call(result, 'ok')) {
+      return { ok: !!result.ok, error: result.ok ? '' : String(result.error || 'rejected') };
+    }
+    const ok = !!result;
     return { ok, error: ok ? '' : 'rejected' };
   } catch (err) {
     console.error('[command-router:error]', msg.cmd, err?.stack || err);

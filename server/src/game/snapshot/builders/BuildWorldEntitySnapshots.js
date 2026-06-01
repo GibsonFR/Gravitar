@@ -225,6 +225,7 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       w: q(structure.w || 0),
       h: q(structure.h || 0),
       orientation: structure.orientation || 'h',
+      updatedAt: Number(structure.updatedAt || 0),
       open: !!structure.open,
       solid: !!structure.solid,
       damageable: structure.damageable !== false,

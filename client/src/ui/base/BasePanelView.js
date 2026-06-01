@@ -963,14 +963,28 @@ function sectorBuildRect() {
   return { left: -SECTOR_HALF + EDGE_RESERVE, right: SECTOR_HALF - EDGE_RESERVE, top: -SECTOR_HALF + EDGE_RESERVE, bottom: SECTOR_HALF - EDGE_RESERVE };
 }
 
+function pointInsideRect(x, y, rect) {
+  const eps = 0.001;
+  return x >= rect.left - eps && x <= rect.right + eps && y >= rect.top - eps && y <= rect.bottom + eps;
+}
+
+function rectAcceptedByClaim(rect, core) {
+  const claim = claimRect(core);
+  const cx = (rect.left + rect.right) * 0.5;
+  const cy = (rect.top + rect.bottom) * 0.5;
+  return isRectInside(rect, claim) || pointInsideRect(cx, cy, claim);
+}
+
 function findOwnCore(store, me, rect) {
   let best = null;
   let bestD2 = Infinity;
+  const cx = (rect.left + rect.right) * 0.5;
+  const cy = (rect.top + rect.bottom) * 0.5;
   for (const st of store?.structures?.values?.() || []) {
     if (!isCoreType(st?.type) || !st.owned || !sameSector(st, me)) continue;
-    if (!isRectInside(rect, claimRect(st))) continue;
-    const dx = (st.x || 0) - (rect.left + rect.right) * 0.5;
-    const dy = (st.y || 0) - (rect.top + rect.bottom) * 0.5;
+    if (!rectAcceptedByClaim(rect, st)) continue;
+    const dx = (st.x || 0) - cx;
+    const dy = (st.y || 0) - cy;
     const d2 = dx * dx + dy * dy;
     if (d2 < bestD2) { best = st; bestD2 = d2; }
   }
@@ -1583,8 +1597,11 @@ export class BasePanelView {
       return this.lastPreview;
     }
     if (this.activeBuild.mode === 'move') {
-      const target = this.activeBuild.target || null;
-      const def = structureDef(this.activeBuild.type);
+      const targetId = this.activeBuild.structureId | 0;
+      const liveTarget = targetId ? (this.store?.structures?.get?.(targetId) || null) : null;
+      const target = liveTarget || this.activeBuild.target || null;
+      if (liveTarget) this.activeBuild.target = { ...liveTarget };
+      const def = structureDef(this.activeBuild.type || target?.type);
       if (!target || !def) return null;
       const orientation = this.activeBuild.orientation || target.orientation || def.orientation || 'h';
       const size = orientedSize(def, orientation);
@@ -1692,8 +1709,20 @@ export class BasePanelView {
       return true;
     }
     if (preview.mode === 'move') {
-      this.sendCmd('move_structure', { structureId: preview.targetId, orientation: preview.orientation, x: preview.x, y: preview.y });
+      const cmdId = this.sendCmd('move_structure', { structureId: preview.targetId, orientation: preview.orientation, x: preview.x, y: preview.y }, { structureMove: true });
+      if (!cmdId) {
+        this.status.textContent = 'Déplacement non envoyé';
+        return false;
+      }
+      this.store?.applyOptimisticStructureMove?.(preview.targetId, {
+        x: preview.x,
+        y: preview.y,
+        orientation: preview.orientation,
+        w: preview.w,
+        h: preview.h
+      });
       this.activeBuild = { mode: 'move_pick' };
+      this.lastPreview = null;
       this.refresh();
       this.status.textContent = 'Déplacement envoyé';
       return true;

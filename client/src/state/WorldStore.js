@@ -79,8 +79,150 @@ export class WorldStore {
       sectorSeq: 0,
       localAbilityAuthorityUntil: 0,
       localFrameState: null,
-      localDerived: null
+      localDerived: null,
+      pendingStructureMoves: new Map()
     };
+  }
+
+
+  _structureMoveKey(id) {
+    return Number(id) | 0;
+  }
+
+  applyOptimisticStructureMove(structureId, patch = {}) {
+    const id = this._structureMoveKey(structureId);
+    if (!id || !this.structures.has(id)) return false;
+    const st = this.structures.get(id);
+    const before = {
+      x: Number(st.x) || 0,
+      y: Number(st.y) || 0,
+      orientation: st.orientation || 'h',
+      w: Number(st.w) || 0,
+      h: Number(st.h) || 0
+    };
+    const x = Number(patch.x);
+    const y = Number(patch.y);
+    const orientation = String(patch.orientation || st.orientation || 'h').toLowerCase();
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+    const next = {
+      ...st,
+      x,
+      y,
+      _tx: x,
+      _ty: y,
+      _serverX: x,
+      _serverY: y,
+      _snapDistanceSq: 0,
+      orientation
+    };
+    if (Number.isFinite(Number(patch.w)) && Number(patch.w) > 0) next.w = Number(patch.w);
+    if (Number.isFinite(Number(patch.h)) && Number(patch.h) > 0) next.h = Number(patch.h);
+    if (Number.isFinite(next.w) && Number.isFinite(next.h)) next.radius = Math.max(next.w, next.h) * 0.5;
+    this.structures.set(id, next);
+    this.localPrediction.pendingStructureMoves.set(id, {
+      id,
+      before,
+      target: { x, y, orientation, w: next.w, h: next.h },
+      at: performance.now(),
+      until: performance.now() + 3000
+    });
+    return true;
+  }
+
+  _rollbackOptimisticStructureMove(id) {
+    const key = this._structureMoveKey(id);
+    const pending = this.localPrediction.pendingStructureMoves?.get(key);
+    if (!pending || !this.structures.has(key)) return false;
+    const st = this.structures.get(key);
+    const before = pending.before || null;
+    if (!before) return false;
+    this.structures.set(key, {
+      ...st,
+      x: before.x,
+      y: before.y,
+      _tx: before.x,
+      _ty: before.y,
+      _serverX: before.x,
+      _serverY: before.y,
+      _snapDistanceSq: 0,
+      orientation: before.orientation || st.orientation || 'h',
+      w: before.w || st.w,
+      h: before.h || st.h,
+      radius: Math.max(before.w || st.w || 0, before.h || st.h || 0) * 0.5
+    });
+    this.localPrediction.pendingStructureMoves.delete(key);
+    return true;
+  }
+
+  _serverStructureMatchesPendingMove(serverStructure, pending) {
+    if (!serverStructure || !pending?.target) return false;
+    const dx = Math.abs((Number(serverStructure.x) || 0) - (Number(pending.target.x) || 0));
+    const dy = Math.abs((Number(serverStructure.y) || 0) - (Number(pending.target.y) || 0));
+    const orientation = String(serverStructure.orientation || 'h').toLowerCase();
+    const targetOrientation = String(pending.target.orientation || orientation).toLowerCase();
+    return dx <= 1.5 && dy <= 1.5 && orientation === targetOrientation;
+  }
+
+  _syncStructures(arr, serverNow) {
+    const seen = new Set();
+    const now = performance.now();
+    for (const raw of arr) {
+      if (!raw?.id) continue;
+      const id = raw.id;
+      seen.add(id);
+      const previous = this.structures.get(id);
+      const normalized = this._normalizeStructureSnapshot(raw, serverNow, previous);
+      const pending = this.localPrediction.pendingStructureMoves?.get(id);
+      if (pending) {
+        if (this._serverStructureMatchesPendingMove(normalized, pending)) {
+          this.localPrediction.pendingStructureMoves.delete(id);
+          this.structures.set(id, {
+            ...previous,
+            ...normalized,
+            x: normalized.x,
+            y: normalized.y,
+            _tx: normalized.x,
+            _ty: normalized.y,
+            _serverX: normalized.x,
+            _serverY: normalized.y,
+            _snapDistanceSq: 0
+          });
+          continue;
+        }
+        if (now < (pending.until || 0) && previous) {
+          this.structures.set(id, {
+            ...previous,
+            ...normalized,
+            x: previous.x,
+            y: previous.y,
+            _tx: previous.x,
+            _ty: previous.y,
+            _serverX: normalized.x,
+            _serverY: normalized.y,
+            _snapDistanceSq: 0
+          });
+          continue;
+        }
+        this.localPrediction.pendingStructureMoves.delete(id);
+      }
+      const merged = this._mergeEntity(previous, normalized);
+      const movedFar = previous && Number.isFinite(normalized.x) && Number.isFinite(normalized.y)
+        && (((normalized.x - (previous.x || 0)) ** 2 + (normalized.y - (previous.y || 0)) ** 2) > 24 * 24);
+      if (movedFar) {
+        merged.x = normalized.x;
+        merged.y = normalized.y;
+        merged._tx = normalized.x;
+        merged._ty = normalized.y;
+        merged._serverX = normalized.x;
+        merged._serverY = normalized.y;
+        merged._snapDistanceSq = 0;
+      }
+      this.structures.set(id, merged);
+    }
+    for (const id of this.structures.keys()) {
+      const item = this.structures.get(id);
+      if (!seen.has(id) && !item?.localOnly) this.structures.delete(id);
+    }
   }
 
   _applyLocalVitalAuthority(previous, merged, now) {
@@ -577,7 +719,7 @@ export class WorldStore {
     if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
     const structureServerNow = this._estimateServerNow();
     if (Array.isArray(msg.structures)) {
-      this._syncMap(this.structures, msg.structures.map((st) => this._normalizeStructureSnapshot(st, structureServerNow, this.structures.get(st?.id))));
+      this._syncStructures(msg.structures, structureServerNow);
     }
     if (Array.isArray(msg.structureAutomation)) this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
@@ -951,6 +1093,17 @@ export class WorldStore {
     return id;
   }
 
+
+  markCommandFailed(id, error = 'failed') {
+    const key = String(id || '');
+    if (!key) return;
+    const entry = this.pendingCommands.get(key) || this.pendingStationCommands.get(key) || null;
+    if (!entry) return;
+    entry.status = 'failed';
+    entry.error = String(error || 'failed');
+    entry.ackedAt = performance.now();
+  }
+
   applyCommandAck(msg) {
     const id = String(msg?.cmdId || '');
     if (!id) return;
@@ -961,11 +1114,13 @@ export class WorldStore {
     entry.ok = !!msg.ok;
     entry.cmd = String(msg.cmd || entry.cmd || '');
     if (!msg.ok) {
+      if (entry.cmd === 'move_structure') this._rollbackOptimisticStructureMove(entry.payload?.structureId);
       this.myState = this.myState || {};
       const reason = String(msg.error || 'refusée');
+      const actionLabel = entry.cmd === 'move_structure' ? 'Déplacement refusé' : (entry.cmd === 'remove_structure' ? 'Démolition refusée' : 'Action station refusée');
       this.myState.hint = entry?.meta?.globalEquipment
         ? `Action équipement refusée : ${entry.cmd}${reason ? ` (${reason})` : ''}`
-        : `Action station refusée : ${entry.cmd}${reason ? ` (${reason})` : ''}`;
+        : `${actionLabel}${reason ? ` (${reason})` : ''}`;
       this.myState._optimisticHintLeft = 1.2;
     }
     // A command ack means the server answered. Stop the blocking wait immediately,

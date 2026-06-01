@@ -199,7 +199,12 @@ export function startApp() {
       store.setConverterOptimistic?.(payload.itemId, payload.enabled);
     }
     const cmdId = store.noteCommandPending?.(cmd, payload, meta) || '';
-    net.send({ t: 'cmd', cmd, cmdId, ...(payload || {}) });
+    const sent = net.send({ t: 'cmd', cmd, cmdId, ...(payload || {}) });
+    if (!sent) {
+      statusEl.textContent = 'Commande non envoyée : connexion serveur indisponible.';
+      store.markCommandFailed?.(cmdId, 'disconnected');
+      return '';
+    }
     return cmdId;
   };
   playersPanel.bindChat((text) => net.send({ t: 'chat', text }));

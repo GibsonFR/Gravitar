@@ -19,7 +19,7 @@ export function handleMoveStructure(state, player, msg, timeMs) {
     player.hint = `${result.structure?.name || 'Structure'} déplacée`;
   }
   player._optimisticHintLeft = 1.2;
-  return !!result.ok;
+  return { ok: !!result.ok, error: result.ok ? '' : String(result.error || 'rejected') };
 }
 
 function moveErrorHint(error) {

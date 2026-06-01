@@ -56,7 +56,8 @@ export class NetClient {
   }
 
   send(obj) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
     this.ws.send(JSON.stringify(obj));
+    return true;
   }
 }
