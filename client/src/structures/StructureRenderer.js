@@ -837,6 +837,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
     const isStorage = s.type === 'storage';
     const isEquip = s.type === 'equipment_storage';
     const isAmmo = s.type === 'ammo_storage';
+    const isTurret = s.type === 'defense_turret';
     const isSolar = s.type === 'solar_panel';
     const isGenerator = s.type === 'fuel_generator';
     const isFuelTank = s.type === 'fuel_tank';
@@ -865,6 +866,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       : isLogisticChest ? 'rgba(160,225,190,.78)'
       : isDroneWorkshop ? 'rgba(158,231,255,.82)'
       : isIndustrialConverter ? 'rgba(255,146,232,.82)'
+      : isTurret ? 'rgba(255,182,110,.90)'
       : isRocketWorkshop ? 'rgba(255,184,92,.84)'
       : isScienceLab ? 'rgba(126,220,255,.78)'
       : isResearchStation ? 'rgba(181,140,255,.80)'
@@ -988,6 +990,43 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.beginPath();
     } else if (isRobotArm) {
       drawRobotArmMotion(ctx, view, s, w, h);
+      ctx.beginPath();
+    } else if (isTurret) {
+
+      const active = s.powered && s.turretStatus !== 'no_ammo' && s.turretStatus !== 'off';
+      ctx.fillStyle = active ? 'rgba(92, 54, 42, .42)' : 'rgba(54, 44, 48, .36)';
+      ctx.beginPath();
+      roundedRect(ctx, -w * 0.28, -h * 0.24, w * 0.56, h * 0.48, 10 * view.dpr);
+      ctx.fill();
+      ctx.strokeStyle = active ? 'rgba(255,182,110,.88)' : 'rgba(255,130,100,.58)';
+      ctx.lineWidth = 2 * view.dpr;
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.min(w, h) * 0.18, 0, Math.PI * 2);
+      ctx.moveTo(0, -h * 0.18); ctx.lineTo(0, -h * 0.34);
+      ctx.moveTo(0, h * 0.18); ctx.lineTo(0, h * 0.34);
+      ctx.moveTo(-w * 0.18, 0); ctx.lineTo(-w * 0.34, 0);
+      ctx.moveTo(w * 0.18, 0); ctx.lineTo(w * 0.34, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      const ang = t * 0.8 + (s.id | 0) * 0.05;
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(ang) * w * 0.35, Math.sin(ang) * h * 0.35);
+      ctx.stroke();
+      ctx.fillStyle = s.turretStatus === 'firing' ? 'rgba(255,232,170,.92)' : 'rgba(255,182,110,.40)';
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.min(w, h) * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+      if (s.turretStatus) {
+        ctx.save();
+        ctx.font = `${8 * view.dpr}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = s.turretStatus === 'no_power' || s.turretStatus === 'no_ammo' ? 'rgba(255,175,120,.96)' : 'rgba(230,245,255,.84)';
+        ctx.shadowColor = 'rgba(0,0,0,.9)';
+        ctx.shadowBlur = 3 * view.dpr;
+        ctx.fillText(s.turretStatus === 'no_power' ? 'énergie' : s.turretStatus === 'no_ammo' ? 'munitions' : s.turretStatus === 'firing' ? 'tir' : '', 0, h * 0.42);
+        ctx.restore();
+      }
       ctx.beginPath();
     } else if (isSolar) {
 

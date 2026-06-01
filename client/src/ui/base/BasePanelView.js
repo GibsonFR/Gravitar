@@ -70,6 +70,7 @@ function iconSvg(kind) {
   if (kind === 'door') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="7" y="19" width="50" height="26" rx="4" fill="rgba(135,217,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M18 22v20M46 22v20" stroke="currentColor" stroke-width="2.4" opacity=".75"/><path d="M24 32h16M40 32l-5-5M40 32l-5 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   if (kind === 'equipment_storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 16h36v34H14V16z" fill="rgba(139,184,255,.12)" stroke="currentColor" stroke-width="3"/><path d="M22 24h20M22 32h20M22 40h12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="45" cy="43" r="6" fill="none" stroke="currentColor" stroke-width="2.5"/></svg>`;
   if (kind === 'ammo_storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M15 18h34v28H15V18z" fill="rgba(255,193,111,.12)" stroke="currentColor" stroke-width="3"/><path d="M22 39l9-18 9 18M26 33h10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 48h40" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".65"/></svg>`;
+  if (kind === 'defense_turret') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="14" y="14" width="36" height="36" rx="9" fill="rgba(255,182,110,.12)" stroke="currentColor" stroke-width="3"/><circle cx="32" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="3"/><path d="M32 8v10M32 46v10M8 32h10M46 32h10M39 25l13-13M39 39l13 13M25 25L12 12M25 39L12 52" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" opacity=".78"/><path d="M32 32h18" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>`;
   if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 21l19-10 19 10v22L32 53 13 43V21z" fill="rgba(111,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M13 21l19 11 19-11M32 32v21" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".82"/><path d="M22 26l19-10M22 39l20-11" stroke="currentColor" stroke-width="2" opacity=".28"/></svg>`;
   if (kind === 'repair') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M39 12l13 13-7 7-5-5-18 18-10 3 3-10 18-18-5-5 11-3z" fill="rgba(112,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M18 49h30" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'demolish') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 16h24l-2 34H22L20 16z" fill="rgba(255,120,120,.10)" stroke="currentColor" stroke-width="3"/><path d="M17 16h30M26 16l2-5h8l2 5M27 25v17M37 25v17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
@@ -548,6 +549,25 @@ export const BUILD_STRUCTURES = [
     cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3, advancedSciencePack: 2 }
   },
   {
+    type: 'defense_turret',
+    category: 'defense',
+    title: 'Tourelle lance-roquettes',
+    subtitle: '2 × 2 cases',
+    icon: 'defense_turret',
+    orientation: 'h',
+    tilesX: 2,
+    tilesY: 2,
+    w: 128,
+    h: 128,
+    hp: 520,
+    energyUse: 18,
+    ammoCapacity: 80,
+    role: 'Défense automatique par rayon. Tire sur les joueurs ennemis même hors intrusion.',
+    stats: ['Portée : 820', 'Cadence : 2,4 s', 'Stockage : 80 roquettes'],
+    cost: { steelPlate: 10, controlCircuit: 3, copperWire: 8, propellant: 8 }
+  },
+
+  {
     type: 'ammo_storage',
     category: 'storage',
     title: 'Coffre de roquettes',
@@ -713,6 +733,7 @@ const BUILD_CATEGORIES = [
   { id: 'construction', label: 'Construction de base', icon: 'core' },
   { id: 'storage', label: 'Stockage', icon: 'storage' },
   { id: 'power', label: 'Énergie', icon: 'power' },
+  { id: 'defense', label: 'Défense', icon: 'defense_turret' },
   { id: 'industry', label: 'Industrie', icon: 'machine' },
   { id: 'automation', label: 'Automatisation', icon: 'automation' },
   { id: 'repair', label: 'Réparer', icon: 'repair' },

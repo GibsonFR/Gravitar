@@ -672,6 +672,55 @@ export function ensureTestRocketMixerBench(state, player, timeMs) {
   }
 }
 
+
+export function ensureTestTurretsBench(state, player, timeMs) {
+  if (!state?.structures || !player) return;
+  const worldId = String(player.worldId || '');
+  const sx = SPECIAL_SECTORS.TEST_TURRETS.sx | 0;
+  const sy = SPECIAL_SECTORS.TEST_TURRETS.sy | 0;
+  if ((player.sx | 0) !== sx || (player.sy | 0) !== sy) return;
+  const owner = { ownerId: player.id | 0, ownerKey: player.accountKey || 'test', ownerName: player.pseudo || 'Test', timeMs };
+  const core = ensureTestStructure(state, worldId, 'base_core', sx, sy, -640, 0, owner);
+  if (core) core.claimRadius = Math.max(core.claimRadius || 0, 960);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -832, -192, owner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -704, -192, owner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, -576, -192, owner);
+  const turret = ensureTestStructure(state, worldId, 'defense_turret', sx, sy, -320, 0, owner);
+  if (turret) {
+    turret.storage ??= { kind: 'ammo', ammo: {}, ammoCapacity: 80 };
+    turret.storage.kind = 'ammo';
+    turret.storage.ammo ??= {};
+    turret.storage.ammo['basic-he-rocket-pack'] = Math.max(turret.storage.ammo['basic-he-rocket-pack'] | 0, 40);
+    turret.turretEnabled = true;
+    turret.turretMode = 'auto';
+    turret.updatedAt = timeMs;
+  }
+  const ammo = ensureTestStructure(state, worldId, 'ammo_storage', sx, sy, -128, 0, owner);
+  if (ammo) {
+    ammo.storage ??= { kind: 'ammo', ammo: {}, ammoCapacity: 260 };
+    ammo.storage.kind = 'ammo';
+    ammo.storage.ammo ??= {};
+    ammo.storage.ammo['basic-he-rocket-pack'] = Math.max(ammo.storage.ammo['basic-he-rocket-pack'] | 0, 120);
+  }
+
+  const enemyOwner = { ownerId: 0, ownerKey: 'test-enemy-turret', ownerName: 'Tourelle ennemie', timeMs };
+  const enemyCore = ensureTestStructure(state, worldId, 'base_core', sx, sy, 720, 0, enemyOwner);
+  if (enemyCore) enemyCore.claimRadius = Math.max(enemyCore.claimRadius || 0, 760);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, 528, -192, enemyOwner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, 656, -192, enemyOwner);
+  ensureTestStructure(state, worldId, 'solar_panel', sx, sy, 784, -192, enemyOwner);
+  const enemyTurret = ensureTestStructure(state, worldId, 'defense_turret', sx, sy, 448, 0, enemyOwner);
+  if (enemyTurret) {
+    enemyTurret.storage ??= { kind: 'ammo', ammo: {}, ammoCapacity: 80 };
+    enemyTurret.storage.kind = 'ammo';
+    enemyTurret.storage.ammo ??= {};
+    enemyTurret.storage.ammo['basic-he-rocket-pack'] = Math.max(enemyTurret.storage.ammo['basic-he-rocket-pack'] | 0, 40);
+    enemyTurret.turretEnabled = true;
+    enemyTurret.turretMode = 'auto';
+    enemyTurret.updatedAt = timeMs;
+  }
+}
+
 function grantTestResources(player) {
   if (!player?.inv) return;
   player.inv.cargoMax = Math.max(player.inv.cargoMax || 0, 1400);
@@ -760,6 +809,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   ensureTestEquipmentBench(state, player, timeMs);
   ensureTestIndustrialConverterBench(state, player, timeMs);
   ensureTestRocketWorkshopBench(state, player, timeMs);
+  ensureTestTurretsBench(state, player, timeMs);
   if (player.progression) {
     player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
     player.progression.xp = 0;
@@ -780,6 +830,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_FOUNDATIONS.sx | 0, SPECIAL_SECTORS.TEST_FOUNDATIONS.sy | 0, timeMs);
   ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_MINING.sx | 0, SPECIAL_SECTORS.TEST_MINING.sy | 0, timeMs);
   ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_EQUIPMENT.sx | 0, SPECIAL_SECTORS.TEST_EQUIPMENT.sy | 0, timeMs);
+  ensureSectorLoaded(state, SPECIAL_SECTORS.TEST_TURRETS.sx | 0, SPECIAL_SECTORS.TEST_TURRETS.sy | 0, timeMs);
   visitSectorOnPlayer(state, player, player.sx | 0, player.sy | 0, timeMs);
   player.uiHint = def.hint || 'Monde de test';
   player.uiHintTimer = 3.0;

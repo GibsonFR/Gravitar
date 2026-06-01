@@ -100,6 +100,7 @@ export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, spee
     autoAttackImpactRoll: !!extras?.autoAttackImpactRoll,
     linkedAbilitySynergyActive: !!extras?.linkedAbilitySynergyActive,
     sourceFrameId: extras?.sourceFrameId ?? owner.frameId ?? '',
+    sourceOwnerKey: String(extras?.sourceOwnerKey || owner.ownerKey || ''),
     visualKind: extras?.visualKind ?? (extras?.sourceAbilitySlot ? 'ability' : 'auto'),
     visualSlot: extras?.visualSlot ?? extras?.sourceAbilitySlot ?? '',
     visualAmmoEffect: extras?.visualAmmoEffect ?? '',
@@ -127,10 +128,13 @@ export function updateProjectiles(state, dt, timeMs = null) {
     proj.rangeLeft -= step;
 
     let hit = null;
-    const sourceEntityForCollision = state.players.get(proj.sourceId) ?? state.mobs.get(proj.sourceId) ?? null;
+    const sourceStructureForCollision = proj.sourceKind === 'structure' ? (state.structures?.get?.(proj.sourceId) ?? null) : null;
+    const sourceEntityForCollision = state.players.get(proj.sourceId) ?? state.mobs.get(proj.sourceId) ?? sourceStructureForCollision ?? null;
     const demoProjectile = !!sourceEntityForCollision?.demoMob;
     const hostileToPlayers = proj.sourceKind === 'mob' && !demoProjectile;
+    const structureProjectile = proj.sourceKind === 'structure';
     const sourcePlayerForPvp = state.players.get(proj.sourceId) ?? null;
+    const sourceOwnerKey = String(proj.sourceOwnerKey || sourceStructureForCollision?.ownerKey || '').toLowerCase();
 
     // Les murs de base doivent bloquer tous les tirs/projectiles.
     // Le noyau et les autres structures ne sont touchés que s'ils sont effectivement attaquables.
@@ -145,7 +149,10 @@ export function updateProjectiles(state, dt, timeMs = null) {
 
     if (!hit) for (const p of state.players.values()) {
       if (demoProjectile) continue;
-      if (!hostileToPlayers && p.id === proj.sourceId) continue;
+      if (!hostileToPlayers && !structureProjectile && p.id === proj.sourceId) continue;
+      if (structureProjectile && sourceOwnerKey && String(p.accountKey || p.accountName || p.pseudo || '').toLowerCase() === sourceOwnerKey) continue;
+      if (structureProjectile && sourceStructureForCollision && String(sourceStructureForCollision.worldId || 'endless') !== String(p.worldId || 'endless')) continue;
+      if (structureProjectile && isSafeNoPvpSector(p.sx | 0, p.sy | 0)) continue;
       if (sourcePlayerForPvp && !sameWorld(sourcePlayerForPvp, p)) continue;
       if (!hostileToPlayers && sourcePlayerForPvp && p.id !== sourcePlayerForPvp.id && isSafeNoPvpSector(p.sx | 0, p.sy | 0) && isSafeNoPvpSector(sourcePlayerForPvp.sx | 0, sourcePlayerForPvp.sy | 0)) continue;
       if ((p.sx | 0) !== (proj.sx | 0) || (p.sy | 0) !== (proj.sy | 0)) continue;
@@ -210,7 +217,10 @@ export function updateProjectiles(state, dt, timeMs = null) {
         const splashSq = proj.splashRadius * proj.splashRadius;
 
         for (const p of state.players.values()) {
-          if (!hostileToPlayers && p.id === proj.sourceId) continue;
+          if (!hostileToPlayers && !structureProjectile && p.id === proj.sourceId) continue;
+          if (structureProjectile && sourceOwnerKey && String(p.accountKey || p.accountName || p.pseudo || '').toLowerCase() === sourceOwnerKey) continue;
+          if (structureProjectile && sourceStructureForCollision && String(sourceStructureForCollision.worldId || 'endless') !== String(p.worldId || 'endless')) continue;
+          if (structureProjectile && isSafeNoPvpSector(p.sx | 0, p.sy | 0)) continue;
           if (sourcePlayerForPvp && !sameWorld(sourcePlayerForPvp, p)) continue;
           if (!hostileToPlayers && sourcePlayerForPvp && p.id !== sourcePlayerForPvp.id && isSafeNoPvpSector(p.sx | 0, p.sy | 0) && isSafeNoPvpSector(sourcePlayerForPvp.sx | 0, sourcePlayerForPvp.sy | 0)) continue;
           if ((p.sx | 0) !== (proj.sx | 0) || (p.sy | 0) !== (proj.sy | 0)) continue;

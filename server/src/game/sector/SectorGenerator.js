@@ -471,6 +471,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, 380, 1320, SPECIAL_SECTORS.TEST_TURRETS.sx, SPECIAL_SECTORS.TEST_TURRETS.sy, '⌖', {
+    label: 'Test tourelles défensives',
+    mode: 'test_turrets',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -872,6 +878,14 @@ function generateTestFoundationsContent(state, sx, sy, timeMs, h) {
   spawnBastionWall(state, sx, sy, { x: 790, y: -70, w: 110, h: 340 }, wallColor, borderColor, h ^ 0x16, `foundation_wall_${sx}_${sy}_r_bottom`);
 }
 
+
+
+function generateTestTurretsContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52, autoTrigger: true });
+  spawnStation(state, sx, sy, -1500, 1450, true, h ^ 0x223a01, timeMs);
+  // Les bases/tourelles de test liées au joueur sont injectées par GameModes/PortalSystem,
+  // afin de conserver le bon worldId test et le bon propriétaire.
+}
 
 function generateTestBasesContent(state, sx, sy, timeMs, h) {
   spawnPortal(state, sx, sy, -1650, -1650, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 54, autoTrigger: true });
@@ -1292,6 +1306,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testRocketWorkshop = sx === SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sx && sy === SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sy;
   const testRocketMixer = sx === SPECIAL_SECTORS.TEST_ROCKET_MIXER.sx && sy === SPECIAL_SECTORS.TEST_ROCKET_MIXER.sy;
   const testLogisticDrones = sx === SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sx && sy === SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sy;
+  const testTurrets = sx === SPECIAL_SECTORS.TEST_TURRETS.sx && sy === SPECIAL_SECTORS.TEST_TURRETS.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -1370,6 +1385,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testLogisticDrones) {
     generateTestLogisticDronesContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testTurrets) {
+    generateTestTurretsContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

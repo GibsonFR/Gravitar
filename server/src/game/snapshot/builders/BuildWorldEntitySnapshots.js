@@ -261,7 +261,10 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       researchProgress: structure.researchJob ? Math.max(0, Math.min(1, 1 - ((Number(structure.researchJob.remainingMs) || 0) / Math.max(1, Number(structure.researchJob.totalMs) || 1)))) : 0,
       baseCoreId: structure.baseCoreId | 0 || 0,
       protectedByCore: isStructureProtectedByCore({ structures }, structure),
-      attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false
+      attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false,
+      turretStatus: structure.turretStatus || '',
+      turretTargetId: structure.turretTargetId | 0 || 0,
+      turretEnabled: structure.turretEnabled !== false
     }));
 }
 

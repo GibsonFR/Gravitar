@@ -4,6 +4,7 @@ import { updateMachineProcesses } from './StructureMachineRuntime.js';
 import { updateStructureAutomation } from './StructureAutomation.js';
 import { updateRocketWorkshops } from './StructureRocketWorkshop.js';
 import { updateLogisticDroneStations } from './StructureLogistics.js';
+import { updateDefenseTurrets } from './StructureTurrets.js';
 
 const CORE_REGEN_HP_PER_SEC = 8;
 const CORE_REGEN_SAVE_INTERVAL_MS = 5000;
@@ -148,6 +149,7 @@ export function updateStructures(state, dt, timeMs = Date.now()) {
   updateRocketWorkshops(state, dt, timeMs);
   updateLogisticDroneStations(state, dt, timeMs);
   updateStructureAutomation(state, dt, timeMs);
+  updateDefenseTurrets(state, dt, timeMs);
   if (regen <= 0) return;
   for (const st of state.structures.values()) {
     if (!isCoreType(st.type)) continue;

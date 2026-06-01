@@ -36,7 +36,8 @@ export const STRUCTURE_TYPES = {
   MERGER: 'merger',
   ROBOT_ARM: 'robot_arm',
   FAST_ARM: 'fast_arm',
-  LONG_ARM: 'long_arm'
+  LONG_ARM: 'long_arm',
+  DEFENSE_TURRET: 'defense_turret'
 };
 
 export const STRUCTURE_DEFS = {
@@ -194,6 +195,34 @@ export const STRUCTURE_DEFS = {
     color: '#4d4534',
     borderColor: '#ffe19a',
     cost: { steelPlate: 4, copperWire: 2, controlCircuit: 1 }
+  },
+
+
+  [STRUCTURE_TYPES.DEFENSE_TURRET]: {
+    id: STRUCTURE_TYPES.DEFENSE_TURRET,
+    name: 'Tourelle lance-roquettes',
+    description: 'Tourelle défensive autonome. Tire sur les joueurs ennemis dans son rayon, même hors intrusion de base.',
+    radius: 48,
+    tilesX: 2,
+    tilesY: 2,
+    w: BASE_TILE_SIZE * 2,
+    h: BASE_TILE_SIZE * 2,
+    maxHp: 520,
+    damageable: true,
+    buildRange: 1100,
+    gridSize: BASE_TILE_SIZE,
+    solid: false,
+    storageKind: 'ammo',
+    ammoCapacity: 80,
+    energyUse: 18,
+    turret: true,
+    turretRange: 820,
+    turretCooldownMs: 2400,
+    turretProjectileSpeed: 720,
+    turretProjectileRadius: 6,
+    color: '#3f334f',
+    borderColor: '#ffb66e',
+    cost: { steelPlate: 10, controlCircuit: 3, copperWire: 8, propellant: 8 }
   },
 
   [STRUCTURE_TYPES.WALL]: {
