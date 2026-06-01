@@ -183,15 +183,101 @@ function applyFrameArmorPenalty(entity, delta) {
   entity.frameArmorPenaltyFlat = Math.max(0, (entity.frameArmorPenaltyFlat || 0) + delta);
 }
 
+function ensureBulwarkStormArmorMap(fs) {
+  if (!fs.stormArmorById) fs.stormArmorById = Object.create(null);
+  return fs.stormArmorById;
+}
+
+function getBulwarkStormArmorEntry(fs, targetId) {
+  const map = ensureBulwarkStormArmorMap(fs);
+  const key = String(targetId);
+  if (!map[key]) {
+    map[key] = {
+      amount: 0,
+      outsideLeft: 2.0,
+      returnLeft: 0,
+      returning: false,
+      seenThisTick: false
+    };
+  }
+  return map[key];
+}
+
+function normalizeLegacyBulwarkStormArmorMap(fs) {
+  if (!fs?.stormArmorById) return;
+  for (const [key, value] of Object.entries(fs.stormArmorById)) {
+    if (value && typeof value === 'object') continue;
+    fs.stormArmorById[key] = {
+      amount: Math.max(0, Number(value) || 0),
+      outsideLeft: 2.0,
+      returnLeft: 0,
+      returning: false,
+      seenThisTick: false
+    };
+  }
+}
+
 function clearBulwarkStormArmorSteal(state, fs) {
+  normalizeLegacyBulwarkStormArmorMap(fs);
   const byId = fs?.stormArmorById || null;
   if (!byId) return;
-  for (const [id, amount] of Object.entries(byId)) {
+  for (const [id, entry] of Object.entries(byId)) {
+    const amount = typeof entry === 'object' ? entry.amount : entry;
     const target = findEntityInStateById(state, Number(id) || id);
     if (target && amount > 0) applyFrameArmorPenalty(target, -amount);
   }
   fs.stormArmorById = Object.create(null);
   fs.stormArmorStolen = 0;
+}
+
+function scheduleBulwarkStormArmorReturn(fs) {
+  normalizeLegacyBulwarkStormArmorMap(fs);
+  const byId = fs?.stormArmorById || null;
+  if (!byId) return;
+  for (const entry of Object.values(byId)) {
+    if (!entry || entry.amount <= 0 || entry.returning) continue;
+    entry.seenThisTick = false;
+    entry.outsideLeft = Math.min(entry.outsideLeft ?? 2.0, 2.0);
+  }
+}
+
+function tickBulwarkStormArmorReturns(state, player, fs, dt) {
+  normalizeLegacyBulwarkStormArmorMap(fs);
+  const byId = fs?.stormArmorById || null;
+  if (!byId) return;
+  for (const [id, entry] of Object.entries(byId)) {
+    if (!entry || entry.amount <= 0) {
+      delete byId[id];
+      continue;
+    }
+    if (entry.seenThisTick) {
+      entry.seenThisTick = false;
+      entry.outsideLeft = 2.0;
+      entry.returning = false;
+      entry.returnLeft = 0;
+      continue;
+    }
+    if (!entry.returning) {
+      entry.outsideLeft = Math.max(0, (entry.outsideLeft ?? 2.0) - dt);
+      if (entry.outsideLeft > 0) continue;
+      entry.returning = true;
+      entry.returnLeft = 2.0;
+    }
+    const target = findEntityInStateById(state, Number(id) || id);
+    const before = entry.amount;
+    const release = Math.min(before, before * Math.min(1, dt / Math.max(0.001, entry.returnLeft || 2.0)));
+    if (release > 0) {
+      if (target) applyFrameArmorPenalty(target, -release);
+      entry.amount = Math.max(0, entry.amount - release);
+      fs.stormArmorStolen = Math.max(0, (fs.stormArmorStolen || 0) - release);
+    }
+    entry.returnLeft = Math.max(0, (entry.returnLeft || 0) - dt);
+    if (entry.amount <= 0.001 || entry.returnLeft <= 0) {
+      if (target && entry.amount > 0) applyFrameArmorPenalty(target, -entry.amount);
+      fs.stormArmorStolen = Math.max(0, (fs.stormArmorStolen || 0) - Math.max(0, entry.amount));
+      delete byId[id];
+    }
+  }
 }
 
 function getA(player) { return getVanguardAbilityTuning('A', Math.max(1, getAbilityInvestedLevel(player, 'A'))); }
@@ -599,6 +685,10 @@ function resolveBulwarkStormTick(state, player, timeMs) {
   if (!fs || fs.stormLeft <= 0) return;
   const tuning = getBulwarkR(player);
   const tickEvery = 0.5;
+  normalizeLegacyBulwarkStormArmorMap(fs);
+  for (const entry of Object.values(fs.stormArmorById || {})) {
+    if (entry) entry.seenThisTick = false;
+  }
   const dmgPerSec = tuning.stormBaseDpsFlat + getWeaponReferenceDamage(player) * tuning.stormBaseDpsPct;
   const damage = dmgPerSec * tickEvery;
   forEachHostileInRadius(state, player, player.x, player.y, tuning.stormRadius, (target) => {
@@ -611,13 +701,15 @@ function resolveBulwarkStormTick(state, player, timeMs) {
       timeMs
     });
     if (tuning.stormArmorStealPerSecond > 0) {
-      if (!fs.stormArmorById) fs.stormArmorById = Object.create(null);
-      const key = String(target.id);
-      const already = fs.stormArmorById[key] || 0;
+      const entry = getBulwarkStormArmorEntry(fs, target.id);
+      entry.seenThisTick = true;
+      entry.outsideLeft = 2.0;
+      entry.returning = false;
+      entry.returnLeft = 0;
       const perTick = tuning.stormArmorStealPerSecond * tickEvery;
-      const gain = Math.max(0, Math.min(perTick, (tuning.stormStealCap || 0) - already));
+      const gain = Math.max(0, Math.min(perTick, (tuning.stormStealCap || 0) - entry.amount));
       if (gain > 0) {
-        fs.stormArmorById[key] = already + gain;
+        entry.amount += gain;
         fs.stormArmorStolen = (fs.stormArmorStolen || 0) + gain;
         applyFrameArmorPenalty(target, gain);
       }
@@ -739,9 +831,15 @@ function tickBulwark(state, player, dt, timeMs) {
     }
   } else {
     fs.stormExposureById = Object.create(null);
-    clearBulwarkStormArmorSteal(state, fs);
+    if (!fs.stormReturnScheduled && Object.keys(fs.stormArmorById || {}).length > 0) {
+      scheduleBulwarkStormArmorReturn(fs);
+      fs.stormReturnScheduled = true;
+    }
     fs.stormShieldGained = 0;
   }
+
+  tickBulwarkStormArmorReturns(state, player, fs, dt);
+  if ((fs.stormLeft || 0) > 0) fs.stormReturnScheduled = false;
 
   updateFrameBonuses(player);
 }
@@ -1297,11 +1395,15 @@ function castSigilZ(state, player, timeMs) {
 
   const effect = createAreaEffect(state, player, {
     slot: 'Z',
+    kind: 'frame_zone',
+    visualStyle: 'sigil_seal',
     x,
     y,
     radius: z.zZoneRadius,
+    innerRadius: z.zZoneRadius * 0.48,
     duration: z.zZoneDuration,
     tickEvery: z.zRunePulseInterval,
+    pulseEvery: z.zRunePulseInterval,
     damage,
     color: { r: 177, g: 104, b: 255 },
     onTickStatuses: [
@@ -1471,6 +1573,7 @@ function castBulwarkR(state, player, timeMs) {
   fs.stormArmorStolen = 0;
   fs.stormArmorById = Object.create(null);
   fs.stormExposureById = Object.create(null);
+  fs.stormReturnScheduled = false;
   player.cooldownRLeft = r.baseCooldown;
   return true;
 }
@@ -1519,6 +1622,11 @@ export function buildFrameUiState(player, timeMs) {
       comboWindowLeft: fs.comboWindowLeft,
       moveBoostLeft: fs.moveBoostLeft,
       phaseLeft: fs.phaseLeft,
+      trailLeft: fs.trailLeft || 0,
+      trailStartX: fs.trailStartX || 0,
+      trailStartY: fs.trailStartY || 0,
+      trailEndX: fs.trailEndX || 0,
+      trailEndY: fs.trailEndY || 0,
       ultLeft: fs.ultLeft,
       tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
       pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null
@@ -1536,6 +1644,11 @@ export function buildFrameUiState(player, timeMs) {
       detonationCooldownLeft: fs.detonationCooldownLeft,
       zoneActive: !!fs.zoneEffectId,
       veilLeft: fs.veilLeft,
+      trailLeft: fs.trailLeft || 0,
+      trailStartX: fs.trailStartX || 0,
+      trailStartY: fs.trailStartY || 0,
+      trailEndX: fs.trailEndX || 0,
+      trailEndY: fs.trailEndY || 0,
       ultLeft: fs.ultLeft,
       tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
       pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null
@@ -1556,6 +1669,7 @@ export function buildFrameUiState(player, timeMs) {
       breachLeft: fs.breachLeft || 0,
       empoweredLeft: fs.empoweredLeft || 0,
       stormArmorStolen: fs.stormArmorStolen || 0,
+      stormArmorReturning: Object.values(fs.stormArmorById || {}).filter((entry) => entry?.returning).length,
       stormShieldGained: fs.stormShieldGained || 0,
       tempShield: Array.isArray(player.frameTempShields) ? player.frameTempShields.reduce((sum, shield) => sum + Math.max(0, shield.amount || 0), 0) : 0,
       pendingCast: player.pendingFrameCast?.frameId === player.frameId ? player.pendingFrameCast : null

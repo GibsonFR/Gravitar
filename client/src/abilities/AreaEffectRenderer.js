@@ -9,6 +9,95 @@ function fakeStatusEntry(effect) {
   };
 }
 
+
+function effectVisualStyle(effect) {
+  if (effect.visualStyle) return effect.visualStyle;
+  if (effect.frameId === 'sigil' && effect.slot === 'Z') return 'sigil_seal';
+  if (effect.frameId === 'bulwark' && effect.slot === 'R') return 'bulwark_storm';
+  if (effect.frameId === 'vanguard' && effect.slot === 'Z') return 'vanguard_trail';
+  return '';
+}
+
+function drawSigilSeal(ctx, dpr, x, y, r, color, effect, t, alpha) {
+  const pulseEvery = Math.max(0.25, effect.pulseEvery || 1);
+  const pulsePhase = ((t + effect.id * 0.017) % pulseEvery) / pulseEvery;
+  const pulseR = r * (0.22 + pulsePhase * 0.78);
+  ctx.save();
+  const grad = ctx.createRadialGradient(x, y, r * 0.08, x, y, r);
+  grad.addColorStop(0, rgba(color.r, color.g, color.b, alpha * 0.52));
+  grad.addColorStop(0.50, rgba(color.r, color.g, color.b, alpha * 0.16));
+  grad.addColorStop(1, rgba(color.r, color.g, color.b, 0.015));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = rgba(color.r, color.g, color.b, 0.68);
+  ctx.lineWidth = 1.65 * dpr;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i += 1) {
+    const a = -Math.PI / 2 + i * Math.PI / 3 + t * 0.22;
+    const px = x + Math.cos(a) * r;
+    const py = y + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.strokeStyle = rgba(245, 232, 255, 0.28 + 0.18 * Math.sin(t * 5.2));
+  ctx.lineWidth = 1.1 * dpr;
+  for (let i = 0; i < 3; i += 1) {
+    const a = t * 0.65 + i * Math.PI / 3;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * r * 0.18, y + Math.sin(a) * r * 0.18);
+    ctx.lineTo(x + Math.cos(a) * r * 0.82, y + Math.sin(a) * r * 0.82);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = rgba(255, 255, 255, 0.30 * (1 - pulsePhase));
+  ctx.lineWidth = 2 * dpr;
+  ctx.beginPath();
+  ctx.arc(x, y, pulseR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBulwarkStorm(ctx, dpr, x, y, r, inner, color, effect, t, alpha) {
+  ctx.save();
+  const grad = ctx.createRadialGradient(x, y, Math.max(1, inner || r * 0.45), x, y, r);
+  grad.addColorStop(0, rgba(255, 228, 154, alpha * 0.30));
+  grad.addColorStop(0.52, rgba(color.r, color.g, color.b, alpha * 0.12));
+  grad.addColorStop(1, rgba(color.r, color.g, color.b, 0.012));
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i += 1) {
+    const rr = r * (0.38 + i * 0.21) + Math.sin(t * 3.2 + i) * 2.5 * dpr;
+    ctx.strokeStyle = rgba(color.r, color.g, color.b, 0.28 + i * 0.08);
+    ctx.lineWidth = (1.1 + i * 0.4) * dpr;
+    ctx.setLineDash([12 * dpr, 10 * dpr]);
+    ctx.lineDashOffset = -(t * (24 + i * 9)) * dpr;
+    ctx.beginPath();
+    ctx.arc(x, y, rr, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = rgba(255, 238, 186, 0.70);
+  ctx.lineWidth = 1.7 * dpr;
+  ctx.beginPath();
+  ctx.arc(x, y, Math.max(1, inner || r * 0.5), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = rgba(color.r, color.g, color.b, 0.76);
+  ctx.lineWidth = 2.1 * dpr;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
 export function drawAreaEffect(ctx, view, effect, camX, camY, t) {
   const sx = (effect.x - camX) + view.cssW * 0.5;
   const sy = (effect.y - camY) + view.cssH * 0.5;
@@ -28,6 +117,16 @@ export function drawAreaEffect(ctx, view, effect, camX, camY, t) {
   const x = sx * dpr;
   const y = sy * dpr;
   const r = effect.radius * dpr;
+  const style = effectVisualStyle(effect);
+
+  if (style === 'sigil_seal') {
+    drawSigilSeal(ctx, dpr, x, y, r, color, effect, t, alpha);
+    return;
+  }
+  if (style === 'bulwark_storm') {
+    drawBulwarkStorm(ctx, dpr, x, y, r, (effect.innerRadius || 0) * dpr, color, effect, t, alpha);
+    return;
+  }
 
   const grad = ctx.createRadialGradient(x, y, Math.max(1, r * 0.10), x, y, Math.max(1, r));
   grad.addColorStop(0, rgba(color.r, color.g, color.b, alpha * 0.72 * pulse));

@@ -438,6 +438,72 @@ function drawContinuousHeatAura(ctx, dpr, sx, sy, radius, stacks, maxStacks, t) 
 }
 
 
+
+function drawFrameTrail(ctx, view, p, camX, camY, t) {
+  const fs = p.frameState;
+  if (!fs || (fs.trailLeft ?? 0) <= 0) return;
+  const x0w = Number(fs.trailStartX);
+  const y0w = Number(fs.trailStartY);
+  const x1w = Number(fs.trailEndX);
+  const y1w = Number(fs.trailEndY);
+  if (![x0w, y0w, x1w, y1w].every(Number.isFinite)) return;
+  const x0 = ((x0w - camX) + view.cssW * 0.5) * view.dpr;
+  const y0 = ((y0w - camY) + view.cssH * 0.5) * view.dpr;
+  const x1 = ((x1w - camX) + view.cssW * 0.5) * view.dpr;
+  const y1 = ((y1w - camY) + view.cssH * 0.5) * view.dpr;
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const len = Math.hypot(dx, dy);
+  if (len < 3) return;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const kind = fs.kind || p.frameId || '';
+  const color = kind === 'sigil' ? { r: 198, g: 128, b: 255 } : { r: 105, g: 235, b: 255 };
+  const alpha = Math.max(0, Math.min(1, (fs.trailLeft ?? 0) / (kind === 'sigil' ? 1.2 : 1.2)));
+  ctx.save();
+  ctx.lineCap = 'round';
+  const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+  grad.addColorStop(0, rgba(color.r, color.g, color.b, 0.08 * alpha));
+  grad.addColorStop(0.55, rgba(color.r, color.g, color.b, 0.35 * alpha));
+  grad.addColorStop(1, rgba(245, 252, 255, 0.52 * alpha));
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = (kind === 'sigil' ? 15 : 11) * view.dpr;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+  ctx.strokeStyle = rgba(color.r, color.g, color.b, 0.62 * alpha);
+  ctx.lineWidth = 1.6 * view.dpr;
+  ctx.setLineDash([9 * view.dpr, 7 * view.dpr]);
+  ctx.lineDashOffset = -t * 28 * view.dpr;
+  for (let i = -1; i <= 1; i += 2) {
+    ctx.beginPath();
+    ctx.moveTo(x0 + nx * i * 6 * view.dpr, y0 + ny * i * 6 * view.dpr);
+    ctx.lineTo(x1 + nx * i * 6 * view.dpr, y1 + ny * i * 6 * view.dpr);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  if (kind === 'sigil') {
+    ctx.strokeStyle = rgba(245, 232, 255, 0.46 * alpha);
+    ctx.lineWidth = 1.2 * view.dpr;
+    for (let i = 1; i <= 3; i += 1) {
+      const u = ((t * 0.85 + i * 0.27) % 1);
+      const cx = x0 + dx * u;
+      const cy = y0 + dy * u;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k += 1) {
+        const a = -Math.PI / 2 + k * Math.PI / 3 + t;
+        const px = cx + Math.cos(a) * 5 * view.dpr;
+        const py = cy + Math.sin(a) * 5 * view.dpr;
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
   const fs = p.frameState;
   if (!fs) return;
@@ -451,6 +517,15 @@ function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
     ctx.beginPath();
     ctx.arc(sx * dpr, sy * dpr, (r + 5) * dpr, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.strokeStyle = rgba(214, 244, 255, 0.28);
+    ctx.lineWidth = 0.9 * dpr;
+    ctx.beginPath();
+    ctx.arc(sx * dpr, sy * dpr, (r + 9 + Math.sin(t * 5) * 1.5) * dpr, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = rgba(190, 232, 255, 0.78);
+    ctx.font = `${9 * dpr}px Segoe UI`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`+${Math.round(fs.tempShield)}`, sx * dpr, (sy + r + 23) * dpr);
     ctx.restore();
   }
   if (fs.pendingCast) {
@@ -566,12 +641,54 @@ function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
     }
     if ((fs.stormLeft ?? 0) > 0) {
       ctx.save();
-      ctx.strokeStyle = rgba(255, 195, 102, 0.44);
-      ctx.fillStyle = rgba(255, 195, 102, 0.035);
+      const stormR = r + 70;
+      const pulse = 0.5 + 0.5 * Math.sin(t * 4);
+      const grad = ctx.createRadialGradient(sx * dpr, sy * dpr, (r + 18) * dpr, sx * dpr, sy * dpr, stormR * dpr);
+      grad.addColorStop(0, rgba(255, 232, 168, 0.055));
+      grad.addColorStop(0.55, rgba(255, 195, 102, 0.035));
+      grad.addColorStop(1, rgba(255, 195, 102, 0.006));
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(sx * dpr, sy * dpr, stormR * dpr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 3; i += 1) {
+        ctx.strokeStyle = rgba(255, 195, 102, 0.28 + 0.10 * i + pulse * 0.05);
+        ctx.lineWidth = (1.3 + i * 0.45) * dpr;
+        ctx.setLineDash([12 * dpr, 9 * dpr]);
+        ctx.lineDashOffset = -t * (20 + i * 10) * dpr;
+        ctx.beginPath();
+        ctx.arc(sx * dpr, sy * dpr, (stormR * (0.48 + i * 0.18) + Math.sin(t * 3 + i) * 3) * dpr, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.strokeStyle = rgba(255, 236, 178, 0.64);
+      ctx.lineWidth = 1.6 * dpr;
+      ctx.beginPath();
+      ctx.arc(sx * dpr, sy * dpr, (r + 33) * dpr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = rgba(255, 195, 102, 0.54);
       ctx.lineWidth = 2.2 * dpr;
       ctx.beginPath();
-      ctx.arc(sx * dpr, sy * dpr, (r + 70 + Math.sin(t * 4) * 4) * dpr, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
+      ctx.arc(sx * dpr, sy * dpr, (stormR + Math.sin(t * 4) * 4) * dpr, 0, Math.PI * 2);
+      ctx.stroke();
+      if ((fs.stormArmorStolen ?? 0) > 0) {
+        ctx.fillStyle = rgba(255, 232, 168, 0.86);
+        ctx.font = `${10 * dpr}px Segoe UI`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`+${Math.round(fs.stormArmorStolen)} ARM`, sx * dpr, (sy - stormR - 9) * dpr);
+      }
+      ctx.restore();
+    } else if ((fs.stormArmorReturning ?? 0) > 0) {
+      ctx.save();
+      ctx.strokeStyle = rgba(255, 195, 102, 0.28);
+      ctx.lineWidth = 1.2 * dpr;
+      ctx.setLineDash([5 * dpr, 8 * dpr]);
+      ctx.lineDashOffset = t * 18 * dpr;
+      ctx.beginPath();
+      ctx.arc(sx * dpr, sy * dpr, (r + 34) * dpr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.restore();
     }
   }
@@ -585,6 +702,7 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
   const ang = Number.isFinite(p.rot) ? p.rot : 0;
   const palette = getShipFramePalette(p.frameId);
 
+  drawFrameTrail(ctx, view, p, camX, camY, t);
   drawFrameSignatureAura(ctx, view, p, sx, sy, t);
   drawShipStatusOverlays(ctx, view, p, sx, sy, t);
 

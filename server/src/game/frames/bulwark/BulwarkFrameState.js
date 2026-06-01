@@ -28,6 +28,7 @@ export function createBulwarkFrameState() {
     stormShieldGained: 0,
     stormArmorStolen: 0,
     stormArmorById: Object.create(null),
-    stormExposureById: Object.create(null)
+    stormExposureById: Object.create(null),
+    stormReturnScheduled: false
   };
 }
