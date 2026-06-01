@@ -283,6 +283,17 @@ export class MapPanelView {
       this.playerList.push({ ...p, sx, rawSy, sy: this._toDisplaySy(rawSy), isMe: (p.id | 0) === (mapSnap?.meId | 0) });
     }
 
+    if (mapSnap?.homeBase) {
+      const sx = (mapSnap.homeBase.sx ?? 0) | 0;
+      const rawSy = (mapSnap.homeBase.sy ?? 0) | 0;
+      this.homeBase = {
+        ...mapSnap.homeBase,
+        sx,
+        rawSy,
+        sy: this._toDisplaySy(rawSy),
+      };
+    }
+
     this._refreshLabels();
     if (render) this._render();
   }
