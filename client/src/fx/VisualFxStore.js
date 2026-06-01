@@ -45,6 +45,7 @@ export class VisualFxStore {
     this.lastProjectiles = new Map();
     this.lastAreas = new Map();
     this.lastStatuses = new Map();
+    this.lastSigilRuneStacks = new Map();
   }
 
   sync(store, t) {
@@ -162,9 +163,29 @@ export class VisualFxStore {
       const statuses = ent.statuses ?? [];
       const keyBase = `${prefix}:${ent.id}`;
       const old = this.lastStatuses.get(keyBase) ?? new Set();
-      const next = new Set(statuses.map((s) => s.id));
+      const next = new Set(statuses.map((s) => `${s.id}:${s.markKey || ''}`));
+      const rune = statuses.find((s) => s?.id === 'mark' && (s.markKey === 'sigil_runes' || s.label === 'Rune')) || null;
+      const prevRunes = this.lastSigilRuneStacks.get(keyBase) ?? 0;
+      const nextRunes = Math.max(0, rune?.stacks ?? 0);
+      if (prevRunes >= 5 && nextRunes < prevRunes) {
+        this.impacts.push({
+          x: ent.x,
+          y: ent.y,
+          t: now,
+          life: 0.58,
+          start: Math.max(10, ent.radius || 14),
+          end: Math.max(46, (ent.radius || 14) + 34),
+          color: { r: 210, g: 126, b: 255 },
+          rays: 12,
+          kind: 'sigil-detonation',
+          frameId: 'sigil',
+          slot: 'runes'
+        });
+      }
+      this.lastSigilRuneStacks.set(keyBase, nextRunes);
       for (const s of statuses) {
-        if (old.has(s.id)) continue;
+        const statusKey = `${s.id}:${s.markKey || ''}`;
+        if (old.has(statusKey)) continue;
         this.rings.push({
           x: ent.x,
           y: ent.y,
@@ -173,7 +194,7 @@ export class VisualFxStore {
           start: Math.max(8, ent.radius || 14),
           end: Math.max(22, (ent.radius || 14) + 18),
           color: s.primaryColor ?? { r: 220, g: 220, b: 220 },
-          kind: 'status'
+          kind: s.markKey === 'sigil_runes' ? 'sigil-rune-status' : 'status'
         });
       }
       this.lastStatuses.set(keyBase, next);
@@ -247,6 +268,37 @@ export class VisualFxStore {
         }
         ctx.closePath();
         ctx.stroke();
+        ctx.restore();
+      }
+      if (fx.kind === 'sigil-detonation') {
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(-t * 5.6);
+        ctx.strokeStyle = rgba(234, 188, 255, fade * 0.88);
+        ctx.fillStyle = rgba(156, 58, 220, fade * 0.12);
+        ctx.lineWidth = Math.max(1, 2.2 * fade) * dpr;
+        for (let ring = 0; ring < 2; ring += 1) {
+          const hexR = (fx.start + (fx.end - fx.start) * (0.34 + 0.38 * k + ring * 0.18)) * dpr;
+          ctx.beginPath();
+          for (let j = 0; j < 6; j += 1) {
+            const aa = -Math.PI / 2 + j * Math.PI / 3 + ring * Math.PI / 6;
+            const px = Math.cos(aa) * hexR;
+            const py = Math.sin(aa) * hexR;
+            if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.strokeStyle = rgba(255, 236, 255, fade * 0.70);
+        ctx.lineWidth = Math.max(1, 1.4 * fade) * dpr;
+        for (let j = 0; j < 6; j += 1) {
+          const aa = -Math.PI / 2 + j * Math.PI / 3;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(aa) * fx.start * dpr, Math.sin(aa) * fx.start * dpr);
+          ctx.lineTo(Math.cos(aa) * fx.end * dpr, Math.sin(aa) * fx.end * dpr);
+          ctx.stroke();
+        }
         ctx.restore();
       }
       if (fx.kind === 'bulwark-harpoon') {

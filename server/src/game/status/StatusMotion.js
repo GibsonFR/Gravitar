@@ -52,10 +52,15 @@ export function applyBlinkMove(entity, tx, ty) {
 }
 
 export function applyPullMove(target, source, duration = 0.18, speed = 720) {
+  const meta = { speed };
+  if (Number.isFinite(source?.x) && Number.isFinite(source?.y)) {
+    meta.sourceX = source.x;
+    meta.sourceY = source.y;
+  }
   return applyStatus(target, I.PULL, duration, {
     sourceId: source?.id ?? 0,
     hostile: true,
-    meta: { speed }
+    meta
   });
 }
 

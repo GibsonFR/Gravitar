@@ -397,6 +397,65 @@ function drawSegmentRing(ctx, dpr, sx, sy, radius, count, active, color, t, thic
   ctx.restore();
 }
 
+function drawBulwarkArmorPlates(ctx, dpr, sx, sy, radius, stacks, maxStacks, t) {
+  const max = Math.max(1, maxStacks | 0);
+  const active = Math.max(0, Math.min(max, stacks | 0));
+  ctx.save();
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < max; i += 1) {
+    const lit = i < active;
+    const a = -Math.PI / 2 + i * Math.PI * 2 / max + t * 0.12;
+    const cx = sx + Math.cos(a) * (radius + 18);
+    const cy = sy + Math.sin(a) * (radius + 18);
+    ctx.translate(cx * dpr, cy * dpr);
+    ctx.rotate(a + Math.PI / 2);
+    ctx.fillStyle = lit ? rgba(236, 196, 96, 0.46 + 0.12 * Math.sin(t * 6 + i)) : rgba(82, 92, 112, 0.18);
+    ctx.strokeStyle = lit ? rgba(255, 232, 168, 0.82) : rgba(130, 138, 148, 0.28);
+    ctx.lineWidth = (lit ? 1.4 : 0.9) * dpr;
+    ctx.beginPath();
+    ctx.moveTo(0, -8 * dpr);
+    ctx.lineTo(7 * dpr, -2 * dpr);
+    ctx.lineTo(5 * dpr, 8 * dpr);
+    ctx.lineTo(-5 * dpr, 8 * dpr);
+    ctx.lineTo(-7 * dpr, -2 * dpr);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.rotate(-(a + Math.PI / 2));
+    ctx.translate(-cx * dpr, -cy * dpr);
+  }
+  ctx.restore();
+}
+
+function drawVanguardFrenzyAura(ctx, dpr, sx, sy, radius, t) {
+  ctx.save();
+  ctx.lineCap = 'round';
+  const pulse = 0.5 + 0.5 * Math.sin(t * 9.5);
+  const outer = radius + 30 + pulse * 4;
+  ctx.strokeStyle = rgba(255, 112, 220, 0.34 + pulse * 0.18);
+  ctx.lineWidth = 2.4 * dpr;
+  ctx.setLineDash([11 * dpr, 8 * dpr]);
+  ctx.lineDashOffset = -t * 46 * dpr;
+  ctx.beginPath();
+  ctx.arc(sx * dpr, sy * dpr, outer * dpr, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = rgba(120, 235, 255, 0.50);
+  ctx.lineWidth = 1.5 * dpr;
+  for (let i = 0; i < 8; i += 1) {
+    const a = -Math.PI / 2 + i * Math.PI / 4 + t * 2.3;
+    const x0 = sx + Math.cos(a) * (radius + 10);
+    const y0 = sy + Math.sin(a) * (radius + 10);
+    const x1 = sx + Math.cos(a + 0.10) * (radius + 30 + pulse * 5);
+    const y1 = sy + Math.sin(a + 0.10) * (radius + 30 + pulse * 5);
+    ctx.beginPath();
+    ctx.moveTo(x0 * dpr, y0 * dpr);
+    ctx.lineTo(x1 * dpr, y1 * dpr);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawContinuousHeatAura(ctx, dpr, sx, sy, radius, stacks, maxStacks, t) {
   const max = Math.max(1, maxStacks | 0);
   const heat = Math.max(0, Math.min(1, (stacks || 0) / max));
@@ -603,13 +662,7 @@ function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
       ctx.restore();
     }
     if ((fs.ultLeft ?? 0) > 0) {
-      ctx.save();
-      ctx.strokeStyle = rgba(255, 116, 238, 0.52 + 0.18 * Math.sin(t * 10));
-      ctx.lineWidth = 2.2 * dpr;
-      ctx.beginPath();
-      ctx.arc(sx * dpr, sy * dpr, (r + 25) * dpr, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      drawVanguardFrenzyAura(ctx, dpr, sx, sy, r, t);
     }
     return;
   }
@@ -646,6 +699,7 @@ function drawFrameSignatureAura(ctx, view, p, sx, sy, t) {
   }
   if (fs.kind === 'bulwark') {
     drawSegmentRing(ctx, dpr, sx, sy, r, fs.passiveMaxStacks ?? 5, fs.passiveStacks ?? 0, { r: 236, g: 196, b: 96 }, t, 5.0);
+    drawBulwarkArmorPlates(ctx, dpr, sx, sy, r, fs.passiveStacks ?? 0, fs.passiveMaxStacks ?? 5, t);
     if ((fs.anchorLeft ?? 0) > 0) {
       ctx.save();
       ctx.strokeStyle = rgba(236, 196, 96, 0.78);

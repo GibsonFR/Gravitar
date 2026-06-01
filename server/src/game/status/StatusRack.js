@@ -352,8 +352,13 @@ export function getIncomingHullDamageMultiplier(entity) {
 }
 
 export function getIncomingHealMultiplier(entity) {
-  const healCut = clamp(getStatusValue(entity, I.HEAL_CUT, 0), 0, 0.95);
-  const bleedCut = hasStatus(entity, I.BLEED) ? 0.45 : 0;
+  let healCut = clamp(getStatusValue(entity, I.HEAL_CUT, 0), 0, 0.95);
+  const fs = entity?.frameId === SHIP_FRAME_IDS.BULWARK ? entity?.frameState?.bulwark : null;
+  if (fs && (fs.meditationLeft ?? 0) > 0) {
+    healCut *= 0.60;
+  }
+  const bleedCutBase = hasStatus(entity, I.BLEED) ? 0.45 : 0;
+  const bleedCut = fs && (fs.meditationLeft ?? 0) > 0 ? bleedCutBase * 0.60 : bleedCutBase;
   return 1 - clamp(Math.max(healCut, bleedCut), 0, 0.95);
 }
 

@@ -133,6 +133,7 @@ export function getBulwarkAbilityTuning(slot, investedLevel = 1, totalArmor = 0)
     tuning.harpoonDamageWeaponPct = 0.70 + 0.012 * (lvl - 1);
     tuning.harpoonDamageArmorPct = 0.25 + 0.007 * (lvl - 1);
     tuning.harpoonTauntDuration = 2.10;
+    tuning.harpoonTauntBonusDurationInStorm = phase >= 5 ? 0.40 : 0;
     tuning.harpoonSelfHastePct = 0.25;
     tuning.harpoonArmorShredPct = phase >= 2 ? 0.12 + 0.003 * (lvl - 1) : 0;
     tuning.harpoonArmorShredDuration = phase >= 2 ? 4 : 0;

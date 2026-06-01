@@ -248,6 +248,14 @@ function clearBulwarkStormArmorSteal(state, fs) {
   fs.stormArmorStolen = 0;
 }
 
+function isTargetInsideBulwarkStorm(owner, target, tuning = null) {
+  const fs = getBulwarkState(owner);
+  if (!fs || (fs.stormLeft ?? 0) <= 0 || !target) return false;
+  const r = tuning || getBulwarkR(owner);
+  const radius = Math.max(0, r.stormRadius || 0) + (target.radius ?? 0);
+  return distSq(owner.x, owner.y, target.x, target.y) <= radius * radius;
+}
+
 function scheduleBulwarkStormArmorReturn(fs) {
   normalizeLegacyBulwarkStormArmorMap(fs);
   const byId = fs?.stormArmorById || null;
@@ -1267,7 +1275,10 @@ function handleBulwarkProjectileImpact(state, owner, target, projectile, timeMs)
   }
   if (projectile.sourceAbilitySlot !== 'Z') return;
   const tuning = getBulwarkZ(owner);
-  applyStatus(target, I.TAUNT, tuning.harpoonTauntDuration, {
+  const stormTuning = getBulwarkR(owner);
+  const targetInStorm = isTargetInsideBulwarkStorm(owner, target, stormTuning);
+  const tauntDuration = tuning.harpoonTauntDuration + (targetInStorm ? (tuning.harpoonTauntBonusDurationInStorm || 0) : 0);
+  applyStatus(target, I.TAUNT, tauntDuration, {
     sourceId: owner.id,
     hostile: true,
     label: 'Z',
@@ -1290,9 +1301,12 @@ function handleBulwarkProjectileImpact(state, owner, target, projectile, timeMs)
       timeMs
     });
   }
-  if (tuning.harpoonPullStrength > 0) applyPullMove(target, owner, 0.18, tuning.harpoonPullStrength);
+  if (tuning.harpoonPullStrength > 0) {
+    const pullCenter = targetInStorm ? { id: owner.id, x: owner.x, y: owner.y } : owner;
+    applyPullMove(target, pullCenter, 0.18, tuning.harpoonPullStrength);
+  }
   if (tuning.harpoonSelfHastePct > 0) {
-    applyStatus(owner, I.HASTE, 1.6, {
+    applyStatus(owner, I.HASTE, tauntDuration, {
       sourceId: owner.id,
       hostile: false,
       value: tuning.harpoonSelfHastePct,
