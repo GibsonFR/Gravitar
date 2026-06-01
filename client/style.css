@@ -1034,6 +1034,12 @@ body {
   color: rgba(255, 216, 102, 0.95);
 }
 
+.map-panel__glyph--base {
+  color: rgba(146, 239, 255, 0.96);
+  border-color: rgba(146, 239, 255, 0.34);
+  background: rgba(20, 62, 78, 0.46);
+}
+
 .map-panel__body {
   flex: 1 1 auto;
   display: grid;
@@ -2844,6 +2850,12 @@ button.station-item-icon[draggable="true"]:active,
   background: rgba(72, 42, 16, 0.42);
 }
 
+.map-panel__info-badge.is-base {
+  color: rgba(146, 239, 255, 0.96);
+  border-color: rgba(146, 239, 255, 0.34);
+  background: rgba(20, 62, 78, 0.42);
+}
+
 .map-panel__info-badge.is-unknown {
   color: rgba(168, 184, 204, 0.88);
 }
@@ -2913,6 +2925,11 @@ button.station-item-icon[draggable="true"]:active,
 .map-panel__chip.is-bastion {
   color: rgba(255, 206, 112, 0.96);
   border-color: rgba(255, 177, 84, 0.30);
+}
+
+.map-panel__chip.is-base {
+  color: rgba(146, 239, 255, 0.96);
+  border-color: rgba(146, 239, 255, 0.30);
 }
 
 .map-panel__player-row {

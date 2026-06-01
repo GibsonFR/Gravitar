@@ -79,6 +79,7 @@ export function drawSectorMap(ctx, w, h, opts) {
     visitedList,
     bastionList,
     playerList,
+    homeBase,
   } = opts;
 
   ctx.clearRect(0, 0, w, h);
@@ -131,6 +132,7 @@ export function drawSectorMap(ctx, w, h, opts) {
       const isKnown = !!visited || !!bastion || (sx === layout.currentSx && sy === layout.currentSy);
       const isHub = sx === 0 && sy === 0;
       const isCurrent = sx === layout.currentSx && sy === layout.currentSy;
+      const isHomeBase = !!homeBase && (homeBase.sx | 0) === (sx | 0) && (homeBase.sy | 0) === (sy | 0);
 
       let fill = isKnown ? 'rgba(18,28,42,0.88)' : 'rgba(8,13,20,0.66)';
       const biomeFill = biomeCellFill(visited, isKnown);
@@ -140,6 +142,7 @@ export function drawSectorMap(ctx, w, h, opts) {
       if (visited?.hasReturnPortal) fill = 'rgba(28,88,108,0.92)';
       if (bastion) fill = bastion.captured ? 'rgba(42,82,58,0.94)' : (bastion.unlocked ? 'rgba(82,62,34,0.96)' : 'rgba(54,43,52,0.94)');
       if (isHub) fill = 'rgba(86,72,28,0.94)';
+      if (isHomeBase) fill = 'rgba(28,82,104,0.96)';
 
       ctx.fillStyle = fill;
       ctx.fillRect(x, y, rectW, rectH);
@@ -162,7 +165,10 @@ export function drawSectorMap(ctx, w, h, opts) {
 
       let glyph = '';
       let glyphColor = 'rgba(235,242,255,0.96)';
-      if (isHub) {
+      if (isHomeBase) {
+        glyph = 'B';
+        glyphColor = 'rgba(146,239,255,0.98)';
+      } else if (isHub) {
         glyph = 'H';
         glyphColor = 'rgba(255,216,102,0.96)';
       } else if (bastion) {
@@ -181,6 +187,12 @@ export function drawSectorMap(ctx, w, h, opts) {
       }
 
       drawGlyph(ctx, glyph, x, y, layout.cell, glyphColor);
+
+      if (isHomeBase) {
+        ctx.strokeStyle = 'rgba(146,239,255,0.92)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + 4, y + 4, Math.max(1, rectW - 8), Math.max(1, rectH - 8));
+      }
 
       if (bastion) {
         const bc = bastion.color || { r: 250, g: 214, b: 120 };

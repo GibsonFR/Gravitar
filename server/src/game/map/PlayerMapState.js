@@ -4,6 +4,8 @@ import { getSectorSummary } from './SectorSummary.js';
 import { getBastionColor, getBastionEffectSummary, getBastionGlyph } from '../bastion/BastionTypes.js';
 import { getBastionUnlockText, isBastionUnlockedForPlayer } from '../bastion/BastionSession.js';
 import { buildLogisticMapSnapshot } from '../structures/StructureLogistics.js';
+import { STRUCTURE_TYPES } from '../structures/StructureDefs.js';
+import { isStructureAlive, isStructureOwner } from '../structures/StructureSystem.js';
 
 export function createPlayerMapState() {
   return {
@@ -38,6 +40,7 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
       level: s.level | 0,
       asteroidCount: s.asteroidCount | 0,
       stationCount: s.stationCount | 0,
+      pirateStationCount: s.pirateStationCount | 0,
       hasReturnPortal: !!s.hasReturnPortal,
       bastion: state?.bastionsBySector?.get?.(`${s.sx | 0},${s.sy | 0}`) ? buildMapBastion(state.bastionsBySector.get(`${s.sx | 0},${s.sy | 0}`), player, timeMs, state) : null,
       primaryResource: s.primaryResource || 'scrap',
@@ -50,6 +53,8 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
       biomeColorHex: s.biomeColorHex || ''
     });
   }
+
+  const homeBase = buildLocalBaseMapSnapshot(player, state);
 
   const bastions = (state?.bastions || []).map((b) => buildMapBastion(b, player, timeMs, state));
 
@@ -76,7 +81,33 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
     sectors,
     bastions,
     players,
+    homeBase,
     logistics: buildLogisticMapSnapshot(state, player, timeMs)
+  };
+}
+
+
+function buildLocalBaseMapSnapshot(player, state) {
+  if (!player || !state?.structures?.values) return null;
+
+  let best = null;
+  for (const structure of state.structures.values()) {
+    if (!structure || structure.type !== STRUCTURE_TYPES.BASE_CORE) continue;
+    if (!isStructureAlive(structure)) continue;
+    if (!isStructureOwner(player, structure)) continue;
+    if (String(structure.worldId || 'endless') !== String(player.worldId || 'endless')) continue;
+
+    if (!best || Number(structure.createdAt || 0) < Number(best.createdAt || 0)) best = structure;
+  }
+
+  if (!best) return null;
+  return {
+    sx: best.sx | 0,
+    sy: best.sy | 0,
+    x: Math.round((Number(best.x) || 0) * 10) / 10,
+    y: Math.round((Number(best.y) || 0) * 10) / 10,
+    ownerName: best.ownerName || player.pseudo || '',
+    structureId: best.id | 0
   };
 }
 
@@ -136,6 +167,7 @@ export function hydratePlayerMapState(raw) {
       level: entry.level | 0,
       asteroidCount: Math.max(0, entry.asteroidCount | 0),
       stationCount: Math.max(0, entry.stationCount | 0),
+      pirateStationCount: Math.max(0, entry.pirateStationCount | 0),
       hasReturnPortal: !!entry.hasReturnPortal,
       firstSeenAt: Number(entry.firstSeenAt || 0),
       lastSeenAt: Number(entry.lastSeenAt || 0),

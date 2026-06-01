@@ -37,6 +37,7 @@ export class MapPanelView {
     this.bastionInfo = new Map();
     this.bastionList = [];
     this.playerList = [];
+    this.homeBase = null;
 
     this.el.innerHTML = `
       <div class="map-panel__header">
@@ -52,6 +53,7 @@ export class MapPanelView {
           <div class="map-panel__legend">
             <div class="map-panel__legend-row"><span class="map-panel__glyph">S</span><span>Station</span></div>
             <div class="map-panel__legend-row"><span class="map-panel__glyph">P</span><span>Portail retour</span></div>
+            <div class="map-panel__legend-row"><span class="map-panel__glyph map-panel__glyph--base">B</span><span>Base principale</span></div>
             <div class="map-panel__legend-row"><span class="map-panel__glyph map-panel__glyph--hub">H</span><span>Hub [0,0] protégé, sans station</span></div>
             <div class="map-panel__legend-row"><span class="map-panel__glyph">◈</span><span>Bastion</span></div>
           </div>
@@ -236,6 +238,7 @@ export class MapPanelView {
     this.bastionInfo = new Map();
     this.bastionList = [];
     this.playerList = [];
+    this.homeBase = null;
     const sectors = mapSnap?.sectors ?? [];
     for (const s of sectors) {
       const sx = (s.sx ?? 0) | 0;
@@ -247,6 +250,7 @@ export class MapPanelView {
         rawSy,
         level: (s.level ?? 0) | 0,
         stationCount: (s.stationCount ?? 0) | 0,
+        pirateStationCount: (s.pirateStationCount ?? 0) | 0,
         hasReturnPortal: !!s.hasReturnPortal,
         primaryResource: s.primaryResource || 'scrap',
         resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6),
@@ -318,6 +322,7 @@ export class MapPanelView {
       visitedList: this.visitedList,
       bastionList: this.bastionList,
       playerList: this.playerList,
+      homeBase: this.homeBase,
       getVisited: (sx, sy) => this.visitedInfo.get(`${sx | 0},${sy | 0}`) || null,
       getBastion: (sx, sy) => this.bastionInfo.get(`${sx | 0},${sy | 0}`) || null
     });
@@ -351,6 +356,7 @@ export class MapPanelView {
     const visited = this.visitedInfo.get(`${sx},${sy}`) || null;
     const bastion = visited?.bastion || this.bastionInfo.get(`${sx},${sy}`) || null;
     const herePlayers = this.playerList.filter((p) => (p.sx | 0) === (sx | 0) && (p.sy | 0) === (sy | 0));
+    const isHomeBaseSector = !!this.homeBase && (this.homeBase.sx | 0) === (sx | 0) && (this.homeBase.sy | 0) === (sy | 0);
 
     if (!visited && !bastion && !(sx === this.curSx && sy === this.curSy)) {
       return {
@@ -363,6 +369,7 @@ export class MapPanelView {
 
     const typeRows = [];
     if (sx === 0 && sy === 0) typeRows.push(`${this._chip('Hub', 'is-hub')} <span>zone protégée, construction interdite</span>`);
+    if (isHomeBaseSector) typeRows.push(`${this._chip('Base', 'is-base')} <span>base principale locale</span>`);
     if ((visited?.stationCount | 0) > 0) typeRows.push(`${this._chip('Station')} <span>${visited.stationCount | 0} station${(visited.stationCount | 0) > 1 ? 's' : ''}</span>`);
     if (visited?.hasReturnPortal) typeRows.push(`${this._chip('Retour')} <span>portail vers le hub</span>`);
     if (bastion) {
@@ -388,8 +395,8 @@ export class MapPanelView {
       return `<span class="map-panel__resource-pill" title="${this._esc(key)}">${this._esc(label)}</span>`;
     });
 
-    const badge = sx === 0 && sy === 0 ? 'Hub' : bastion ? (bastion.captured ? 'Capturé' : (bastion.unlocked ? 'Ouvert' : 'Bastion')) : ((visited?.stationCount | 0) > 0 ? 'Station' : 'Normal');
-    const badgeClass = sx === 0 && sy === 0 ? 'is-hub' : bastion ? 'is-bastion' : '';
+    const badge = isHomeBaseSector ? 'Base' : sx === 0 && sy === 0 ? 'Hub' : bastion ? (bastion.captured ? 'Capturé' : (bastion.unlocked ? 'Ouvert' : 'Bastion')) : ((visited?.stationCount | 0) > 0 ? 'Station' : 'Normal');
+    const badgeClass = isHomeBaseSector ? 'is-base' : sx === 0 && sy === 0 ? 'is-hub' : bastion ? 'is-bastion' : '';
     const html = [
       this._renderInfoSection('Activité', playerRows, 'Aucun joueur dans ce secteur.'),
       this._renderInfoSection('Points utiles', typeRows),
