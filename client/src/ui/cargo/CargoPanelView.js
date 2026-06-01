@@ -98,6 +98,7 @@ export class CargoPanelView {
     this.cargoFillEl.style.width = `${Math.round((safeInv.cargoFill01 || 0) * 100)}%`;
 
     const rows = (safeInv.resources?.length ? safeInv.resources : []).filter((e) => (e?.amount || 0) > 0);
+    const previousScrollTop = this.rowsEl.scrollTop || 0;
 
     this.headEl.innerHTML = `<span>Ressource</span><span>Qté</span><span>Larguer</span>`;
 
@@ -123,5 +124,7 @@ export class CargoPanelView {
         </div>
       `;
     }).join('') || `<div class="cargo-panel__empty">Soute vide.</div>`;
+
+    this.rowsEl.scrollTop = Math.min(previousScrollTop, Math.max(0, this.rowsEl.scrollHeight - this.rowsEl.clientHeight));
   }
 }

@@ -97,6 +97,7 @@ body {
   position: absolute;
   top: 88px;
   right: 18px;
+  max-height: calc(100vh - 106px);
 }
 
 .ui-dock-icon {
@@ -192,6 +193,11 @@ body {
   overflow: hidden;
 }
 
+.ui-panel-shell.cargo-panel {
+  width: min(392px, calc(100vw - 36px));
+  max-height: calc(100vh - 106px);
+}
+
 .ui-panel-shell--xl {
   position: fixed;
   top: 50%;
@@ -207,7 +213,8 @@ body {
   position: relative;
   padding: 14px 14px 14px;
   color: var(--text-main);
-  height: 100%;
+  height: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -230,6 +237,7 @@ body {
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 10px;
+  flex: 0 0 auto;
 }
 
 .cargo-panel__eyebrow {
@@ -268,6 +276,7 @@ body {
   border: 1px solid rgba(130, 178, 232, 0.12);
   border-radius: 18px;
   background: rgba(10, 16, 24, 0.62);
+  flex: 0 0 auto;
 }
 
 .cargo-panel__meter-topline,
@@ -351,15 +360,21 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(183, 202, 224, 0.72);
+  flex: 0 0 auto;
 }
 
 .cargo-panel__rows {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-right: 6px;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(54vh, 520px);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .cargo-row {
@@ -444,6 +459,51 @@ body {
   border-radius: 16px;
   text-align: center;
   color: var(--text-soft);
+}
+
+@media (max-height: 700px) {
+  .ui-panel-shell.cargo-panel {
+    max-height: calc(100vh - 82px);
+  }
+
+  .cargo-panel {
+    padding: 12px;
+  }
+
+  .cargo-panel__title {
+    font-size: 23px;
+  }
+
+  .cargo-panel__meter-block {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+
+  .cargo-panel__rows {
+    max-height: min(48vh, 430px);
+  }
+}
+
+@media (max-width: 520px) {
+  .ui-panel-shell.cargo-panel {
+    width: calc(100vw - 24px);
+  }
+
+  .cargo-panel__meter-topline,
+  .cargo-panel__table-head,
+  .cargo-row {
+    grid-template-columns: minmax(0, 1fr) 54px 112px;
+    gap: 8px;
+  }
+
+  .cargo-row__actions {
+    gap: 6px;
+  }
+
+  .cargo-row__jettison {
+    padding: 0 6px;
+    font-size: 10px;
+  }
 }
 
 .station-overlay {
