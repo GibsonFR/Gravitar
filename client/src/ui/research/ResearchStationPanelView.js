@@ -1,3 +1,4 @@
+import { ScrollPreserver } from '../common/ScrollPreserver.js';
 function escapeHtml(txt) {
   return String(txt || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -42,6 +43,7 @@ export class ResearchStationPanelView {
     this.el.className = 'research-station-lite';
     this.el.hidden = true;
     this.lastKey = '';
+    this.scrollPreserver = new ScrollPreserver(this.el);
     this.bind();
   }
 
@@ -95,6 +97,7 @@ export class ResearchStationPanelView {
       cargoScience: data.cargoScience
     });
     if (key === this.lastKey) return;
+    const scroll = this.scrollPreserver?.capture() || new Map();
     this.lastKey = key;
     this.el.hidden = false;
 
@@ -125,15 +128,16 @@ export class ResearchStationPanelView {
       </section>
 
       <main class="research-station-lite__grid">
-        <section class="research-station-lite__box">
+        <section class="research-station-lite__box" data-scroll-key="research-station-input">
           <h3>Packs dans la station</h3>
           ${rows(data.scienceInput || [], data.id, 'withdraw')}
         </section>
-        <section class="research-station-lite__box">
+        <section class="research-station-lite__box" data-scroll-key="research-station-cargo">
           <h3>Packs dans le cargo</h3>
           ${rows(data.cargoScience || [], data.id, 'deposit')}
         </section>
       </main>
     `;
+    this.scrollPreserver?.restore(scroll);
   }
 }

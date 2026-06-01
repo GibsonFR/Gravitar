@@ -1,3 +1,4 @@
+import { ScrollPreserver } from '../common/ScrollPreserver.js';
 function esc(txt) {
   return String(txt || '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
@@ -34,6 +35,7 @@ function resourceRows(resources = [], actionLabel, action, structureId) {
         <button class="ui-btn storage-panel__main" data-storage-act="${action}" data-amount="all" type="button">${actionLabel}</button>
       </div>
     `;
+    this.scrollPreserver?.restore(scroll);
   }).join('');
 }
 
@@ -55,6 +57,7 @@ function itemRows(items = [], actionLabel, action, structureId, kind = 'equipmen
         <button class="ui-btn storage-panel__main" data-storage-act="${action}" data-amount="all" type="button">${label}</button>
       </div>
     `;
+    this.scrollPreserver?.restore(scroll);
   }).join('');
 }
 
@@ -62,9 +65,11 @@ export class StoragePanelView {
   constructor(sendCmd) {
     this.sendCmd = typeof sendCmd === 'function' ? sendCmd : null;
     this.lastKey = '';
+    this.scrollPreserver = null;
     this.el = document.createElement('section');
     this.el.className = 'storage-panel';
     this.el.innerHTML = '';
+    this.scrollPreserver = new ScrollPreserver(this.el);
 
     const stopUiEvent = (ev) => {
       ev.preventDefault();
@@ -139,6 +144,7 @@ export class StoragePanelView {
     const cargoRows = cargoResources.filter((r) => (r?.amount || 0) > 0);
     const key = JSON.stringify({ s: storage, c: cargoRows.map((r) => [r.key, r.amount]) });
     if (key === this.lastKey) return;
+    const scroll = this.scrollPreserver?.capture() || new Map();
     this.lastKey = key;
 
     const kind = storage.kind || 'resources';
@@ -188,15 +194,16 @@ export class StoragePanelView {
       </div>
       <div class="storage-panel__bar"><span style="width:${Math.round(fill * 100)}%"></span></div>
       <div class="storage-panel__cols">
-        <div class="storage-panel__col">
+        <div class="storage-panel__col" data-scroll-key="storage-left">
           <h3>${esc(leftTitle)}</h3>
           ${leftRows}
         </div>
-        <div class="storage-panel__col">
+        <div class="storage-panel__col" data-scroll-key="storage-right">
           <h3>${esc(rightTitle)}</h3>
           ${rightRows}
         </div>
       </div>
     `;
+    this.scrollPreserver?.restore(scroll);
   }
 }
