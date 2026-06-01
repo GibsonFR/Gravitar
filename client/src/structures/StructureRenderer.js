@@ -1365,16 +1365,21 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
   const ok = !!preview.ok;
   const demolish = preview.mode === 'demolish';
   const repair = preview.mode === 'repair';
+  const move = preview.mode === 'move' || preview.mode === 'move_pick';
   const main = demolish
     ? (ok ? 'rgba(255, 120, 120, 0.16)' : 'rgba(255, 92, 92, 0.08)')
     : repair
       ? (ok ? 'rgba(255, 210, 94, 0.18)' : 'rgba(255, 92, 92, 0.08)')
-      : (ok ? 'rgba(101, 241, 200, 0.22)' : 'rgba(255, 92, 92, 0.20)');
+      : move
+        ? (ok ? 'rgba(98, 190, 255, 0.20)' : 'rgba(255, 92, 92, 0.16)')
+        : (ok ? 'rgba(101, 241, 200, 0.22)' : 'rgba(255, 92, 92, 0.20)');
   const edge = demolish
     ? 'rgba(255, 124, 124, 0.95)'
     : repair
       ? (ok ? 'rgba(255, 218, 112, 0.95)' : 'rgba(255, 112, 112, 0.95)')
-      : (ok ? 'rgba(117, 255, 215, 0.92)' : 'rgba(255, 112, 112, 0.95)');
+      : move
+        ? (ok ? 'rgba(118, 207, 255, 0.95)' : 'rgba(255, 112, 112, 0.95)')
+        : (ok ? 'rgba(117, 255, 215, 0.92)' : 'rgba(255, 112, 112, 0.95)');
   const pulse = 0.55 + 0.45 * Math.sin(t * 5.2);
 
   if (preview.type === 'mining_extractor' && preview.extractionRange) {
@@ -1418,7 +1423,7 @@ export function drawStructureBuildPreview(ctx, view, preview, camX, camY, t = 0)
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.shadowColor = edge;
-  ctx.shadowBlur = (demolish || repair ? 4 : 6 + pulse * 7) * view.dpr;
+  ctx.shadowBlur = (demolish || repair || move ? 4 + pulse * 3 : 6 + pulse * 7) * view.dpr;
   ctx.fillStyle = main;
   ctx.strokeStyle = edge;
   ctx.lineWidth = 2 * view.dpr;

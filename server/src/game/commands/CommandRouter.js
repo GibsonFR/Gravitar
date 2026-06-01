@@ -25,6 +25,7 @@ import { handleCancelBattleQueue } from './CancelBattleQueueCommand.js';
 import { handleAuthSessionAccount } from './AuthSessionCommand.js';
 import { handleBuildStructure } from './BuildStructureCommand.js';
 import { handleRemoveStructure } from './RemoveStructureCommand.js';
+import { handleMoveStructure } from './MoveStructureCommand.js';
 import { handleRepairStructure } from './RepairStructureCommand.js';
 import { handleStorageTransfer } from './StorageTransferCommand.js';
 import { handleStorageOpen } from './StorageOpenCommand.js';
@@ -98,6 +99,7 @@ const HANDLERS = {
   auth_session_account: handleAuthSessionAccount,
   build_structure: handleBuildStructure,
   remove_structure: handleRemoveStructure,
+  move_structure: handleMoveStructure,
   repair_structure: handleRepairStructure,
   storage_transfer: handleStorageTransfer,
   storage_open: handleStorageOpen,

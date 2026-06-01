@@ -73,6 +73,7 @@ function iconSvg(kind) {
   if (kind === 'storage') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M13 21l19-10 19 10v22L32 53 13 43V21z" fill="rgba(111,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M13 21l19 11 19-11M32 32v21" fill="none" stroke="currentColor" stroke-width="2.4" opacity=".82"/><path d="M22 26l19-10M22 39l20-11" stroke="currentColor" stroke-width="2" opacity=".28"/></svg>`;
   if (kind === 'repair') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M39 12l13 13-7 7-5-5-18 18-10 3 3-10 18-18-5-5 11-3z" fill="rgba(112,240,197,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M18 49h30" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".75"/></svg>`;
   if (kind === 'demolish') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 16h24l-2 34H22L20 16z" fill="rgba(255,120,120,.10)" stroke="currentColor" stroke-width="3"/><path d="M17 16h30M26 16l2-5h8l2 5M27 25v17M37 25v17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`;
+  if (kind === 'move') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="18" y="18" width="28" height="28" rx="5" fill="rgba(130,210,255,.10)" stroke="currentColor" stroke-width="3"/><path d="M32 8v13M32 43v13M8 32h13M43 32h13M27 13l5-5 5 5M27 51l5 5 5-5M13 27l-5 5 5 5M51 27l5 5-5 5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   if (kind === 'solar_panel') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="18" width="44" height="28" rx="4" fill="rgba(189,233,146,.13)" stroke="currentColor" stroke-width="3"/><path d="M21 18v28M32 18v28M43 18v28M10 32h44M20 10l-4 5M32 7v7M44 10l4 5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".8"/></svg>`;
   if (kind === 'fuel_generator') return `<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="13" y="16" width="38" height="34" rx="5" fill="rgba(255,183,97,.13)" stroke="currentColor" stroke-width="3"/><path d="M25 42c-3-7 5-10 4-18 7 5 10 10 8 18" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M19 23h8M37 23h8M19 50h26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".72"/></svg>`;
   if (kind === 'fuel_tank') return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 13h24l6 8v30H14V21l6-8z" fill="rgba(255,195,111,.12)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 29h20M22 38h20M27 13v-4h10v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".75"/></svg>`;
@@ -715,6 +716,7 @@ const BUILD_CATEGORIES = [
   { id: 'industry', label: 'Industrie', icon: 'machine' },
   { id: 'automation', label: 'Automatisation', icon: 'automation' },
   { id: 'repair', label: 'Réparer', icon: 'repair' },
+  { id: 'move', label: 'Déplacer', icon: 'move' },
   { id: 'demolish', label: 'Démolition', icon: 'demolish' }
 ];
 
@@ -1069,6 +1071,44 @@ function findOwnedStructureAt(store, me, x, y) {
   return best;
 }
 
+function findMovableStructureAt(store, me, x, y) {
+  const st = findOwnedStructureAt(store, me, x, y);
+  if (!st) return null;
+  if (isCoreType(st.type)) return null;
+  if (String(st.type || '').toLowerCase() === 'resource_deposit') return null;
+  return st;
+}
+
+function validateMovePreview(store, me, target, def, x, y, orientation) {
+  if (!target) return { ok: false, reason: 'Aucune structure sélectionnée' };
+  if (!me) return { ok: false, reason: 'Aucun vaisseau actif' };
+  if (isCoreType(target.type)) return { ok: false, reason: 'Impossible de déplacer un noyau' };
+  const r = rectFor(def, x, y, orientation);
+  const dist = Math.hypot(x - (me.x || 0), y - (me.y || 0));
+  if (dist > BUILD_RANGE) return { ok: false, reason: 'Trop loin' };
+  if (!isRectInside(r, sectorBuildRect())) return { ok: false, reason: 'Bord du secteur' };
+  const ownCore = findOwnCore(store, me, r);
+  if (!ownCore) return { ok: false, reason: 'Hors noyau' };
+  for (const st of store?.structures?.values?.() || []) {
+    if ((st.id | 0) === (target.id | 0)) continue;
+    if (!sameSector(st, me)) continue;
+    if (!rectsOverlap(r, entityRect(st), 0)) continue;
+    if (canPreviewOverlapStructure(def, st)) continue;
+    return { ok: false, reason: 'Occupé' };
+  }
+  for (const a of store?.asteroids?.values?.() || []) {
+    if (!sameSector(a, me)) continue;
+    if (!a.solid && !a.bastionWall) continue;
+    if (rectsOverlap(r, entityRect(a), 0)) return { ok: false, reason: 'Obstacle' };
+  }
+  for (const station of store?.stations?.values?.() || []) {
+    if (!sameSector(station, me)) continue;
+    const d = Math.hypot((station.x || 0) - x, (station.y || 0) - y);
+    if (d < (station.radius || 80) + Math.max(r.w, r.h) * 0.5 + 80) return { ok: false, reason: 'Station proche' };
+  }
+  return { ok: true, reason: 'OK', ownCore };
+}
+
 export class BasePanelView {
   constructor(sendCmd, onPick = null) {
     this.sendCmd = sendCmd;
@@ -1118,6 +1158,7 @@ export class BasePanelView {
       this.category = btn.dataset.category;
       if (this.category === 'demolish') this.selectDemolish();
       else if (this.category === 'repair') this.selectRepair();
+      else if (this.category === 'move') this.selectMove();
       else {
         this.hoveredType = null;
         this.refresh();
@@ -1336,6 +1377,13 @@ export class BasePanelView {
     this.onPick?.();
   }
 
+  selectMove() {
+    this.activeBuild = { mode: 'move_pick' };
+    this.refresh();
+    this.status.textContent = 'Clique une structure à déplacer';
+    this.onPick?.();
+  }
+
   cancel() {
     this.activeBuild = null;
     this.lastPreview = null;
@@ -1344,7 +1392,7 @@ export class BasePanelView {
   }
 
   rotate() {
-    if (!this.activeBuild || this.activeBuild.mode !== 'build') return false;
+    if (!this.activeBuild || (this.activeBuild.mode !== 'build' && this.activeBuild.mode !== 'move')) return false;
     const def = structureDef(this.activeBuild.type);
     if (!def?.rotatable) return false;
     this.activeBuild.orientation = orientationCycle(def, this.activeBuild.orientation);
@@ -1357,7 +1405,7 @@ export class BasePanelView {
   }
 
   getDetailDef() {
-    if (this.category === 'demolish' || this.category === 'repair') return null;
+    if (this.category === 'demolish' || this.category === 'repair' || this.category === 'move') return null;
     return structureDef(this.hoveredType || this.activeBuild?.type) || BUILD_STRUCTURES.find((s) => s.category === this.category) || null;
   }
 
@@ -1368,6 +1416,17 @@ export class BasePanelView {
         <h3>Réparer</h3>
         <p>Répare une structure endommagée qui t’appartient. Le coût dépend du pourcentage de PV manquants.</p>
         <div class="base-panel__details-section"><strong>Noyau</strong><span>Non réparable : il se régénère seul.</span></div>`;
+      return;
+    }
+    if (this.category === 'move') {
+      const selected = this.activeBuild?.mode === 'move' ? this.activeBuild : null;
+      this.details.innerHTML = `
+        <div class="base-panel__details-icon base-panel__details-icon--move">${iconSvg('move')}</div>
+        <h3>Déplacer</h3>
+        <p>Repositionne une structure existante sans perdre son contenu, ses réglages ou sa progression.</p>
+        <div class="base-panel__details-section"><strong>Étape 1</strong><span>Clique une structure qui t’appartient.</span></div>
+        <div class="base-panel__details-section"><strong>Étape 2</strong><span>Clique son nouvel emplacement dans la même zone de noyau.</span></div>
+        ${selected ? `<div class="base-panel__details-section"><strong>Sélection</strong><span>${escapeHtml(selected.title || 'Structure')}</span></div>` : ''}`;
       return;
     }
     if (this.category === 'demolish') {
@@ -1409,7 +1468,7 @@ export class BasePanelView {
     const activeType = this.activeBuild?.type || '';
     const activeMode = this.activeBuild?.mode || '';
     for (const btn of this.cats.querySelectorAll('button[data-category]')) {
-      btn.classList.toggle('is-active', btn.dataset.category === this.category || (activeMode === 'demolish' && btn.dataset.category === 'demolish') || (activeMode === 'repair' && btn.dataset.category === 'repair'));
+      btn.classList.toggle('is-active', btn.dataset.category === this.category || (activeMode === 'demolish' && btn.dataset.category === 'demolish') || (activeMode === 'repair' && btn.dataset.category === 'repair') || ((activeMode === 'move' || activeMode === 'move_pick') && btn.dataset.category === 'move'));
     }
     if (this.category === 'repair') {
       this.grid.innerHTML = `
@@ -1418,6 +1477,13 @@ export class BasePanelView {
           <span class="base-panel__meta"><strong>Réparer</strong><small>Structure endommagée</small></span>
         </button>`;
       this.grid.querySelector('[data-repair]')?.addEventListener('click', () => this.selectRepair());
+    } else if (this.category === 'move') {
+      this.grid.innerHTML = `
+        <button class="base-panel__btn base-panel__btn--wide ${(activeMode === 'move' || activeMode === 'move_pick') ? 'is-active' : ''}" data-move="1" type="button">
+          <span class="base-panel__icon">${iconSvg('move')}</span>
+          <span class="base-panel__meta"><strong>Déplacer</strong><small>${activeMode === 'move' ? 'Choisis la nouvelle position' : 'Sélectionner une structure'}</small></span>
+        </button>`;
+      this.grid.querySelector('[data-move]')?.addEventListener('click', () => this.selectMove());
     } else if (this.category === 'demolish') {
       this.grid.innerHTML = `
         <button class="base-panel__btn base-panel__btn--wide ${activeMode === 'demolish' ? 'is-active' : ''}" data-demolish="1" type="button">
@@ -1494,6 +1560,58 @@ export class BasePanelView {
       };
       return this.lastPreview;
     }
+    if (this.activeBuild.mode === 'move_pick') {
+      const target = findMovableStructureAt(this.store, me, mouseWorld.x, mouseWorld.y);
+      this.lastPreview = {
+        mode: 'move_pick',
+        targetId: target?.id || 0,
+        type: target?.type || 'move',
+        title: target ? `Déplacer ${target.name || 'structure'}` : 'Déplacer',
+        reason: target ? 'Clique pour sélectionner' : 'Aucune structure déplaçable',
+        ok: !!target,
+        x: target?.x ?? mouseWorld.x,
+        y: target?.y ?? mouseWorld.y,
+        sx: me?.sx | 0,
+        sy: me?.sy | 0,
+        w: target?.w || BASE_TILE,
+        h: target?.h || BASE_TILE,
+        tilesX: Math.max(1, Math.round((target?.w || BASE_TILE) / BASE_TILE)),
+        tilesY: Math.max(1, Math.round((target?.h || BASE_TILE) / BASE_TILE)),
+        gridSize: BASE_TILE,
+        target
+      };
+      return this.lastPreview;
+    }
+    if (this.activeBuild.mode === 'move') {
+      const target = this.activeBuild.target || null;
+      const def = structureDef(this.activeBuild.type);
+      if (!target || !def) return null;
+      const orientation = this.activeBuild.orientation || target.orientation || def.orientation || 'h';
+      const size = orientedSize(def, orientation);
+      const snapped = snapFootprint(mouseWorld.x, mouseWorld.y, size, BASE_TILE);
+      const rect = rectFor(def, snapped.x, snapped.y, orientation);
+      const validation = validateMovePreview(this.store, me, target, def, snapped.x, snapped.y, orientation);
+      this.lastPreview = {
+        mode: 'move',
+        targetId: target.id | 0,
+        type: def.type,
+        title: `Déplacer ${target.name || def.title || 'structure'}`,
+        reason: validation.reason,
+        ok: validation.ok,
+        x: snapped.x,
+        y: snapped.y,
+        sx: me?.sx | 0,
+        sy: me?.sy | 0,
+        w: rect.w,
+        h: rect.h,
+        tilesX: rect.tilesX,
+        tilesY: rect.tilesY,
+        gridSize: BASE_TILE,
+        orientation,
+        ownCore: validation.ownCore ? { x: validation.ownCore.x, y: validation.ownCore.y, claimRadius: validation.ownCore.claimRadius || BASE_TILE * 8 } : null
+      };
+      return this.lastPreview;
+    }
     const def = structureDef(this.activeBuild.type);
     if (!def) return null;
     const requirement = unlockRequirementForBuild(this.store, def.type);
@@ -1561,6 +1679,23 @@ export class BasePanelView {
     if (preview.mode === 'demolish') {
       this.sendCmd('remove_structure', { structureId: preview.targetId });
       this.status.textContent = 'Démolition envoyée';
+      return true;
+    }
+    if (preview.mode === 'move_pick') {
+      const target = preview.target || findMovableStructureAt(this.store, this.store?.getMe?.(), preview.x, preview.y);
+      if (!target) return false;
+      const def = structureDef(target.type);
+      if (!def) return false;
+      this.activeBuild = { mode: 'move', structureId: target.id | 0, type: target.type, orientation: target.orientation || def.orientation || 'h', target: { ...target } };
+      this.refresh();
+      this.status.textContent = `${target.name || def.title || 'Structure'} sélectionnée`;
+      return true;
+    }
+    if (preview.mode === 'move') {
+      this.sendCmd('move_structure', { structureId: preview.targetId, orientation: preview.orientation, x: preview.x, y: preview.y });
+      this.activeBuild = { mode: 'move_pick' };
+      this.refresh();
+      this.status.textContent = 'Déplacement envoyé';
       return true;
     }
     this.sendCmd('build_structure', { structureType: preview.type, orientation: preview.orientation, x: preview.x, y: preview.y });
