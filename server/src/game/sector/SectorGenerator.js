@@ -22,6 +22,7 @@ import { SPECIAL_SECTORS, TEST_BIOME_SECTORS, getTestBiomeSector } from './Speci
 import { BATTLE, isBattleArenaSector, ensureTestEquipmentBench } from '../modes/GameModes.js';
 import { getBastionColor, getBastionEffectSummary } from '../bastion/BastionTypes.js';
 import { SECTOR_BIOMES } from '../../../../shared/proc/SectorBiomes.js';
+import { applyAsteroidRespawnGate } from '../asteroid/AsteroidRespawnState.js';
 
 const BASTION_EXTERIOR_GRID_W = 15;
 const BASTION_EXTERIOR_GRID_H = 15;
@@ -1410,7 +1411,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
     const yieldValue = 1 + rng.nextRange(1, 4) + Math.floor(radius / 18) + Math.floor(Math.max(0, rarityScore - 2) / 2);
 
     const sig = asteroidKey(sx, sy, x, y, resourceKey, yieldValue, false);
-    if (state.destroyedAsteroidSigs?.has?.(sig)) continue;
+    if (!applyAsteroidRespawnGate(state, sig, { sx, sy, x, y, radius }, timeMs)) continue;
     const until = state.asteroidCooldownUntil.get(sig) ?? 0;
     if (until > timeMs) continue;
 

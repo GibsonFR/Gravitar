@@ -34,24 +34,33 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
   const sectors = [];
   for (const key of player.map.order) {
     const s = player.map.visited.get(key);
-    if (s) sectors.push({
-      sx: s.sx | 0,
-      sy: s.sy | 0,
-      level: s.level | 0,
-      asteroidCount: s.asteroidCount | 0,
-      stationCount: s.stationCount | 0,
-      pirateStationCount: s.pirateStationCount | 0,
-      hasReturnPortal: !!s.hasReturnPortal,
-      bastion: state?.bastionsBySector?.get?.(`${s.sx | 0},${s.sy | 0}`) ? buildMapBastion(state.bastionsBySector.get(`${s.sx | 0},${s.sy | 0}`), player, timeMs, state) : null,
-      primaryResource: s.primaryResource || 'scrap',
-      resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6),
-      resourceNames: (s.resourceNames || []).slice(0, 6),
-      biomeId: s.biomeId || '',
-      biomeName: s.biomeName || '',
-      biomeShortName: s.biomeShortName || '',
-      biomeDescription: s.biomeDescription || '',
-      biomeColorHex: s.biomeColorHex || ''
-    });
+    if (s) {
+      const sx = s.sx | 0;
+      const sy = s.sy | 0;
+      // V229 hotfix: old accounts can contain already-discovered sectors saved with
+      // legacy display labels (Type M/Type S). Keep the stable discovered-sector data,
+      // but always refresh biome display metadata from current definitions before
+      // sending the map snapshot.
+      const currentSummary = getSectorSummary(state?.seed ?? 1337, sx, sy);
+      sectors.push({
+        sx,
+        sy,
+        level: s.level | 0,
+        asteroidCount: s.asteroidCount | 0,
+        stationCount: s.stationCount | 0,
+        pirateStationCount: s.pirateStationCount | 0,
+        hasReturnPortal: !!s.hasReturnPortal,
+        bastion: state?.bastionsBySector?.get?.(`${sx},${sy}`) ? buildMapBastion(state.bastionsBySector.get(`${sx},${sy}`), player, timeMs, state) : null,
+        primaryResource: s.primaryResource || 'scrap',
+        resourceKeys: (s.resourceKeys || [s.primaryResource || 'scrap']).slice(0, 6),
+        resourceNames: (s.resourceNames || []).slice(0, 6),
+        biomeId: currentSummary.biomeId || s.biomeId || '',
+        biomeName: currentSummary.biomeName || s.biomeName || '',
+        biomeShortName: currentSummary.biomeShortName || s.biomeShortName || '',
+        biomeDescription: currentSummary.biomeDescription || s.biomeDescription || '',
+        biomeColorHex: currentSummary.biomeColorHex || s.biomeColorHex || ''
+      });
+    }
   }
 
   const homeBase = buildLocalBaseMapSnapshot(player, state);

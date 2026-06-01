@@ -29,6 +29,7 @@ import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { GAME_MODES, WORLD_IDS, clearPlayerBattleResidue, leaveBattleSession, recordBattleDeath, recordBattleKill, setPlayerTestWorld, setPlayerStressServer } from '../modes/GameModes.js';
 import { triggerEquipmentHitProcs, triggerEquipmentTakeHitProcs } from '../equipment/EquipmentProcSystem.js';
 import { canPlayerDamageStructure, destroyStructure, isStructureProtectedByCore } from '../structures/StructureSystem.js';
+import { markAsteroidDestroyedForRespawn } from '../asteroid/AsteroidRespawnState.js';
 
 
 function triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs) {
@@ -455,7 +456,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     }
     if (died) {
       const t = timeMs;
-      target.respawnAt = 0;
+      target.respawnAt = timeMs + 60 * 60 * 1000;
       target.diedAt = t;
       target.killedById = sourcePlayer?.id ?? 0;
       if (sourcePlayer && sourcePlayer.kind === 'player') {
@@ -465,7 +466,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
       target.dropsSpawned = false;
 
       if (target.sig) {
-        state.destroyedAsteroidSigs?.add?.(target.sig);
+        markAsteroidDestroyedForRespawn(state, target, timeMs);
         state.asteroidCooldownUntil.delete(target.sig);
       }
     }

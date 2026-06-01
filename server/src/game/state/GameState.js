@@ -5,6 +5,7 @@ import { createSimulationClock } from '../util/Time.js';
 import { createModeState } from '../modes/GameModes.js';
 import { createAccountStore } from '../accounts/AccountStore.js';
 import { createStructureStore } from '../structures/StructureStore.js';
+import { createAsteroidRespawnStore } from '../asteroid/AsteroidRespawnStore.js';
 
 export function createGameState() {
   return {
@@ -35,9 +36,12 @@ export function createGameState() {
     sectors: new Map(),
     asteroidCooldownUntil: new Map(),
     destroyedAsteroidSigs: new Set(),
+    destroyedAsteroidRespawnAt: new Map(),
+    destroyedAsteroids: new Map(),
     modes: createModeState(),
     accounts: createAccountStore(),
-    structureStore: createStructureStore()
+    structureStore: createStructureStore(),
+    asteroidRespawnStore: createAsteroidRespawnStore()
   };
 }
 

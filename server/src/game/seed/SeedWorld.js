@@ -9,6 +9,10 @@ export function seedWorld(state) {
   state.projectiles.clear();
   state.sectors.clear();
   state.asteroidCooldownUntil.clear();
+  state.destroyedAsteroidSigs?.clear?.();
+  state.destroyedAsteroidRespawnAt?.clear?.();
+  state.destroyedAsteroids?.clear?.();
   initializeSessionBastions(state);
   state.structureStore?.loadIntoState?.(state);
+  state.asteroidRespawnStore?.loadIntoState?.(state);
 }
