@@ -90,6 +90,10 @@ export function createStructureStore() {
       let researchStationsRestored = 0;
       let researchInputsRestored = 0;
       let researchJobsRestored = 0;
+      let machineJobsRestored = 0;
+      let rocketJobsRestored = 0;
+      let rdJobsRestored = 0;
+      let bufferedEquipmentOutputsRestored = 0;
       let maxId = state.ids?.nextEntityId || 10000;
       for (const saved of db.structures || []) {
         if (String(saved?.worldId || 'endless') !== 'endless') continue;
@@ -97,8 +101,13 @@ export function createStructureStore() {
           && saved?.scienceInput
           && typeof saved.scienceInput === 'object'
           && Object.values(saved.scienceInput).some((amount) => (amount | 0) > 0);
-        const hadResearchJob = String(saved?.type || '').toLowerCase() === 'research_station'
+        const savedType = String(saved?.type || '').toLowerCase();
+        const hadResearchJob = savedType === 'research_station'
           && !!saved?.researchJob?.projectId;
+        const hadMachineJob = !!saved?.machineJob?.recipeId;
+        const hadRocketJob = savedType === 'rocket_workshop' && !!saved?.rocketWorkshopJob?.recipeId;
+        const hadRdJob = savedType === 'equipment_rd_station' && !!saved?.rdJob?.itemDef;
+        const hadEquipmentOutput = Array.isArray(saved?.equipmentOutputItems) && saved.equipmentOutputItems.length > 0;
         const st = hydrateStructure(state, saved);
         if (!st || (st.damageable !== false && st.stats.hp <= 0)) continue;
         state.structures.set(st.id, st);
@@ -109,12 +118,19 @@ export function createStructureStore() {
           if (hadResearchInput) researchInputsRestored += 1;
           if (hadResearchJob) researchJobsRestored += 1;
         }
+        if (hadMachineJob) machineJobsRestored += 1;
+        if (hadRocketJob) rocketJobsRestored += 1;
+        if (hadRdJob) rdJobsRestored += 1;
+        if (hadEquipmentOutput) bufferedEquipmentOutputsRestored += 1;
       }
       if (state.ids) state.ids.nextEntityId = Math.max(state.ids.nextEntityId | 0, maxId | 0);
       if (researchStationsRestored > 0) {
         console.log(`[structures] Research station restored: ${researchStationsRestored}`);
         if (researchInputsRestored > 0) console.log(`[structures] Research input restored: ${researchInputsRestored}`);
         if (researchJobsRestored > 0) console.log(`[structures] Research progress resumed: ${researchJobsRestored}`);
+      }
+      if (machineJobsRestored > 0 || rocketJobsRestored > 0 || rdJobsRestored > 0 || bufferedEquipmentOutputsRestored > 0) {
+        console.log(`[structures] Persistence audit restore: machineJobs=${machineJobsRestored}, rocketJobs=${rocketJobsRestored}, rdJobs=${rdJobsRestored}, equipmentOutputs=${bufferedEquipmentOutputsRestored}`);
       }
       return count;
     },

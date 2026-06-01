@@ -46,6 +46,21 @@ function clonePlainObject(value, fallback = null) {
   return { ...value };
 }
 
+function cloneJsonValue(value, fallback = null) {
+  if (value === undefined || value === null) return fallback;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return fallback;
+  }
+}
+
+function cloneJsonArray(value, fallback = []) {
+  if (!Array.isArray(value)) return fallback;
+  const cloned = cloneJsonValue(value, fallback);
+  return Array.isArray(cloned) ? cloned : fallback;
+}
+
 export function createStructure(state, type, sx, sy, x, y, options = {}) {
   const def = getStructureDef(type);
   if (!def) return null;
@@ -92,16 +107,23 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     machineInput: options.machineInput && typeof options.machineInput === 'object' ? { ...options.machineInput } : {},
     rocketWorkshopInput: options.rocketWorkshopInput && typeof options.rocketWorkshopInput === 'object' ? { ...options.rocketWorkshopInput } : {},
     rocketWorkshopOutput: options.rocketWorkshopOutput && typeof options.rocketWorkshopOutput === 'object' ? { ...options.rocketWorkshopOutput } : {},
+    rocketWorkshopCustomAmmoDefs: cloneJsonValue(options.rocketWorkshopCustomAmmoDefs, {}),
     rocketWorkshopEnabled: options.rocketWorkshopEnabled !== false,
-    rocketWorkshopJob: options.rocketWorkshopJob && typeof options.rocketWorkshopJob === 'object' ? { ...options.rocketWorkshopJob } : null,
+    rocketWorkshopJob: cloneJsonValue(options.rocketWorkshopJob, null),
+    lastRocketWorkshopProduced: cloneJsonValue(options.lastRocketWorkshopProduced, null),
     machineOutput: options.machineOutput && typeof options.machineOutput === 'object' ? { ...options.machineOutput } : {},
     scienceInput: clonePositiveResourceMap(options.scienceInput),
-    researchJob: clonePlainObject(options.researchJob, null),
+    researchJob: cloneJsonValue(options.researchJob, null),
     researchEnabled: options.researchEnabled !== false,
     researchStatus: String(options.researchStatus || ''),
     machineRecipeId: String(options.machineRecipeId || ''),
     machineEnabled: options.machineEnabled !== false,
-    machineJob: options.machineJob && typeof options.machineJob === 'object' ? { ...options.machineJob } : null,
+    machineJob: cloneJsonValue(options.machineJob, null),
+    lastMachineProduced: cloneJsonValue(options.lastMachineProduced, null),
+    equipmentOutputItems: cloneJsonArray(options.equipmentOutputItems),
+    rdInputItem: cloneJsonValue(options.rdInputItem, null),
+    rdOutputItem: cloneJsonValue(options.rdOutputItem, null),
+    rdJob: cloneJsonValue(options.rdJob, null),
     color: def.color || '#526274',
     borderColor: def.borderColor || '#9fcfff',
     powered: false,
@@ -121,7 +143,7 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     depositLabel: String(options.depositLabel || ''),
     depositColorHex: String(options.depositColorHex || ''),
     depositId: options.depositId | 0 || 0,
-    extractionProgress: 0,
+    extractionProgress: Math.max(0, Math.min(1, Number(options.extractionProgress || 0) || 0)),
     lastExtractionAt: Number(options.lastExtractionAt || 0) || 0,
     createdAt: options.createdAt || Date.now(),
     updatedAt: options.updatedAt || Date.now()
@@ -156,16 +178,23 @@ export function serializeStructure(structure) {
     machineInput: structure.machineInput || {},
     rocketWorkshopInput: structure.rocketWorkshopInput || {},
     rocketWorkshopOutput: structure.rocketWorkshopOutput || {},
+    rocketWorkshopCustomAmmoDefs: cloneJsonValue(structure.rocketWorkshopCustomAmmoDefs, {}),
     rocketWorkshopEnabled: structure.rocketWorkshopEnabled !== false,
-    rocketWorkshopJob: structure.rocketWorkshopJob || null,
+    rocketWorkshopJob: cloneJsonValue(structure.rocketWorkshopJob, null),
+    lastRocketWorkshopProduced: cloneJsonValue(structure.lastRocketWorkshopProduced, null),
     machineOutput: structure.machineOutput || {},
     scienceInput: clonePositiveResourceMap(structure.scienceInput),
-    researchJob: clonePlainObject(structure.researchJob, null),
+    researchJob: cloneJsonValue(structure.researchJob, null),
     researchEnabled: structure.researchEnabled !== false,
     researchStatus: String(structure.researchStatus || ''),
     machineRecipeId: structure.machineRecipeId || '',
     machineEnabled: structure.machineEnabled !== false,
-    machineJob: structure.machineJob || null,
+    machineJob: cloneJsonValue(structure.machineJob, null),
+    lastMachineProduced: cloneJsonValue(structure.lastMachineProduced, null),
+    equipmentOutputItems: cloneJsonArray(structure.equipmentOutputItems),
+    rdInputItem: cloneJsonValue(structure.rdInputItem, null),
+    rdOutputItem: cloneJsonValue(structure.rdOutputItem, null),
+    rdJob: cloneJsonValue(structure.rdJob, null),
     open: !!structure.open,
     fuelBufferSeconds: Math.max(0, Math.round((Number(structure.fuelBufferSeconds) || 0) * 10) / 10),
     energyState: structure.energyState || null,
@@ -180,6 +209,7 @@ export function serializeStructure(structure) {
     depositLabel: structure.depositLabel || '',
     depositColorHex: structure.depositColorHex || '',
     depositId: structure.depositId | 0 || 0,
+    extractionProgress: Math.max(0, Math.min(1, Number(structure.extractionProgress || 0) || 0)),
     lastExtractionAt: Number(structure.lastExtractionAt || 0) || 0,
     createdAt: structure.createdAt || Date.now(),
     updatedAt: Date.now()
@@ -209,8 +239,10 @@ export function hydrateStructure(state, saved) {
     machineInput: s.machineInput || {},
     rocketWorkshopInput: s.rocketWorkshopInput || {},
     rocketWorkshopOutput: s.rocketWorkshopOutput || {},
+    rocketWorkshopCustomAmmoDefs: s.rocketWorkshopCustomAmmoDefs || {},
     rocketWorkshopEnabled: s.rocketWorkshopEnabled !== false,
     rocketWorkshopJob: s.rocketWorkshopJob || null,
+    lastRocketWorkshopProduced: s.lastRocketWorkshopProduced || null,
     machineOutput: s.machineOutput || {},
     scienceInput: s.scienceInput || {},
     researchJob: s.researchJob || null,
@@ -219,6 +251,11 @@ export function hydrateStructure(state, saved) {
     machineRecipeId: s.machineRecipeId || '',
     machineEnabled: s.machineEnabled !== false,
     machineJob: s.machineJob || null,
+    lastMachineProduced: s.lastMachineProduced || null,
+    equipmentOutputItems: Array.isArray(s.equipmentOutputItems) ? s.equipmentOutputItems : [],
+    rdInputItem: s.rdInputItem || null,
+    rdOutputItem: s.rdOutputItem || null,
+    rdJob: s.rdJob || null,
     open: !!s.open,
     fuelBufferSeconds: s.fuelBufferSeconds ?? s.energyBuffer ?? 0,
     energyState: s.energyState || null,
@@ -233,6 +270,7 @@ export function hydrateStructure(state, saved) {
     depositLabel: s.depositLabel || '',
     depositColorHex: s.depositColorHex || '',
     depositId: s.depositId | 0 || 0,
+    extractionProgress: s.extractionProgress || 0,
     lastExtractionAt: s.lastExtractionAt || 0,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt
