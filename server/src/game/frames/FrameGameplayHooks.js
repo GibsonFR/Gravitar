@@ -1282,7 +1282,8 @@ function handleBulwarkProjectileImpact(state, owner, target, projectile, timeMs)
     sourceId: owner.id,
     hostile: true,
     label: 'Z',
-    timeMs
+    timeMs,
+    meta: { sourceKind: owner.kind || 'player', sourceTargetId: owner.id | 0 }
   });
   if (tuning.harpoonArmorShredPct > 0) {
     applyStatus(target, I.ARMOR_SHRED, tuning.harpoonArmorShredDuration, {

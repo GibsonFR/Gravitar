@@ -217,6 +217,31 @@ function fireAutoAttack(state, p, target, timeMs) {
   queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, p.sx, p.sy, p.x, p.y, 0);
 }
 
+
+function inferTauntSourceKind(state, sourceId) {
+  const id = sourceId | 0;
+  if (!id) return '';
+  if (state.players?.has?.(id)) return 'player';
+  if (state.mobs?.has?.(id)) return 'mob';
+  if (state.asteroids?.has?.(id)) return 'asteroid';
+  if (state.structures?.has?.(id)) return 'structure';
+  return '';
+}
+
+function getTauntSourceRef(state, p) {
+  const taunt = getStatusEntry(p, STATUS_EFFECT_IDS.TAUNT);
+  if (!taunt) return null;
+  const id = (taunt.meta?.sourceTargetId ?? taunt.sourceId ?? 0) | 0;
+  const kind = taunt.meta?.sourceKind || inferTauntSourceKind(state, id);
+  return kind && id ? { kind, id } : null;
+}
+
+function isForcedTauntAttack(state, p, target) {
+  const ref = getTauntSourceRef(state, p);
+  if (!ref || !target) return false;
+  return ref.kind === target.kind && (ref.id | 0) === (target.id | 0);
+}
+
 function fireRocket(state, p, worldX, worldY, timeMs) {
   const launcher = getLauncherProfile(p);
   if (!launcher) return { ok: false, reason: 'no_launcher' };
@@ -274,19 +299,31 @@ function fireRocket(state, p, worldX, worldY, timeMs) {
 }
 
 
-function updateForcedTauntTarget(state, p) {
-  const taunt = getStatusEntry(p, STATUS_EFFECT_IDS.TAUNT);
-  if (!taunt) return;
-  const kind = taunt.meta?.sourceKind || '';
-  const id = taunt.meta?.sourceTargetId || taunt.meta?.sourceId || 0;
-  if (!kind || !id) return;
-  const t = getTargetForPlayer(state, p, kind, id);
+function updateForcedTauntTarget(state, p, timeMs = 0) {
+  const ref = getTauntSourceRef(state, p);
+  if (!ref) return;
+  const t = getTargetForPlayer(state, p, ref.kind, ref.id);
   if (!isPlayerAttackable(p, t)) return;
-  p.selectedKind = kind;
-  p.selectedId = id;
-  p.autoTargetKind = kind;
-  p.autoTargetId = id;
+
+  const sameTarget = p.autoTargetKind === ref.kind && (p.autoTargetId | 0) === (ref.id | 0);
+  p.selectedKind = ref.kind;
+  p.selectedId = ref.id;
+  p.autoTargetKind = ref.kind;
+  p.autoTargetId = ref.id;
   p.hasMoveTarget = false;
+  p.holdMoveAllowed = false;
+  p.stationIntentId = 0;
+  p.groundMarkerTimer = 0;
+  p.rocketTap = false;
+  p.abilityA = false;
+  p.abilityZ = false;
+  p.abilityE = false;
+  p.abilityR = false;
+  p.clientAuthoritativeUntil = 0;
+  p.clientAppliedAbilityPose = null;
+  p._activeClientAppliedAbility = null;
+  if (Array.isArray(p.pendingAbilityCasts)) p.pendingAbilityCasts.length = 0;
+  if (!sameTarget || !Number.isFinite(p.nextShotAt)) p.nextShotAt = Math.min(p.nextShotAt || timeMs, timeMs + 35);
 }
 
 function updateAbilityCasting(state, player, dt, timeMs) {
@@ -389,7 +426,7 @@ export function updatePlayer(state, p, dt, timeMs = null) {
   }
   tickFrameGameplay(state, p, dt, timeMs);
   updateAbilityCasting(state, p, dt, timeMs);
-  updateForcedTauntTarget(state, p);
+  updateForcedTauntTarget(state, p, timeMs);
 
   if (!p.interactTap) tryUsePortal(state, p, timeMs);
 
@@ -462,7 +499,7 @@ export function updatePlayer(state, p, dt, timeMs = null) {
         const fireRange = aaRange + targetRadius * 0.35;
         if (d2 <= fireRange * fireRange) {
           p.hasMoveTarget = false;
-          if (!blocksAttacks(p) && timeMs >= p.nextShotAt) fireAutoAttack(state, p, t, timeMs);
+          if ((!blocksAttacks(p) || isForcedTauntAttack(state, p, t)) && timeMs >= p.nextShotAt) fireAutoAttack(state, p, t, timeMs);
         } else {
           // Target-click hors portée = approche jusqu'à portée, pas tir magique à distance.
           // Un move-click explicite annule l'autoTarget avant d'arriver ici.

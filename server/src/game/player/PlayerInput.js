@@ -2,7 +2,30 @@ import { clamp, distSq, screenToWorld } from '../util/Math.js';
 import { applyPrimaryClick } from './PrimaryClick.js';
 import { getTargetForPlayer, isPlayerAttackable } from '../targeting/Targeting.js';
 import { canAcceptInput, sanitizeInputMessage } from '../../net/protocol/InputMessage.js';
+import { getStatusEntry } from '../status/StatusRack.js';
+import { STATUS_EFFECT_IDS } from '../../../../shared/content/status/StatusEffectIds.js';
 
+
+
+function hasHardClientControlLock(player) {
+  return !!getStatusEntry(player, STATUS_EFFECT_IDS.TAUNT)
+    || !!getStatusEntry(player, STATUS_EFFECT_IDS.FEAR)
+    || !!getStatusEntry(player, STATUS_EFFECT_IDS.CHARM)
+    || !!getStatusEntry(player, STATUS_EFFECT_IDS.SUPPRESS)
+    || !!getStatusEntry(player, STATUS_EFFECT_IDS.STASIS);
+}
+
+function cancelClientAuthorityForControl(player) {
+  player.clientAuthoritativeUntil = 0;
+  player.clientAppliedAbilityPose = null;
+  player._activeClientAppliedAbility = null;
+  if (Array.isArray(player.pendingAbilityCasts)) player.pendingAbilityCasts.length = 0;
+  player.abilityA = false;
+  player.abilityZ = false;
+  player.abilityE = false;
+  player.abilityR = false;
+  player.rocketTap = false;
+}
 
 function solidWallBounds(wall) {
   const w = Number.isFinite(wall?.w) && wall.w > 0 ? wall.w : (wall?.radius || 0) * 2;
@@ -253,7 +276,9 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
 
   const abilityFresh = (msg.abilitySeq | 0) > (player.lastClientAbilitySeq | 0);
   if (abilityFresh) player.lastClientAbilitySeq = msg.abilitySeq | 0;
-  acceptClientPose(state, player, msg, timeMs, abilityFresh);
+  const controlLocked = hasHardClientControlLock(player);
+  if (controlLocked) cancelClientAuthorityForControl(player);
+  else acceptClientPose(state, player, msg, timeMs, abilityFresh);
 
   if (!player.sessionSetupPending && Number.isFinite(msg.aimWorldX) && Number.isFinite(msg.aimWorldY)) {
     player.mouseSx = msg.aimWorldX - player.x + player.viewportW * 0.5;
@@ -290,6 +315,14 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     player.abilityZ = false;
     player.abilityE = false;
     player.abilityR = false;
+    player.interactTap = false;
+    player.rocketTap = false;
+    return true;
+  }
+
+  if (controlLocked) {
+    // A hard control such as Provocation must not be overwritten by live browser input.
+    // The server will drive movement and forced auto-attack for the duration.
     player.interactTap = false;
     player.rocketTap = false;
     return true;
