@@ -1,3 +1,21 @@
+
+function statusIdOf(entry) {
+  return String(entry?.id || entry?.effectId || entry?.type || '').toLowerCase();
+}
+
+function hasAuthoritativeControlStatus(entity) {
+  const statuses = Array.isArray(entity?.statuses) ? entity.statuses : [];
+  for (const st of statuses) {
+    const id = statusIdOf(st);
+    if (
+      id === 'taunt' || id === 'charm' || id === 'fear' || id === 'stun' || id === 'suppress' ||
+      id === 'sleep' || id === 'stasis' || id === 'knockup' || id === 'knockback' || id === 'pull' ||
+      id === 'bump'
+    ) return true;
+  }
+  return false;
+}
+
 export class WorldStore {
   constructor() {
     this.myId = 0;
@@ -82,6 +100,34 @@ export class WorldStore {
     if (options.preserveLocalPosition) {
       const sectorChanged = ((previous.sx | 0) !== (next.sx | 0)) || ((previous.sy | 0) !== (next.sy | 0));
       const merged = { ...previous, ...next };
+      const serverControlled = hasAuthoritativeControlStatus(next);
+      if (serverControlled && Number.isFinite(next.x) && Number.isFinite(next.y)) {
+        merged.x = next.x;
+        merged.y = next.y;
+        merged.sx = next.sx;
+        merged.sy = next.sy;
+        merged.vx = Number.isFinite(next.vx) ? next.vx : 0;
+        merged.vy = Number.isFinite(next.vy) ? next.vy : 0;
+        if (Number.isFinite(next.rot)) merged.rot = next.rot;
+        merged._serverX = next.x;
+        merged._serverY = next.y;
+        merged._tx = next.x;
+        merged._ty = next.y;
+        merged._snapDistanceSq = 0;
+        merged._forceServerPose = false;
+        merged._keepLocalPoseUntil = 0;
+        merged._localDashUntil = 0;
+        merged._localThrust = 0;
+        this.localPrediction.hasMoveTarget = false;
+        this.localPrediction.hold = false;
+        this.localPrediction.selectedKind = '';
+        this.localPrediction.selectedId = 0;
+        this.localPrediction.attackKind = '';
+        this.localPrediction.attackId = 0;
+        this.localPrediction.attackUntil = 0;
+        this.localPrediction.localAbilityAuthorityUntil = 0;
+        return this._applyLocalDamageToEntity(this._applyLocalVitalAuthority(previous, merged, performance.now()));
+      }
       const nowPose = performance.now();
       const keepLocalPose = nowPose < (previous._keepLocalPoseUntil || 0);
       if (keepLocalPose && !previous._forceServerPose) {
@@ -484,6 +530,25 @@ export class WorldStore {
     this.modes = msg.modes ?? this.modes;
     this.playerDirectory = msg.playerDirectory ?? [];
     this.myState = this._mergeMyState(msg.me ?? null);
+    if (hasAuthoritativeControlStatus(this.myState)) {
+      this.localPrediction.hasMoveTarget = false;
+      this.localPrediction.hold = false;
+      this.localPrediction.selectedKind = '';
+      this.localPrediction.selectedId = 0;
+      this.localPrediction.attackKind = '';
+      this.localPrediction.attackId = 0;
+      this.localPrediction.attackUntil = 0;
+      this.localPrediction.localAbilityAuthorityUntil = 0;
+      this.localPrediction.localFrameState = null;
+      this.localPrediction.localDerived = null;
+      const me = this.players.get(this.myId);
+      if (me) {
+        me._forceServerPose = true;
+        me._keepLocalPoseUntil = 0;
+        me._localDashUntil = 0;
+        me._localThrust = 0;
+      }
+    }
     const transition = this.myState?.transition || null;
     if (transition) {
       const base = transition.type === 'sector' ? 220 : 450;

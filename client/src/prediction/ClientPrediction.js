@@ -112,9 +112,18 @@ function resolveLocalSolidWalls(store, me, oldX, oldY) {
   return false;
 }
 
+function statusIdOf(entry) {
+  return String(entry?.id || entry?.effectId || entry?.type || '').toLowerCase();
+}
+
 function hasBlockingStatus(me) {
-  const ids = new Set((me?.statuses ?? []).map((s) => String(s.id || s.effectId || '').toLowerCase()));
-  return ids.has('root') || ids.has('stun') || ids.has('suppress') || ids.has('fear') || ids.has('sleep');
+  const ids = new Set((me?.statuses ?? []).map(statusIdOf));
+  return ids.has('root') || ids.has('stun') || ids.has('suppress') || ids.has('fear') || ids.has('sleep') || ids.has('taunt') || ids.has('charm') || ids.has('stasis');
+}
+
+function hasAuthoritativeControlStatus(me) {
+  const ids = new Set((me?.statuses ?? []).map(statusIdOf));
+  return ids.has('taunt') || ids.has('charm') || ids.has('fear') || ids.has('stun') || ids.has('suppress') || ids.has('sleep') || ids.has('stasis') || ids.has('pull') || ids.has('knockback') || ids.has('bump') || ids.has('knockup');
 }
 
 function getTarget(store, kind, id) {
@@ -301,6 +310,11 @@ export class ClientPrediction {
       me.vx = 0;
       me.vy = 0;
       me._localThrust = 0;
+      return;
+    }
+
+    if (hasAuthoritativeControlStatus(me) || hasAuthoritativeControlStatus(this.store.myState)) {
+      this.cancelLocalControl(me);
       return;
     }
 
