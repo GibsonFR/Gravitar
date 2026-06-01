@@ -8,33 +8,82 @@ function drawSingleBar(ctx, view, x, y, width, height, ratio, palette) {
   ctx.fillRect(x * view.dpr, y * view.dpr, (width * ratio) * view.dpr, height * view.dpr);
 }
 
-
 function getSigilRuneStatus(entity) {
   const statuses = entity?.statuses ?? [];
   return statuses.find((s) => s?.id === 'mark' && (s.markKey === 'sigil_runes' || s.label === 'Rune')) || null;
 }
 
-function drawSigilRunePips(ctx, view, x, y, width, entity) {
+function hexPath(ctx, x, y, radius, rotation = 0) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i += 1) {
+    const a = rotation + Math.PI / 6 + i * Math.PI / 3;
+    const px = x + Math.cos(a) * radius;
+    const py = y + Math.sin(a) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+function drawSigilRuneOrbit(ctx, view, screenX, screenY, entity) {
   const rune = getSigilRuneStatus(entity);
-  if (!rune) return 0;
-  const dpr = view.dpr;
+  if (!rune) return;
+
   const max = Math.max(1, rune.maxStacks ?? 5);
   const stacks = clamp(rune.stacks ?? 0, 0, max);
-  const pipGap = 2;
-  const pipW = Math.max(4, Math.min(9, (width - pipGap * (max - 1)) / max));
-  const totalW = pipW * max + pipGap * (max - 1);
-  const startX = x + width * 0.5 - totalW * 0.5;
-  const yy = y - 8;
+  if (stacks <= 0) return;
+
+  const dpr = view.dpr;
+  const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+  const idOffset = ((entity?.id ?? 0) % 31) * 0.071;
+  const radius = Math.max(18, Math.min(46, (entity?.radius ?? 18) + 13));
+  const size = Math.max(3.2, Math.min(6.2, radius * 0.16));
+  const phase = t * 1.85 + idOffset;
+
+  ctx.save();
+  ctx.translate(screenX * dpr, screenY * dpr);
+  ctx.scale(dpr, dpr);
+
+  ctx.strokeStyle = rgba(166, 94, 230, 0.18);
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
   for (let i = 0; i < max; i += 1) {
     const filled = i < stacks;
-    const px = startX + i * (pipW + pipGap);
-    ctx.fillStyle = filled ? rgba(201, 124, 255, 0.92) : rgba(49, 38, 66, 0.72);
-    ctx.fillRect(px * dpr, yy * dpr, pipW * dpr, 4 * dpr);
-    ctx.strokeStyle = filled ? rgba(246, 222, 255, 0.72) : rgba(118, 86, 148, 0.36);
-    ctx.lineWidth = 0.8 * dpr;
-    ctx.strokeRect(px * dpr, yy * dpr, pipW * dpr, 4 * dpr);
+    const a = phase + i * (Math.PI * 2 / max);
+    const wobble = Math.sin(t * 3.4 + i * 1.7 + idOffset) * 1.6;
+    const x = Math.cos(a) * (radius + wobble);
+    const y = Math.sin(a) * (radius + wobble);
+    const pulse = filled ? (0.86 + 0.14 * Math.sin(t * 5.0 + i)) : 0.72;
+    const r = size * pulse;
+
+    if (filled) {
+      ctx.shadowColor = rgba(202, 118, 255, 0.55);
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = rgba(128, 53, 184, 0.82);
+      hexPath(ctx, x, y, r + 1.2, -a * 0.35);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = rgba(216, 144, 255, 0.95);
+      hexPath(ctx, x, y, r, a * 0.55);
+      ctx.fill();
+      ctx.strokeStyle = rgba(255, 236, 255, 0.82);
+      ctx.lineWidth = 1.05;
+      ctx.stroke();
+    } else {
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = rgba(43, 32, 56, 0.30);
+      hexPath(ctx, x, y, r * 0.85, a * 0.55);
+      ctx.fill();
+      ctx.strokeStyle = rgba(166, 94, 230, 0.30);
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+    }
   }
-  return 9;
+
+  ctx.restore();
 }
 
 function drawTempShieldOverlay(ctx, view, x, y, width, height, ratio) {
@@ -53,10 +102,11 @@ export function drawWorldHealthBars(ctx, view, entity, camX, camY, config) {
   if (!vitals || !config?.bars?.length) return;
 
   const screen = worldToScreen(camX, camY, entity.x, entity.y, view.cssW, view.cssH);
+  drawSigilRuneOrbit(ctx, view, screen.x, screen.y, entity);
+
   const width = config.width;
   const x = screen.x - width * 0.5;
   let y = screen.y + (config.offsetY ?? 0);
-  y -= drawSigilRunePips(ctx, view, x, y, width, entity);
 
   for (const bar of config.bars) {
     const value = vitals[bar.valueKey] ?? 0;
