@@ -1,5 +1,4 @@
 import { BASTION_INTERIOR_SY } from '../bastion/BastionSession.js';
-import { isBattleArenaSector } from '../modes/GameModes.js';
 
 export const SPECIAL_SECTORS = {
   TEST_HUB: { sx: 9100, sy: -9100 },
@@ -30,6 +29,12 @@ export const SPECIAL_SECTORS = {
   MOB_HYPER_LATE: { sx: 9210, sy: -9100 }
 };
 
+function isBattleArenaSectorLocal(sx, sy) {
+  sx |= 0;
+  sy |= 0;
+  return sy === -9400 && sx >= 9400 && sx < 104000;
+}
+
 export function isBastionInteriorSector(sx, sy) {
   return (sy | 0) === BASTION_INTERIOR_SY && (sx | 0) >= 9000;
 }
@@ -38,7 +43,7 @@ export function isSpecialDetachedSector(sx, sy) {
   sx |= 0;
   sy |= 0;
   if (isBastionInteriorSector(sx, sy)) return true;
-  if (isBattleArenaSector(sx, sy)) return true;
+  if (isBattleArenaSectorLocal(sx, sy)) return true;
   if (sy !== SPECIAL_SECTORS.TEST_ARENA.sy) return false;
   if (sx === SPECIAL_SECTORS.TEST_HUB.sx) return true;
   if (sx === SPECIAL_SECTORS.TEST_EFFECTS.sx) return true;
@@ -65,6 +70,18 @@ export function isSpecialDetachedSector(sx, sy) {
 
 export function isSafeNoPvpSector(sx, sy) {
   return (sx | 0) === 0 && (sy | 0) === 0;
+}
+
+
+export function getBuildForbiddenSectorReason(sx, sy, worldId = 'endless') {
+  sx |= 0;
+  sy |= 0;
+  const world = String(worldId || 'endless');
+  if (world === 'endless' && sx === 0 && sy === 0) return 'hub_build_forbidden';
+  if (isBastionInteriorSector(sx, sy)) return 'bastion_build_forbidden';
+  if (isBattleArenaSectorLocal(sx, sy)) return 'special_sector_build_forbidden';
+  if (isSpecialDetachedSector(sx, sy)) return 'special_sector_build_forbidden';
+  return '';
 }
 
 

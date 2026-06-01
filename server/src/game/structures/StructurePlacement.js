@@ -1,4 +1,5 @@
 import { SECTOR } from '../sector/SectorDefs.js';
+import { getBuildForbiddenSectorReason } from '../sector/SpecialSectors.js';
 import { BASE_TILE_SIZE, STRUCTURE_TYPES, getStructureDef } from './StructureDefs.js';
 import { createStructure } from './StructureFactory.js';
 import { removeResource } from '../inventory/InventorySystem.js';
@@ -72,8 +73,8 @@ function isTestPlayer(player) {
   return String(player.gameMode || '').toLowerCase().includes('test') || String(player.worldId || '').toLowerCase().startsWith('test');
 }
 
-function isProtectedEndlessHub(player) {
-  return String(player?.worldId || 'endless') === 'endless' && (player?.sx | 0) === 0 && (player?.sy | 0) === 0;
+function getSectorBuildRestriction(player) {
+  return getBuildForbiddenSectorReason(player?.sx | 0, player?.sy | 0, player?.worldId || 'endless');
 }
 
 function inSameWorld(st, player) {
@@ -95,6 +96,35 @@ function isBaseCoreType(type) {
 
 function isOutpostCoreType(type) {
   return String(type || '').toLowerCase() === STRUCTURE_TYPES.OUTPOST_CORE;
+}
+
+
+function stationInSameWorld(station, player) {
+  return String(station?.worldId || player?.worldId || 'endless') === String(player?.worldId || 'endless');
+}
+
+function rectExpandedBy(rect, amount = 0) {
+  const pad = Math.max(0, Number(amount) || 0);
+  return { left: rect.left - pad, right: rect.right + pad, top: rect.top - pad, bottom: rect.bottom + pad, w: rect.w + pad * 2, h: rect.h + pad * 2 };
+}
+
+function claimRectForPlacement(def, x, y) {
+  const half = Math.max(1, Number(def?.claimRadius) || 0);
+  return { left: x - half, right: x + half, top: y - half, bottom: y + half, w: half * 2, h: half * 2 };
+}
+
+function stationClaimRect(station) {
+  return entityRect({ x: station?.x || 0, y: station?.y || 0, radius: Number(station?.radius) || 80 });
+}
+
+function findPirateStationInsideClaim(state, player, sx, sy, claim) {
+  for (const station of state?.stations?.values?.() || []) {
+    if (!station?.pirate && String(station?.specialtyId || '') !== 'pirate') continue;
+    if (!stationInSameWorld(station, player)) continue;
+    if ((station.sx | 0) !== (sx | 0) || (station.sy | 0) !== (sy | 0)) continue;
+    if (rectsOverlap(rectExpandedBy(claim, BASE_TILE_SIZE), stationClaimRect(station), 0)) return station;
+  }
+  return null;
 }
 
 function canOverlapStructure(def, st) {
@@ -163,7 +193,8 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   const def = getStructureDef(type);
   if (!def) return { ok: false, error: 'unknown_structure' };
   if (!isTestPlayer(player) && !canBuildByResearch(player, type)) return { ok: false, error: buildResearchRequirementError(type), researchId: getStructureResearchRequirement(type), researchName: getResearchName(getStructureResearchRequirement(type)) };
-  if (!isTestPlayer(player) && isProtectedEndlessHub(player)) return { ok: false, error: 'hub_build_forbidden' };
+  const sectorRestriction = !isTestPlayer(player) ? getSectorBuildRestriction(player) : '';
+  if (sectorRestriction) return { ok: false, error: sectorRestriction };
   const sx = player.sx | 0;
   const sy = player.sy | 0;
   const rawX = finite(x, player.x);
@@ -178,6 +209,8 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
 
   const key = ownerKey(player);
   if (isCoreType(def.id)) {
+    const candidateClaim = claimRectForPlacement(def, px, py);
+    if (findPirateStationInsideClaim(state, player, sx, sy, candidateClaim)) return { ok: false, error: 'pirate_station_in_claim' };
     let outpostsInSector = 0;
     for (const st of state.structures.values()) {
       if (!isCoreType(st.type)) continue;
@@ -192,7 +225,7 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
       }
     }
     if (isOutpostCoreType(def.id) && outpostsInSector >= Math.max(1, def.maxPerOwnerPerSector | 0 || 4)) return { ok: false, error: 'outpost_limit_sector' };
-    const claim = { left: px - (def.claimRadius || 0), right: px + (def.claimRadius || 0), top: py - (def.claimRadius || 0), bottom: py + (def.claimRadius || 0) };
+    const claim = claimRectForPlacement(def, px, py);
     if (!rectInside(claim, sectorBuildRect())) return { ok: false, error: 'too_close_to_sector_edge' };
   } else if (!findOwnCore(state, player, sx, sy, r)) {
     return { ok: false, error: 'need_nearby_core' };

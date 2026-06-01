@@ -31,6 +31,10 @@ function buildErrorHint(error) {
     case 'too_close_to_base': return 'Trop proche d’une autre base';
     case 'too_close_to_sector_edge': return 'Trop proche du bord du secteur';
     case 'too_close_to_station': return 'Trop proche d’une station';
+    case 'pirate_station_in_claim': return 'Station pirate trop proche';
+    case 'bastion_build_forbidden': return 'Secteur Bastion : construction interdite';
+    case 'special_sector_build_forbidden': return 'Zone spéciale : construction interdite';
+    case 'hub_build_forbidden': return 'Hub : construction interdite';
     default: return 'Placement impossible';
   }
 }
