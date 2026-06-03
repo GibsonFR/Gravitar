@@ -885,7 +885,7 @@ export function startApp() {
     drawPortals(ctx, view, store, camX, camY);
     for (const a of store.asteroids.values()) drawAsteroid(ctx, view, a, camX, camY);
     for (const mob of renderMobs) drawMob(ctx, view, mob, camX, camY, t);
-    if (graphicsOptions.showFx) fxStore.sync(store, t);
+    if (graphicsOptions.showFx) fxStore.sync(store, t, renderProjectiles);
     for (const l of store.loots.values()) drawLoot(ctx, view, l, camX, camY);
     for (const d of store.logisticDrones.values()) drawLogisticDrone(ctx, view, d, camX, camY, t);
     if (graphicsOptions.showFx) fxStore.drawTrails(ctx, view, camX, camY, t);

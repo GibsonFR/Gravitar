@@ -48,7 +48,7 @@ export class VisualFxStore {
     this.lastSigilRuneStacks = new Map();
   }
 
-  sync(store, t) {
+  sync(store, t, renderProjectiles = null) {
     const now = Number.isFinite(t) ? t : performance.now() / 1000;
     const combatFx = store.consumePendingCombatFx?.() ?? [];
     for (const ev of combatFx) {
@@ -76,8 +76,9 @@ export class VisualFxStore {
       });
     }
     const nextProjectiles = new Map();
+    const projectileSource = Array.isArray(renderProjectiles) ? renderProjectiles : [...store.projectiles.values()];
 
-    for (const p of store.projectiles.values()) {
+    for (const p of projectileSource) {
       nextProjectiles.set(p.id, { ...p });
       if (!this.lastProjectiles.has(p.id)) {
         const c = colorForProjectile(p);
