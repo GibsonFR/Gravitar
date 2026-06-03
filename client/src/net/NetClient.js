@@ -1,5 +1,6 @@
 import { NetStats } from './NetStats.js';
 import { NetworkClock } from './NetworkClock.js';
+import { InputHistoryBuffer } from './InputHistoryBuffer.js';
 
 export class NetClient {
   constructor(store, onStatus) {
@@ -11,11 +12,14 @@ export class NetClient {
     this.manualClose = false;
     this.netStats = new NetStats();
     this.networkClock = new NetworkClock();
+    this.inputHistory = new InputHistoryBuffer();
     this.netStats.setClock(this.networkClock);
+    this.netStats.setInputHistory(this.inputHistory);
     this.pingTimer = 0;
     this.pingSeq = 0;
     this.store.setNetStats?.(this.netStats);
     this.store.setNetworkClock?.(this.networkClock);
+    this.store.setInputHistory?.(this.inputHistory);
   }
 
   getSessionToken() {
@@ -53,6 +57,10 @@ export class NetClient {
 
   getNetworkClock() {
     return this.networkClock;
+  }
+
+  getInputHistory() {
+    return this.inputHistory;
   }
 
   connect() {

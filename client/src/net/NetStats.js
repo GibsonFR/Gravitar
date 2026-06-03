@@ -72,6 +72,7 @@ export class NetStats {
     this.droppedByBackpressure = 0;
     this.clock = null;
     this.interpolation = null;
+    this.inputHistory = null;
   }
 
   setClock(clock) {
@@ -80,6 +81,10 @@ export class NetStats {
 
   setInterpolationStore(store) {
     this.interpolation = store || null;
+  }
+
+  setInputHistory(history) {
+    this.inputHistory = history || null;
   }
 
   setEnabled(value) {
@@ -116,7 +121,10 @@ export class NetStats {
     this.lastSnapshotAt = now;
     this.serverTick = finite(msg?.tick, this.serverTick);
     this.serverTime = finite(msg?.time, this.serverTime);
-    if (Number.isFinite(Number(msg?.ackInputSeq))) this.ackInputSeq = Number(msg.ackInputSeq) | 0;
+    if (Number.isFinite(Number(msg?.ackInputSeq))) {
+      this.ackInputSeq = Number(msg.ackInputSeq) | 0;
+      this.inputHistory?.ack?.(this.ackInputSeq);
+    }
     if (Number.isFinite(Number(msg?.net?.skippedSnapshots))) this.skippedSnapshots = Number(msg.net.skippedSnapshots) | 0;
 
     const serverTime = finite(msg?.time, 0);
@@ -149,7 +157,8 @@ export class NetStats {
     this.maxInputBytes = Math.max(this.maxInputBytes, this.lastInputBytes);
     this.wsBufferedAmount = finite(wsBufferedAmount, 0);
     if (Number.isFinite(Number(obj?.inputSeq))) this.inputSeq = Number(obj.inputSeq) | 0;
-    this.pendingInputs = Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
+    this.inputHistory?.record?.(obj);
+    this.pendingInputs = this.inputHistory?.stats?.().pending ?? Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
   }
 
   recordCommand(bytes = 0, wsBufferedAmount = 0) {
@@ -219,7 +228,7 @@ export class NetStats {
     this.eventsInWindow = 0;
     this.sfxInWindow = 0;
     this.windowStartedAt = now;
-    this.pendingInputs = Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
+    this.pendingInputs = this.inputHistory?.stats?.().pending ?? Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
   }
 
   snapshot() {
@@ -260,7 +269,8 @@ export class NetStats {
       serverTick: this.serverTick,
       serverTime: this.serverTime,
       clock: this.clock?.snapshot?.() || null,
-      interpolation: this.interpolation?.stats?.() || null
+      interpolation: this.interpolation?.stats?.() || null,
+      inputHistory: this.inputHistory?.stats?.() || null
     };
   }
 }

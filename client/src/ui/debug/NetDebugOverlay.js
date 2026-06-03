@@ -57,7 +57,9 @@ export class NetDebugOverlay {
         <span>Snap age</span><b>${fmtMs(s.clock?.ageOfLastSnapshotMs)}</b>
         <span>Snap/s</span><b>${fmtRate(s.snapshotsPerSec)}</b>
         <span>Input/s</span><b>${fmtRate(s.inputsPerSec)}</b>
-        <span>Pending input</span><b>${s.pendingInputs | 0}</b>
+        <span>Pending input</span><b>${s.inputHistory?.pending ?? (s.pendingInputs | 0)}</b>
+        <span>Input age</span><b>${fmtMs(s.inputHistory?.oldestPendingAgeMs)}</b>
+        <span>Ack age</span><b>${fmtMs(s.inputHistory?.lastAckAgeMs)}</b>
         <span>In</span><b>${fmtBytes(s.bytesInPerSec)}/s</b>
         <span>Out</span><b>${fmtBytes(s.bytesOutPerSec)}/s</b>
         <span>Snap size</span><b>${fmtBytes(s.avgSnapshotBytes)} avg</b>
@@ -69,6 +71,7 @@ export class NetDebugOverlay {
         <span>SFX/s</span><b>${fmtRate(s.sfxPerSec)}</b>
         <span>WS buffer</span><b>${fmtBytes(s.wsBufferedAmount)}</b>
         <span>Drops</span><b>${s.droppedByBackpressure | 0}</b>
+        <span>Input max</span><b>${s.inputHistory?.maxPendingObserved ?? 0} / ${fmtMs(s.inputHistory?.maxPendingAgeObservedMs)}</b>
         <span>Tick</span><b>${s.serverTick | 0}</b>
       </div>
       <div class="net-debug-overlay__hint">F9 : masquer · audit instrumentation seulement</div>

@@ -46,6 +46,7 @@ export class WorldStore {
     this.stationOptimistic = { version: 0, actions: new Map() };
     this.netStats = null;
     this.networkClock = null;
+    this.inputHistory = null;
     this.interpolationStore = new EntityInterpolationStore();
     this.lastSnapAt = 0;
     this.lastServerTime = 0;
@@ -98,6 +99,14 @@ export class WorldStore {
 
   setNetworkClock(clock) {
     this.networkClock = clock || null;
+  }
+
+  setInputHistory(inputHistory) {
+    this.inputHistory = inputHistory || null;
+  }
+
+  getInputReconciliationStats() {
+    return this.inputHistory?.stats?.() || null;
   }
 
   getRenderServerTimeMs() {
@@ -403,7 +412,11 @@ export class WorldStore {
       // Pour le joueur local, les snapshots sont forcément en retard réseau.
       // On synchronise les PV/stats/etc., mais on ne rembobine plus x/y/vx/vy.
       if (Number.isFinite(next.x) && Number.isFinite(next.y) && this.netStats) {
-        this.netStats.recordCorrection(Math.hypot(next.x - (previous.x || 0), next.y - (previous.y || 0)));
+        const serverDelta = Math.hypot(next.x - (previous.x || 0), next.y - (previous.y || 0));
+        this.netStats.recordCorrection(serverDelta);
+        merged._serverDelta = serverDelta;
+        merged._serverAckInputSeq = this.inputHistory?.lastAckSeq || 0;
+        merged._pendingInputCount = this.inputHistory?.stats?.().pending || 0;
       }
       merged.x = previous.x;
       merged.y = previous.y;
