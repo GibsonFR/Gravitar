@@ -1,6 +1,5 @@
 import { WORLD } from '../constants.js';
 import { attachSnapshotNetMetrics, pruneUndefinedSnapshotFields } from './SnapshotSlimmer.js';
-import { buildSnapshotPriorityPlan } from './SnapshotPriority.js';
 import { peekWorldSfx } from '../audio/WorldSfxState.js';
 import { drainPlayerSfx } from '../audio/PlayerSfxState.js';
 import { buildNetworkEventsFromLegacy } from '../events/NetworkEventStream.js';
@@ -81,7 +80,6 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const statusEvents = peekStatusEventsForPlayer(state, me);
   const passiveEvents = peekPassiveEventsForPlayer(state, me);
   const events = buildNetworkEventsFromLegacy(state, playerId, timeMs, visibleWorldSfx, visibleCombatFx, playerSfx, abilityProtocolEvents, statusEvents, passiveEvents);
-  const priorityPlan = buildSnapshotPriorityPlan(state, me, { nearDynamic, nearStatic }, { staticWorld });
 
   const snapshot = {
     t: 'snap',
@@ -103,10 +101,10 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     players: buildPlayerSnapshots(state.players, playerInMyWorldAndSector, timeMs),
     playerDirectory: buildPlayerDirectorySnapshot(state, me),
     mobs: buildMobSnapshots(state.mobs, nearDynamic, { compact: !staticWorld }),
-    asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : buildAsteroidCombatSnapshots(state.asteroids, priorityPlan.predicates.asteroids),
+    asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : buildAsteroidCombatSnapshots(state.asteroids, nearStatic),
     stations: staticWorld ? buildStationSnapshots(state.stations, nearStatic) : undefined,
-    structures: staticWorld ? buildStructureSnapshots(state.structures, nearStatic, me) : buildStructureCombatSnapshots(state.structures, priorityPlan.predicates.structures, me),
-    structureAutomation: staticWorld ? buildStructureAutomationSnapshots(state.structures, nearStatic) : buildStructureAutomationCombatSnapshots(state.structures, priorityPlan.predicates.structureAutomation),
+    structures: staticWorld ? buildStructureSnapshots(state.structures, nearStatic, me) : buildStructureCombatSnapshots(state.structures, nearDynamic, me),
+    structureAutomation: staticWorld ? buildStructureAutomationSnapshots(state.structures, nearStatic) : buildStructureAutomationCombatSnapshots(state.structures, nearDynamic),
     portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
     staticWorld,
     projectiles: buildProjectileSnapshots(state.projectiles, nearDynamic),
@@ -118,6 +116,6 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     loots: buildLootSnapshots(state.loots, nearDynamic)
   };
   pruneUndefinedSnapshotFields(snapshot);
-  attachSnapshotNetMetrics(snapshot, { legacyEvents, partialSections: priorityPlan.partialSections, priorityLimits: priorityPlan.limits });
+  attachSnapshotNetMetrics(snapshot, { legacyEvents, partialSections: [], priorityLimits: null });
   return snapshot;
 }
