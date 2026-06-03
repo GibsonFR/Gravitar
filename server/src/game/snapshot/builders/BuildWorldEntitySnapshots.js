@@ -264,7 +264,8 @@ export function buildStructureSnapshots(structures, inSector, player = null) {
       attackable: player ? canPlayerDamageStructure({ structures }, player, structure) : false,
       turretStatus: structure.turretStatus || '',
       turretTargetId: structure.turretTargetId | 0 || 0,
-      turretEnabled: structure.turretEnabled !== false
+      turretEnabled: structure.turretEnabled !== false,
+      turretMode: structure.turretMode || 'auto'
     }));
 }
 

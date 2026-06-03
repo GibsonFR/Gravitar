@@ -13,6 +13,50 @@ function normalizeAmount(v) {
   return Math.max(0, Math.floor(n));
 }
 
+function turretStatusLabel(status) {
+  const id = String(status || '').toLowerCase();
+  if (id === 'off') return 'OFF';
+  if (id === 'no_power') return 'Sans énergie';
+  if (id === 'no_ammo') return 'Sans roquette';
+  if (id === 'cooldown') return 'Recharge';
+  if (id === 'firing') return 'Tir';
+  if (id === 'idle') return 'En veille';
+  return id || 'En veille';
+}
+
+function turretModeControls(storage) {
+  const turret = storage?.turret || null;
+  if (!turret) return '';
+  const mode = String(turret.mode || 'auto');
+  const modes = [
+    ['auto', 'Défense auto', 'Tire sur tout joueur ennemi dans son rayon.'],
+    ['intrusion', 'Intrusion', 'Tire seulement si la cible est dans un claim allié.'],
+    ['off', 'OFF', 'Ne tire jamais.']
+  ];
+  const buttons = modes.map(([id, label, title]) => `
+    <button class="storage-panel__mode-btn ${mode === id ? 'is-active' : ''}" data-turret-mode="${esc(id)}" data-structure="${storage.id | 0}" title="${esc(title)}" type="button">${esc(label)}</button>
+  `).join('');
+  const target = (turret.targetId | 0) > 0 ? `#${turret.targetId | 0}` : 'aucune';
+  return `
+    <div class="storage-panel__turret-card">
+      <div class="storage-panel__turret-head">
+        <div>
+          <strong>Tourelle lance-roquettes</strong>
+          <small>Mode : ${esc(turret.modeLabel || mode)} · État : ${esc(turretStatusLabel(turret.status))}</small>
+        </div>
+        <span class="storage-panel__turret-pill ${turret.powered ? 'is-powered' : 'is-off'}">${turret.powered ? 'alimentée' : 'sans énergie'}</span>
+      </div>
+      <div class="storage-panel__turret-metrics">
+        <span>Portée <strong>${fmt(turret.range || 0)}</strong></span>
+        <span>Énergie <strong>${fmt(turret.energyUse || 0)}</strong></span>
+        <span>Cadence <strong>${fmt((turret.cooldownMs || 0) / 1000)} s</strong></span>
+        <span>Cible <strong>${esc(target)}</strong></span>
+      </div>
+      <div class="storage-panel__mode-row">${buttons}</div>
+    </div>
+  `;
+}
+
 function itemTitle(row) {
   const tier = row.tier ? ` T${row.tier}` : '';
   const cat = row.categoryName ? ` · ${row.categoryName}` : '';
@@ -86,6 +130,12 @@ export class StoragePanelView {
         this.closeLocal();
         return;
       }
+      const modeBtn = target.closest('button[data-turret-mode]');
+      if (modeBtn) {
+        stopUiEvent(ev);
+        this.setTurretMode(modeBtn);
+        return;
+      }
       const btn = target.closest('button[data-storage-act]');
       if (btn) {
         stopUiEvent(ev);
@@ -100,6 +150,13 @@ export class StoragePanelView {
       if (!(target instanceof Element)) return;
       if (target.closest('[data-close-storage], button[data-storage-act], .storage-panel')) stopUiEvent(ev);
     }, { capture: true });
+  }
+
+  setTurretMode(btn) {
+    const structureId = btn?.dataset?.structure | 0;
+    const mode = btn?.dataset?.turretMode || 'auto';
+    if (!structureId) return;
+    this.sendCmd?.('turret_set_mode', { structureId, mode });
   }
 
   transferFromButton(btn) {
@@ -193,6 +250,7 @@ export class StoragePanelView {
         <button class="storage-panel__close" data-close-storage="1" type="button" aria-label="Fermer">×</button>
       </div>
       <div class="storage-panel__bar"><span style="width:${Math.round(fill * 100)}%"></span></div>
+      ${turretModeControls(storage)}
       <div class="storage-panel__cols">
         <div class="storage-panel__col" data-scroll-key="storage-left">
           <h3>${esc(leftTitle)}</h3>

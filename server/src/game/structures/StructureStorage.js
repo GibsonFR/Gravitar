@@ -1,4 +1,5 @@
 import { STRUCTURE_TYPES, getStructureDef } from './StructureDefs.js';
+import { normalizeTurretMode, getTurretModeLabel } from './StructureTurretModes.js';
 import { FUEL_RESOURCE_KEYS } from './StructureEnergy.js';
 import { findAliveCoreForStructure, isStructureOwner, distanceSqToStructureRect } from './StructureSystem.js';
 import { addResource, removeResource } from '../inventory/InventorySystem.js';
@@ -180,6 +181,7 @@ export function buildStorageSnapshot(state, player) {
   const base = {
     id: st.id | 0,
     name: st.name || 'Coffre',
+    structureType: st.type || '',
     kind,
     owned: isStructureOwner(player, st),
     unclaimed: !findAliveCoreForStructure(state, st),
@@ -187,6 +189,20 @@ export function buildStorageSnapshot(state, player) {
     used,
     fill01: capacity > 0 ? Math.max(0, Math.min(1, used / capacity)) : 0
   };
+  if (st.type === STRUCTURE_TYPES.DEFENSE_TURRET) {
+    const def = getStructureDef(st.type) || {};
+    base.turret = {
+      mode: normalizeTurretMode(st.turretMode),
+      modeLabel: getTurretModeLabel(st.turretMode),
+      status: st.turretStatus || 'idle',
+      enabled: st.turretEnabled !== false,
+      targetId: st.turretTargetId | 0,
+      range: Math.max(0, Number(def.turretRange || 0) || 0),
+      cooldownMs: Math.max(0, Number(def.turretCooldownMs || 0) || 0),
+      energyUse: Math.max(0, Number(def.energyUse || 0) || 0),
+      powered: !!st.powered
+    };
+  }
   if (kind === 'equipment') {
     return { ...base, cargoItems: buildCargoEquipment(player), items: buildStoredEquipment(st) };
   }

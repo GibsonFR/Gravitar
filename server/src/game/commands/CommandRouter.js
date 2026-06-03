@@ -26,6 +26,7 @@ import { handleAuthSessionAccount } from './AuthSessionCommand.js';
 import { handleBuildStructure } from './BuildStructureCommand.js';
 import { handleRemoveStructure } from './RemoveStructureCommand.js';
 import { handleMoveStructure } from './MoveStructureCommand.js';
+import { handleSetTurretMode } from './SetTurretModeCommand.js';
 import { handleRepairStructure } from './RepairStructureCommand.js';
 import { handleStorageTransfer } from './StorageTransferCommand.js';
 import { handleStorageOpen } from './StorageOpenCommand.js';
@@ -100,6 +101,7 @@ const HANDLERS = {
   build_structure: handleBuildStructure,
   remove_structure: handleRemoveStructure,
   move_structure: handleMoveStructure,
+  turret_set_mode: handleSetTurretMode,
   repair_structure: handleRepairStructure,
   storage_transfer: handleStorageTransfer,
   storage_open: handleStorageOpen,

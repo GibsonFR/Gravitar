@@ -2,6 +2,7 @@ import { FACTIONS } from '../constants.js';
 import { createStatBlock } from '../stats/StatBlockFactory.js';
 import { newEntityId } from '../state/GameState.js';
 import { getStructureDef } from './StructureDefs.js';
+import { normalizeTurretMode, isTurretModeEnabled } from './StructureTurretModes.js';
 
 
 function buildStructureStorage(def, saved = null) {
@@ -102,8 +103,8 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     logisticDroneSlots: Array.isArray(options.logisticDroneSlots) ? options.logisticDroneSlots.map((slot) => ({ ...slot })) : [],
     nextLogisticFlightSeq: Math.max(0, options.nextLogisticFlightSeq | 0 || 0),
     nextLogisticMissionAt: Number(options.nextLogisticMissionAt || 0) || 0,
-    turretEnabled: options.turretEnabled !== false,
-    turretMode: String(options.turretMode || 'auto'),
+    turretEnabled: isTurretModeEnabled(options.turretMode) && options.turretEnabled !== false,
+    turretMode: normalizeTurretMode(options.turretMode),
     turretCooldownUntil: Number(options.turretCooldownUntil || 0) || 0,
     turretTargetId: options.turretTargetId | 0 || 0,
     turretStatus: String(options.turretStatus || ''),
@@ -178,8 +179,8 @@ export function serializeStructure(structure) {
     logisticDroneSlots: Array.isArray(structure.logisticDroneSlots) ? structure.logisticDroneSlots.map((slot) => ({ ...slot })) : [],
     nextLogisticFlightSeq: Math.max(0, structure.nextLogisticFlightSeq | 0 || 0),
     nextLogisticMissionAt: Number(structure.nextLogisticMissionAt || 0) || 0,
-    turretEnabled: structure.turretEnabled !== false,
-    turretMode: structure.turretMode || 'auto',
+    turretEnabled: isTurretModeEnabled(structure.turretMode) && structure.turretEnabled !== false,
+    turretMode: normalizeTurretMode(structure.turretMode),
     logisticDroneCharge: Number.isFinite(Number(structure.logisticDroneCharge)) ? Math.max(0, Number(structure.logisticDroneCharge) | 0) : undefined,
     logisticDroneRechargeMs: Math.max(0, Number(structure.logisticDroneRechargeMs || 0) || 0),
     machineInput: structure.machineInput || {},
@@ -241,8 +242,8 @@ export function hydrateStructure(state, saved) {
     logisticDroneSlots: Array.isArray(s.logisticDroneSlots) ? s.logisticDroneSlots : [],
     nextLogisticFlightSeq: s.nextLogisticFlightSeq | 0 || 0,
     nextLogisticMissionAt: s.nextLogisticMissionAt || 0,
-    turretEnabled: s.turretEnabled !== false,
-    turretMode: s.turretMode || 'auto',
+    turretEnabled: isTurretModeEnabled(s.turretMode) && s.turretEnabled !== false,
+    turretMode: normalizeTurretMode(s.turretMode),
     logisticDroneCharge: s.logisticDroneCharge,
     logisticDroneRechargeMs: s.logisticDroneRechargeMs || 0,
     machineInput: s.machineInput || {},

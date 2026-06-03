@@ -6,6 +6,7 @@ import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
 import { ITEM_CATEGORY_IDS } from '../../../../shared/content/items/ItemCategoryIds.js';
 import { buildRocketAmmoStatusSpecs } from '../rocket/RocketAmmoRules.js';
 import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
+import { TURRET_MODES, normalizeTurretMode, isTurretModeEnabled } from './StructureTurretModes.js';
 import { queueWorldSfx } from '../audio/WorldSfxState.js';
 import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
 
@@ -58,22 +59,40 @@ function consumeTurretAmmo(turret, itemId) {
   return true;
 }
 
-function validTargetForTurret(turret, player, rangeSq) {
+function isTargetInsideOwnedClaim(state, turret, player) {
+  const owner = ownerKeyOf(turret);
+  if (!owner) return false;
+  for (const core of state?.structures?.values?.() || []) {
+    if (!core || !isStructureAlive(core)) continue;
+    if (core.type !== STRUCTURE_TYPES.BASE_CORE && core.type !== STRUCTURE_TYPES.OUTPOST_CORE) continue;
+    if (!sameWorld(core, player)) continue;
+    if ((core.sx | 0) !== (player.sx | 0) || (core.sy | 0) !== (player.sy | 0)) continue;
+    if (ownerKeyOf(core) !== owner) continue;
+    const claimRadius = Math.max(0, Number(core.claimRadius || 0) || 0);
+    if (claimRadius <= 0) continue;
+    if (distSq(core.x || 0, core.y || 0, player.x || 0, player.y || 0) <= claimRadius * claimRadius) return true;
+  }
+  return false;
+}
+
+function validTargetForTurret(state, turret, player, rangeSq, mode = TURRET_MODES.AUTO) {
   if (!player || (player.stats?.hp ?? 0) <= 0) return false;
   if (!sameWorld(turret, player)) return false;
   if ((player.sx | 0) !== (turret.sx | 0) || (player.sy | 0) !== (turret.sy | 0)) return false;
   if (isSafeNoPvpSector(player.sx | 0, player.sy | 0)) return false;
   const turretOwner = ownerKeyOf(turret);
   if (turretOwner && ownerKeyOf(player) === turretOwner) return false;
-  return distSq(turret.x || 0, turret.y || 0, player.x || 0, player.y || 0) <= rangeSq;
+  if (distSq(turret.x || 0, turret.y || 0, player.x || 0, player.y || 0) > rangeSq) return false;
+  if (mode === TURRET_MODES.INTRUSION && !isTargetInsideOwnedClaim(state, turret, player)) return false;
+  return true;
 }
 
-function findTurretTarget(state, turret, range) {
+function findTurretTarget(state, turret, range, mode = TURRET_MODES.AUTO) {
   let best = null;
   let bestD2 = Infinity;
   const rangeSq = range * range;
   for (const player of state.players?.values?.() || []) {
-    if (!validTargetForTurret(turret, player, rangeSq)) continue;
+    if (!validTargetForTurret(state, turret, player, rangeSq, mode)) continue;
     const d2 = distSq(turret.x || 0, turret.y || 0, player.x || 0, player.y || 0);
     if (d2 < bestD2) { best = player; bestD2 = d2; }
   }
@@ -134,7 +153,10 @@ export function updateDefenseTurrets(state, dt, timeMs = Date.now()) {
     if (!isTurret(turret)) continue;
     if (!isStructureAlive(turret)) continue;
     const def = getStructureDef(turret.type) || {};
-    if (turret.turretEnabled === false || turret.turretMode === 'off') {
+    const mode = normalizeTurretMode(turret.turretMode);
+    turret.turretMode = mode;
+    turret.turretEnabled = isTurretModeEnabled(mode);
+    if (!turret.turretEnabled) {
       if (setTurretStatus(turret, 'off', timeMs)) shouldSave = true;
       continue;
     }
@@ -148,7 +170,7 @@ export function updateDefenseTurrets(state, dt, timeMs = Date.now()) {
       continue;
     }
     const range = Math.max(160, Number(def.turretRange || DEFAULT_RANGE) || DEFAULT_RANGE);
-    const target = findTurretTarget(state, turret, range);
+    const target = findTurretTarget(state, turret, range, mode);
     if (!target) {
       turret.turretTargetId = 0;
       if (setTurretStatus(turret, 'idle', timeMs)) shouldSave = true;
