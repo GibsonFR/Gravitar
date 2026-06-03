@@ -65,6 +65,8 @@ export class NetDebugOverlay {
         <span>Snap size</span><b>${fmtBytes(s.avgSnapshotBytes)} avg</b>
         <span>Snap max</span><b>${fmtBytes(s.maxSnapshotBytes)}</b>
         <span>Correction</span><b>${Math.round(s.correctionDistanceAvg || 0)} / ${Math.round(s.correctionDistanceMax || 0)}</b>
+        <span>Soft rec</span><b>${Math.round(s.softReconciliationAvg || 0)} / ${Math.round(s.softReconciliationApplied || 0)}</b>
+        <span>Hard rec</span><b>${s.hardReconciliationCount | 0}</b>
         <span>Entities</span><b>${countLine(s.entityCounts)}</b>
         <span>Interp buf</span><b>E:${s.interpolation?.entities || 0} S:${s.interpolation?.samples || 0}</b>
         <span>Events/s</span><b>${fmtRate(s.eventsPerSec)}</b>

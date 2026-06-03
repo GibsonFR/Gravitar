@@ -65,6 +65,11 @@ export class NetStats {
     this.correctionCount = 0;
     this.correctionDistanceAvg = 0;
     this.correctionDistanceMax = 0;
+    this.softReconciliationCount = 0;
+    this.softReconciliationApplied = 0;
+    this.softReconciliationAvg = 0;
+    this.softReconciliationMax = 0;
+    this.hardReconciliationCount = 0;
     this.entityCounts = {};
     this.snapshotSections = {};
     this.wsBufferedAmount = 0;
@@ -203,6 +208,19 @@ export class NetStats {
     this.correctionDistanceMax = Math.max(this.correctionDistanceMax, d);
   }
 
+  recordSoftReconciliation(distance, applied = 0, mode = 'soft') {
+    const d = Math.max(0, finite(distance, 0));
+    const a = Math.max(0, finite(applied, 0));
+    if (mode === 'hard') {
+      this.hardReconciliationCount += 1;
+    } else if (d > 0.001 || a > 0.001) {
+      this.softReconciliationCount += 1;
+      this.softReconciliationAvg = ema(this.softReconciliationAvg, d, 0.10);
+      this.softReconciliationMax = Math.max(this.softReconciliationMax, d);
+      this.softReconciliationApplied = ema(this.softReconciliationApplied, a, 0.10);
+    }
+  }
+
   recordBackpressureDrop(count = 1) {
     this.droppedByBackpressure += Math.max(1, count | 0);
   }
@@ -260,6 +278,11 @@ export class NetStats {
       correctionCount: this.correctionCount,
       correctionDistanceAvg: this.correctionDistanceAvg,
       correctionDistanceMax: this.correctionDistanceMax,
+      softReconciliationCount: this.softReconciliationCount,
+      softReconciliationAvg: this.softReconciliationAvg,
+      softReconciliationMax: this.softReconciliationMax,
+      softReconciliationApplied: this.softReconciliationApplied,
+      hardReconciliationCount: this.hardReconciliationCount,
       entityCounts: { ...this.entityCounts },
       eventsPerSec: this.eventsPerSec,
       sfxPerSec: this.sfxPerSec,

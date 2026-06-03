@@ -47,6 +47,14 @@ export class WorldStore {
     this.netStats = null;
     this.networkClock = null;
     this.inputHistory = null;
+    this.softReconciliation = {
+      enabled: true,
+      smallThreshold: 10,
+      softThreshold: 95,
+      hardThreshold: 420,
+      minApply: 0.08,
+      maxApply: 0.34
+    };
     this.interpolationStore = new EntityInterpolationStore();
     this.lastSnapAt = 0;
     this.lastServerTime = 0;
@@ -305,6 +313,76 @@ export class WorldStore {
     }
   }
 
+  _isLocalPoseProtected(now = performance.now()) {
+    if (now < (this.localPrediction.localAbilityAuthorityUntil || 0)) return true;
+    if (now < (this.localPrediction.localPassiveAuthorityUntil || 0)) return false;
+    const me = this.getMe();
+    if (me && now < (me._keepLocalPoseUntil || 0)) return true;
+    if (now - (this.localPrediction.sectorTransitionAt || 0) < 900) return true;
+    return false;
+  }
+
+  _softReconcileLocalPose(previous, merged, serverX, serverY, now = performance.now()) {
+    if (!this.softReconciliation?.enabled) return merged;
+    if (!Number.isFinite(serverX) || !Number.isFinite(serverY)) return merged;
+    if (!Number.isFinite(previous?.x) || !Number.isFinite(previous?.y)) return merged;
+
+    const dx = serverX - previous.x;
+    const dy = serverY - previous.y;
+    const distance = Math.hypot(dx, dy);
+    merged._serverDelta = distance;
+    merged._serverAckInputSeq = this.inputHistory?.lastAckSeq || 0;
+    merged._pendingInputCount = this.inputHistory?.stats?.().pending || 0;
+    merged._reconciliationMode = 'none';
+
+    if (distance <= this.softReconciliation.smallThreshold) return merged;
+    if (this._isLocalPoseProtected(now)) {
+      merged._reconciliationMode = 'protected';
+      return merged;
+    }
+
+    if (distance >= this.softReconciliation.hardThreshold) {
+      // Gros écart : le serveur a probablement corrigé une collision, un contrôle forcé,
+      // un secteur ou un état impossible. On aligne plutôt que de traîner l'erreur.
+      merged.x = serverX;
+      merged.y = serverY;
+      if (Number.isFinite(merged._serverVx)) merged.vx = merged._serverVx;
+      if (Number.isFinite(merged._serverVy)) merged.vy = merged._serverVy;
+      merged._tx = serverX;
+      merged._ty = serverY;
+      merged._reconciliationMode = 'hard';
+      this.netStats?.recordSoftReconciliation?.(distance, distance, 'hard');
+      return merged;
+    }
+
+    if (distance <= this.softReconciliation.softThreshold) {
+      const pending = this.inputHistory?.stats?.().pending || 0;
+      const pendingFactor = Math.max(0, Math.min(1, pending / 12));
+      const t = Math.max(this.softReconciliation.minApply, Math.min(this.softReconciliation.maxApply, 0.12 + pendingFactor * 0.10 + distance / 900));
+      const ax = dx * t;
+      const ay = dy * t;
+      merged.x = previous.x + ax;
+      merged.y = previous.y + ay;
+      merged._tx = merged.x;
+      merged._ty = merged.y;
+      merged._reconciliationMode = 'soft';
+      this.netStats?.recordSoftReconciliation?.(distance, Math.hypot(ax, ay), 'soft');
+      return merged;
+    }
+
+    // Écart moyen : correction plus prudente, assez visible pour résorber sans snap.
+    const t = 0.18;
+    const ax = dx * t;
+    const ay = dy * t;
+    merged.x = previous.x + ax;
+    merged.y = previous.y + ay;
+    merged._tx = merged.x;
+    merged._ty = merged.y;
+    merged._reconciliationMode = 'medium';
+    this.netStats?.recordSoftReconciliation?.(distance, Math.hypot(ax, ay), 'soft');
+    return merged;
+  }
+
   _applyLocalVitalAuthority(previous, merged, now) {
     if (!previous || !merged || now >= (previous._localVitalsUntil || 0)) return merged;
     if (!previous.vitals || !merged.vitals) return merged;
@@ -414,9 +492,10 @@ export class WorldStore {
       if (Number.isFinite(next.x) && Number.isFinite(next.y) && this.netStats) {
         const serverDelta = Math.hypot(next.x - (previous.x || 0), next.y - (previous.y || 0));
         this.netStats.recordCorrection(serverDelta);
-        merged._serverDelta = serverDelta;
-        merged._serverAckInputSeq = this.inputHistory?.lastAckSeq || 0;
-        merged._pendingInputCount = this.inputHistory?.stats?.().pending || 0;
+        merged._serverX = next.x;
+        merged._serverY = next.y;
+        merged._serverVx = Number.isFinite(next.vx) ? next.vx : 0;
+        merged._serverVy = Number.isFinite(next.vy) ? next.vy : 0;
       }
       merged.x = previous.x;
       merged.y = previous.y;
@@ -424,6 +503,7 @@ export class WorldStore {
       merged.vy = previous.vy;
       if (Number.isFinite(previous.rot)) merged.rot = previous.rot;
       if (Number.isFinite(previous._localThrust)) merged._localThrust = previous._localThrust;
+      this._softReconcileLocalPose(previous, merged, next.x, next.y, performance.now());
       const now = performance.now();
       if (now - (this.localPrediction.moveAt || 0) < 1400) {
         merged.groundMarkerX = previous.groundMarkerX;
