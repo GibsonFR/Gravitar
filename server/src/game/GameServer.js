@@ -182,6 +182,16 @@ export function createGameServer() {
         if (staticWorld) lastStaticWorldByPlayer.set(id, timeMs);
         lastSectorKeyByPlayer.set(id, sectorKey);
         const snap = buildSnapshot(state, id, timeMs, { fullUi, staticWorld });
+        snap.ackInputSeq = p.lastInputSeq | 0;
+        snap.net = {
+          ...(snap.net || {}),
+          fullUi,
+          staticWorld,
+          combatPressure,
+          serverSnapBuiltAt: timeMs,
+          lastInputAt: p.lastInputAt || 0,
+          lastClientAbilitySeq: p.lastClientAbilitySeq | 0
+        };
         if (forceFullUi) {
           p.forceFullUiSnapshot = false;
           p.forceFullUiSnapshotReason = '';

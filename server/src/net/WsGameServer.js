@@ -7,6 +7,7 @@ export function createWsGameServer(httpServer, game) {
   let netStatsAt = Date.now();
   let netBytesOut = 0;
   let netSnapsOut = 0;
+  let netSnapshotsDroppedBackpressure = 0;
 
   function accountOut(bytes) {
     if (!Number.isFinite(bytes) || bytes <= 0) return;
@@ -57,7 +58,16 @@ export function createWsGameServer(httpServer, game) {
     // network cannot keep up, skip this snapshot; the next one will replace it.
     // 256 KB is enough for a few frames at 15 Hz; beyond that, sending more only
     // creates a delayed burst and visible lag spikes.
-    if ((ws.bufferedAmount || 0) > 256 * 1024) return false;
+    if ((ws.bufferedAmount || 0) > 256 * 1024) {
+      netSnapshotsDroppedBackpressure += 1;
+      return false;
+    }
+    snapshot.net = {
+      ...(snapshot.net || {}),
+      serverSentAt: Date.now(),
+      wsBufferedAmount: ws.bufferedAmount || 0,
+      droppedBackpressureTotal: netSnapshotsDroppedBackpressure
+    };
     const payload = JSON.stringify(snapshot);
     ws.send(payload);
     netSnapsOut += 1;
@@ -78,6 +88,18 @@ export function createWsGameServer(httpServer, game) {
       let msg;
       try { msg = JSON.parse(buf.toString('utf8')); } catch { return; }
       if (!msg) return;
+      if (msg.t === 'ping') {
+        if (ws.readyState === ws.OPEN) {
+          ws.send(JSON.stringify({
+            t: 'pong',
+            seq: msg.seq | 0,
+            clientSentAt: Number(msg.clientSentAt) || 0,
+            clientDate: Number(msg.clientDate) || 0,
+            serverTime: Date.now()
+          }));
+        }
+        return;
+      }
       if (msg.t === 'input') game.handleInput(id, msg);
       if (msg.t === 'cmd') {
         let ok = false;

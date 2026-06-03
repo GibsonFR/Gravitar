@@ -43,6 +43,7 @@ export class WorldStore {
     this.pendingCommands = new Map();
     this.pendingStationCommands = new Map();
     this.stationOptimistic = { version: 0, actions: new Map() };
+    this.netStats = null;
     this.lastSnapAt = 0;
     this.lastServerTime = 0;
     this.lastServerTimeAt = 0;
@@ -86,6 +87,10 @@ export class WorldStore {
     };
   }
 
+
+  setNetStats(netStats) {
+    this.netStats = netStats || null;
+  }
 
   _structureMoveKey(id) {
     return Number(id) | 0;
@@ -333,6 +338,9 @@ export class WorldStore {
       }
       // Pour le joueur local, les snapshots sont forcément en retard réseau.
       // On synchronise les PV/stats/etc., mais on ne rembobine plus x/y/vx/vy.
+      if (Number.isFinite(next.x) && Number.isFinite(next.y) && this.netStats) {
+        this.netStats.recordCorrection(Math.hypot(next.x - (previous.x || 0), next.y - (previous.y || 0)));
+      }
       merged.x = previous.x;
       merged.y = previous.y;
       merged.vx = previous.vx;

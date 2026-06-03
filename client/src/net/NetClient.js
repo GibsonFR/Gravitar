@@ -1,3 +1,5 @@
+import { NetStats } from './NetStats.js';
+
 export class NetClient {
   constructor(store, onStatus) {
     this.store = store;
@@ -6,6 +8,10 @@ export class NetClient {
     this.reconnectTimer = 0;
     this.sessionTokenKey = 'gravitar.sessionToken.v1';
     this.manualClose = false;
+    this.netStats = new NetStats();
+    this.pingTimer = 0;
+    this.pingSeq = 0;
+    this.store.setNetStats?.(this.netStats);
   }
 
   getSessionToken() {
@@ -18,6 +24,27 @@ export class NetClient {
       if (clean) localStorage.setItem(this.sessionTokenKey, clean);
       else localStorage.removeItem(this.sessionTokenKey);
     } catch {}
+  }
+
+  startPingLoop() {
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    const sendPing = () => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      const msg = { t: 'ping', seq: ++this.pingSeq, clientSentAt: performance.now(), clientDate: Date.now() };
+      this.netStats.recordPingSent(msg.seq);
+      this.send(msg);
+    };
+    sendPing();
+    this.pingTimer = setInterval(sendPing, 1500);
+  }
+
+  stopPingLoop() {
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingTimer = 0;
+  }
+
+  getNetStats() {
+    return this.netStats;
   }
 
   connect() {
@@ -33,21 +60,32 @@ export class NetClient {
 
     this.ws.onopen = () => {
       this.onStatus?.(token ? 'Reconnecté.' : 'Connecté.');
+      this.startPingLoop();
     };
 
     this.ws.onmessage = (ev) => {
+      const raw = typeof ev.data === 'string' ? ev.data : '';
+      if (raw) this.netStats.recordInboundBytes(raw.length);
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.t === 'hello') {
         if (msg.sessionToken) this.setSessionToken(msg.sessionToken);
         this.store.applyHello(msg.id, msg.sessionToken || '', !!msg.resumed);
       }
-      if (msg.t === 'snap') this.store.applySnapshot(msg);
+      if (msg.t === 'pong') this.netStats.recordPong(msg);
+      if (msg.t === 'snap') {
+        this.netStats.recordSnapshot(msg, raw.length);
+        this.store.applySnapshot(msg);
+      }
       if (msg.t === 'chat') this.store.applyChatMessage(msg);
-      if (msg.t === 'cmd_ack') this.store.applyCommandAck?.(msg);
+      if (msg.t === 'cmd_ack') {
+        this.netStats.recordCommandAck();
+        this.store.applyCommandAck?.(msg);
+      }
     };
 
     this.ws.onclose = () => {
+      this.stopPingLoop();
       if (this.manualClose) return;
       this.onStatus?.('Déconnecté. Reconnexion…');
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
@@ -57,7 +95,11 @@ export class NetClient {
 
   send(obj) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
-    this.ws.send(JSON.stringify(obj));
+    const payload = JSON.stringify(obj);
+    this.ws.send(payload);
+    this.netStats.recordOutboundBytes(payload.length);
+    if (obj?.t === 'input') this.netStats.recordInput(obj, payload.length, this.ws.bufferedAmount || 0);
+    else if (obj?.t === 'cmd') this.netStats.recordCommand(payload.length, this.ws.bufferedAmount || 0);
     return true;
   }
 }

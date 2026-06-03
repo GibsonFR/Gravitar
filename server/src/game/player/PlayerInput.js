@@ -268,6 +268,7 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
   if (!canAcceptInput(player, timeMs, msg.inputSeq | 0)) return false;
 
   player.lastInputAt = timeMs;
+  player.lastInputSeq = msg.inputSeq | 0;
 
   if (Number.isFinite(msg.vw)) player.viewportW = clamp(msg.vw, 200, 4096);
   if (Number.isFinite(msg.vh)) player.viewportH = clamp(msg.vh, 200, 4096);

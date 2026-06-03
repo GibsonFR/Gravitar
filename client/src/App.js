@@ -5,6 +5,7 @@ import { createInputState } from './input/InputState.js';
 import { InputController } from './input/InputController.js';
 import { isControlMatch } from './input/KeyBindings.js';
 import { AudioSystem } from './audio/AudioSystem.js';
+import { NetDebugOverlay } from './ui/debug/NetDebugOverlay.js';
 
 import { drawStars } from './render/BackgroundRenderer.js';
 import { drawGroundMarker } from './render/GroundMarkerRenderer.js';
@@ -209,6 +210,7 @@ export function startApp() {
   uiRoot.appendChild(travelOverlay);
 
   const net = new NetClient(store, (txt) => { statusEl.textContent = txt; });
+  const netDebugOverlay = new NetDebugOverlay(net.getNetStats());
   net.connect();
 
   const sendCmd = (cmd, payload = {}, meta = {}) => {
@@ -225,6 +227,15 @@ export function startApp() {
     return cmdId;
   };
   playersPanel.bindChat((text) => net.send({ t: 'chat', text }));
+
+  window.addEventListener('keydown', (ev) => {
+    const tag = String(ev.target?.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || ev.target?.isContentEditable) return;
+    if (ev.key === 'F9') {
+      netDebugOverlay.toggle();
+      ev.preventDefault();
+    }
+  });
 
   const cargoPanel = new CargoPanelView(sendCmd);
   dock.registerPanel({ id: 'cargo', title: 'Cargo', iconMarkup: getCargoIconSvg(), panelEl: cargoPanel.el, group: 'game' });
@@ -846,6 +857,7 @@ export function startApp() {
     const me = store.getMe();
     syncOptionsUserKey();
     audio.update(me, input);
+    netDebugOverlay.render();
     const dt = Math.min(0.05, Math.max(0, t - lastFrameTime));
     lastFrameTime = t;
     store.interpolate(dt);
