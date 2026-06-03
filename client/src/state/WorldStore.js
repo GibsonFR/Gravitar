@@ -45,6 +45,17 @@ export class WorldStore {
     this.abilityProtocolEvents = [];
     this.statusEvents = [];
     this.passiveEvents = [];
+    this.eventDrivenHudStats = {
+      abilityUpdates: 0,
+      abilityRejects: 0,
+      damageUpdates: 0,
+      statusUpdates: 0,
+      passiveUpdates: 0,
+      lastAbilityReject: null,
+      lastDamageAt: 0,
+      lastStatusAt: 0,
+      lastPassiveAt: 0
+    };
     this.eventDeduper = new NetworkEventDeduper();
     this.chatMessages = [];
     this.chatUnread = 0;
@@ -111,6 +122,7 @@ export class WorldStore {
     this.netStats = netStats || null;
     this.netStats?.setInterpolationStore?.(this.interpolationStore);
     this.netStats?.setEventDeduper?.(this.eventDeduper);
+    this.netStats?.setEventDrivenHudSource?.(this);
   }
 
   setNetworkClock(clock) {
@@ -123,6 +135,153 @@ export class WorldStore {
 
   getInputReconciliationStats() {
     return this.inputHistory?.stats?.() || null;
+  }
+
+  getEventDrivenHudStats() {
+    return { ...(this.eventDrivenHudStats || {}) };
+  }
+
+  getEntityByEventTarget(kind, id) {
+    const targetId = id | 0;
+    if (!targetId) return null;
+    const k = String(kind || '').toLowerCase();
+    if (targetId === (this.myId | 0) || k === 'self') return this.getMe() || this.players.get(targetId) || null;
+    if (k === 'player') return this.players.get(targetId) || null;
+    if (k === 'mob') return this.mobs.get(targetId) || null;
+    if (k === 'structure') return this.structures.get(targetId) || null;
+    return this.players.get(targetId) || this.mobs.get(targetId) || this.structures.get(targetId) || null;
+  }
+
+  setAbilityCooldownFromEvent(slot, cooldownSec = 0, payload = {}) {
+    const s = String(slot || '').toUpperCase();
+    if (!['A', 'Z', 'E', 'R'].includes(s)) return;
+    const cd = Math.max(0, Number(cooldownSec) || 0);
+    if (!this.myState) return;
+    if (!this.myState.cooldowns) this.myState.cooldowns = {};
+    this.myState.cooldowns[s] = cd;
+    if (this.myState.abilityHud?.[s]) {
+      this.myState.abilityHud[s] = {
+        ...this.myState.abilityHud[s],
+        cooldownLeft: cd
+      };
+    }
+    if (Number.isFinite(Number(payload.energyLeft))) {
+      if (this.myState.stats) this.myState.stats.energy = Math.max(0, Number(payload.energyLeft));
+      if (this.myState.vitals) this.myState.vitals.energy = Math.max(0, Number(payload.energyLeft));
+      const me = this.getMe();
+      if (me?.vitals) me.vitals.energy = Math.max(0, Number(payload.energyLeft));
+    }
+    this.eventDrivenHudStats.abilityUpdates += 1;
+  }
+
+  applyStatusAppliedEvent(ev) {
+    const payload = ev?.payload || {};
+    const target = this.getEntityByEventTarget(payload.targetKind, payload.targetId);
+    if (!target) return;
+    const effectId = String(payload.effectId || payload.key || '').trim();
+    if (!effectId) return;
+    const now = performance.now();
+    const duration = Math.max(0, Number(payload.duration || 0));
+    const status = {
+      id: effectId,
+      effectId,
+      key: payload.key || effectId,
+      label: payload.label || effectId,
+      duration,
+      durationLeft: duration,
+      value: Number(payload.value || 0),
+      stacks: Math.max(1, Number(payload.stacks || 1)),
+      hostile: !!payload.hostile,
+      refreshed: !!payload.refreshed,
+      _eventDriven: true,
+      _eventAt: now
+    };
+    const list = Array.isArray(target.statuses) ? [...target.statuses] : [];
+    const idx = list.findIndex((st) => String(st?.effectId || st?.id || st?.key || '') === effectId || String(st?.key || '') === status.key);
+    if (idx >= 0) list[idx] = { ...list[idx], ...status };
+    else list.push(status);
+    target.statuses = list;
+
+    if ((payload.targetId | 0) === (this.myId | 0) && this.myState) {
+      this.myState.statuses = list;
+    }
+    this.eventDrivenHudStats.statusUpdates += 1;
+    this.eventDrivenHudStats.lastStatusAt = now;
+  }
+
+  applyPassiveChangedEvent(ev) {
+    const payload = ev?.payload || {};
+    const playerId = payload.playerId | 0;
+    const target = (playerId && playerId !== (this.myId | 0)) ? this.players.get(playerId) : (this.getMe() || this.players.get(this.myId));
+    if (!target) return;
+    const now = performance.now();
+    const fs = { ...(target.frameState || this.myState?.frameState || {}) };
+    const passiveId = String(payload.passiveId || '').toLowerCase();
+
+    if (passiveId === 'vanguard.heat') {
+      fs.kind = fs.kind || 'vanguard';
+      if (Number.isFinite(Number(payload.stacks))) fs.passiveStacks = Number(payload.stacks);
+      if (Number.isFinite(Number(payload.maxStacks))) fs.passiveMaxStacks = Number(payload.maxStacks);
+      fs.passiveDecaying = false;
+      fs._eventDrivenReason = payload.reason || 'passive.changed';
+      fs._eventDrivenAt = now;
+    } else if (passiveId === 'bulwark.plates') {
+      fs.kind = fs.kind || 'bulwark';
+      const plates = Number(payload.plates);
+      if (Number.isFinite(plates)) {
+        fs.passiveStacks = plates;
+        fs.plateCount = plates;
+        fs.plates = plates;
+      }
+      if (Number.isFinite(Number(payload.maxPlates))) fs.passiveMaxStacks = Number(payload.maxPlates);
+      fs._eventDrivenReason = payload.reason || 'passive.changed';
+      fs._eventDrivenAt = now;
+    } else {
+      fs._eventDrivenReason = payload.reason || passiveId || 'passive.changed';
+      fs._eventDrivenAt = now;
+      for (const [key, value] of Object.entries(payload)) {
+        if (['playerId', 'frameId', 'passiveId'].includes(key)) continue;
+        if (Number.isFinite(Number(value)) || typeof value === 'boolean' || typeof value === 'string') fs[key] = value;
+      }
+    }
+
+    target.frameState = fs;
+    if ((playerId | 0) === (this.myId | 0) || !playerId) {
+      this.myState = { ...(this.myState || {}), frameState: fs };
+      this.localPrediction.localFrameState = { ...(this.localPrediction.localFrameState || {}), ...fs };
+      this.localPrediction.localPassiveAuthorityUntil = Math.max(this.localPrediction.localPassiveAuthorityUntil || 0, now + 650);
+    }
+    this.eventDrivenHudStats.passiveUpdates += 1;
+    this.eventDrivenHudStats.lastPassiveAt = now;
+  }
+
+  applyDamageAppliedEvent(ev) {
+    const payload = ev?.payload || {};
+    const target = this.getEntityByEventTarget(payload.targetKind, payload.targetId);
+    if (!target?.vitals) return;
+    const amount = Math.max(0, Number(payload.amount || 0));
+    if (amount <= 0) return;
+    const now = performance.now();
+    const vitals = { ...target.vitals };
+    const shield = Math.max(0, Number(vitals.shield || 0));
+    const hp = Math.max(0, Number(vitals.hp ?? vitals.health ?? 0));
+    if (payload.shielded && shield > 0) {
+      vitals.shield = Math.max(0, shield - amount);
+    } else if (shield > 0) {
+      const left = Math.max(0, amount - shield);
+      vitals.shield = Math.max(0, shield - amount);
+      vitals.hp = Math.max(0, hp - left);
+    } else {
+      vitals.hp = Math.max(0, hp - amount);
+    }
+    vitals._eventDrivenDamageAt = now;
+    target.vitals = vitals;
+
+    if ((payload.targetId | 0) === (this.myId | 0) && this.myState?.vitals) {
+      this.myState.vitals = { ...this.myState.vitals, ...vitals };
+    }
+    this.eventDrivenHudStats.damageUpdates += 1;
+    this.eventDrivenHudStats.lastDamageAt = now;
   }
 
   syncLocalAbilityCooldownAuthority(myState = this.myState) {
@@ -195,10 +354,14 @@ export class WorldStore {
         if (String(ev.type || '').startsWith('ability.')) {
           this.abilityProtocolEvents.push(ev);
           this.applyAbilityProtocolEvent(ev);
+        } else if (ev.type === 'damage.applied') {
+          this.applyDamageAppliedEvent(ev);
         } else if (ev.type === 'status.applied') {
           this.statusEvents.push(ev);
+          this.applyStatusAppliedEvent(ev);
         } else if (ev.type === 'passive.changed') {
           this.passiveEvents.push(ev);
+          this.applyPassiveChangedEvent(ev);
         }
       }
     }
@@ -216,6 +379,7 @@ export class WorldStore {
 
     if (ev.type === 'ability.rejected') {
       const cooldownMs = Math.max(0, Number(payload.cooldownLeft || 0) * 1000);
+      this.setAbilityCooldownFromEvent(slot, cooldownMs / 1000, payload);
       if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = cooldownMs > 30 ? now + cooldownMs : 0;
       if (this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt[slot] = 0;
       if (this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks[slot] = cooldownMs > 30 ? now + Math.min(500, cooldownMs) : 0;
@@ -228,11 +392,19 @@ export class WorldStore {
         cooldownMs,
         at: now
       };
+      this.eventDrivenHudStats.abilityRejects += 1;
+      this.eventDrivenHudStats.lastAbilityReject = this.localPrediction.lastAbilityReject;
+      if (this.myState) {
+        this.myState.lastAbilityReject = this.localPrediction.lastAbilityReject;
+        this.myState._lastAbilityRejectLeft = 1.15;
+        if (payload.reason && payload.reason !== 'cooldown' && payload.reason !== 'cooldown_after_local_pose') this.myState.hint = `${slot}: ${payload.reason}`;
+      }
       return;
     }
 
     if (ev.type === 'ability.accepted' || ev.type === 'ability.cooldown') {
       const cooldownMs = Math.max(0, Number(payload.cooldownLeft || 0) * 1000);
+      this.setAbilityCooldownFromEvent(slot, cooldownMs / 1000, payload);
       if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = cooldownMs > 30 ? now + cooldownMs : 0;
       if (cooldownMs <= 30 && this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt[slot] = 0;
       this.localPrediction.lastAbilityAccept = {
@@ -1245,6 +1417,10 @@ export class WorldStore {
     if (Number.isFinite(this.myState._optimisticHintLeft)) {
       this.myState._optimisticHintLeft = Math.max(0, this.myState._optimisticHintLeft - dt);
       if (this.myState._optimisticHintLeft <= 0 && this.myState.hint) this.myState.hint = '';
+    }
+    if (Number.isFinite(this.myState._lastAbilityRejectLeft)) {
+      this.myState._lastAbilityRejectLeft = Math.max(0, this.myState._lastAbilityRejectLeft - dt);
+      if (this.myState._lastAbilityRejectLeft <= 0 && this.myState.lastAbilityReject) this.myState.lastAbilityReject = null;
     }
     const fs = this.myState.frameState;
     if (fs && Number.isFinite(fs.passiveDecayLeft)) {

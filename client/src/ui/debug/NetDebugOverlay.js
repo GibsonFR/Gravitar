@@ -71,6 +71,8 @@ export class NetDebugOverlay {
         <span>Interp buf</span><b>E:${s.interpolation?.entities || 0} S:${s.interpolation?.samples || 0}</b>
         <span>Events/s</span><b>${fmtRate(s.eventsPerSec)}</b>
         <span>Event dedup</span><b>${s.eventDeduper?.accepted || 0}/${s.eventDeduper?.duplicates || 0}</b>
+        <span>Event HUD</span><b>A:${s.eventDrivenHud?.abilityUpdates || 0} D:${s.eventDrivenHud?.damageUpdates || 0} S:${s.eventDrivenHud?.statusUpdates || 0} P:${s.eventDrivenHud?.passiveUpdates || 0}</b>
+        <span>Last reject</span><b>${s.eventDrivenHud?.lastAbilityReject ? `${s.eventDrivenHud.lastAbilityReject.slot}:${s.eventDrivenHud.lastAbilityReject.reason}` : '—'}</b>
         <span>SFX/s</span><b>${fmtRate(s.sfxPerSec)}</b>
         <span>WS buffer</span><b>${fmtBytes(s.wsBufferedAmount)}</b>
         <span>Drops</span><b>${s.droppedByBackpressure | 0}</b>

@@ -79,6 +79,7 @@ export class NetStats {
     this.interpolation = null;
     this.inputHistory = null;
     this.eventDeduper = null;
+    this.eventDrivenHudSource = null;
   }
 
   setClock(clock) {
@@ -95,6 +96,10 @@ export class NetStats {
 
   setEventDeduper(deduper) {
     this.eventDeduper = deduper || null;
+  }
+
+  setEventDrivenHudSource(source) {
+    this.eventDrivenHudSource = source || null;
   }
 
   setEnabled(value) {
@@ -299,7 +304,8 @@ export class NetStats {
       clock: this.clock?.snapshot?.() || null,
       interpolation: this.interpolation?.stats?.() || null,
       inputHistory: this.inputHistory?.stats?.() || null,
-      eventDeduper: this.eventDeduper?.stats?.() || null
+      eventDeduper: this.eventDeduper?.stats?.() || null,
+      eventDrivenHud: this.eventDrivenHudSource?.getEventDrivenHudStats?.() || null
     };
   }
 }
