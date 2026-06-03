@@ -183,11 +183,22 @@ function setLocalAbilityReadyAt(store, slot, readyAt) {
 
 function canCastAbilityLocalFirst(store, me, myState, slot) {
   const now = performance.now();
-  const lastLocalCastAt = store?.localPrediction?.localAbilityLastCastAt?.[slot] || 0;
-  const localReadyAt = getLocalAbilityReadyAt(store, slot);
-  if (lastLocalCastAt > 0) return now + 15 >= localReadyAt;
   const hud = myState?.abilityHud?.[slot];
   const serverCd = finite(myState?.cooldowns?.[slot], finite(hud?.cooldownLeft, 0));
+  const lastLocalCastAt = store?.localPrediction?.localAbilityLastCastAt?.[slot] || 0;
+  const localReadyAt = getLocalAbilityReadyAt(store, slot);
+
+  // Le serveur est l'autorité pour sortir d'un cooldown.
+  // Si le HUD/snapshot serveur annonce 0 depuis plus d'un court délai de grâce,
+  // on ne laisse pas un vieux localReadyAt invisible bloquer le cast.
+  if (serverCd <= 0.03 && (!lastLocalCastAt || now - lastLocalCastAt > 420)) {
+    if (store?.localPrediction?.localAbilityReadyAt) store.localPrediction.localAbilityReadyAt[slot] = 0;
+    if (store?.localPrediction?.localAbilityLastCastAt) store.localPrediction.localAbilityLastCastAt[slot] = 0;
+    if (store?.localPrediction?.localCooldownLocks) store.localPrediction.localCooldownLocks[slot] = 0;
+    return true;
+  }
+
+  if (lastLocalCastAt > 0) return now + 15 >= localReadyAt;
   return serverCd <= 0.03;
 }
 

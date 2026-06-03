@@ -125,6 +125,25 @@ export class WorldStore {
     return this.inputHistory?.stats?.() || null;
   }
 
+  syncLocalAbilityCooldownAuthority(myState = this.myState) {
+    if (!myState?.cooldowns || !this.localPrediction) return;
+    const now = performance.now();
+    for (const slot of ['A', 'Z', 'E', 'R']) {
+      const serverCd = Number(myState.cooldowns?.[slot]);
+      const hudCd = Number(myState.abilityHud?.[slot]?.cooldownLeft);
+      const authoritativeCd = Number.isFinite(serverCd) ? serverCd : hudCd;
+      if (!Number.isFinite(authoritativeCd)) continue;
+      const lastCast = this.localPrediction.localAbilityLastCastAt?.[slot] || 0;
+      const recentLocalCast = lastCast > 0 && now - lastCast < 420;
+      if (authoritativeCd <= 0.03 && !recentLocalCast) {
+        if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = 0;
+        if (this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt[slot] = 0;
+        if (this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks[slot] = 0;
+        if (this.localPrediction.lastAbilityReject?.slot === slot) this.localPrediction.lastAbilityReject = null;
+      }
+    }
+  }
+
   applyNetworkEvents(events = []) {
     const accepted = this.eventDeduper.filter(events);
     if (!accepted.length) return;
@@ -196,14 +215,17 @@ export class WorldStore {
     const now = performance.now();
 
     if (ev.type === 'ability.rejected') {
-      if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = now + Math.max(0, Number(payload.cooldownLeft || 0) * 1000);
+      const cooldownMs = Math.max(0, Number(payload.cooldownLeft || 0) * 1000);
+      if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = cooldownMs > 30 ? now + cooldownMs : 0;
       if (this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt[slot] = 0;
+      if (this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks[slot] = cooldownMs > 30 ? now + Math.min(500, cooldownMs) : 0;
       this.localPrediction.localAbilityAuthorityUntil = Math.min(this.localPrediction.localAbilityAuthorityUntil || 0, now + 120);
       this.localPrediction.abilityMovementLockUntil = Math.min(this.localPrediction.abilityMovementLockUntil || 0, now + 120);
       this.localPrediction.lastAbilityReject = {
         slot,
         seq: payload.seq | 0,
         reason: payload.reason || 'server_rejected',
+        cooldownMs,
         at: now
       };
       return;
@@ -211,7 +233,8 @@ export class WorldStore {
 
     if (ev.type === 'ability.accepted' || ev.type === 'ability.cooldown') {
       const cooldownMs = Math.max(0, Number(payload.cooldownLeft || 0) * 1000);
-      if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = now + cooldownMs;
+      if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = cooldownMs > 30 ? now + cooldownMs : 0;
+      if (cooldownMs <= 30 && this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt[slot] = 0;
       this.localPrediction.lastAbilityAccept = {
         slot,
         seq: payload.seq | 0,
@@ -918,7 +941,14 @@ export class WorldStore {
       const cooldowns = { ...(next.cooldowns || {}) };
       for (const slot of ['A', 'Z', 'E', 'R']) {
         const localReady = this.localPrediction.localAbilityReadyAt?.[slot] || 0;
-        if ((now < (this.localPrediction.localCooldownLocks?.[slot] || 0) || now < localReady + 220) && Number.isFinite(this.myState.cooldowns?.[slot])) {
+        const serverCd = Number(next.cooldowns?.[slot] ?? cooldowns[slot] ?? 0);
+        const lastCast = this.localPrediction.localAbilityLastCastAt?.[slot] || 0;
+        const recentLocalCast = lastCast > 0 && now - lastCast < 420;
+        if (
+          (serverCd > 0.03 || recentLocalCast) &&
+          (now < (this.localPrediction.localCooldownLocks?.[slot] || 0) || now < localReady + 220) &&
+          Number.isFinite(this.myState.cooldowns?.[slot])
+        ) {
           cooldowns[slot] = this.myState.cooldowns[slot];
         }
       }
@@ -943,7 +973,10 @@ export class WorldStore {
     const now = performance.now();
     const cooldowns = { ...(this.myState.cooldowns || {}), ...(next.cooldowns || {}) };
     for (const slot of ['A', 'Z', 'E', 'R']) {
-      if (now < (this.localPrediction.localCooldownLocks?.[slot] || 0) && Number.isFinite(this.myState.cooldowns?.[slot])) {
+      const serverCd = Number(next.cooldowns?.[slot] ?? cooldowns[slot] ?? 0);
+      const lastCast = this.localPrediction.localAbilityLastCastAt?.[slot] || 0;
+      const recentLocalCast = lastCast > 0 && now - lastCast < 420;
+      if ((serverCd > 0.03 || recentLocalCast) && now < (this.localPrediction.localCooldownLocks?.[slot] || 0) && Number.isFinite(this.myState.cooldowns?.[slot])) {
         cooldowns[slot] = this.myState.cooldowns[slot];
       }
     }
@@ -1021,6 +1054,7 @@ export class WorldStore {
     this.modes = msg.modes ?? this.modes;
     this.playerDirectory = msg.playerDirectory ?? [];
     this.myState = this._mergeMyState(msg.me ?? null);
+    this.syncLocalAbilityCooldownAuthority(this.myState);
     if (hasAuthoritativeControlStatus(this.myState)) {
       this.localPrediction.hasMoveTarget = false;
       this.localPrediction.hold = false;

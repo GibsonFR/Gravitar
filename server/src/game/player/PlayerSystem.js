@@ -17,6 +17,7 @@ import { blocksAbilities, blocksAttacks, blocksVoluntaryMove, consumeMotionOverr
 import { getStatusEntry } from '../status/StatusRack.js';
 import { getFrameAutoAttackProfile, getFrameMoveMultiplier, tickFrameGameplay } from '../frames/FrameGameplayHooks.js';
 import { tickPlayerProgression } from '../progression/ProgressionSystem.js';
+import { getAbilityInvestedLevel } from '../progression/AbilityInvestment.js';
 import { STATUS_EFFECT_IDS } from '../../../../shared/content/status/StatusEffectIds.js';
 import { getEquippedEquipmentDefs } from '../equipment/EquipmentBonuses.js';
 import { ITEM_CATEGORY_IDS } from '../../../../shared/content/items/ItemCategoryIds.js';
@@ -328,6 +329,13 @@ function updateForcedTauntTarget(state, p, timeMs = 0) {
   if (!sameTarget || !Number.isFinite(p.nextShotAt)) p.nextShotAt = Math.min(p.nextShotAt || timeMs, timeMs + 35);
 }
 
+function getAbilityRejectReason(player, slot) {
+  if (getAbilityInvestedLevel(player, slot) <= 0) return 'not_unlocked';
+  const cooldownLeft = Math.max(0, Number(player?.[`cooldown${slot}Left`] || 0));
+  if (cooldownLeft > 0.03) return 'cooldown';
+  return 'server_refused';
+}
+
 function updateAbilityCasting(state, player, dt, timeMs) {
   tickAbilityCooldowns(player, dt);
   const slots = ['A', 'Z', 'E', 'R'];
@@ -420,7 +428,7 @@ function updateAbilityCasting(state, player, dt, timeMs) {
     } else {
       queueAbilityProtocolEvent(player, 'rejected', slot, {
         seq: req.seq | 0,
-        reason: req.clientPoseApplied ? 'server_refused_after_local_pose' : 'server_refused',
+        reason: req.clientPoseApplied ? `${getAbilityRejectReason(player, slot)}_after_local_pose` : getAbilityRejectReason(player, slot),
         cooldownLeft: player[`cooldown${slot}Left`] || 0,
         energyLeft: player.stats?.energy,
         clientPoseApplied: !!req.clientPoseApplied,
