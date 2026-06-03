@@ -139,7 +139,7 @@ function grantTestEquipmentPortalLoadout(state, player, timeMs) {
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
   player.research = player.research || { completed: [], unlocked: [] };
-  const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'equipment_rd_station', 'equipment_mark_ii', 'equipment_mark_iii', 'equipment_mark_iv', 'equipment_mark_v', 'alien_anomaly_analysis']);
+  const completed = new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'automation_sorting', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'bio_processing', 'defense_turrets', 'advanced_research', 'equipment_rd_station', 'equipment_mark_ii', 'equipment_mark_iii', 'equipment_mark_iv', 'equipment_mark_v', 'alien_anomaly_analysis']);
   player.research.completed = [...completed];
   ensureTestEquipmentBench(state, player, timeMs);
   equipTestPortalCraftedLoadout(player, timeMs);
@@ -211,7 +211,7 @@ function grantLogisticDronesTestPack(state, player, timeMs) {
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
   player.research = player.research || { completed: [], unlocked: [] };
-  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'logistics_basic', 'logistics_fast', 'logistics_advanced'])];
+  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'automation_sorting', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'logistics_basic', 'logistics_fast', 'logistics_advanced'])];
   ensureTestLogisticDronesBench(state, player, timeMs);
 }
 

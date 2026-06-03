@@ -16,7 +16,8 @@ const PACK_LABELS = {
 const NODE_POS = {
   construction_foundations: [70, 170],
   industry_smelting_control: [70, 330],
-  automation_routing: [345, 95],
+  automation_routing: [320, 80],
+  automation_sorting: [560, 80],
   energy_distribution: [345, 245],
   advanced_industry: [345, 405],
   resource_scanning: [630, 60],
