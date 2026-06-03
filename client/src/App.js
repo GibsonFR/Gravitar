@@ -87,6 +87,23 @@ function drawBlindViewportMask(ctx, view, me, t) {
 }
 
 
+
+function drawSectorBoundary(ctx, view, camX, camY, world) {
+  if (!world) return;
+  const halfW = Number(world.halfW ?? 2000);
+  const halfH = Number(world.halfH ?? 2000);
+  const tlx = (-halfW - camX + view.cssW * 0.5) * view.dpr;
+  const tly = (-halfH - camY + view.cssH * 0.5) * view.dpr;
+  const brx = (halfW - camX + view.cssW * 0.5) * view.dpr;
+  const bry = (halfH - camY + view.cssH * 0.5) * view.dpr;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(86, 148, 200, 0.34)';
+  ctx.lineWidth = 2 * view.dpr;
+  ctx.setLineDash([10 * view.dpr, 8 * view.dpr]);
+  ctx.strokeRect(tlx, tly, brx - tlx, bry - tly);
+  ctx.restore();
+}
+
 function createChatUi(root, store, sendChat) {
   const wrap = document.createElement('div');
   wrap.className = 'game-chat';
@@ -828,6 +845,7 @@ export function startApp() {
     ctx.fillRect(0, 0, view.w, view.h);
 
     drawStars(ctx, view, camX, camY, graphicsOptions.starDensity, store.myState?.sectorBiome || null, performance.now() * 0.001);
+    drawSectorBoundary(ctx, view, camX, camY, store.world);
     if (me) drawGroundMarker(ctx, view, me, camX, camY, t);
 
     for (const s of store.stations.values()) drawStation(ctx, view, s, camX, camY, t);

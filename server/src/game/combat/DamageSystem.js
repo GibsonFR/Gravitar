@@ -360,6 +360,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     target.dockedStationId = 0;
     target.dockedTimer = 0;
     target.lastHitAt = timeMs;
+    target.lastDamageReceivedAt = timeMs;
 
     if (!options.ignoreBreakOnHit) breakStatusesOnExternalHit(target, timeMs);
     const tempShield = absorbFrameTempShields(target, finalAmount);

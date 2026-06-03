@@ -66,6 +66,7 @@ export function spawnMob(state, sx, sy, mobId, x, y, options = {}) {
     dropResource: def.dropResource,
     dropMin: scaled.dropMin,
     dropMax: scaled.dropMax,
+    dropTable: Array.isArray(def.dropTable) ? def.dropTable.map((row) => ({ ...row })) : null,
     homeX: x,
     homeY: y,
     targetPlayerId: 0,

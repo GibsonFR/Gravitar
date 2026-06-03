@@ -10222,3 +10222,14 @@ button.station-item-icon[draggable="true"]:active,
 .build-pin-hud__missing {
   margin-top: 3px;
 }
+
+/* Build tracker drag fix. */
+.build-pin-hud__head[data-build-pin-drag="1"] {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.build-pin-hud.is-dragging {
+  transition: none !important;
+  opacity: .98;
+}

@@ -1241,8 +1241,10 @@ export class BasePanelView {
       ev.preventDefault();
       ev.stopPropagation();
     }, { capture: true });
-    window.addEventListener('pointermove', (ev) => this.handlePinHudPointerMove(ev));
-    window.addEventListener('pointerup', () => this.finishPinHudDrag());
+    window.addEventListener('pointermove', (ev) => this.handlePinHudPointerMove(ev), { capture: true });
+    document.addEventListener('pointermove', (ev) => this.handlePinHudPointerMove(ev), { capture: true });
+    window.addEventListener('pointerup', () => this.finishPinHudDrag(), { capture: true });
+    document.addEventListener('pointerup', () => this.finishPinHudDrag(), { capture: true });
     window.addEventListener('resize', () => this.clampPinHudIntoView());
     this.refresh();
     this.renderPinHud();
@@ -1329,7 +1331,9 @@ export class BasePanelView {
     this.pinHudDrag = {
       pointerId: ev.pointerId,
       dx: ev.clientX - rect.left,
-      dy: ev.clientY - rect.top
+      dy: ev.clientY - rect.top,
+      lastX: ev.clientX,
+      lastY: ev.clientY
     };
     this.pinHud.classList.add('is-dragging');
     try { this.pinHud.setPointerCapture?.(ev.pointerId); } catch {}
@@ -1337,9 +1341,16 @@ export class BasePanelView {
 
   handlePinHudPointerMove(ev) {
     if (!this.pinHudDrag || !this.pinHud) return;
+    if (this.pinHudDrag.pointerId != null && ev.pointerId != null && ev.pointerId !== this.pinHudDrag.pointerId) return;
     ev.preventDefault();
+    ev.stopPropagation();
+    this.pinHudDrag.lastX = ev.clientX;
+    this.pinHudDrag.lastY = ev.clientY;
     const next = clampBuildPinHudPos({ x: ev.clientX - this.pinHudDrag.dx, y: ev.clientY - this.pinHudDrag.dy }, this.pinHud);
-    this.applyPinHudPosition(next);
+    this.pinHud.style.left = `${next.x}px`;
+    this.pinHud.style.top = `${next.y}px`;
+    this.pinHud.style.right = 'auto';
+    this.pinHud.style.bottom = 'auto';
   }
 
   finishPinHudDrag() {

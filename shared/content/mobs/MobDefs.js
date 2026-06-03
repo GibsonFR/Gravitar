@@ -47,6 +47,11 @@ export const MOB_DEFS = {
     dropResource: 'scrap',
     dropMin: 1,
     dropMax: 2,
+    dropTable: [
+      { resource: 'scrap', min: 1, max: 2, chance: 1.00 },
+      { resource: 'ironOre', min: 1, max: 1, chance: 0.18 },
+      { resource: 'unknownTechFragment', min: 1, max: 1, chance: 0.025 }
+    ],
     sectorMinLevel: 1,
     spawnWeight: 8,
     behaviorId: MOB_BEHAVIOR_IDS.RUSHER,
@@ -82,9 +87,15 @@ export const MOB_DEFS = {
     projectileSpeed: 285,
     projectileRange: 460,
     projectileSplashRadius: 74,
-    dropResource: 'ore',
+    dropResource: 'ironOre',
     dropMin: 1,
     dropMax: 2,
+    dropTable: [
+      { resource: 'organicLipids', min: 1, max: 2, chance: 1.00 },
+      { resource: 'methaneIce', min: 1, max: 1, chance: 0.34 },
+      { resource: 'ammoniaIce', min: 1, max: 1, chance: 0.22 },
+      { resource: 'enzymes', min: 1, max: 1, chance: 0.075 }
+    ],
     sectorMinLevel: 2,
     spawnWeight: 5,
     behaviorId: MOB_BEHAVIOR_IDS.BOMBER,
@@ -120,9 +131,14 @@ export const MOB_DEFS = {
     projectileSpeed: 420,
     projectileRange: 520,
     projectileSplashRadius: 0,
-    dropResource: 'crystal',
+    dropResource: 'quartz',
     dropMin: 1,
     dropMax: 2,
+    dropTable: [
+      { resource: 'quartz', min: 1, max: 2, chance: 1.00 },
+      { resource: 'silicon', min: 1, max: 1, chance: 0.34 },
+      { resource: 'strangeMatter', min: 1, max: 1, chance: 0.045 }
+    ],
     sectorMinLevel: 3,
     spawnWeight: 5,
     behaviorId: MOB_BEHAVIOR_IDS.SKIRMISHER,
@@ -158,9 +174,14 @@ export const MOB_DEFS = {
     projectileSpeed: 610,
     projectileRange: 860,
     projectileSplashRadius: 0,
-    dropResource: 'crystal',
+    dropResource: 'quartz',
     dropMin: 2,
     dropMax: 3,
+    dropTable: [
+      { resource: 'quartz', min: 2, max: 3, chance: 1.00 },
+      { resource: 'silicon', min: 1, max: 2, chance: 0.42 },
+      { resource: 'strangeMatter', min: 1, max: 1, chance: 0.075 }
+    ],
     sectorMinLevel: 5,
     spawnWeight: 3,
     behaviorId: MOB_BEHAVIOR_IDS.SNIPER,
@@ -196,9 +217,14 @@ export const MOB_DEFS = {
     projectileSpeed: 350,
     projectileRange: 600,
     projectileSplashRadius: 28,
-    dropResource: 'ore',
+    dropResource: 'ironOre',
     dropMin: 2,
     dropMax: 3,
+    dropTable: [
+      { resource: 'scrap', min: 2, max: 3, chance: 1.00 },
+      { resource: 'ironOre', min: 1, max: 2, chance: 0.38 },
+      { resource: 'unknownTechFragment', min: 1, max: 1, chance: 0.055 }
+    ],
     sectorMinLevel: 6,
     spawnWeight: 3,
     behaviorId: MOB_BEHAVIOR_IDS.SENTRY,
@@ -232,6 +258,11 @@ export const MOB_DEFS = {
     dropResource: 'scrap',
     dropMin: 2,
     dropMax: 4,
+    dropTable: [
+      { resource: 'scrap', min: 2, max: 4, chance: 1.00 },
+      { resource: 'ironOre', min: 1, max: 2, chance: 0.32 },
+      { resource: 'unknownTechFragment', min: 1, max: 1, chance: 0.060 }
+    ],
     sectorMinLevel: 7,
     spawnWeight: 3,
     behaviorId: MOB_BEHAVIOR_IDS.RUSHER,
@@ -267,9 +298,14 @@ export const MOB_DEFS = {
     projectileSpeed: 430,
     projectileRange: 650,
     projectileSplashRadius: 38,
-    dropResource: 'crystal',
+    dropResource: 'quartz',
     dropMin: 2,
     dropMax: 3,
+    dropTable: [
+      { resource: 'quartz', min: 2, max: 3, chance: 1.00 },
+      { resource: 'silicon', min: 1, max: 2, chance: 0.48 },
+      { resource: 'strangeMatter', min: 1, max: 1, chance: 0.090 }
+    ],
     sectorMinLevel: 8,
     spawnWeight: 2,
     behaviorId: MOB_BEHAVIOR_IDS.SENTRY,
@@ -305,9 +341,14 @@ export const MOB_DEFS = {
     projectileSpeed: 480,
     projectileRange: 620,
     projectileSplashRadius: 0,
-    dropResource: 'voidGlass',
+    dropResource: 'strangeMatter',
     dropMin: 1,
     dropMax: 2,
+    dropTable: [
+      { resource: 'strangeMatter', min: 1, max: 2, chance: 1.00 },
+      { resource: 'unknownTechFragment', min: 1, max: 1, chance: 0.20 },
+      { resource: 'containedAntimatter', min: 1, max: 1, chance: 0.045 }
+    ],
     sectorMinLevel: 9,
     spawnWeight: 2,
     behaviorId: MOB_BEHAVIOR_IDS.SKIRMISHER,
@@ -343,9 +384,15 @@ export const MOB_DEFS = {
     projectileSpeed: 330,
     projectileRange: 620,
     projectileSplashRadius: 84,
-    dropResource: 'bioFiber',
+    dropResource: 'biomass',
     dropMin: 2,
     dropMax: 4,
+    dropTable: [
+      { resource: 'biomass', min: 2, max: 4, chance: 1.00 },
+      { resource: 'chitin', min: 1, max: 2, chance: 0.54 },
+      { resource: 'enzymes', min: 1, max: 1, chance: 0.28 },
+      { resource: 'spores', min: 1, max: 1, chance: 0.09 }
+    ],
     sectorMinLevel: 11,
     spawnWeight: 2,
     behaviorId: MOB_BEHAVIOR_IDS.BOMBER,
@@ -381,9 +428,14 @@ export const MOB_DEFS = {
     projectileSpeed: 500,
     projectileRange: 720,
     projectileSplashRadius: 26,
-    dropResource: 'voidGlass',
+    dropResource: 'strangeMatter',
     dropMin: 3,
     dropMax: 5,
+    dropTable: [
+      { resource: 'strangeMatter', min: 2, max: 4, chance: 1.00 },
+      { resource: 'unknownTechFragment', min: 1, max: 2, chance: 0.36 },
+      { resource: 'containedAntimatter', min: 1, max: 1, chance: 0.12 }
+    ],
     sectorMinLevel: 13,
     spawnWeight: 1,
     behaviorId: MOB_BEHAVIOR_IDS.RUSHER,

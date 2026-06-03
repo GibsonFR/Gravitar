@@ -6,6 +6,8 @@ import { visitSectorOnPlayer } from '../map/PlayerMapState.js';
 import { isSpecialDetachedSector } from './SpecialSectors.js';
 import { BATTLE, isBattleArenaSector } from '../modes/GameModes.js';
 
+const SECTOR_COMBAT_LOCK_MS = 5000;
+
 
 function clampDetachedPlayer(p) {
   const pad = Math.max(18, p.radius ?? 18) + 24;
@@ -82,6 +84,21 @@ function applyWrapToPlayer(state, p, timeMs) {
 
   const w = wrapIntoSector({ x: p.x, y: p.y }, beforeSx, beforeSy);
   const changed = (beforeSx !== w.sx) || (beforeSy !== w.sy);
+
+  if (changed && Number.isFinite(p.lastDamageReceivedAt) && timeMs - p.lastDamageReceivedAt < SECTOR_COMBAT_LOCK_MS) {
+    const pad = Math.max(22, (p.radius || 18) + 10);
+    p.x = Math.max(-SECTOR.half + pad, Math.min(SECTOR.half - pad, beforeX));
+    p.y = Math.max(-SECTOR.half + pad, Math.min(SECTOR.half - pad, beforeY));
+    p.vx = 0;
+    p.vy = 0;
+    p.hasMoveTarget = false;
+    p.holdMoveAllowed = false;
+    p.moveTx = p.x;
+    p.moveTy = p.y;
+    p.sectorCombatLockHintAt = timeMs;
+    return;
+  }
+
   p.x = w.x;
   p.y = w.y;
   p.sx = w.sx;
