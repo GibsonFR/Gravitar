@@ -4,9 +4,15 @@ export function createWorldSfxState() {
   };
 }
 
-export function queueWorldSfx(state, type, sx, sy, x, y, variant = 0) {
+export function queueWorldSfx(state, type, sx, sy, x, y, variant = 0, meta = null) {
   if (!state?.audio?.pending) return;
-  state.audio.pending.push({ type, sx: sx | 0, sy: sy | 0, x, y, variant });
+  const ev = { type, sx: sx | 0, sy: sy | 0, x, y, variant };
+  if (meta && typeof meta === 'object') {
+    if (meta.frameId) ev.frameId = String(meta.frameId);
+    if (meta.slot) ev.slot = String(meta.slot).toUpperCase();
+    if (meta.sourceKind) ev.sourceKind = String(meta.sourceKind);
+  }
+  state.audio.pending.push(ev);
 }
 
 export function peekWorldSfx(state) {

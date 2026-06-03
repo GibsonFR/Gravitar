@@ -215,7 +215,7 @@ function fireAutoAttack(state, p, target, timeMs) {
     }
   );
 
-  queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, p.sx, p.sy, p.x, p.y, 0);
+  queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, p.sx, p.sy, p.x, p.y, 0, { frameId: p.frameId, sourceKind: 'player' });
 }
 
 
@@ -295,7 +295,7 @@ function fireRocket(state, p, worldX, worldY, timeMs) {
 
   if (fired <= 0) return { ok: false, reason: 'empty_slot' };
   p.rocketCooldownLeft = Math.max(0.2, launcher.cooldown ?? ROCKET_BASIC.cooldown);
-  queueWorldSfx(state, SFX_EVENT_TYPES.ROCKET, p.sx, p.sy, p.x, p.y, fired);
+  queueWorldSfx(state, SFX_EVENT_TYPES.ROCKET, p.sx, p.sy, p.x, p.y, fired, { frameId: p.frameId, sourceKind: 'player' });
   return { ok: true, fired, ammoName: ammoDef.shortName || ammoDef.name || 'Rocket' };
 }
 
@@ -386,7 +386,7 @@ function updateAbilityCasting(state, player, dt, timeMs) {
       triggerEquipmentProcEvent(state, player, player, 'abilityCast', { timeMs, sourceSlot: slot });
       player.forceFullUiSnapshot = false;
       player.forceFullUiSnapshotReason = ''; // owner already applied local ability; avoid ping-correction snapshot
-      queueWorldSfx(state, SFX_EVENT_TYPES[`ABILITY_${slot}`] || SFX_EVENT_TYPES.AUTO_ATTACK, player.sx, player.sy, player.x, player.y, 0);
+      queueWorldSfx(state, SFX_EVENT_TYPES[`ABILITY_${slot}`] || SFX_EVENT_TYPES.AUTO_ATTACK, player.sx, player.sy, player.x, player.y, 0, { frameId: player.frameId, slot, sourceKind: 'player' });
     } else if (req.clientPoseApplied) {
       // Même en cas de refus serveur, renvoyer vite les cooldowns/énergie réels
       // pour que le HUD local sorte d'un état optimiste faux.
