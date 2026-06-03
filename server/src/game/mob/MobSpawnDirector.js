@@ -12,15 +12,15 @@ const FRONTIER_MAX = 50;
 // L'Apex normal n'arrive qu'à partir du ring 50.
 const MOB_FRONTIER_UNLOCKS_BY_TYPE = new Map([
   [1, 1],   // Mite ferreuse
-  [2, 4],   // Sapeur de scories
-  [3, 8],   // Dard orbital
-  [4, 14],  // Lancier prismatique
-  [5, 20],  // Nodule sentinelle
-  [6, 26],  // Broyeur plasma
-  [7, 32],  // Gardien arc
-  [8, 38],  // Spectre vectoriel
-  [9, 44],  // Hydre de limaille
-  [10, 50]  // Prédateur apex
+  [2, 1],   // Sapeur de scories — early variety
+  [3, 2],   // Dard orbital
+  [4, 5],   // Lancier prismatique
+  [5, 8],   // Nodule sentinelle
+  [6, 11],  // Broyeur plasma
+  [7, 15],  // Gardien arc
+  [8, 19],  // Spectre vectoriel
+  [9, 24],  // Hydre de limaille
+  [10, 34]  // Prédateur apex
 ]);
 
 function clamp(value, min, max) {
@@ -48,10 +48,14 @@ function mobSpawnWeight(def, frontierLevel) {
   // Les vieux mobs ne disparaissent jamais complètement, mais deviennent rares.
   let weight = base * (4.2 * Math.exp(-age / 13) + 0.30);
 
-  // Dans les dix premiers rings, verrouille clairement l'identité early-game :
-  // Mite / Sapeur / Dard dominent, les autres sont absents.
-  if (frontierLevel <= 10 && (def.typeId | 0) <= 3) {
-    weight *= [0, 1.35, 1.12, 0.92][def.typeId | 0] ?? 1;
+  // Dès les premiers secteurs, on doit voir plusieurs familles.
+  // Les trois premiers mobs forment le pool early, avec dominance mite
+  // mais sans bloquer scoria/stinger pendant plusieurs rings.
+  if (frontierLevel <= 4) {
+    const early = [0, 1.20, 0.74, 0.54][def.typeId | 0] ?? 0;
+    weight *= early;
+  } else if (frontierLevel <= 10 && (def.typeId | 0) <= 5) {
+    weight *= [0, 1.08, 0.95, 0.82, 0.42, 0.30][def.typeId | 0] ?? 1;
   }
 
   // Les familles trop anciennes au late restent lisibles seulement comme bruit
@@ -108,7 +112,13 @@ export function spawnSectorMobs(state, sx, sy, rng, sectorSeed, timeMs = 0) {
   let spawned = 0;
 
   for (let i = 0; i < mobCount; i++) {
-    const def = pickMobDefForFrontier(rng, frontierLevel);
+    let def = pickMobDefForFrontier(rng, frontierLevel);
+    if (i === 1 && frontierLevel <= 5) {
+      const earlyDefs = listMobDefs()
+        .filter((d) => (d.typeId | 0) > 1 && mobSpawnWeight(d, frontierLevel) > 0)
+        .sort((a, b) => (a.typeId | 0) - (b.typeId | 0));
+      if (earlyDefs.length) def = earlyDefs[Math.floor(rng.nextDouble() * earlyDefs.length)] || def;
+    }
     if (!def) continue;
     const x = rollPos(rng);
     const y = rollPos(rng);
