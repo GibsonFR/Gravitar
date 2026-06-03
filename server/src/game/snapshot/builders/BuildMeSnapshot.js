@@ -213,6 +213,8 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
       E: player.cooldownELeft,
       R: player.cooldownRLeft
     },
+    frameState: buildFrameUiState(player, timeMs),
+    derived: buildDerivedSnapshot(player),
     statuses: buildStatusSnapshot(player, 4),
     sfx: drainPlayerSfx(player),
     transition: buildTransitionSnapshot(player, timeMs),

@@ -81,6 +81,7 @@ export class WorldStore {
       localFrameState: null,
       localDerived: null,
       localPassiveAuthorityUntil: 0,
+      localPassiveEventSeq: 0,
       pendingStructureMoves: new Map()
     };
   }
@@ -559,10 +560,24 @@ export class WorldStore {
     const abilityAuthority = now < (this.localPrediction.localAbilityAuthorityUntil || 0);
     const passiveAuthority = now < (this.localPrediction.localPassiveAuthorityUntil || 0);
     if (!abilityAuthority && !passiveAuthority) return myState;
+
     const out = { ...myState };
-    if ((abilityAuthority || passiveAuthority) && this.localPrediction.localFrameState) {
-      out.frameState = { ...(out.frameState || {}), ...(this.localPrediction.localFrameState || {}) };
+    const localFs = this.localPrediction.localFrameState || null;
+    if ((abilityAuthority || passiveAuthority) && localFs) {
+      const serverFs = out.frameState || {};
+      const localStacks = Number(localFs.passiveStacks);
+      const serverStacks = Number(serverFs.passiveStacks);
+      const keepLocalStacks = passiveAuthority && Number.isFinite(localStacks) && (!Number.isFinite(serverStacks) || localStacks > serverStacks);
+
+      out.frameState = { ...serverFs, ...localFs };
+      if (!keepLocalStacks && Number.isFinite(serverStacks)) {
+        out.frameState.passiveStacks = serverStacks;
+        out.frameState.passiveDecayLeft = serverFs.passiveDecayLeft;
+        out.frameState.passiveDecaying = serverFs.passiveDecaying;
+        this.localPrediction.localFrameState = { ...(this.localPrediction.localFrameState || {}), ...out.frameState };
+      }
     }
+
     if ((abilityAuthority || passiveAuthority) && this.localPrediction.localDerived) {
       out.derived = { ...(out.derived || {}) };
       for (const key of ['moveSpeed', 'autoAttackRate', 'autoAttackDamage', 'tenacityPct', 'slowResistPct']) {
@@ -572,6 +587,59 @@ export class WorldStore {
       }
     }
     return out;
+  }
+
+  noteLocalPassiveEvent(reason = 'hit', amount = 1, meta = {}) {
+    if (!this.myState) return false;
+    const frameId = String(this.myState.frameId || meta.frameId || '').toLowerCase();
+    if (!frameId) return false;
+    const now = performance.now();
+    const fs = { ...(this.myState.frameState || {}) };
+    const add = Math.max(0, Number(amount) || 0);
+    if (add <= 0) return false;
+
+    if (frameId === 'vanguard') {
+      const maxStacks = Math.max(1, Number(fs.passiveMaxStacks) || 10);
+      const current = Math.max(0, Number(fs.passiveStacks) || 0);
+      const nextStacks = Math.min(maxStacks, current + add);
+      fs.kind = fs.kind || 'vanguard';
+      fs.passiveName = fs.passiveName || 'Surchauffe';
+      fs.passiveMaxStacks = maxStacks;
+      fs.passiveStacks = nextStacks;
+      fs.passiveDecayLeft = Math.max(Number(fs.passiveDecayLeft) || 0, 5.0);
+      fs.passiveDecaying = false;
+      fs._localPassiveReason = reason;
+      fs._localPassiveUpdatedAt = now;
+
+      const serverDerived = this.myState.derived || {};
+      const localDerived = { ...(this.localPrediction.localDerived || serverDerived) };
+      if (Number.isFinite(serverDerived.autoAttackRate)) localDerived.autoAttackRate = Math.max(Number(localDerived.autoAttackRate) || 0, Number(serverDerived.autoAttackRate) * (1 + 0.04 * nextStacks));
+      if (Number.isFinite(serverDerived.moveSpeed)) localDerived.moveSpeed = Math.max(Number(localDerived.moveSpeed) || 0, Number(serverDerived.moveSpeed) * (1 + 0.015 * nextStacks));
+      this.localPrediction.localDerived = localDerived;
+    } else if (frameId === 'sigil') {
+      const maxStacks = Math.max(1, Number(fs.passiveMaxStacks) || 5);
+      fs.kind = fs.kind || 'sigil';
+      fs.passiveName = fs.passiveName || 'Runes';
+      fs.passiveMaxStacks = maxStacks;
+      fs.passiveStacks = Math.min(maxStacks, Math.max(0, Number(fs.passiveStacks) || 0) + add);
+      fs.runeDurationLeft = Math.max(Number(fs.runeDurationLeft) || 0, 7.0);
+      fs._localPassiveReason = reason;
+      fs._localPassiveUpdatedAt = now;
+    } else if (frameId === 'bulwark') {
+      fs.kind = fs.kind || 'bulwark';
+      fs.passiveMaxStacks = Math.max(1, Number(fs.passiveMaxStacks) || 5);
+      fs._localPassiveReason = reason;
+      fs._localPassiveUpdatedAt = now;
+    } else {
+      return false;
+    }
+
+    this.myState.frameState = fs;
+    this.localPrediction.localFrameState = { ...(this.localPrediction.localFrameState || {}), ...fs };
+    this.localPrediction.localPassiveAuthorityUntil = Math.max(this.localPrediction.localPassiveAuthorityUntil || 0, now + Math.max(650, Number(meta.authorityMs) || 1250));
+    this.localPrediction.localAbilityAuthorityUntil = Math.max(this.localPrediction.localAbilityAuthorityUntil || 0, now + 500);
+    this.localPrediction.localPassiveEventSeq = (this.localPrediction.localPassiveEventSeq | 0) + 1;
+    return true;
   }
 
   _mergeMyState(next) {
@@ -651,6 +719,13 @@ export class WorldStore {
   applyCombatFxEvents(events) {
     if (!Array.isArray(events) || !events.length) return;
     for (const ev of events) {
+      const sourceId = ev?.sourceId | 0;
+      const targetKind = String(ev?.targetKind || ev?.kind || '').toLowerCase();
+      const sourceSlot = ev?.sourceSlot ?? ev?.visualKind ?? '';
+      if (sourceId && sourceId === (this.myId | 0) && ev?.type !== 'structure_state' && targetKind !== 'asteroid') {
+        this.noteLocalPassiveEvent(sourceSlot || 'server_hit', 1, { authorityMs: 900 });
+      }
+
       if (ev?.type !== 'structure_state') continue;
       const id = ev.structureId | 0 || ev.targetId | 0;
       if (!id) continue;
@@ -792,6 +867,9 @@ export class WorldStore {
         projectile.y = target.y;
         if (!projectile._impactApplied && !projectile._visualOnly && projectile._impactDamage > 0 && projectile._targetKind !== 'station') {
           this.applyLocalDamage(projectile._targetKind, projectile._targetId, projectile._impactDamage, target.x, target.y);
+          if (projectile._targetKind !== 'asteroid') {
+            this.noteLocalPassiveEvent(projectile.sourceAbilitySlot || projectile.visualKind || 'local_projectile_hit', 1, { authorityMs: 1250 });
+          }
           projectile._impactApplied = true;
         }
         this._spawnLocalImpact(projectile, target);
