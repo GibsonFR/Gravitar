@@ -53,7 +53,7 @@ export class AudioSystem {
     this.masterVolume = clampDb(settings.masterVolume, this.masterVolume);
     this.sfxVolume = clampDb(settings.sfxVolume, this.sfxVolume);
     const musicDb = clampDb(settings.musicVolume, -18);
-    const reactorDb = clampDb(settings.reactorVolume, -24);
+    const reactorDb = clampDb(settings.reactorVolume, -20);
     const sfxGain = dbToGain(this.masterVolume + this.sfxVolume);
     this.music.setVolume(dbToGain(this.masterVolume + musicDb));
     this.reactor.setVolume(dbToGain(this.masterVolume + reactorDb));

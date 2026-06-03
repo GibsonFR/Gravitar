@@ -138,9 +138,9 @@ export class ReactorLoop {
     const intensity = this.lastIntensity;
     const idleGain = profile.idleGain ?? 0.0024;
     const movementGain = profile.movementGain ?? 0.022;
-    const amp = (idleGain + Math.pow(intensity, 1.25) * movementGain) * this.volume;
+    const amp = (idleGain + Math.pow(intensity, 1.08) * movementGain) * this.volume;
 
-    this.master.gain.setTargetAtTime(Math.max(0.0001, amp), now, 0.12);
+    this.master.gain.setTargetAtTime(Math.max(0.0001, amp), now, 0.09);
 
     const baseFreq = profile.baseFreq ?? 44;
     const thrustFreq = profile.thrustFreq ?? 32;
