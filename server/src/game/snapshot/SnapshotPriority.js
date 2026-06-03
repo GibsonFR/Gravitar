@@ -86,34 +86,28 @@ export function buildSnapshotPriorityPlan(state, me, basePredicates, options = {
   }
 
   const limits = {
-    mobs: 34,
     asteroids: 52,
     structures: 56,
-    structureAutomation: 48,
-    loots: 42,
-    logisticDrones: 28
+    structureAutomation: 48
   };
 
   const sets = {
-    mobs: buildPriorityIdSet(state.mobs, basePredicates.nearDynamic, me, { limit: limits.mobs, kind: 'mob' }),
     asteroids: buildPriorityIdSet(state.asteroids, basePredicates.nearStatic, me, { limit: limits.asteroids, kind: 'asteroid' }),
     structures: buildPriorityIdSet(state.structures, basePredicates.nearDynamic, me, { limit: limits.structures, kind: 'structure' }),
-    structureAutomation: buildPriorityIdSet(state.structures, basePredicates.nearDynamic, me, { limit: limits.structureAutomation, kind: 'structure' }),
-    loots: buildPriorityIdSet(state.loots, basePredicates.nearDynamic, me, { limit: limits.loots, kind: 'loot' }),
-    logisticDrones: buildPriorityIdSet(state.logisticDrones, basePredicates.nearDynamic, me, { limit: limits.logisticDrones, kind: 'logisticDrone' })
+    structureAutomation: buildPriorityIdSet(state.structures, basePredicates.nearDynamic, me, { limit: limits.structureAutomation, kind: 'structure' })
   };
 
   return {
     enabled: true,
-    partialSections: ['mobs', 'asteroids', 'structures', 'structureAutomation', 'loots', 'logisticDrones'],
+    partialSections: ['asteroids', 'structures', 'structureAutomation'],
     limits,
     predicates: {
-      mobs: makePriorityPredicate(basePredicates.nearDynamic, sets.mobs),
+      mobs: basePredicates.nearDynamic,
       asteroids: makePriorityPredicate(basePredicates.nearStatic, sets.asteroids),
       structures: makePriorityPredicate(basePredicates.nearDynamic, sets.structures),
       structureAutomation: makePriorityPredicate(basePredicates.nearDynamic, sets.structureAutomation),
-      loots: makePriorityPredicate(basePredicates.nearDynamic, sets.loots),
-      logisticDrones: makePriorityPredicate(basePredicates.nearDynamic, sets.logisticDrones)
+      loots: basePredicates.nearDynamic,
+      logisticDrones: basePredicates.nearDynamic
     }
   };
 }

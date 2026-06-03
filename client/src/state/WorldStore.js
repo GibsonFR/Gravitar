@@ -1284,7 +1284,7 @@ export class WorldStore {
     if (Array.isArray(msg.loots)) this.interpolationStore.pushMany('loot', msg.loots, this.lastServerTime);
     if (!hasNetworkEvents && msg.me?.sfx?.length) this.pendingSfx.push(...msg.me.sfx);
     if (Array.isArray(msg.players)) this._syncMap(this.players, msg.players, { snapOwnPlayer: false, preserveOwnPlayerPosition: true });
-    if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs, { partial: this.isPartialSnapshotSection(msg, 'mobs') });
+    if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs);
     // Les entités statiques du secteur sont volontairement envoyées moins souvent.
     // Quand le serveur omet ces tableaux, on garde la dernière version locale au lieu
     // de vider la map, ce qui évite de retransmettre 20-40 astéroïdes à chaque frame.
@@ -1297,9 +1297,9 @@ export class WorldStore {
     if (Array.isArray(msg.structureAutomation)) this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
     if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles);
-    if (Array.isArray(msg.logisticDrones)) this._syncMap(this.logisticDrones, msg.logisticDrones, { partial: this.isPartialSnapshotSection(msg, 'logisticDrones') });
+    if (Array.isArray(msg.logisticDrones)) this._syncMap(this.logisticDrones, msg.logisticDrones);
     if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);
-    if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots, { partial: this.isPartialSnapshotSection(msg, 'loots') });
+    if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots);
   }
 
 

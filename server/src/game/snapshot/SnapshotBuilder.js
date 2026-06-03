@@ -102,7 +102,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     me: fullUi ? buildMeSnapshot(me, timeMs, state, { includeSfx: includeLegacyPlayerSfx }) : buildMeLiteSnapshot(me, timeMs, state, { includeSfx: includeLegacyPlayerSfx }),
     players: buildPlayerSnapshots(state.players, playerInMyWorldAndSector, timeMs),
     playerDirectory: buildPlayerDirectorySnapshot(state, me),
-    mobs: buildMobSnapshots(state.mobs, staticWorld ? nearDynamic : priorityPlan.predicates.mobs, { compact: !staticWorld }),
+    mobs: buildMobSnapshots(state.mobs, nearDynamic, { compact: !staticWorld }),
     asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : buildAsteroidCombatSnapshots(state.asteroids, priorityPlan.predicates.asteroids),
     stations: staticWorld ? buildStationSnapshots(state.stations, nearStatic) : undefined,
     structures: staticWorld ? buildStructureSnapshots(state.structures, nearStatic, me) : buildStructureCombatSnapshots(state.structures, priorityPlan.predicates.structures, me),
@@ -110,12 +110,12 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
     staticWorld,
     projectiles: buildProjectileSnapshots(state.projectiles, nearDynamic),
-    logisticDrones: buildLogisticDroneSnapshots(state.structures, staticWorld ? nearDynamic : priorityPlan.predicates.structureAutomation, timeMs),
+    logisticDrones: buildLogisticDroneSnapshots(state.structures, nearDynamic, timeMs),
     areaEffects: [
       ...buildAreaEffectSnapshots(state.areaEffects, nearDynamic),
       ...buildAreaEffectSnapshots(state.testEffectZones, nearDynamic)
     ],
-    loots: buildLootSnapshots(state.loots, staticWorld ? nearDynamic : priorityPlan.predicates.loots)
+    loots: buildLootSnapshots(state.loots, nearDynamic)
   };
   pruneUndefinedSnapshotFields(snapshot);
   attachSnapshotNetMetrics(snapshot, { legacyEvents, partialSections: priorityPlan.partialSections, priorityLimits: priorityPlan.limits });
