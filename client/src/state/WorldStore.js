@@ -41,6 +41,7 @@ export class WorldStore {
     this.pendingSfx = [];
     this.pendingCombatFx = [];
     this.networkEvents = [];
+    this.typedCombatEvents = [];
     this.eventDeduper = new NetworkEventDeduper();
     this.chatMessages = [];
     this.chatUnread = 0;
@@ -154,7 +155,20 @@ export class WorldStore {
       } else if (String(ev.type || '').startsWith('combat.')) {
         this.pendingCombatFx.push(ev.payload || ev);
       }
+
+      if (
+        ev.type === 'ability.cast' ||
+        ev.type === 'projectile.spawn' ||
+        ev.type === 'projectile.impact' ||
+        ev.type === 'damage.applied' ||
+        ev.type === 'structure.state' ||
+        ev.type === 'status.applied' ||
+        ev.type === 'passive.changed'
+      ) {
+        this.typedCombatEvents.push(ev);
+      }
     }
+    if (this.typedCombatEvents.length > 512) this.typedCombatEvents.splice(0, this.typedCombatEvents.length - 512);
   }
 
   getRenderServerTimeMs() {
