@@ -244,13 +244,153 @@ function drawBiomePattern(ctx, view, camX, camY, bg, biomeId) {
   ctx.restore();
 }
 
-export function drawStars(ctx, view, camX, camY, density = 1, biome = null) {
+function sectorSeedFrom(biome, camX = 0, camY = 0) {
+  const sx = Number.isFinite(Number(biome?.sx)) ? (Number(biome.sx) | 0) : Math.round(camX / 4000);
+  const sy = Number.isFinite(Number(biome?.sy)) ? (Number(biome.sy) | 0) : Math.round(camY / 4000);
+  const biomeId = biomeIdFor(biome);
+  let h = 2166136261;
+  for (let i = 0; i < biomeId.length; i += 1) {
+    h ^= biomeId.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= Math.imul(sx | 0, 73856093);
+  h ^= Math.imul(sy | 0, 19349663);
+  return h | 0;
+}
+
+function seeded01(seed, salt = 0) {
+  return random01FromSeed((seed ^ Math.imul((salt + 1) | 0, 0x45d9f3b)) | 0);
+}
+
+function drawDistantAstre(ctx, view, camX, camY, bg, biomeId, seed) {
+  const { cssW, cssH, dpr } = view;
+  const show = seeded01(seed, 12);
+  if (biomeId === 'hub' && show > 0.34) return;
+  if (show > 0.72) return;
+
+  const x = cssW * (0.18 + seeded01(seed, 21) * 0.64);
+  const y = cssH * (0.12 + seeded01(seed, 22) * 0.42);
+  const driftX = Math.sin(seed * 0.00013 + camX * 0.000025) * cssW * 0.018;
+  const driftY = Math.cos(seed * 0.00017 + camY * 0.000022) * cssH * 0.014;
+  const r = (42 + seeded01(seed, 23) * 96) * dpr;
+  const halo = r * (2.8 + seeded01(seed, 24) * 2.6);
+  const px = (x + driftX) * dpr;
+  const py = (y + driftY) * dpr;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+
+  const haloGrad = ctx.createRadialGradient(px, py, 0, px, py, halo);
+  haloGrad.addColorStop(0, rgba(bg.accent.r, bg.accent.g, bg.accent.b, 0.070));
+  haloGrad.addColorStop(0.45, rgba(bg.tint.r, bg.tint.g, bg.tint.b, 0.026));
+  haloGrad.addColorStop(1, rgba(bg.tint.r, bg.tint.g, bg.tint.b, 0));
+  ctx.fillStyle = haloGrad;
+  ctx.beginPath();
+  ctx.arc(px, py, halo, 0, Math.PI * 2);
+  ctx.fill();
+
+  const bodyGrad = ctx.createRadialGradient(px - r * 0.35, py - r * 0.42, 0, px, py, r);
+  const shade = biomeId === 'nuclear' ? 35 : 18;
+  bodyGrad.addColorStop(0, rgba(Math.min(255, bg.accent.r + 35), Math.min(255, bg.accent.g + 35), Math.min(255, bg.accent.b + 35), 0.20));
+  bodyGrad.addColorStop(0.62, rgba(Math.max(0, bg.tint.r - shade), Math.max(0, bg.tint.g - shade), Math.max(0, bg.tint.b - shade), 0.10));
+  bodyGrad.addColorStop(1, rgba(0, 0, 0, 0.04));
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.arc(px, py, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (biomeId === 'anomaly') {
+    ctx.strokeStyle = rgba(bg.accent.r, bg.accent.g, bg.accent.b, 0.12);
+    ctx.lineWidth = 1.2 * dpr;
+    ctx.setLineDash([10 * dpr, 8 * dpr]);
+    ctx.beginPath();
+    ctx.ellipse(px, py, r * 1.85, r * 0.58, -0.35, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawDeepStarClusters(ctx, view, camX, camY, bg, biomeId, seed, density = 1) {
+  const { cssW, cssH, dpr } = view;
+  const cell = 720;
+  const minX = camX * 0.22 - cssW;
+  const maxX = camX * 0.22 + cssW;
+  const minY = camY * 0.22 - cssH;
+  const maxY = camY * 0.22 + cssH;
+  const c0x = Math.floor(minX / cell);
+  const c1x = Math.floor(maxX / cell);
+  const c0y = Math.floor(minY / cell);
+  const c1y = Math.floor(maxY / cell);
+  const sc = bg.star || { r: 210, g: 225, b: 240 };
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+
+  for (let cy = c0y; cy <= c1y; cy += 1) {
+    for (let cx = c0x; cx <= c1x; cx += 1) {
+      let s = (Math.imul(cx, 134775813) ^ Math.imul(cy, 1103515245) ^ seed ^ 0x5f3759df) | 0;
+      if (random01FromSeed(s) > 0.44 + density * 0.08) continue;
+      const centerX = (cx * cell + seeded01(s, 1) * cell - camX * 0.22 + cssW * 0.5) * dpr;
+      const centerY = (cy * cell + seeded01(s, 2) * cell - camY * 0.22 + cssH * 0.5) * dpr;
+      const stars = 7 + Math.round(seeded01(s, 3) * 12);
+      const spread = (28 + seeded01(s, 4) * 70) * dpr;
+      for (let i = 0; i < stars; i += 1) {
+        s = xorshift(s);
+        const angle = seeded01(s, i + 10) * Math.PI * 2;
+        const dist = Math.pow(seeded01(s, i + 30), 1.8) * spread;
+        const px = centerX + Math.cos(angle) * dist;
+        const py = centerY + Math.sin(angle) * dist;
+        const size = (0.55 + seeded01(s, i + 50) * 1.45) * dpr;
+        const alpha = 0.10 + seeded01(s, i + 70) * 0.22;
+        ctx.fillStyle = rgba(sc.r, sc.g, sc.b, alpha);
+        ctx.fillRect(px, py, size, size);
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawShootingStars(ctx, view, camX, camY, bg, biomeId, seed, t = 0) {
+  const { cssW, cssH, dpr } = view;
+  if (biomeId === 'hub') return;
+  const period = 9.5 + seeded01(seed, 91) * 6.0;
+  const phase = ((t / period) + seeded01(seed, 92)) % 1;
+  if (phase > 0.16) return;
+
+  const alpha = Math.sin((phase / 0.16) * Math.PI) * 0.34;
+  const startX = (seeded01(seed, 93) * cssW + phase * cssW * 0.45) % (cssW + 180) - 90;
+  const startY = cssH * (0.10 + seeded01(seed, 94) * 0.48);
+  const len = 80 + seeded01(seed, 95) * 140;
+  const angle = -0.35 + seeded01(seed, 96) * 0.55;
+  const x2 = startX - Math.cos(angle) * len;
+  const y2 = startY - Math.sin(angle) * len;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  const g = ctx.createLinearGradient(startX * dpr, startY * dpr, x2 * dpr, y2 * dpr);
+  g.addColorStop(0, rgba(bg.accent.r, bg.accent.g, bg.accent.b, alpha));
+  g.addColorStop(1, rgba(bg.accent.r, bg.accent.g, bg.accent.b, 0));
+  ctx.strokeStyle = g;
+  ctx.lineWidth = 1.4 * dpr;
+  ctx.beginPath();
+  ctx.moveTo(startX * dpr, startY * dpr);
+  ctx.lineTo(x2 * dpr, y2 * dpr);
+  ctx.stroke();
+  ctx.restore();
+}
+
+export function drawStars(ctx, view, camX, camY, density = 1, biome = null, t = 0) {
   const { cssW, cssH, dpr } = view;
   const bg = backdropFor(biome);
   const biomeId = biomeIdFor(biome);
+  const sectorSeed = sectorSeedFrom(biome, camX, camY);
 
   fillBaseSpace(ctx, view, bg);
+  drawDistantAstre(ctx, view, camX, camY, bg, biomeId, sectorSeed);
   drawLocalNebula(ctx, view, camX, camY, bg, biomeId);
+  drawDeepStarClusters(ctx, view, camX, camY, bg, biomeId, sectorSeed, density);
 
   const cell = 240;
   const seed = 1337;
@@ -265,7 +405,7 @@ export function drawStars(ctx, view, camX, camY, density = 1, biome = null) {
 
   for (let cy = c0y; cy <= c1y; cy++) {
     for (let cx = c0x; cx <= c1x; cx++) {
-      let s = (cx * 73856093) ^ (cy * 19349663) ^ seed;
+      let s = (cx * 73856093) ^ (cy * 19349663) ^ seed ^ sectorSeed;
       for (let i = 0; i < Math.max(0, Math.round(5 * density)); i++) {
         s = xorshift(s);
         const rx = (s & 0xffff) / 0xffff;
@@ -289,6 +429,7 @@ export function drawStars(ctx, view, camX, camY, density = 1, biome = null) {
   }
 
   drawBiomePattern(ctx, view, camX, camY, bg, biomeId);
+  drawShootingStars(ctx, view, camX, camY, bg, biomeId, sectorSeed, t);
 }
 
 export function drawGrid(ctx, view, camX, camY, world) {

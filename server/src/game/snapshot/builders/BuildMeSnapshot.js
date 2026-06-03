@@ -55,7 +55,9 @@ function buildCurrentSectorBiomeSnapshot(player, state = null) {
     name: source?.biomeName || 'Ceinture métallique',
     shortName: source?.biomeShortName || 'Métal',
     description: source?.biomeDescription || '',
-    colorHex: source?.biomeColorHex || '#a8b2bd'
+    colorHex: source?.biomeColorHex || '#a8b2bd',
+    sx,
+    sy
   };
 }
 

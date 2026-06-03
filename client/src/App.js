@@ -827,7 +827,7 @@ export function startApp() {
     ctx.fillStyle = '#05070a';
     ctx.fillRect(0, 0, view.w, view.h);
 
-    drawStars(ctx, view, camX, camY, graphicsOptions.starDensity, store.myState?.sectorBiome || null);
+    drawStars(ctx, view, camX, camY, graphicsOptions.starDensity, store.myState?.sectorBiome || null, now * 0.001);
     if (graphicsOptions.showGrid) drawGrid(ctx, view, camX, camY, store.world);
 
     if (me) drawGroundMarker(ctx, view, me, camX, camY, t);
