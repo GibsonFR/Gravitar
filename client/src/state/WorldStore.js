@@ -108,6 +108,12 @@ export class WorldStore {
     return this.networkClock?.estimatedServerNowMs?.() || this.lastServerTime || Date.now();
   }
 
+  getRemotePlayerRenderServerTimeMs() {
+    const clock = this.networkClock?.snapshot?.() || null;
+    const delay = Math.max(38, Math.min(72, Number(clock?.interpolationDelayMs || 120) * 0.45));
+    return this.getEstimatedServerNowMs() - delay;
+  }
+
   sampleInterpolatedEntity(kind, entity, options = {}) {
     if (!entity?.id || !this.interpolationStore) return entity;
     if (options.skipLocal && (entity.id | 0) === (this.myId | 0)) return entity;
@@ -119,9 +125,14 @@ export class WorldStore {
 
   getRenderPlayers() {
     const out = [];
+    const remotePlayerRenderTime = this.getRemotePlayerRenderServerTimeMs();
     for (const p of this.players.values()) {
       if ((p.id | 0) === (this.myId | 0)) out.push(p);
-      else out.push(this.sampleInterpolatedEntity('player', p, { maxExtrapolateMs: 90 }));
+      else out.push(this.sampleInterpolatedEntity('player', p, {
+        renderTimeMs: remotePlayerRenderTime,
+        maxExtrapolateMs: 95,
+        remotePlayerLowLatency: true
+      }));
     }
     return out;
   }

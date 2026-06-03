@@ -4,7 +4,9 @@ import { getTarget } from '../targeting/Targeting.js';
 function setFacingFromVector(player, dx, dy) {
   if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
   if (dx * dx + dy * dy < 1e-6) return;
-  player.rot = Math.atan2(dy, dx);
+  const aimRot = Math.atan2(dy, dx);
+  player.aimRot = aimRot;
+  player.rot = aimRot;
 }
 
 export function updatePlayerFacing(state, player) {

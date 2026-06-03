@@ -142,7 +142,11 @@ function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
 
   if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
   if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
-  if (Number.isFinite(msg.crot)) player.rot = msg.crot;
+  if (Number.isFinite(msg.crot)) {
+    player.rot = msg.crot;
+    player.visualRot = msg.crot;
+    player.lastClientVisualRotAt = timeMs;
+  }
   if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
   player.lastClientPoseAt = timeMs;
   player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 1400 : 650);
@@ -162,7 +166,11 @@ function applyClientPoseFromAction(state, player, action, timeMs) {
   if (clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy)) revertClientPose(player, oldX, oldY, oldSx, oldSy);
   if (Number.isFinite(action.cvx)) player.vx = action.cvx;
   if (Number.isFinite(action.cvy)) player.vy = action.cvy;
-  if (Number.isFinite(action.crot)) player.rot = action.crot;
+  if (Number.isFinite(action.crot)) {
+    player.rot = action.crot;
+    player.visualRot = action.crot;
+    player.lastClientVisualRotAt = timeMs;
+  }
   if (Number.isFinite(action.cthrust)) player.localThrust = action.cthrust;
   player.lastClientPoseAt = timeMs;
   player.clientAuthoritativeUntil = timeMs + 1200;
