@@ -13,12 +13,12 @@ function drawCombatLockVignette(ctx, view, myState) {
   const left = Number(myState?.sectorCombatLockLeft || 0);
   if (!Number.isFinite(left) || left <= 0) return;
   const dpr = view.dpr;
-  const intensity = Math.max(0.16, Math.min(0.38, 0.16 + left / 5 * 0.16));
-  const pulse = 0.75 + 0.25 * Math.sin(performance.now() * 0.008);
+  const intensity = Math.max(0.08, Math.min(0.22, 0.08 + left / 5 * 0.10));
+  const pulse = 0.82 + 0.18 * Math.sin(performance.now() * 0.008);
   const alpha = intensity * pulse;
   const w = view.w;
   const h = view.h;
-  const edge = Math.max(80, Math.min(view.cssW, view.cssH) * 0.18) * dpr;
+  const edge = Math.max(34, Math.min(86, Math.min(view.cssW, view.cssH) * 0.075)) * dpr;
 
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
@@ -36,13 +36,13 @@ function drawCombatLockVignette(ctx, view, myState) {
   ctx.fillRect(w - edge, 0, edge, h);
 
   g = ctx.createLinearGradient(0, 0, 0, edge);
-  g.addColorStop(0, `rgba(255, 45, 48, ${alpha * 0.85})`);
+  g.addColorStop(0, `rgba(255, 45, 48, ${alpha * 0.72})`);
   g.addColorStop(1, 'rgba(255, 45, 48, 0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, edge);
 
   g = ctx.createLinearGradient(0, h, 0, h - edge);
-  g.addColorStop(0, `rgba(255, 45, 48, ${alpha * 0.85})`);
+  g.addColorStop(0, `rgba(255, 45, 48, ${alpha * 0.72})`);
   g.addColorStop(1, 'rgba(255, 45, 48, 0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, h - edge, w, edge);

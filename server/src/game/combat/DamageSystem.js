@@ -51,6 +51,14 @@ function setHint(player, text, duration = 2.2) {
   player.uiHintTimer = duration;
 }
 
+
+function markPlayerCombatEngaged(player, timeMs) {
+  if (!player || player.kind !== 'player') return;
+  player.lastDamageDealtAt = timeMs;
+  player.lastCombatEngagedAt = Math.max(player.lastCombatEngagedAt || 0, timeMs);
+}
+
+
 function forceClientPoseTransition(player, label, timeMs, durationMs = 520) {
   const id = ((player.portalTransitionId | 0) + 1) | 0;
   player.portalTransitionId = id;
@@ -342,6 +350,10 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   const finalAmount = shielded
     ? frameAdjusted * getIncomingShieldDamageMultiplier(target)
     : frameAdjusted * getIncomingHullDamageMultiplier(target);
+
+  if (finalAmount > 0 && sourcePlayer?.kind === 'player' && target && target.kind !== 'station' && target.id !== sourcePlayer.id) {
+    markPlayerCombatEngaged(sourcePlayer, timeMs);
+  }
 
   if (target.kind !== 'structure') {
     queueDamageNumber(state, target, finalAmount, {

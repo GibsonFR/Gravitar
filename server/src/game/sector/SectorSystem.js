@@ -85,7 +85,8 @@ function applyWrapToPlayer(state, p, timeMs) {
   const w = wrapIntoSector({ x: p.x, y: p.y }, beforeSx, beforeSy);
   const changed = (beforeSx !== w.sx) || (beforeSy !== w.sy);
 
-  if (changed && Number.isFinite(p.lastDamageReceivedAt) && timeMs - p.lastDamageReceivedAt < SECTOR_COMBAT_LOCK_MS) {
+  const lastCombatAt = Math.max(p.lastDamageReceivedAt || 0, p.lastDamageDealtAt || 0, p.lastCombatEngagedAt || 0);
+  if (changed && Number.isFinite(lastCombatAt) && lastCombatAt > 0 && timeMs - lastCombatAt < SECTOR_COMBAT_LOCK_MS) {
     const pad = Math.max(30, (p.radius || 18) + 14);
     p.x = Math.max(-SECTOR.half + pad, Math.min(SECTOR.half - pad, beforeX));
     p.y = Math.max(-SECTOR.half + pad, Math.min(SECTOR.half - pad, beforeY));
