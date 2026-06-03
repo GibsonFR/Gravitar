@@ -211,7 +211,7 @@ function grantLogisticDronesTestPack(state, player, timeMs) {
   };
   for (const [key, amount] of Object.entries(pack)) addResource(player.inv, key, amount);
   player.research = player.research || { completed: [], unlocked: [] };
-  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'advanced_logistics'])];
+  player.research.completed = [...new Set([...(player.research.completed || []), 'construction_foundations', 'industry_smelting_control', 'automation_routing', 'energy_distribution', 'advanced_industry', 'electronics_processing', 'resource_scanning', 'logistics_basic', 'logistics_fast', 'logistics_advanced'])];
   ensureTestLogisticDronesBench(state, player, timeMs);
 }
 

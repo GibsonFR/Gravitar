@@ -175,7 +175,7 @@ export class DroneStationPanelView {
         <div>
           <div class="logistics-panel__eyebrow">Logistique automatisée</div>
           <h2>${escapeHtml(station.name)}</h2>
-          <div class="logistics-panel__meta ${station.powered ? 'is-ok' : 'is-warn'}">${station.powered ? 'Alimentée' : 'Non alimentée'} · ${station.energyUse | 0} énergie · capacité ${station.droneCargo | 0}/drone</div>
+          <div class="logistics-panel__meta ${station.powered ? 'is-ok' : 'is-warn'}">${escapeHtml(station.logisticsTierName || 'Logistique basique')} · ${station.powered ? 'Alimentée' : 'Non alimentée'} · ${station.energyUse | 0} énergie · ${station.droneCargo | 0}/drone · portée ${station.rangeSectors | 0} secteur(s)</div>
         </div>
         <button type="button" class="logistics-panel__close" data-drone-station-close="1">×</button>
       </header>
@@ -198,7 +198,7 @@ export class DroneStationPanelView {
             <div class="logistics-meter-label"><span>Recharge drones vides</span><b>${station.droneCharge >= station.droneChargeMax ? 'plein' : `${rechargeFill}%`}</b></div>
             <div class="logistics-bar logistics-bar--recharge"><span style="width:${station.droneCharge >= station.droneChargeMax ? 100 : rechargeFill}%"></span></div>
           </div>
-          <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · ${station.deliveriesPerCharge | 0} livraisons par drone avant recharge · ${station.activeFlights | 0} mission(s) visible(s) · cadence ${station.nextMissionSeconds > 0 ? `${station.nextMissionSeconds}s` : 'prête'}</div>
+          <div class="logistics-card__sub">${station.cargoDrones | 0} drone(s) dans le cargo · ${station.deliveriesPerCharge | 0} livraisons avant recharge · recharge ${station.rechargeSeconds | 0}s · ${station.activeFlights | 0} mission(s) visible(s) · cadence ${station.nextMissionSeconds > 0 ? `${station.nextMissionSeconds}s` : 'prête'}</div>
           <div class="logistics-actions">
             <button type="button" data-drone-station-transfer="deposit" data-amount="1" ${station.cargoDrones <= 0 || station.freeSlots <= 0 ? 'disabled' : ''}>Insérer 1</button>
             <button type="button" data-drone-station-transfer="deposit" data-amount="all" ${station.cargoDrones <= 0 || station.freeSlots <= 0 ? 'disabled' : ''}>Tout insérer</button>

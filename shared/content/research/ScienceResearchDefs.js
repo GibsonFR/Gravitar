@@ -110,16 +110,43 @@ export const RESEARCH_PROJECTS = Object.freeze([
   },
 
   {
-    id: 'advanced_logistics',
+    id: 'logistics_basic',
+    branch: 'automation',
+    name: 'Logistique basique',
+    points: 14,
+    energyUse: 18,
+    pointCost: { automationSciencePack: 1, industrialSciencePack: 1 },
+    unlockBuildings: ['Station de drones logistiques', 'Atelier de drones logistiques', 'Coffre de chargement', 'Coffre demandeur', 'Coffre tampon logistique'],
+    unlockRecipes: ['Drone logistique basique'],
+    prereq: ['resource_scanning', 'electronics_processing'],
+    tier: 4,
+    migrationAliases: ['advanced_logistics']
+  },
+  {
+    id: 'logistics_fast',
+    branch: 'automation',
+    name: 'Logistique rapide',
+    points: 16,
+    energyUse: 24,
+    pointCost: { automationSciencePack: 1, industrialSciencePack: 1, energySciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Recharge drones rapide', 'Capacité station drones +'],
+    prereq: ['logistics_basic'],
+    tier: 5,
+    migrationAliases: ['advanced_logistics']
+  },
+  {
+    id: 'logistics_advanced',
     branch: 'automation',
     name: 'Logistique avancée',
     points: 22,
     energyUse: 30,
-    pointCost: { automationSciencePack: 1, industrialSciencePack: 1, energySciencePack: 1 },
-    unlockBuildings: ['Station de drones logistiques', 'Atelier de drones logistiques', 'Coffre de chargement', 'Coffre demandeur', 'Coffre tampon logistique'],
-    unlockRecipes: ['Drone logistique basique'],
-    prereq: ['resource_scanning', 'electronics_processing'],
-    tier: 4
+    pointCost: { industrialSciencePack: 1, energySciencePack: 1, advancedSciencePack: 1 },
+    unlockBuildings: [],
+    unlockRecipes: ['Réseau inter-secteur étendu', 'Drones longue portée'],
+    prereq: ['logistics_fast', 'advanced_research'],
+    tier: 6,
+    migrationAliases: ['advanced_logistics']
   },
   {
     id: 'bio_processing',
@@ -261,11 +288,11 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   electronics_bench: 'electronics_processing',
   mining_extractor: 'resource_scanning',
   outpost_core: 'resource_scanning',
-  logistic_drone_station: 'advanced_logistics',
-  logistic_drone_workshop: 'advanced_logistics',
-  logistic_chest_provider: 'advanced_logistics',
-  logistic_chest_requester: 'advanced_logistics',
-  logistic_chest_buffer: 'advanced_logistics',
+  logistic_drone_station: 'logistics_basic',
+  logistic_drone_workshop: 'logistics_basic',
+  logistic_chest_provider: 'logistics_basic',
+  logistic_chest_requester: 'logistics_basic',
+  logistic_chest_buffer: 'logistics_basic',
   equipment_fabricator: 'advanced_research',
   industrial_converter: 'pirate_reverse_engineering',
   rocket_workshop: 'defense_turrets',
@@ -338,7 +365,7 @@ export const RECIPE_RESEARCH_REQUIREMENTS = Object.freeze({
   steel_fuel_to_injector: 'advanced_research',
   energy_science_pack: 'electronics_processing',
   advanced_science_pack: 'advanced_research',
-  logistic_drone_basic: 'advanced_logistics',
+  logistic_drone_basic: 'logistics_basic',
   anomaly_science_pack: 'alien_anomaly_analysis'});
 
 export function completedResearchSet(researchOrCompleted = []) {
@@ -354,9 +381,16 @@ export function getResearchName(researchId) {
   return RESEARCH_PROJECTS.find((p) => p.id === researchId)?.name || researchId || '';
 }
 
+export function getResearchMigrationAliases(researchId) {
+  const project = getResearchProject(researchId);
+  return Array.isArray(project?.migrationAliases) ? project.migrationAliases : [];
+}
+
 export function isResearchCompleted(researchOrCompleted, researchId) {
   if (!researchId) return true;
-  return completedResearchSet(researchOrCompleted).has(researchId);
+  const done = completedResearchSet(researchOrCompleted);
+  if (done.has(researchId)) return true;
+  return getResearchMigrationAliases(researchId).some((alias) => done.has(alias));
 }
 
 export function getStructureResearchRequirement(structureType) {

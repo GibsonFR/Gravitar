@@ -3,6 +3,7 @@ import { distanceSqToStructureRect, isStructureOwner } from './StructureSystem.j
 import { getStorageCapacity, getStorageUsed } from './StructureStorage.js';
 import { RESOURCE_DEFS, RESOURCE_KEYS_ORDER } from '../inventory/ResourceDefs.js';
 import { addResource, removeResource } from '../inventory/InventorySystem.js';
+import { isResearchCompleted } from '../../../../shared/content/research/ScienceResearchDefs.js';
 
 const ACCESS_RANGE = 280;
 const DRONE_KEY = 'logisticDroneBasic';
@@ -82,6 +83,39 @@ function sameWorldSector(a, b) {
   return sameWorld(a, b) && (a?.sx | 0) === (b?.sx | 0) && (a?.sy | 0) === (b?.sy | 0);
 }
 
+function ownerResearchForStation(state, station) {
+  const ownerId = station?.ownerId | 0;
+  const ownerKey = ownerKeyOf(station);
+  for (const player of state?.players?.values?.() || []) {
+    if (ownerId && (player.id | 0) === ownerId) return player.research || {};
+    const pk = String(player?.accountKey || player?.accountName || player?.pseudo || `guest-${player?.id | 0}`).toLowerCase();
+    if (ownerKey && pk === ownerKey) return player.research || {};
+  }
+  return null;
+}
+
+function logisticResearchTier(state, station) {
+  const research = ownerResearchForStation(state, station);
+  if (!research) return 1;
+  if (isResearchCompleted(research, 'logistics_advanced')) return 3;
+  if (isResearchCompleted(research, 'logistics_fast')) return 2;
+  if (isResearchCompleted(research, 'logistics_basic')) return 1;
+  return 1;
+}
+
+function logisticStationStats(state, station) {
+  const def = getStructureDef(station?.type) || {};
+  const tier = logisticResearchTier(state, station);
+  return {
+    tier,
+    tierName: tier >= 3 ? 'Logistique avancée' : (tier >= 2 ? 'Logistique rapide' : 'Logistique basique'),
+    droneCapacity: Math.max(1, (def.droneCapacity | 0 || 8) + (tier >= 2 ? 4 : 0) + (tier >= 3 ? 4 : 0)),
+    droneRangeSectors: tier >= 3 ? Math.max(2, def.droneRangeSectors | 0 || 1) : Math.max(0, Math.min(1, def.droneRangeSectors | 0 || 1)),
+    droneRechargeSeconds: tier >= 3 ? 12 : (tier >= 2 ? 14 : Math.max(1, def.droneRechargeSeconds | 0 || 20)),
+    droneCargo: tier >= 3 ? DRONE_CARGO + 2 : (tier >= 2 ? DRONE_CARGO + 1 : DRONE_CARGO)
+  };
+}
+
 function sectorDistance(a, b) {
   return Math.max(Math.abs((a?.sx | 0) - (b?.sx | 0)), Math.abs((a?.sy | 0) - (b?.sy | 0)));
 }
@@ -98,7 +132,8 @@ function hasDroneStationInSector(state, station, sx, sy) {
 
 function isSectorInDroneNetwork(state, station, sx, sy) {
   if (!sameWorld(station, { worldId: station.worldId })) return false;
-  if (sectorDistance(station, { sx, sy }) > 1) return false;
+  const stats = logisticStationStats(state, station);
+  if (sectorDistance(station, { sx, sy }) > Math.max(0, stats.droneRangeSectors | 0)) return false;
   return (sx | 0) === (station.sx | 0) && (sy | 0) === (station.sy | 0)
     ? true
     : hasDroneStationInSector(state, station, sx, sy);
@@ -390,13 +425,13 @@ function droneChargeCapacity(st) {
   return installedDrones(st) * DRONE_DELIVERIES_BEFORE_RECHARGE;
 }
 
-function rechargeDroneStation(st, dtMs, timeMs) {
+function rechargeDroneStation(state, st, dtMs, timeMs) {
   if (!isDroneStationStructure(st)) return false;
   const slots = normalizeDroneSlots(st);
   if (!slots.length || !st.powered) return false;
   const activeIds = activeDroneIds(st);
-  const def = getStructureDef(st.type) || {};
-  const rechargeMs = Math.max(1000, (Number(def.droneRechargeSeconds) || 20) * 1000);
+  const stats = logisticStationStats(state, st);
+  const rechargeMs = Math.max(1000, (Number(stats.droneRechargeSeconds) || 20) * 1000);
   let changed = false;
   for (const slot of slots) {
     if (activeIds.has(slot.id)) continue;
@@ -982,6 +1017,8 @@ function tryRunOneMission(state, station, timeMs) {
   const droneSlot = availableDroneSlot(station);
   if (!droneSlot) return false;
   if (activeFlightCount(station) >= installed) return false;
+  const stationStats = logisticStationStats(state, station);
+  const droneCargo = Math.max(1, stationStats.droneCargo | 0 || DRONE_CARGO);
   const chests = networkLogisticChests(state, station);
   const requesters = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_REQUESTER);
   const providers = chests.filter((st) => st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER || st.type === STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER);
@@ -1000,7 +1037,7 @@ function tryRunOneMission(state, station, timeMs) {
         if (!isValidLogisticEndpoint(state, station, provider, 'source')) continue;
         const available = Math.max(0, (storageResources(provider)[key] | 0) - sourceReservedFromProviderKey(state, station, provider, key));
         if (available <= 0) continue;
-        const amount = Math.max(0, Math.min(DRONE_CARGO, available, needAfterIncoming, fit));
+        const amount = Math.max(0, Math.min(droneCargo, available, needAfterIncoming, fit));
         if (amount <= 0) continue;
         const claimed = claimDroneForMission(station);
         if (!claimed) return false;
@@ -1023,7 +1060,7 @@ export function updateLogisticDroneStations(state, dt, timeMs = Date.now()) {
   for (const st of state.structures.values()) {
     if (!isDroneStationStructure(st)) continue;
     if (updateFlights(state, st, timeMs)) shouldSave ||= String(st.worldId || 'endless') === 'endless';
-    if (rechargeDroneStation(st, stepMs, timeMs)) shouldSave ||= String(st.worldId || 'endless') === 'endless';
+    if (rechargeDroneStation(state, st, stepMs, timeMs)) shouldSave ||= String(st.worldId || 'endless') === 'endless';
     if (timeMs < (st.nextLogisticMissionAt || 0)) continue;
     const installed = installedDrones(st);
     const interval = Math.max(900, LOGISTIC_TICK_MS / Math.max(1, Math.min(6, installed)));
@@ -1043,13 +1080,14 @@ export function buildDroneStationSnapshot(state, player) {
     return null;
   }
   const def = getStructureDef(st.type) || {};
+  const stats = logisticStationStats(state, st);
   const resources = storageResources(st);
   const installed = installedDrones(st);
-  const capacity = Math.max(1, def.droneCapacity | 0 || 8);
+  const capacity = Math.max(1, stats.droneCapacity | 0 || 8);
   const droneStatus = stationDroneStatus(st);
   const chargeMax = droneStatus.maxCharge;
   const charge = droneStatus.charge;
-  const rechargeMs = Math.max(1000, (Number(def.droneRechargeSeconds) || 20) * 1000);
+  const rechargeMs = Math.max(1000, (Number(stats.droneRechargeSeconds) || 20) * 1000);
   const chargingSlots = droneStatus.slots.filter((slot) => !activeDroneIds(st).has(slot.id) && (slot.charge | 0) <= 0);
   const rechargeProgress = chargingSlots.length
     ? Math.max(0, Math.min(1, chargingSlots.reduce((sum, slot) => sum + Math.max(0, Number(slot.rechargeMs || 0) || 0), 0) / Math.max(1, chargingSlots.length * rechargeMs)))
@@ -1067,9 +1105,11 @@ export function buildDroneStationSnapshot(state, player) {
     droneCapacity: capacity,
     freeSlots: Math.max(0, capacity - installed),
     cargoDrones,
-    droneCargo: DRONE_CARGO,
-    rangeSectors: Math.max(1, def.droneRangeSectors | 0 || 1),
-    rechargeSeconds: Math.max(1, def.droneRechargeSeconds | 0 || 20),
+    droneCargo: stats.droneCargo,
+    logisticsTier: stats.tier,
+    logisticsTierName: stats.tierName,
+    rangeSectors: Math.max(0, stats.droneRangeSectors | 0),
+    rechargeSeconds: Math.max(1, stats.droneRechargeSeconds | 0 || 20),
     deliveriesPerCharge: DRONE_DELIVERIES_BEFORE_RECHARGE,
     droneCharge: charge,
     droneChargeMax: chargeMax,
@@ -1194,9 +1234,9 @@ export function transferLogisticChestResource(state, player, structureId, resour
 export function transferDroneStationDrone(state, player, structureId, direction = 'deposit', amount = 1, timeMs = Date.now()) {
   const st = state?.structures?.get?.(structureId | 0);
   if (!canPlayerAccessLogisticsStructure(state, player, st) || !isDroneStationStructure(st)) return false;
-  const def = getStructureDef(st.type) || {};
+  const stats = logisticStationStats(state, st);
   const resources = storageResources(st);
-  const cap = Math.max(1, def.droneCapacity | 0 || 8);
+  const cap = Math.max(1, stats.droneCapacity | 0 || 8);
   const n = Math.max(1, Math.min(999, amount | 0 || 1));
   if (direction === 'withdraw') {
     const activeIds = activeDroneIds(st);
