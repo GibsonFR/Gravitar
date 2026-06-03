@@ -381,6 +381,54 @@ function drawShootingStars(ctx, view, camX, camY, bg, biomeId, seed, t = 0) {
   ctx.restore();
 }
 
+function drawParallaxStarLayer(ctx, view, camX, camY, bg, sectorSeed, options = {}) {
+  const { cssW, cssH, dpr } = view;
+  const parallax = Number.isFinite(options.parallax) ? options.parallax : 1;
+  const cell = options.cell || 240;
+  const count = Math.max(0, Math.round(options.count || 5));
+  const sizeMin = options.sizeMin || 0.45;
+  const sizeMax = options.sizeMax || 1.4;
+  const alphaMin = options.alphaMin || 0.10;
+  const alphaMax = options.alphaMax || 0.35;
+  const salt = options.salt || 0;
+  const sc = bg.star || { r: 210, g: 225, b: 240 };
+  const tintMix = clamp01(0.10 + bg.haze * 0.9);
+  const r = sc.r * (1 - tintMix) + bg.accent.r * tintMix;
+  const g = sc.g * (1 - tintMix) + bg.accent.g * tintMix;
+  const b = sc.b * (1 - tintMix) + bg.accent.b * tintMix;
+
+  const layerCamX = camX * parallax;
+  const layerCamY = camY * parallax;
+  const minX = layerCamX - cssW * 0.72;
+  const maxX = layerCamX + cssW * 0.72;
+  const minY = layerCamY - cssH * 0.72;
+  const maxY = layerCamY + cssH * 0.72;
+  const c0x = Math.floor(minX / cell);
+  const c1x = Math.floor(maxX / cell);
+  const c0y = Math.floor(minY / cell);
+  const c1y = Math.floor(maxY / cell);
+
+  for (let cy = c0y; cy <= c1y; cy++) {
+    for (let cx = c0x; cx <= c1x; cx++) {
+      let s = (cx * 73856093) ^ (cy * 19349663) ^ sectorSeed ^ salt;
+      for (let i = 0; i < count; i++) {
+        s = xorshift(s);
+        const rx = (s & 0xffff) / 0xffff;
+        s = xorshift(s);
+        const ry = (s & 0xffff) / 0xffff;
+        s = xorshift(s);
+        const rr = (s & 0xffff) / 0xffff;
+        const sx = (cx * cell + rx * cell - layerCamX) + cssW * 0.5;
+        const sy = (cy * cell + ry * cell - layerCamY) + cssH * 0.5;
+        const size = sizeMin + rr * (sizeMax - sizeMin);
+        const alpha = alphaMin + rr * (alphaMax - alphaMin);
+        ctx.fillStyle = rgba(r, g, b, alpha);
+        ctx.fillRect(sx * dpr, sy * dpr, size * dpr, size * dpr);
+      }
+    }
+  }
+}
+
 export function drawStars(ctx, view, camX, camY, density = 1, biome = null, t = 0) {
   const { cssW, cssH, dpr } = view;
   const bg = backdropFor(biome);
@@ -392,41 +440,36 @@ export function drawStars(ctx, view, camX, camY, density = 1, biome = null, t = 
   drawLocalNebula(ctx, view, camX, camY, bg, biomeId);
   drawDeepStarClusters(ctx, view, camX, camY, bg, biomeId, sectorSeed, density);
 
-  const cell = 240;
-  const seed = 1337;
-  const minX = camX - cssW * 0.7;
-  const maxX = camX + cssW * 0.7;
-  const minY = camY - cssH * 0.7;
-  const maxY = camY + cssH * 0.7;
-  const c0x = Math.floor(minX / cell);
-  const c1x = Math.floor(maxX / cell);
-  const c0y = Math.floor(minY / cell);
-  const c1y = Math.floor(maxY / cell);
-
-  for (let cy = c0y; cy <= c1y; cy++) {
-    for (let cx = c0x; cx <= c1x; cx++) {
-      let s = (cx * 73856093) ^ (cy * 19349663) ^ seed ^ sectorSeed;
-      for (let i = 0; i < Math.max(0, Math.round(5 * density)); i++) {
-        s = xorshift(s);
-        const rx = (s & 0xffff) / 0xffff;
-        s = xorshift(s);
-        const ry = (s & 0xffff) / 0xffff;
-        s = xorshift(s);
-        const rr = (s & 0xffff) / 0xffff;
-        const sx = (cx * cell + rx * cell - camX) + cssW * 0.5;
-        const sy = (cy * cell + ry * cell - camY) + cssH * 0.5;
-        const size = 0.7 + rr * 1.5;
-        const alpha = 0.15 + rr * 0.38;
-        const sc = bg.star || { r: 210, g: 225, b: 240 };
-        const tintMix = clamp01(0.10 + bg.haze * 0.9);
-        const r = sc.r * (1 - tintMix) + bg.accent.r * tintMix;
-        const g = sc.g * (1 - tintMix) + bg.accent.g * tintMix;
-        const b = sc.b * (1 - tintMix) + bg.accent.b * tintMix;
-        ctx.fillStyle = rgba(r, g, b, alpha);
-        ctx.fillRect(sx * dpr, sy * dpr, size * dpr, size * dpr);
-      }
-    }
-  }
+  drawParallaxStarLayer(ctx, view, camX, camY, bg, sectorSeed, {
+    parallax: 0.18,
+    cell: 420,
+    count: Math.max(1, Math.round(3 * density)),
+    sizeMin: 0.45,
+    sizeMax: 1.05,
+    alphaMin: 0.08,
+    alphaMax: 0.20,
+    salt: 0x1337
+  });
+  drawParallaxStarLayer(ctx, view, camX, camY, bg, sectorSeed, {
+    parallax: 0.46,
+    cell: 300,
+    count: Math.max(1, Math.round(4 * density)),
+    sizeMin: 0.55,
+    sizeMax: 1.55,
+    alphaMin: 0.10,
+    alphaMax: 0.31,
+    salt: 0x2468
+  });
+  drawParallaxStarLayer(ctx, view, camX, camY, bg, sectorSeed, {
+    parallax: 0.82,
+    cell: 220,
+    count: Math.max(1, Math.round(3 * density)),
+    sizeMin: 0.65,
+    sizeMax: 2.05,
+    alphaMin: 0.12,
+    alphaMax: 0.42,
+    salt: 0x369c
+  });
 
   drawBiomePattern(ctx, view, camX, camY, bg, biomeId);
   drawShootingStars(ctx, view, camX, camY, bg, biomeId, sectorSeed, t);
