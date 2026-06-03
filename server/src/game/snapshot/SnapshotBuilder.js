@@ -22,6 +22,8 @@ import {
   buildProjectileSnapshots,
   buildStationSnapshots,
   buildStructureAutomationSnapshots,
+  buildStructureAutomationCombatSnapshots,
+  buildStructureCombatSnapshots,
   buildStructureSnapshots,
   buildLogisticDroneSnapshots
 } from './builders/BuildWorldEntitySnapshots.js';
@@ -64,6 +66,8 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const { inMySector, nearDynamic, nearStatic, playerInMyWorldAndSector } = buildVisibilityPredicates(me);
   const fullUi = options.fullUi !== false;
   const staticWorld = options.staticWorld !== false;
+  const legacyEvents = !!options.legacyEvents;
+  const includeLegacyPlayerSfx = !!options.legacyEvents;
   // Important: being docked must NOT force a full station snapshot every network tick.
   // Full station/UI data is heavy (inventory, equipment, shop, map). GameServer decides
   // when to send it: periodically, and immediately after a station command. Sending it
@@ -76,7 +80,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const passiveEvents = peekPassiveEventsForPlayer(state, me);
   const events = buildNetworkEventsFromLegacy(state, playerId, timeMs, visibleWorldSfx, visibleCombatFx, playerSfx, abilityProtocolEvents, statusEvents, passiveEvents);
 
-  return {
+  const snapshot = {
     t: 'snap',
     fullUi,
     time: timeMs,
@@ -90,16 +94,16 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     modes: buildModeSnapshot(state, me, timeMs),
     world: WORLD,
     events,
-    worldSfx: visibleWorldSfx,
-    combatFx: visibleCombatFx,
-    me: fullUi ? buildMeSnapshot(me, timeMs, state) : buildMeLiteSnapshot(me, timeMs, state),
+    worldSfx: legacyEvents ? visibleWorldSfx : undefined,
+    combatFx: legacyEvents ? visibleCombatFx : undefined,
+    me: fullUi ? buildMeSnapshot(me, timeMs, state, { includeSfx: includeLegacyPlayerSfx }) : buildMeLiteSnapshot(me, timeMs, state, { includeSfx: includeLegacyPlayerSfx }),
     players: buildPlayerSnapshots(state.players, playerInMyWorldAndSector, timeMs),
     playerDirectory: buildPlayerDirectorySnapshot(state, me),
     mobs: buildMobSnapshots(state.mobs, nearDynamic, { compact: !staticWorld }),
     asteroids: staticWorld ? buildAsteroidSnapshots(state.asteroids, nearStatic) : buildAsteroidCombatSnapshots(state.asteroids, nearStatic),
     stations: staticWorld ? buildStationSnapshots(state.stations, nearStatic) : undefined,
-    structures: staticWorld ? buildStructureSnapshots(state.structures, nearStatic, me) : undefined,
-    structureAutomation: buildStructureAutomationSnapshots(state.structures, nearStatic),
+    structures: staticWorld ? buildStructureSnapshots(state.structures, nearStatic, me) : buildStructureCombatSnapshots(state.structures, nearDynamic, me),
+    structureAutomation: staticWorld ? buildStructureAutomationSnapshots(state.structures, nearStatic) : buildStructureAutomationCombatSnapshots(state.structures, nearDynamic),
     portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
     staticWorld,
     projectiles: buildProjectileSnapshots(state.projectiles, nearDynamic),
@@ -110,4 +114,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     ],
     loots: buildLootSnapshots(state.loots, nearDynamic)
   };
+  pruneUndefinedSnapshotFields(snapshot);
+  attachSnapshotNetMetrics(snapshot, { legacyEvents });
+  return snapshot;
 }

@@ -72,6 +72,7 @@ export class NetStats {
     this.hardReconciliationCount = 0;
     this.entityCounts = {};
     this.snapshotSections = {};
+    this.snapshotSectionBytes = {};
     this.wsBufferedAmount = 0;
     this.skippedSnapshots = 0;
     this.droppedByBackpressure = 0;
@@ -159,7 +160,8 @@ export class NetStats {
       drones: Array.isArray(msg?.logisticDrones) ? msg.logisticDrones.length : 0,
       areaEffects: Array.isArray(msg?.areaEffects) ? msg.areaEffects.length : 0
     };
-    this.snapshotSections = Object.fromEntries(Object.entries(msg || {}).map(([k, v]) => [k, Array.isArray(v) ? v.length : (v && typeof v === 'object' ? 1 : 0)]));
+    this.snapshotSections = msg?.net?.slim?.sectionCounts || Object.fromEntries(Object.entries(msg || {}).map(([k, v]) => [k, Array.isArray(v) ? v.length : (v && typeof v === 'object' ? 1 : 0)]));
+    this.snapshotSectionBytes = msg?.net?.slim?.sectionBytes || {};
     this.eventsInWindow += (Array.isArray(msg?.events) ? msg.events.length : 0) + (Array.isArray(msg?.combatFx) ? msg.combatFx.length : 0) + (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0);
     this.sfxInWindow += (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0) + (Array.isArray(msg?.me?.sfx) ? msg.me.sfx.length : 0);
   }
@@ -305,7 +307,9 @@ export class NetStats {
       interpolation: this.interpolation?.stats?.() || null,
       inputHistory: this.inputHistory?.stats?.() || null,
       eventDeduper: this.eventDeduper?.stats?.() || null,
-      eventDrivenHud: this.eventDrivenHudSource?.getEventDrivenHudStats?.() || null
+      eventDrivenHud: this.eventDrivenHudSource?.getEventDrivenHudStats?.() || null,
+      snapshotSectionBytes: { ...this.snapshotSectionBytes },
+      snapshotSections: { ...this.snapshotSections }
     };
   }
 }

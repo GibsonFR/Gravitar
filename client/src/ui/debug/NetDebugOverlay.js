@@ -19,6 +19,15 @@ function countLine(counts = {}) {
   return `P:${counts.players || 0} M:${counts.mobs || 0} Pr:${counts.projectiles || 0} A:${counts.asteroids || 0} S:${counts.structures || 0} L:${counts.loots || 0}`;
 }
 
+function topSectionLine(bytes = {}) {
+  const items = Object.entries(bytes || {})
+    .filter(([, v]) => Number(v) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .slice(0, 3)
+    .map(([k, v]) => `${k}:${fmtBytes(v)}`);
+  return items.length ? items.join(' ') : '—';
+}
+
 export class NetDebugOverlay {
   constructor(netStats) {
     this.netStats = netStats;
@@ -64,6 +73,7 @@ export class NetDebugOverlay {
         <span>Out</span><b>${fmtBytes(s.bytesOutPerSec)}/s</b>
         <span>Snap size</span><b>${fmtBytes(s.avgSnapshotBytes)} avg</b>
         <span>Snap max</span><b>${fmtBytes(s.maxSnapshotBytes)}</b>
+        <span>Snap top</span><b>${topSectionLine(s.snapshotSectionBytes)}</b>
         <span>Correction</span><b>${Math.round(s.correctionDistanceAvg || 0)} / ${Math.round(s.correctionDistanceMax || 0)}</b>
         <span>Soft rec</span><b>${Math.round(s.softReconciliationAvg || 0)} / ${Math.round(s.softReconciliationApplied || 0)}</b>
         <span>Hard rec</span><b>${s.hardReconciliationCount | 0}</b>

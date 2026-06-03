@@ -205,6 +205,54 @@ export function buildStructureAutomationSnapshots(structures, inSector) {
     }));
 }
 
+export function buildStructureAutomationCombatSnapshots(structures, inSector) {
+  return [...structures.values()]
+    .filter(inSector)
+    .filter((structure) => getAutomationKindSnapshot(structure))
+    .map((structure) => ({
+      id: structure.id,
+      automationKind: getAutomationKindSnapshot(structure),
+      automationPulse: structure.automationPulse || 0,
+      automationStatus: getAutomationStatusSnapshot(structure),
+      depositResourceKey: structure.depositResourceKey || '',
+      depositRemaining: structure.depositRemaining | 0 || 0,
+      depositInfinite: structure.type === 'resource_deposit'
+    }));
+}
+
+export function buildStructureCombatSnapshots(structures, inSector, player = null) {
+  const playerOwner = String(player?.accountKey || player?.accountName || player?.pseudo || `guest-${player?.id | 0}`).toLowerCase();
+  const playerWorld = String(player?.worldId || 'endless');
+  return [...(structures?.values?.() || [])]
+    .filter((structure) => structure && (structure.damageable === false || structure.stats?.hp > 0))
+    .filter((structure) => String(structure.worldId || 'endless') === playerWorld)
+    .filter(inSector)
+    .map((structure) => ({
+      id: structure.id,
+      kind: 'structure',
+      type: structure.type,
+      sx: structure.sx | 0,
+      sy: structure.sy | 0,
+      x: q(structure.x),
+      y: q(structure.y),
+      radius: q(structure.radius),
+      w: q(structure.w || 0),
+      h: q(structure.h || 0),
+      orientation: structure.orientation || 'h',
+      updatedAt: Number(structure.updatedAt || 0),
+      open: !!structure.open,
+      solid: !!structure.solid,
+      damageable: structure.damageable !== false,
+      vitals: structure.damageable === false ? null : qv(structure.stats),
+      ownerKey: structure.ownerKey || '',
+      ownedByMe: String(structure.ownerKey || '').toLowerCase() === playerOwner,
+      automationPulse: structure.automationPulse || 0,
+      automationKind: getAutomationKindSnapshot(structure),
+      automationStatus: getAutomationStatusSnapshot(structure),
+      combatLite: true
+    }));
+}
+
 export function buildStructureSnapshots(structures, inSector, player = null) {
   const playerOwner = String(player?.accountKey || player?.accountName || player?.pseudo || `guest-${player?.id | 0}`).toLowerCase();
   const playerWorld = String(player?.worldId || 'endless');

@@ -110,7 +110,7 @@ function buildDerivedSnapshot(player) {
   };
 }
 
-export function buildMeSnapshot(player, timeMs, state = null) {
+export function buildMeSnapshot(player, timeMs, state = null, options = {}) {
   if (!player) return null;
   const dockedStation = state?.stations?.get?.(player.dockedStationId || 0) ?? null;
   return {
@@ -162,7 +162,7 @@ export function buildMeSnapshot(player, timeMs, state = null) {
     frameState: buildFrameUiState(player, timeMs),
     derived: buildDerivedSnapshot(player),
     bastions: buildBastionBuffSnapshot(player),
-    sfx: drainPlayerSfx(player),
+    sfx: options.includeSfx === false ? undefined : drainPlayerSfx(player),
     transition: buildTransitionSnapshot(player, timeMs),
     baseIntrusion: buildHostileBaseIntrusionSnapshot(player),
     activeQuests: buildActiveQuestSnapshot(player, state)
@@ -170,7 +170,7 @@ export function buildMeSnapshot(player, timeMs, state = null) {
 }
 
 
-export function buildMeLiteSnapshot(player, timeMs, state = null) {
+export function buildMeLiteSnapshot(player, timeMs, state = null, options = {}) {
   if (!player) return null;
   return {
     id: player.id,
@@ -216,7 +216,7 @@ export function buildMeLiteSnapshot(player, timeMs, state = null) {
     frameState: buildFrameUiState(player, timeMs),
     derived: buildDerivedSnapshot(player),
     statuses: buildStatusSnapshot(player, 4),
-    sfx: drainPlayerSfx(player),
+    sfx: options.includeSfx === false ? undefined : drainPlayerSfx(player),
     transition: buildTransitionSnapshot(player, timeMs),
     baseIntrusion: buildHostileBaseIntrusionSnapshot(player),
     activeQuests: buildActiveQuestSnapshot(player, state)
