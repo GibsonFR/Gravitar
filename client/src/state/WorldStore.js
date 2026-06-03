@@ -694,11 +694,14 @@ export class WorldStore {
       }
     }
     const transition = this.myState?.transition || null;
-    if (transition) {
+    if (transition && !(transition.type === 'sector' && Number(this.myState?.sectorCombatLockLeft || 0) > 0)) {
       const base = transition.type === 'sector' ? 220 : 450;
       this.beginPortalLoading(transition.label || 'Chargement du secteur…', Math.max(base, (transition.until || msg.time || 0) - (msg.time || 0) + 90), transition.id | 0);
       const me = this.players.get(this.myId);
       if (me && transition.forceServerPose) me._forceServerPose = true;
+    } else if (transition?.type === 'sector') {
+      this.localPrediction.loadingUntil = 0;
+      this.localPrediction.loadingLabel = '';
     }
     if (this.myState && performance.now() < (this.localPrediction.selectedUntil || 0)) {
       this.myState.selectedKind = this.localPrediction.selectedKind || '';
@@ -852,23 +855,6 @@ export class WorldStore {
       this.myState._optimisticHintLeft = Math.max(0, this.myState._optimisticHintLeft - dt);
       if (this.myState._optimisticHintLeft <= 0 && this.myState.hint) this.myState.hint = '';
     }
-    const fs = this.myState.frameState;
-    if (fs && Number.isFinite(fs.passiveDecayLeft)) {
-      fs.passiveDecayLeft = Math.max(0, fs.passiveDecayLeft - dt);
-      if (fs.passiveDecayLeft <= 0 && Number(fs.passiveStacks) > 0) {
-        fs.passiveDecaying = true;
-        fs._localPassiveDecayTick = (Number(fs._localPassiveDecayTick) || 0) + dt;
-        while (fs._localPassiveDecayTick >= 0.20 && Number(fs.passiveStacks) > 0) {
-          fs._localPassiveDecayTick -= 0.20;
-          fs.passiveStacks = Math.max(0, (Number(fs.passiveStacks) || 0) - 1);
-        }
-      } else {
-        fs.passiveDecaying = false;
-        fs._localPassiveDecayTick = 0;
-      }
-    }
-    if (fs && Number.isFinite(fs.runeDurationLeft)) fs.runeDurationLeft = Math.max(0, fs.runeDurationLeft - dt);
-    if (fs && Number.isFinite(fs.detonationCooldownLeft)) fs.detonationCooldownLeft = Math.max(0, fs.detonationCooldownLeft - dt);
     const me = this.getMe();
     if (me) {
       if (Number.isFinite(me.rocketCooldownLeft)) me.rocketCooldownLeft = Math.max(0, me.rocketCooldownLeft - dt);

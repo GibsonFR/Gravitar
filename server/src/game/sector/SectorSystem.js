@@ -86,7 +86,7 @@ function applyWrapToPlayer(state, p, timeMs) {
   const changed = (beforeSx !== w.sx) || (beforeSy !== w.sy);
 
   if (changed && Number.isFinite(p.lastDamageReceivedAt) && timeMs - p.lastDamageReceivedAt < SECTOR_COMBAT_LOCK_MS) {
-    const pad = Math.max(22, (p.radius || 18) + 10);
+    const pad = Math.max(30, (p.radius || 18) + 14);
     p.x = Math.max(-SECTOR.half + pad, Math.min(SECTOR.half - pad, beforeX));
     p.y = Math.max(-SECTOR.half + pad, Math.min(SECTOR.half - pad, beforeY));
     p.vx = 0;
@@ -96,6 +96,8 @@ function applyWrapToPlayer(state, p, timeMs) {
     p.moveTx = p.x;
     p.moveTy = p.y;
     p.sectorCombatLockHintAt = timeMs;
+    p.portalTransition = null;
+    p.ignoreClientPoseUntil = Math.max(p.ignoreClientPoseUntil ?? 0, timeMs + 180);
     return;
   }
 

@@ -8,6 +8,49 @@ import { drawHudTooltip } from './HudTooltipRenderer.js';
 import { fillRoundedRect } from './hud/HudChrome.js';
 
 
+
+function drawCombatLockVignette(ctx, view, myState) {
+  const left = Number(myState?.sectorCombatLockLeft || 0);
+  if (!Number.isFinite(left) || left <= 0) return;
+  const dpr = view.dpr;
+  const intensity = Math.max(0.16, Math.min(0.38, 0.16 + left / 5 * 0.16));
+  const pulse = 0.75 + 0.25 * Math.sin(performance.now() * 0.008);
+  const alpha = intensity * pulse;
+  const w = view.w;
+  const h = view.h;
+  const edge = Math.max(80, Math.min(view.cssW, view.cssH) * 0.18) * dpr;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+
+  let g = ctx.createLinearGradient(0, 0, edge, 0);
+  g.addColorStop(0, `rgba(255, 45, 48, ${alpha})`);
+  g.addColorStop(1, 'rgba(255, 45, 48, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, edge, h);
+
+  g = ctx.createLinearGradient(w, 0, w - edge, 0);
+  g.addColorStop(0, `rgba(255, 45, 48, ${alpha})`);
+  g.addColorStop(1, 'rgba(255, 45, 48, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(w - edge, 0, edge, h);
+
+  g = ctx.createLinearGradient(0, 0, 0, edge);
+  g.addColorStop(0, `rgba(255, 45, 48, ${alpha * 0.85})`);
+  g.addColorStop(1, 'rgba(255, 45, 48, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, edge);
+
+  g = ctx.createLinearGradient(0, h, 0, h - edge);
+  g.addColorStop(0, `rgba(255, 45, 48, ${alpha * 0.85})`);
+  g.addColorStop(1, 'rgba(255, 45, 48, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, h - edge, w, edge);
+
+  ctx.restore();
+}
+
+
 function drawBaseIntrusionBadge(ctx, view, myState, layout) {
   const intrusion = myState?.baseIntrusion;
   if (!intrusion?.active) return;
@@ -72,6 +115,7 @@ function getFrameDef(frameId) {
 
 export function drawHud(ctx, view, me, myState, input) {
   if (!me?.vitals) return;
+  drawCombatLockVignette(ctx, view, myState);
   const frameDef = getFrameDef(me.frameId || myState?.frameId);
   const layout = drawVitalsPanel(ctx, view, me, myState, frameDef);
   drawAbilityStrip(ctx, view, me, myState, input, layout);

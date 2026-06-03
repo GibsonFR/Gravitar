@@ -219,34 +219,6 @@ function getLocalMoveBoost(myState, slot) {
 }
 
 
-
-function applyLocalPassiveHudState(store, me, reason = 'hit') {
-  const myState = store?.myState;
-  if (!myState) return;
-  const frameId = String(myState.frameId || me?.frameId || '').toLowerCase();
-  myState.frameState = { ...(myState.frameState || {}) };
-  const fs = myState.frameState;
-
-  if (frameId === 'vanguard') {
-    const max = Math.max(1, Number(fs.passiveMaxStacks) || 10);
-    fs.passiveMaxStacks = max;
-    fs.passiveStacks = Math.min(max, Math.max(0, Number(fs.passiveStacks) || 0) + 1);
-    fs.passiveDecayLeft = Math.max(Number(fs.passiveDecayLeft) || 0, 5.0);
-    fs.passiveDecaying = false;
-  } else if (frameId === 'sigil') {
-    const max = Math.max(1, Number(fs.passiveMaxStacks) || 5);
-    fs.passiveMaxStacks = max;
-    fs.passiveStacks = Math.min(max, Math.max(0, Number(fs.passiveStacks) || 0) + 1);
-    fs.runeDurationLeft = Math.max(Number(fs.runeDurationLeft) || 0, 7.0);
-  } else if (frameId === 'bulwark') {
-    fs.passiveMaxStacks = Math.max(1, Number(fs.passiveMaxStacks) || 5);
-  }
-
-  store.localPrediction.localAbilityAuthorityUntil = Math.max(store.localPrediction.localAbilityAuthorityUntil || 0, performance.now() + 900);
-  store.localPrediction.localFrameState = { ...(myState.frameState || {}) };
-}
-
-
 function getAbilityLocalAuthorityMs(myState, slot) {
   const frameId = String(myState?.frameId || '').toLowerCase();
   if (frameId === 'vanguard' && slot === 'Z') return 2400;
@@ -514,7 +486,6 @@ export class ClientPrediction {
     const dashEndX = me.x;
     const dashEndY = me.y;
     applyLocalFrameAbilityState(this.store, me, slot, worldMouse, now);
-    applyLocalPassiveHudState(this.store, me, 'ability');
     const boost = getLocalMoveBoost(myState, slot);
     if (boost.pct > 0 && boost.duration > 0) {
       const local = this.store.localPrediction || {};
@@ -755,6 +726,25 @@ export class ClientPrediction {
     const over = 18;
     const crossed = me.x < -2000 - over || me.x > 2000 + over || me.y < -2000 - over || me.y > 2000 + over;
     if (!crossed) return;
+
+    const combatLockLeft = Number(this.store?.myState?.sectorCombatLockLeft || 0);
+    if (combatLockLeft > 0.001) {
+      const pad = Math.max(30, (me.radius || 18) + 14);
+      me.x = clamp(me.x, -2000 + pad, 2000 - pad);
+      me.y = clamp(me.y, -2000 + pad, 2000 - pad);
+      me.vx = 0;
+      me.vy = 0;
+      me._localThrust = 0;
+      me._sectorLockUntil = now + 220;
+      const local = this.store.localPrediction || {};
+      local.hasMoveTarget = false;
+      local.hold = false;
+      local.moveX = me.x;
+      local.moveY = me.y;
+      local.loadingUntil = 0;
+      local.loadingLabel = '';
+      return;
+    }
 
     // V87: le client ne wrapppe plus lui-même les secteurs. Il laisse volontairement
     // sa pose dépasser la frontière et envoie cette pose au serveur. Le serveur fait
