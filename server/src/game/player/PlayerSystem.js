@@ -25,6 +25,7 @@ import { getBastionDamageMultiplier, getBastionMoveSpeedMultiplier } from '../ba
 import { distanceSqToStructureRect } from '../structures/StructureSystem.js';
 import { findAccessibleStorageNearPlayer } from '../structures/StructureStorage.js';
 import { updatePlayerBaseIntrusion } from '../structures/StructureIntrusion.js';
+import { queueAbilityProtocolEvent } from '../events/AbilityProtocolEvents.js';
 
 function getEquippedDefByCategory(player, categoryId) {
   return getEquippedEquipmentDefs(player).find((def) => def?.categoryId === categoryId) || null;
@@ -356,8 +357,22 @@ function updateAbilityCasting(state, player, dt, timeMs) {
     const slot = req.slot;
     if (!slots.includes(slot)) continue;
     usedAny = true;
+    queueAbilityProtocolEvent(player, 'request', slot, {
+      seq: req.seq | 0,
+      clientPoseApplied: !!req.clientPoseApplied,
+      localAuthorityMs: req.localAuthorityMs,
+      aimX: req.aimX,
+      aimY: req.aimY,
+      frameId: player.frameId
+    });
     if (locked) {
       setPlayerHint(player, 'Abilities indisponibles en station', 1.2);
+      queueAbilityProtocolEvent(player, 'rejected', slot, {
+        seq: req.seq | 0,
+        reason: 'station_locked',
+        cooldownLeft: player[`cooldown${slot}Left`] || 0,
+        energyLeft: player.stats?.energy
+      });
       continue;
     }
     if (Number.isFinite(req.aimX) && Number.isFinite(req.aimY)) {
@@ -383,15 +398,40 @@ function updateAbilityCasting(state, player, dt, timeMs) {
     }
     const ok = tryCastAbility(state, player, slot, timeMs);
     if (ok) {
+      queueAbilityProtocolEvent(player, 'accepted', slot, {
+        seq: req.seq | 0,
+        accepted: true,
+        cooldownLeft: player[`cooldown${slot}Left`] || 0,
+        energyLeft: player.stats?.energy,
+        clientPoseApplied: !!req.clientPoseApplied,
+        localAuthorityMs: req.localAuthorityMs,
+        frameId: player.frameId
+      });
+      queueAbilityProtocolEvent(player, 'cooldown', slot, {
+        seq: req.seq | 0,
+        cooldownLeft: player[`cooldown${slot}Left`] || 0,
+        energyLeft: player.stats?.energy,
+        frameId: player.frameId
+      });
       triggerEquipmentProcEvent(state, player, player, 'abilityCast', { timeMs, sourceSlot: slot });
       player.forceFullUiSnapshot = false;
       player.forceFullUiSnapshotReason = ''; // owner already applied local ability; avoid ping-correction snapshot
       queueWorldSfx(state, SFX_EVENT_TYPES[`ABILITY_${slot}`] || SFX_EVENT_TYPES.AUTO_ATTACK, player.sx, player.sy, player.x, player.y, 0, { frameId: player.frameId, slot, sourceKind: 'player' });
-    } else if (req.clientPoseApplied) {
+    } else {
+      queueAbilityProtocolEvent(player, 'rejected', slot, {
+        seq: req.seq | 0,
+        reason: req.clientPoseApplied ? 'server_refused_after_local_pose' : 'server_refused',
+        cooldownLeft: player[`cooldown${slot}Left`] || 0,
+        energyLeft: player.stats?.energy,
+        clientPoseApplied: !!req.clientPoseApplied,
+        frameId: player.frameId
+      });
+      if (req.clientPoseApplied) {
       // Même en cas de refus serveur, renvoyer vite les cooldowns/énergie réels
       // pour que le HUD local sorte d'un état optimiste faux.
       player.forceFullUiSnapshot = false;
       player.forceFullUiSnapshotReason = ''; // do not rollback local-feel on late refusal in permissive prototype mode
+      }
     }
     player._activeClientAppliedAbility = null;
   }

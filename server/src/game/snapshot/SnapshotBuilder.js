@@ -2,6 +2,7 @@ import { WORLD } from '../constants.js';
 import { peekWorldSfx } from '../audio/WorldSfxState.js';
 import { peekPlayerSfx } from '../audio/PlayerSfxState.js';
 import { buildNetworkEventsFromLegacy } from '../events/NetworkEventStream.js';
+import { drainAbilityProtocolEvents } from '../events/AbilityProtocolEvents.js';
 import { peekCombatFx } from '../combat/CombatFxState.js';
 import { getSimulationTick } from '../util/Time.js';
 import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot.js';
@@ -69,7 +70,8 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const visibleWorldSfx = peekWorldSfx(state).filter(nearDynamic);
   const visibleCombatFx = peekCombatFx(state).filter(nearDynamic);
   const playerSfx = peekPlayerSfx(me);
-  const events = buildNetworkEventsFromLegacy(state, playerId, timeMs, visibleWorldSfx, visibleCombatFx, playerSfx);
+  const abilityProtocolEvents = drainAbilityProtocolEvents(me);
+  const events = buildNetworkEventsFromLegacy(state, playerId, timeMs, visibleWorldSfx, visibleCombatFx, playerSfx, abilityProtocolEvents);
 
   return {
     t: 'snap',

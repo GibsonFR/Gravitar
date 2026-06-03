@@ -42,6 +42,7 @@ export class WorldStore {
     this.pendingCombatFx = [];
     this.networkEvents = [];
     this.typedCombatEvents = [];
+    this.abilityProtocolEvents = [];
     this.eventDeduper = new NetworkEventDeduper();
     this.chatMessages = [];
     this.chatUnread = 0;
@@ -158,6 +159,10 @@ export class WorldStore {
 
       if (
         ev.type === 'ability.cast' ||
+        ev.type === 'ability.request' ||
+        ev.type === 'ability.accepted' ||
+        ev.type === 'ability.rejected' ||
+        ev.type === 'ability.cooldown' ||
         ev.type === 'projectile.spawn' ||
         ev.type === 'projectile.impact' ||
         ev.type === 'damage.applied' ||
@@ -166,9 +171,46 @@ export class WorldStore {
         ev.type === 'passive.changed'
       ) {
         this.typedCombatEvents.push(ev);
+        if (String(ev.type || '').startsWith('ability.')) {
+          this.abilityProtocolEvents.push(ev);
+          this.applyAbilityProtocolEvent(ev);
+        }
       }
     }
     if (this.typedCombatEvents.length > 512) this.typedCombatEvents.splice(0, this.typedCombatEvents.length - 512);
+    if (this.abilityProtocolEvents.length > 256) this.abilityProtocolEvents.splice(0, this.abilityProtocolEvents.length - 256);
+  }
+
+  applyAbilityProtocolEvent(ev) {
+    const payload = ev?.payload || {};
+    const slot = String(payload.slot || '').toUpperCase();
+    if (!slot || !this.localPrediction) return;
+    const now = performance.now();
+
+    if (ev.type === 'ability.rejected') {
+      if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = now + Math.max(0, Number(payload.cooldownLeft || 0) * 1000);
+      if (this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt[slot] = 0;
+      this.localPrediction.localAbilityAuthorityUntil = Math.min(this.localPrediction.localAbilityAuthorityUntil || 0, now + 120);
+      this.localPrediction.abilityMovementLockUntil = Math.min(this.localPrediction.abilityMovementLockUntil || 0, now + 120);
+      this.localPrediction.lastAbilityReject = {
+        slot,
+        seq: payload.seq | 0,
+        reason: payload.reason || 'server_rejected',
+        at: now
+      };
+      return;
+    }
+
+    if (ev.type === 'ability.accepted' || ev.type === 'ability.cooldown') {
+      const cooldownMs = Math.max(0, Number(payload.cooldownLeft || 0) * 1000);
+      if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = now + cooldownMs;
+      this.localPrediction.lastAbilityAccept = {
+        slot,
+        seq: payload.seq | 0,
+        cooldownMs,
+        at: now
+      };
+    }
   }
 
   getRenderServerTimeMs() {

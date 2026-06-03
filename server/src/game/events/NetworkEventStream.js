@@ -124,7 +124,7 @@ function buildExplicitCombatEvents(state, playerId, timeMs, ev) {
   return out;
 }
 
-export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx = [], combatFx = [], playerSfx = []) {
+export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx = [], combatFx = [], playerSfx = [], abilityProtocolEvents = []) {
   const events = [];
   for (const ev of worldSfx) {
     events.push(baseEvent(state, 'sfx.world', 'worldSfx', playerId, timeMs, ev, {
@@ -163,6 +163,40 @@ export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx =
         resourceKey: ev.resourceKey || '',
         itemId: ev.itemId || '',
         group: ev.group || ''
+      }
+    });
+  }
+
+  for (const ev of abilityProtocolEvents) {
+    const kind = String(ev.type || '').toLowerCase();
+    const slot = String(ev.slot || '').toUpperCase();
+    const type = kind === 'request'
+      ? 'ability.request'
+      : kind === 'accepted'
+        ? 'ability.accepted'
+        : kind === 'rejected'
+          ? 'ability.rejected'
+          : kind === 'cooldown'
+            ? 'ability.cooldown'
+            : `ability.${kind || 'event'}`;
+    events.push({
+      id: nextEventId(state),
+      type,
+      source: 'abilityProtocol',
+      targetPlayerId: playerId | 0,
+      serverTime: timeMs,
+      payload: {
+        slot,
+        seq: ev.seq | 0,
+        reason: ev.reason || '',
+        accepted: !!ev.accepted,
+        cooldownLeft: q(ev.cooldownLeft || 0, 3),
+        energyLeft: ev.energyLeft,
+        clientPoseApplied: !!ev.clientPoseApplied,
+        localAuthorityMs: ev.localAuthorityMs || 0,
+        aimX: ev.aimX,
+        aimY: ev.aimY,
+        frameId: ev.frameId || ''
       }
     });
   }
