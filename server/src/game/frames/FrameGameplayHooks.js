@@ -547,7 +547,7 @@ function consumeBulwarkMaxPlatesForAbility(player) {
   return true;
 }
 
-function registerBulwarkBurstDamage(player, amount) {
+function registerBulwarkBurstDamage(state, player, amount) {
   const fs = getBulwarkState(player);
   if (!fs || amount <= 0 || (fs.breachPlateLockLeft ?? 0) > 0) return false;
   fs.recentDamageWindowLeft = BULWARK_PASSIVE.plateBurstWindow;
@@ -1112,7 +1112,7 @@ export function onDamageTakenByFrame(state, target, amount, sourcePlayer, timeMs
   const fs = getBulwarkState(target);
   if (!fs) return;
 
-  if (!options.isReflected) registerBulwarkBurstDamage(target, amount);
+  if (!options.isReflected) registerBulwarkBurstDamage(state, target, amount);
 
   if (!options.isReflected && fs.anchorLeft > 0 && sourcePlayer) {
     const tuning = getBulwarkA(target);
