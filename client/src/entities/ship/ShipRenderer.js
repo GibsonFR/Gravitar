@@ -5,6 +5,7 @@ import { SHIP_WORLD_BAR_STYLE } from './ShipWorldBarStyle.js';
 import { getShipFramePalette } from './ShipFramePalette.js';
 import { getSessionShipPoints, getSessionShipMotionProfile } from '../../ui/session/SessionShipVisuals.js';
 
+const ENABLE_LEGACY_SHIP_STATUS_OVERLAYS = false;
 
 
 function hasStatus(entity, id) {
@@ -531,17 +532,7 @@ function drawFrameTrail(ctx, view, p, camX, camY, t) {
   ctx.moveTo(x0, y0);
   ctx.lineTo(x1, y1);
   ctx.stroke();
-  ctx.strokeStyle = rgba(color.r, color.g, color.b, 0.62 * alpha);
-  ctx.lineWidth = 1.6 * view.dpr;
-  ctx.setLineDash([9 * view.dpr, 7 * view.dpr]);
-  ctx.lineDashOffset = -t * 28 * view.dpr;
-  for (let i = -1; i <= 1; i += 2) {
-    ctx.beginPath();
-    ctx.moveTo(x0 + nx * i * 6 * view.dpr, y0 + ny * i * 6 * view.dpr);
-    ctx.lineTo(x1 + nx * i * 6 * view.dpr, y1 + ny * i * 6 * view.dpr);
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
+  // Legacy thin dashed side-lines removed: the broad gradient trail is the canonical frame trail.
   if (kind === 'sigil') {
     ctx.strokeStyle = rgba(245, 232, 255, 0.46 * alpha);
     ctx.lineWidth = 1.2 * view.dpr;
@@ -800,7 +791,7 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
 
   drawFrameTrail(ctx, view, p, camX, camY, t);
   drawFrameSignatureAura(ctx, view, p, sx, sy, t);
-  drawShipStatusOverlays(ctx, view, p, sx, sy, t);
+  if (ENABLE_LEGACY_SHIP_STATUS_OVERLAYS) drawShipStatusOverlays(ctx, view, p, sx, sy, t);
 
   if (vitals?.shield > 0.001) {
     const r = p.radius + 6 + 2 * (vitals.shield / Math.max(1, vitals.maxShield));
@@ -820,27 +811,35 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
     const shipProfile = getSessionShipMotionProfile(p.frameId);
     const spread = shipProfile.spread ?? 0.62;
     const length = p.radius * (shipProfile.thrust ?? 1.38) * (0.72 + thrust * 0.62) * pulse;
-    const startRadius = p.radius * 0.62;
+    const startRadius = p.radius * 0.54;
     const aBase = (Number.isFinite(p.rot) ? p.rot : (speed > 1 ? Math.atan2(p.vy || 0, p.vx || 0) : 0)) + Math.PI;
     const thrusters = shipProfile.centerThruster ? [-1, 0, 1] : [-1, 1];
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
     for (const i of thrusters) {
       const a = aBase + i * spread;
+      const width = p.radius * (0.18 + thrust * 0.20) * (i === 0 ? 1.15 : 1);
       const p0 = polar(sx, sy, startRadius, a);
       const p1 = polar(sx, sy, length, a);
-      ctx.strokeStyle = rgba(COLORS.fx.r, COLORS.fx.g, COLORS.fx.b, 0.45 + 0.35 * thrust);
-      ctx.lineWidth = 2 * view.dpr;
-      ctx.lineCap = 'round';
+      const nx = Math.cos(a + Math.PI / 2);
+      const ny = Math.sin(a + Math.PI / 2);
+      const grad = ctx.createLinearGradient(p0.x * view.dpr, p0.y * view.dpr, p1.x * view.dpr, p1.y * view.dpr);
+      grad.addColorStop(0, rgba(COLORS.thrusterInner.r, COLORS.thrusterInner.g, COLORS.thrusterInner.b, 0.70 + 0.18 * thrust));
+      grad.addColorStop(0.42, rgba(COLORS.fx.r, COLORS.fx.g, COLORS.fx.b, 0.34 + 0.28 * thrust));
+      grad.addColorStop(1, rgba(COLORS.fx.r, COLORS.fx.g, COLORS.fx.b, 0));
+      ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.moveTo(p0.x * view.dpr, p0.y * view.dpr);
-      ctx.lineTo(p1.x * view.dpr, p1.y * view.dpr);
-      ctx.stroke();
-      ctx.strokeStyle = rgba(COLORS.thrusterInner.r, COLORS.thrusterInner.g, COLORS.thrusterInner.b, 0.78 + 0.18 * thrust);
-      ctx.lineWidth = 1.05 * view.dpr;
+      ctx.moveTo((p0.x + nx * width * 0.46) * view.dpr, (p0.y + ny * width * 0.46) * view.dpr);
+      ctx.quadraticCurveTo((sx + Math.cos(a) * length * 0.52 + nx * width) * view.dpr, (sy + Math.sin(a) * length * 0.52 + ny * width) * view.dpr, p1.x * view.dpr, p1.y * view.dpr);
+      ctx.quadraticCurveTo((sx + Math.cos(a) * length * 0.52 - nx * width) * view.dpr, (sy + Math.sin(a) * length * 0.52 - ny * width) * view.dpr, (p0.x - nx * width * 0.46) * view.dpr, (p0.y - ny * width * 0.46) * view.dpr);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = rgba(COLORS.thrusterInner.r, COLORS.thrusterInner.g, COLORS.thrusterInner.b, 0.38 + 0.24 * thrust);
       ctx.beginPath();
-      ctx.moveTo(p0.x * view.dpr, p0.y * view.dpr);
-      ctx.lineTo((sx + Math.cos(a) * (length * 0.68)) * view.dpr, (sy + Math.sin(a) * (length * 0.68)) * view.dpr);
-      ctx.stroke();
+      ctx.ellipse((sx + Math.cos(a) * length * 0.48) * view.dpr, (sy + Math.sin(a) * length * 0.48) * view.dpr, Math.max(1.2, width * 0.28) * view.dpr, Math.max(2.2, length * 0.18) * view.dpr, a, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.restore();
   }
 
   const pts = getSessionShipPoints(p.frameId, sx, sy, p.radius, ang);
