@@ -1,6 +1,8 @@
 import { blocksAttacks } from '../../status/StatusRack.js';
 import { getMobOnHitStatuses, tryMobSpecial } from '../MobAbilitySystem.js';
 import { distSq } from '../../util/Math.js';
+import { queueWorldSfx } from '../../audio/WorldSfxState.js';
+import { SFX_EVENT_TYPES } from '../../audio/SfxEventTypes.js';
 import { spawnProjectile } from '../../projectile/ProjectileSystem.js';
 import { clearMobVelocity, moveMobAway, moveMobToward, targetWithinLeash, clampMobToDemoCage, moveMobOrbitAround } from './MobBehaviorUtils.js';
 
@@ -70,6 +72,12 @@ function tryRangedAttack(state, mob, target, timeMs) {
       maxLifetimeMs: mob.demoMob ? 1800 : 2400
     }
   );
+  queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, mob.sx, mob.sy, mob.x, mob.y, mob.id | 0, {
+    sourceKind: 'mob',
+    mobProfile: mob.abilityProfile || 'default',
+    mobId: mob.id,
+    visualKind: mob.abilityProfile ? `mob_${mob.abilityProfile}` : 'mob_auto'
+  });
   return true;
 }
 

@@ -1,5 +1,7 @@
 import { SFX_TYPES } from './SfxTypes.js';
 import { getFrameAbilitySfx, getFrameSfxProfile } from './FrameSfxProfiles.js';
+import { getResourceSfxProfile } from './ResourceSfxProfiles.js';
+import { getMobSfxProfile } from './MobSfxProfiles.js';
 
 function applyEnvelope(gain, now, attack, release, amp) {
   gain.gain.cancelScheduledValues(now);
@@ -52,7 +54,115 @@ function createNoiseHit(ctx, start, duration, amp, destination, color = 'soft') 
   src.stop(start + duration + 0.02);
 }
 
+
+function playResourceCollect(ctx, ev, destination = ctx.destination) {
+  const now = ctx.currentTime;
+  const profile = getResourceSfxProfile(ev.resourceKey || ev.itemId || '');
+  const variant = ev.variant | 0;
+  const wobble = 1 + ((variant % 7) - 3) * 0.009;
+  const base = profile.base * wobble;
+  const group = profile.group || profile.color || 'metal';
+  const amp = Math.max(0.016, profile.amp || 0.028);
+
+  if (group === 'metal') {
+    createTone(ctx, 'triangle', base, now, 0.060, amp, destination, { endFreq: base * 1.18, attack: 0.003, release: 0.08 });
+    createNoiseHit(ctx, now + 0.002, 0.045, amp * 0.45, destination, 'heavy');
+  } else if (group === 'crystal') {
+    createTone(ctx, 'sine', base, now, 0.110, amp * 0.82, destination, { endFreq: profile.second, attack: 0.008, release: 0.16 });
+    createTone(ctx, 'sine', profile.second, now + 0.035, 0.120, amp * 0.45, destination, { attack: 0.012, release: 0.18 });
+  } else if (group === 'ice') {
+    createTone(ctx, 'sine', base, now, 0.085, amp * 0.70, destination, { endFreq: base * 1.08, attack: 0.010, release: 0.14 });
+    createNoiseHit(ctx, now + 0.010, 0.055, amp * 0.22, destination, 'glass');
+  } else if (group === 'bio') {
+    createTone(ctx, 'triangle', base, now, 0.075, amp * 0.76, destination, { endFreq: base * 0.86, attack: 0.006, release: 0.12 });
+    createTone(ctx, 'sine', profile.low, now + 0.012, 0.100, amp * 0.32, destination, { attack: 0.010, release: 0.15 });
+  } else if (group === 'exotic') {
+    createTone(ctx, 'sine', base, now, 0.150, amp * 0.88, destination, { endFreq: profile.second * 1.12, attack: 0.020, release: 0.25, detune: 5 });
+    createTone(ctx, 'sine', base * 0.505, now + 0.025, 0.180, amp * 0.42, destination, { attack: 0.020, release: 0.28, detune: -7 });
+    createNoiseHit(ctx, now + 0.012, 0.080, amp * 0.18, destination, 'glass');
+  } else if (group === 'science' || group === 'tech') {
+    createTone(ctx, 'triangle', base, now, 0.055, amp * 0.70, destination, { endFreq: profile.second, attack: 0.004, release: 0.09 });
+    createTone(ctx, 'sine', profile.second * 1.25, now + 0.040, 0.075, amp * 0.36, destination, { attack: 0.004, release: 0.11 });
+  } else if (group === 'energy') {
+    createTone(ctx, 'sawtooth', base, now, 0.070, amp * 0.72, destination, { endFreq: base * 0.72, attack: 0.004, release: 0.11 });
+    createNoiseHit(ctx, now, 0.060, amp * 0.28, destination, 'soft');
+  } else {
+    createTone(ctx, 'triangle', base, now, 0.070, amp * 0.74, destination, { endFreq: profile.second, attack: 0.004, release: 0.11 });
+  }
+}
+
+function playMobAutoAttack(ctx, ev, destination = ctx.destination) {
+  const now = ctx.currentTime;
+  const profile = getMobSfxProfile(ev.mobProfile || ev.visualKind || '');
+  const variant = ev.variant | 0;
+  const wobble = 1 + ((variant % 9) - 4) * 0.006;
+  const base = profile.autoBase * wobble;
+  const amp = profile.amp || 0.032;
+
+  if (profile.color === 'glass' || profile.color === 'prism') {
+    createTone(ctx, 'sine', base, now, 0.095, amp * 0.78, destination, { endFreq: base * 1.28, attack: 0.010, release: 0.13 });
+    createTone(ctx, 'sine', base * 1.72, now + 0.018, 0.080, amp * 0.34, destination, { attack: 0.010, release: 0.13 });
+    return;
+  }
+  if (profile.color === 'heavy' || profile.color === 'apex') {
+    createTone(ctx, 'triangle', base, now, 0.115, amp, destination, { endFreq: base * 0.62, attack: 0.004, release: 0.16 });
+    createNoiseHit(ctx, now + 0.004, 0.090, amp * 0.55, destination, 'heavy');
+    return;
+  }
+  if (profile.color === 'arc') {
+    createTone(ctx, 'sawtooth', base, now, 0.065, amp * 0.70, destination, { endFreq: base * 1.45, attack: 0.003, release: 0.08 });
+    createTone(ctx, 'sine', base * 2.05, now + 0.012, 0.050, amp * 0.28, destination, { attack: 0.002, release: 0.06 });
+    return;
+  }
+  if (profile.color === 'toxic') {
+    createTone(ctx, 'triangle', base, now, 0.100, amp * 0.72, destination, { endFreq: base * 0.82, attack: 0.010, release: 0.16 });
+    createNoiseHit(ctx, now + 0.006, 0.085, amp * 0.30, destination, 'soft');
+    return;
+  }
+  if (profile.color === 'void') {
+    createTone(ctx, 'sine', base, now, 0.120, amp * 0.70, destination, { endFreq: base * 0.51, attack: 0.018, release: 0.20, detune: -8 });
+    createTone(ctx, 'sine', base * 1.33, now + 0.025, 0.100, amp * 0.25, destination, { attack: 0.018, release: 0.18, detune: 9 });
+    return;
+  }
+  createTone(ctx, 'triangle', base, now, 0.080, amp * 0.76, destination, { endFreq: base * 0.78, attack: 0.004, release: 0.11 });
+  createNoiseHit(ctx, now + 0.004, 0.052, amp * 0.28, destination, profile.color === 'fire' ? 'heavy' : 'soft');
+}
+
+function playMobAbility(ctx, ev, destination = ctx.destination) {
+  const now = ctx.currentTime;
+  const profile = getMobSfxProfile(ev.mobProfile || ev.visualKind || '');
+  const base = profile.abilityBase || profile.autoBase || 420;
+  const amp = (profile.amp || 0.034) * 1.15;
+
+  if (profile.color === 'fire') {
+    createTone(ctx, 'sawtooth', base, now, 0.20, amp, destination, { endFreq: base * 0.48, attack: 0.004, release: 0.22 });
+    createNoiseHit(ctx, now, 0.18, amp * 0.52, destination, 'heavy');
+  } else if (profile.color === 'glass' || profile.color === 'prism') {
+    createTone(ctx, 'sine', base, now, 0.22, amp * 0.82, destination, { endFreq: base * 1.52, attack: 0.018, release: 0.28 });
+    createTone(ctx, 'sine', base * 2.01, now + 0.035, 0.20, amp * 0.34, destination, { attack: 0.020, release: 0.30 });
+  } else if (profile.color === 'lock') {
+    createTone(ctx, 'triangle', base, now, 0.24, amp * 0.86, destination, { endFreq: base * 0.72, attack: 0.010, release: 0.30 });
+    createTone(ctx, 'sine', base * 0.5, now, 0.30, amp * 0.48, destination, { attack: 0.010, release: 0.34 });
+  } else if (profile.color === 'heavy' || profile.color === 'apex') {
+    createTone(ctx, 'triangle', base, now, 0.28, amp, destination, { endFreq: base * 0.42, attack: 0.004, release: 0.34 });
+    createNoiseHit(ctx, now + 0.006, 0.22, amp * 0.62, destination, 'heavy');
+  } else if (profile.color === 'arc') {
+    createTone(ctx, 'sawtooth', base, now, 0.13, amp * 0.85, destination, { endFreq: base * 1.85, attack: 0.003, release: 0.12 });
+    createTone(ctx, 'sine', base * 2.4, now + 0.020, 0.09, amp * 0.34, destination, { attack: 0.002, release: 0.10 });
+  } else if (profile.color === 'void') {
+    createTone(ctx, 'sine', base, now, 0.32, amp * 0.72, destination, { endFreq: base * 0.38, attack: 0.030, release: 0.42, detune: -11 });
+    createTone(ctx, 'sine', base * 1.5, now + 0.04, 0.22, amp * 0.30, destination, { attack: 0.025, release: 0.34, detune: 13 });
+  } else if (profile.color === 'toxic') {
+    createTone(ctx, 'triangle', base, now, 0.22, amp * 0.80, destination, { endFreq: base * 0.76, attack: 0.016, release: 0.34 });
+    createNoiseHit(ctx, now + 0.010, 0.18, amp * 0.35, destination, 'soft');
+  } else {
+    createTone(ctx, 'triangle', base, now, 0.18, amp * 0.82, destination, { endFreq: base * 0.72, attack: 0.006, release: 0.24 });
+  }
+}
+
+
 function playAutoAttack(ctx, ev, destination = ctx.destination) {
+  if (ev?.sourceKind === 'mob' || ev?.mobProfile) return playMobAutoAttack(ctx, ev, destination);
   const now = ctx.currentTime;
   const profile = getFrameSfxProfile(ev.frameId);
   const auto = profile.auto;
@@ -86,6 +196,7 @@ function playRocket(ctx, ev, destination = ctx.destination) {
 }
 
 function playAbility(ctx, ev, slot, destination = ctx.destination) {
+  if (ev?.sourceKind === 'mob' || ev?.mobProfile) return playMobAbility(ctx, ev, destination);
   const now = ctx.currentTime;
   const spec = getFrameAbilitySfx(ev.frameId, slot);
   const frame = getFrameSfxProfile(ev.frameId);
@@ -146,7 +257,7 @@ function playCollect(ctx, variant, destination = ctx.destination) {
 export function playSfxEvent(ctx, ev, destination = ctx.destination) {
   if (!ctx || !ev?.type) return;
   if (ev.type === SFX_TYPES.AUTO_ATTACK) return playAutoAttack(ctx, ev, destination);
-  if (ev.type === SFX_TYPES.COLLECT) return playCollect(ctx, ev.variant | 0, destination);
+  if (ev.type === SFX_TYPES.COLLECT) return playResourceCollect(ctx, ev, destination);
   if (ev.type === SFX_TYPES.ROCKET) return playRocket(ctx, ev, destination);
   if (ev.type === SFX_TYPES.ABILITY_A) return playAbility(ctx, ev, 'A', destination);
   if (ev.type === SFX_TYPES.ABILITY_Z) return playAbility(ctx, ev, 'Z', destination);

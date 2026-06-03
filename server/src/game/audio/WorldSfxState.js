@@ -11,6 +11,9 @@ export function queueWorldSfx(state, type, sx, sy, x, y, variant = 0, meta = nul
     if (meta.frameId) ev.frameId = String(meta.frameId);
     if (meta.slot) ev.slot = String(meta.slot).toUpperCase();
     if (meta.sourceKind) ev.sourceKind = String(meta.sourceKind);
+    if (meta.mobProfile) ev.mobProfile = String(meta.mobProfile);
+    if (meta.mobId) ev.mobId = String(meta.mobId);
+    if (meta.visualKind) ev.visualKind = String(meta.visualKind);
   }
   state.audio.pending.push(ev);
 }

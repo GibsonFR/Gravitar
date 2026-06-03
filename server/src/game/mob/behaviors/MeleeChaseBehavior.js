@@ -3,6 +3,8 @@ import { blocksAttacks } from '../../status/StatusRack.js';
 import { applyStatusSpecs } from '../../status/StatusApplication.js';
 import { getMobOnHitStatuses, tryMobSpecial } from '../MobAbilitySystem.js';
 import { distSq, norm } from '../../util/Math.js';
+import { queueWorldSfx } from '../../audio/WorldSfxState.js';
+import { SFX_EVENT_TYPES } from '../../audio/SfxEventTypes.js';
 import { clearMobVelocity, moveMobToward, targetWithinLeash, clampMobToDemoCage, moveMobOrbitAround } from './MobBehaviorUtils.js';
 
 function tryMeleeAttack(state, mob, target, timeMs) {
@@ -36,6 +38,12 @@ function tryMeleeAttack(state, mob, target, timeMs) {
   mob.nextAttackAt = timeMs + cd;
   applyDamage(state, target, Math.max(1, mob.attackDamage * 0.72), null, { timeMs, visualKind: mob.abilityProfile ? `mob_${mob.abilityProfile}` : 'mob_melee' });
   applyStatusSpecs(state, mob, target, getMobOnHitStatuses(mob));
+  queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, mob.sx, mob.sy, mob.x, mob.y, mob.id | 0, {
+    sourceKind: 'mob',
+    mobProfile: mob.abilityProfile || 'default',
+    mobId: mob.id,
+    visualKind: mob.abilityProfile ? `mob_${mob.abilityProfile}` : 'mob_melee'
+  });
 
   const away = norm(target.x - mob.x, target.y - mob.y);
   if (!target.demoDummy) {

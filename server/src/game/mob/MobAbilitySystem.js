@@ -208,7 +208,12 @@ export function tryMobSpecial(state, mob, target, timeMs) {
     mob.specialCueLeft = 1.15;
     const profileMul = { scoria: 1.35, lancer: 1.45, warden: 1.35, specter: 1.3, hydra: 1.35, apex: 1.25 }[mob.abilityProfile] ?? 1.2;
     mob.nextSpecialAt = timeMs + Math.round(cd * profileMul * (mob.demoMob ? 2.35 : 1.25));
-    queueWorldSfx(state, SFX_EVENT_TYPES.ABILITY_A, mob.sx, mob.sy, mob.x, mob.y, 0);
+    queueWorldSfx(state, SFX_EVENT_TYPES.ABILITY_A, mob.sx, mob.sy, mob.x, mob.y, mob.id | 0, {
+      sourceKind: 'mob',
+      mobProfile: mob.abilityProfile || 'default',
+      mobId: mob.id,
+      visualKind: text || mob.abilityProfile || 'mob_ability'
+    });
     return true;
   };
 

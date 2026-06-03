@@ -4,9 +4,15 @@ export function createPlayerSfxState() {
   };
 }
 
-export function queuePlayerSfx(player, type, variant = 0) {
+export function queuePlayerSfx(player, type, variant = 0, meta = null) {
   if (!player?.sfx?.pending) return;
-  player.sfx.pending.push({ type, variant });
+  const ev = { type, variant };
+  if (meta && typeof meta === 'object') {
+    if (meta.resourceKey) ev.resourceKey = String(meta.resourceKey);
+    if (meta.itemId) ev.itemId = String(meta.itemId);
+    if (meta.group) ev.group = String(meta.group);
+  }
+  player.sfx.pending.push(ev);
 }
 
 export function drainPlayerSfx(player) {

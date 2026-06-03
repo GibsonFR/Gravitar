@@ -17,7 +17,10 @@ export function tryResolveLootPickup(state, loot) {
   for (const p of state.players.values()) {
     if ((p.sx | 0) !== (loot.sx | 0) || (p.sy | 0) !== (loot.sy | 0)) continue;
     if (!p.inv) continue;
-    if (loot.itemId) {
+    let pickedResourceKey = '';
+  let pickedItemId = '';
+
+  if (loot.itemId) {
       const def = getItemDef(loot.itemId);
       if (!def) continue;
       if (def.categoryId !== ITEM_CATEGORY_IDS.AMMO && hasOwnedItem(p, def.id)) continue;
@@ -34,9 +37,13 @@ export function tryResolveLootPickup(state, loot) {
 
   if (!bestPlayer) return false;
 
+  let pickedResourceKey = '';
+  let pickedItemId = '';
+
   if (loot.itemId) {
     const def = getItemDef(loot.itemId);
     if (!def) return false;
+    pickedItemId = def.id;
     if (def.categoryId === ITEM_CATEGORY_IDS.AMMO) {
       addRocketAmmo(bestPlayer, def.id, Math.max(1, def.ammoProfile?.packSize | 0), state?.time?.currentMs || 0);
     } else if (!hasOwnedItem(bestPlayer, def.id)) {
@@ -46,8 +53,9 @@ export function tryResolveLootPickup(state, loot) {
     bestPlayer.uiHint = `${loot.bastionReward ? 'Coffre de bastion' : 'Loot'} : ${def.name}`;
     bestPlayer.uiHintTimer = 3.0;
   } else {
+    pickedResourceKey = String(loot.resource || '');
     addResource(bestPlayer.inv, loot.resource, loot.amount);
   }
-  queuePlayerSfx(bestPlayer, SFX_EVENT_TYPES.COLLECT, (Math.random() * 6) | 0);
+  queuePlayerSfx(bestPlayer, SFX_EVENT_TYPES.COLLECT, (Math.random() * 6) | 0, { resourceKey: pickedResourceKey, itemId: pickedItemId });
   return true;
 }
