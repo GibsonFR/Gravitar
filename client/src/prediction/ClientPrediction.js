@@ -219,6 +219,44 @@ function getLocalMoveBoost(myState, slot) {
 }
 
 
+
+function applyLocalPassiveEffects(store, me, reason = 'hit') {
+  const myState = store?.myState;
+  if (!myState) return;
+  const frameId = String(myState.frameId || me?.frameId || 'vanguard').toLowerCase();
+  const now = performance.now();
+  const fs = { ...(myState.frameState || {}) };
+
+  if (frameId === 'vanguard') {
+    const maxStacks = Math.max(1, Number(fs.passiveMaxStacks) || 10);
+    const nextStacks = Math.min(maxStacks, Math.max(0, Number(fs.passiveStacks) || 0) + 1);
+    fs.passiveMaxStacks = maxStacks;
+    fs.passiveStacks = nextStacks;
+    fs.passiveDecayLeft = Math.max(Number(fs.passiveDecayLeft) || 0, 5.0);
+    fs.passiveDecaying = false;
+    fs._localPassiveUpdatedAt = now;
+    const baseDerived = myState.derived || {};
+    const localDerived = { ...(store.localPrediction.localDerived || baseDerived) };
+    if (Number.isFinite(baseDerived.autoAttackRate)) localDerived.autoAttackRate = Math.max(Number(localDerived.autoAttackRate) || 0, Number(baseDerived.autoAttackRate) * (1 + 0.04 * nextStacks));
+    if (Number.isFinite(baseDerived.moveSpeed)) localDerived.moveSpeed = Math.max(Number(localDerived.moveSpeed) || 0, Number(baseDerived.moveSpeed) * (1 + 0.015 * nextStacks));
+    store.localPrediction.localDerived = localDerived;
+  } else if (frameId === 'sigil') {
+    const maxStacks = Math.max(1, Number(fs.passiveMaxStacks) || 5);
+    fs.passiveMaxStacks = maxStacks;
+    fs.passiveStacks = Math.min(maxStacks, Math.max(0, Number(fs.passiveStacks) || 0) + 1);
+    fs.runeDurationLeft = Math.max(Number(fs.runeDurationLeft) || 0, 7.0);
+    fs._localPassiveUpdatedAt = now;
+  } else if (frameId === 'bulwark') {
+    fs.passiveMaxStacks = Math.max(1, Number(fs.passiveMaxStacks) || 5);
+    fs._localPassiveUpdatedAt = now;
+  }
+
+  myState.frameState = fs;
+  store.localPrediction.localFrameState = { ...(store.localPrediction.localFrameState || {}), ...fs };
+  store.localPrediction.localPassiveAuthorityUntil = Math.max(store.localPrediction.localPassiveAuthorityUntil || 0, now + 1150);
+  store.localPrediction.localAbilityAuthorityUntil = Math.max(store.localPrediction.localAbilityAuthorityUntil || 0, now + 1150);
+}
+
 function getAbilityLocalAuthorityMs(myState, slot) {
   const frameId = String(myState?.frameId || '').toLowerCase();
   if (frameId === 'vanguard' && slot === 'Z') return 2400;
@@ -486,6 +524,7 @@ export class ClientPrediction {
     const dashEndX = me.x;
     const dashEndY = me.y;
     applyLocalFrameAbilityState(this.store, me, slot, worldMouse, now);
+    applyLocalPassiveEffects(this.store, me, 'ability');
     const boost = getLocalMoveBoost(myState, slot);
     if (boost.pct > 0 && boost.duration > 0) {
       const local = this.store.localPrediction || {};

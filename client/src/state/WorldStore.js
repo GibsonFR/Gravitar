@@ -80,6 +80,7 @@ export class WorldStore {
       localAbilityAuthorityUntil: 0,
       localFrameState: null,
       localDerived: null,
+      localPassiveAuthorityUntil: 0,
       pendingStructureMoves: new Map()
     };
   }
@@ -555,17 +556,19 @@ export class WorldStore {
   _applyLocalAbilityAuthority(myState) {
     if (!myState) return myState;
     const now = performance.now();
-    if (now >= (this.localPrediction.localAbilityAuthorityUntil || 0)) return myState;
+    const abilityAuthority = now < (this.localPrediction.localAbilityAuthorityUntil || 0);
+    const passiveAuthority = now < (this.localPrediction.localPassiveAuthorityUntil || 0);
+    if (!abilityAuthority && !passiveAuthority) return myState;
     const out = { ...myState };
-    if (this.localPrediction.localFrameState) {
+    if ((abilityAuthority || passiveAuthority) && this.localPrediction.localFrameState) {
       out.frameState = { ...(out.frameState || {}), ...(this.localPrediction.localFrameState || {}) };
     }
-    if (this.localPrediction.localDerived) {
-      // Ne remplace pas toutes les stats durablement : on conserve surtout la vitesse locale
-      // pendant l'ability pour éviter le snapshot serveur en retard qui casse la sensation.
+    if ((abilityAuthority || passiveAuthority) && this.localPrediction.localDerived) {
       out.derived = { ...(out.derived || {}) };
-      if (Number.isFinite(this.localPrediction.localDerived.moveSpeed)) {
-        out.derived.moveSpeed = Math.max(Number(out.derived.moveSpeed) || 0, Number(this.localPrediction.localDerived.moveSpeed) || 0);
+      for (const key of ['moveSpeed', 'autoAttackRate', 'autoAttackDamage', 'tenacityPct', 'slowResistPct']) {
+        if (Number.isFinite(this.localPrediction.localDerived[key])) {
+          out.derived[key] = Math.max(Number(out.derived[key]) || 0, Number(this.localPrediction.localDerived[key]) || 0);
+        }
       }
     }
     return out;
@@ -855,6 +858,23 @@ export class WorldStore {
       this.myState._optimisticHintLeft = Math.max(0, this.myState._optimisticHintLeft - dt);
       if (this.myState._optimisticHintLeft <= 0 && this.myState.hint) this.myState.hint = '';
     }
+    const fs = this.myState.frameState;
+    if (fs && Number.isFinite(fs.passiveDecayLeft)) {
+      fs.passiveDecayLeft = Math.max(0, fs.passiveDecayLeft - dt);
+      if (fs.passiveDecayLeft <= 0 && Number(fs.passiveStacks) > 0) {
+        fs.passiveDecaying = true;
+        fs._localPassiveDecayTick = (Number(fs._localPassiveDecayTick) || 0) + dt;
+        while (fs._localPassiveDecayTick >= 0.20 && Number(fs.passiveStacks) > 0) {
+          fs._localPassiveDecayTick -= 0.20;
+          fs.passiveStacks = Math.max(0, (Number(fs.passiveStacks) || 0) - 1);
+        }
+      } else {
+        fs.passiveDecaying = false;
+        fs._localPassiveDecayTick = 0;
+      }
+    }
+    if (fs && Number.isFinite(fs.runeDurationLeft)) fs.runeDurationLeft = Math.max(0, fs.runeDurationLeft - dt);
+    if (fs && Number.isFinite(fs.detonationCooldownLeft)) fs.detonationCooldownLeft = Math.max(0, fs.detonationCooldownLeft - dt);
     const me = this.getMe();
     if (me) {
       if (Number.isFinite(me.rocketCooldownLeft)) me.rocketCooldownLeft = Math.max(0, me.rocketCooldownLeft - dt);
@@ -882,8 +902,8 @@ export class WorldStore {
     if (this.myState.abilityHud?.[s] && Number.isFinite(cooldownLeft)) {
       this.myState.abilityHud[s].cooldownLeft = Math.max(0, cooldownLeft);
     }
-    this.localPrediction.localFrameState = { ...(this.myState.frameState || {}) };
-    this.localPrediction.localDerived = { ...(this.myState.derived || {}) };
+    this.localPrediction.localFrameState = { ...(this.localPrediction.localFrameState || {}), ...(this.myState.frameState || {}) };
+    this.localPrediction.localDerived = { ...(this.localPrediction.localDerived || {}), ...(this.myState.derived || {}) };
   }
 
   upgradeAbilityLocal(slot) {

@@ -351,7 +351,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     ? frameAdjusted * getIncomingShieldDamageMultiplier(target)
     : frameAdjusted * getIncomingHullDamageMultiplier(target);
 
-  if (finalAmount > 0 && sourcePlayer?.kind === 'player' && target && target.kind !== 'station' && target.id !== sourcePlayer.id) {
+  if (finalAmount > 0 && sourcePlayer?.kind === 'player' && target && ['player', 'mob', 'structure'].includes(String(target.kind || '')) && target.id !== sourcePlayer.id) {
     markPlayerCombatEngaged(sourcePlayer, timeMs);
   }
 
