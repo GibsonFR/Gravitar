@@ -52,6 +52,9 @@ export class NetDebugOverlay {
         <span>RTT</span><b>${fmtMs(s.rttMs)}</b>
         <span>Jitter</span><b>${fmtMs(s.jitterMs)}</b>
         <span>Snap gap</span><b>${fmtMs(s.snapshotGapMs)}</b>
+        <span>Interp delay</span><b>${fmtMs(s.clock?.interpolationDelayMs)}</b>
+        <span>Clock offset</span><b>${fmtMs(Math.abs(s.clock?.offsetMs || 0))}</b>
+        <span>Snap age</span><b>${fmtMs(s.clock?.ageOfLastSnapshotMs)}</b>
         <span>Snap/s</span><b>${fmtRate(s.snapshotsPerSec)}</b>
         <span>Input/s</span><b>${fmtRate(s.inputsPerSec)}</b>
         <span>Pending input</span><b>${s.pendingInputs | 0}</b>
@@ -61,6 +64,7 @@ export class NetDebugOverlay {
         <span>Snap max</span><b>${fmtBytes(s.maxSnapshotBytes)}</b>
         <span>Correction</span><b>${Math.round(s.correctionDistanceAvg || 0)} / ${Math.round(s.correctionDistanceMax || 0)}</b>
         <span>Entities</span><b>${countLine(s.entityCounts)}</b>
+        <span>Interp buf</span><b>E:${s.interpolation?.entities || 0} S:${s.interpolation?.samples || 0}</b>
         <span>Events/s</span><b>${fmtRate(s.eventsPerSec)}</b>
         <span>SFX/s</span><b>${fmtRate(s.sfxPerSec)}</b>
         <span>WS buffer</span><b>${fmtBytes(s.wsBufferedAmount)}</b>

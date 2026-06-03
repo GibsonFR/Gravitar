@@ -70,6 +70,16 @@ export class NetStats {
     this.wsBufferedAmount = 0;
     this.skippedSnapshots = 0;
     this.droppedByBackpressure = 0;
+    this.clock = null;
+    this.interpolation = null;
+  }
+
+  setClock(clock) {
+    this.clock = clock || null;
+  }
+
+  setInterpolationStore(store) {
+    this.interpolation = store || null;
   }
 
   setEnabled(value) {
@@ -248,7 +258,9 @@ export class NetStats {
       skippedSnapshots: this.skippedSnapshots,
       droppedByBackpressure: this.droppedByBackpressure,
       serverTick: this.serverTick,
-      serverTime: this.serverTime
+      serverTime: this.serverTime,
+      clock: this.clock?.snapshot?.() || null,
+      interpolation: this.interpolation?.stats?.() || null
     };
   }
 }

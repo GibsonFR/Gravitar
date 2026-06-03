@@ -1,4 +1,5 @@
 import { NetStats } from './NetStats.js';
+import { NetworkClock } from './NetworkClock.js';
 
 export class NetClient {
   constructor(store, onStatus) {
@@ -9,9 +10,12 @@ export class NetClient {
     this.sessionTokenKey = 'gravitar.sessionToken.v1';
     this.manualClose = false;
     this.netStats = new NetStats();
+    this.networkClock = new NetworkClock();
+    this.netStats.setClock(this.networkClock);
     this.pingTimer = 0;
     this.pingSeq = 0;
     this.store.setNetStats?.(this.netStats);
+    this.store.setNetworkClock?.(this.networkClock);
   }
 
   getSessionToken() {
@@ -47,6 +51,10 @@ export class NetClient {
     return this.netStats;
   }
 
+  getNetworkClock() {
+    return this.networkClock;
+  }
+
   connect() {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -72,8 +80,12 @@ export class NetClient {
         if (msg.sessionToken) this.setSessionToken(msg.sessionToken);
         this.store.applyHello(msg.id, msg.sessionToken || '', !!msg.resumed);
       }
-      if (msg.t === 'pong') this.netStats.recordPong(msg);
+      if (msg.t === 'pong') {
+        this.networkClock.updateFromPong(msg, performance.now());
+        this.netStats.recordPong(msg);
+      }
       if (msg.t === 'snap') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordSnapshot(msg, raw.length);
         this.store.applySnapshot(msg);
       }

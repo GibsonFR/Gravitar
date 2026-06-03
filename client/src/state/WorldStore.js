@@ -1,3 +1,4 @@
+import { EntityInterpolationStore } from './EntityInterpolationStore.js';
 
 function statusIdOf(entry) {
   return String(entry?.id || entry?.effectId || entry?.type || '').toLowerCase();
@@ -44,6 +45,8 @@ export class WorldStore {
     this.pendingStationCommands = new Map();
     this.stationOptimistic = { version: 0, actions: new Map() };
     this.netStats = null;
+    this.networkClock = null;
+    this.interpolationStore = new EntityInterpolationStore();
     this.lastSnapAt = 0;
     this.lastServerTime = 0;
     this.lastServerTimeAt = 0;
@@ -90,6 +93,15 @@ export class WorldStore {
 
   setNetStats(netStats) {
     this.netStats = netStats || null;
+    this.netStats?.setInterpolationStore?.(this.interpolationStore);
+  }
+
+  setNetworkClock(clock) {
+    this.networkClock = clock || null;
+  }
+
+  getRenderServerTimeMs() {
+    return this.networkClock?.renderServerTimeMs?.() || this.lastServerTime || Date.now();
   }
 
   _structureMoveKey(id) {
@@ -798,6 +810,11 @@ export class WorldStore {
       this.applyCombatFxEvents(msg.combatFx);
       this.pendingCombatFx.push(...msg.combatFx.filter((fx) => fx?.type !== 'structure_state'));
     }
+    if (Array.isArray(msg.players)) this.interpolationStore.pushMany('player', msg.players.filter((p) => (p.id | 0) !== (this.myId | 0)), this.lastServerTime);
+    if (Array.isArray(msg.mobs)) this.interpolationStore.pushMany('mob', msg.mobs, this.lastServerTime);
+    if (Array.isArray(msg.projectiles)) this.interpolationStore.pushMany('projectile', msg.projectiles, this.lastServerTime);
+    if (Array.isArray(msg.logisticDrones)) this.interpolationStore.pushMany('logisticDrone', msg.logisticDrones, this.lastServerTime);
+    if (Array.isArray(msg.loots)) this.interpolationStore.pushMany('loot', msg.loots, this.lastServerTime);
     if (msg.me?.sfx?.length) this.pendingSfx.push(...msg.me.sfx);
     if (Array.isArray(msg.players)) this._syncMap(this.players, msg.players, { snapOwnPlayer: false, preserveOwnPlayerPosition: true });
     if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs);
