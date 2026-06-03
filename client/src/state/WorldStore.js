@@ -550,7 +550,7 @@ export class WorldStore {
     return dx <= 1.5 && dy <= 1.5 && orientation === targetOrientation;
   }
 
-  _syncStructures(arr, serverNow) {
+  _syncStructures(arr, serverNow, options = {}) {
     const seen = new Set();
     const now = performance.now();
     for (const raw of arr) {
@@ -606,6 +606,7 @@ export class WorldStore {
       }
       this.structures.set(id, merged);
     }
+    if (options.partial) return;
     for (const id of this.structures.keys()) {
       const item = this.structures.get(id);
       if (!seen.has(id) && !item?.localOnly) this.structures.delete(id);
@@ -984,13 +985,17 @@ export class WorldStore {
 
   _syncMap(map, arr, options = {}) {
     const seen = new Set();
+    const partial = !!options.partial;
     for (const item of arr) {
       seen.add(item.id);
       const isOwn = item.id === this.myId;
       const snapPosition = options.snapOwnPlayer && isOwn;
       const preserveLocalPosition = options.preserveOwnPlayerPosition && isOwn;
-      map.set(item.id, this._mergeEntity(map.get(item.id), item, { snapPosition, preserveLocalPosition }));
+      const merged = this._mergeEntity(map.get(item.id), item, { snapPosition, preserveLocalPosition });
+      if (partial) merged._lastPartialSeenAt = performance.now();
+      map.set(item.id, merged);
     }
+    if (partial) return;
     for (const id of map.keys()) {
       const item = map.get(id);
       if (!seen.has(id) && !item?.localOnly) map.delete(id);
@@ -1215,6 +1220,11 @@ export class WorldStore {
     }
   }
 
+  isPartialSnapshotSection(msg, key) {
+    const sections = msg?.net?.slim?.partialSections;
+    return Array.isArray(sections) && sections.includes(key);
+  }
+
   applySnapshot(msg) {
     const snapLocalNow = performance.now();
     this.lastSnapAt = snapLocalNow;
@@ -1274,22 +1284,22 @@ export class WorldStore {
     if (Array.isArray(msg.loots)) this.interpolationStore.pushMany('loot', msg.loots, this.lastServerTime);
     if (!hasNetworkEvents && msg.me?.sfx?.length) this.pendingSfx.push(...msg.me.sfx);
     if (Array.isArray(msg.players)) this._syncMap(this.players, msg.players, { snapOwnPlayer: false, preserveOwnPlayerPosition: true });
-    if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs);
+    if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs, { partial: this.isPartialSnapshotSection(msg, 'mobs') });
     // Les entités statiques du secteur sont volontairement envoyées moins souvent.
     // Quand le serveur omet ces tableaux, on garde la dernière version locale au lieu
     // de vider la map, ce qui évite de retransmettre 20-40 astéroïdes à chaque frame.
-    if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true });
+    if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true, partial: this.isPartialSnapshotSection(msg, 'asteroids') });
     if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
     const structureServerNow = this._estimateServerNow();
     if (Array.isArray(msg.structures)) {
-      this._syncStructures(msg.structures, structureServerNow);
+      this._syncStructures(msg.structures, structureServerNow, { partial: this.isPartialSnapshotSection(msg, 'structures') });
     }
     if (Array.isArray(msg.structureAutomation)) this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
     if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles);
-    if (Array.isArray(msg.logisticDrones)) this._syncMap(this.logisticDrones, msg.logisticDrones);
+    if (Array.isArray(msg.logisticDrones)) this._syncMap(this.logisticDrones, msg.logisticDrones, { partial: this.isPartialSnapshotSection(msg, 'logisticDrones') });
     if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);
-    if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots);
+    if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots, { partial: this.isPartialSnapshotSection(msg, 'loots') });
   }
 
 

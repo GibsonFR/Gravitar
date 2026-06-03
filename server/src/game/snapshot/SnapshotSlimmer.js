@@ -53,7 +53,9 @@ export function attachSnapshotNetMetrics(snapshot, options = {}) {
       staticWorld: !!snapshot.staticWorld,
       sectionBytes: sectionBytesMap,
       sectionCounts,
-      approximateBytesBeforeNet: byteLen({ ...snapshot, net: undefined })
+      approximateBytesBeforeNet: byteLen({ ...snapshot, net: undefined }),
+      partialSections: Array.isArray(options.partialSections) ? options.partialSections : [],
+      priorityLimits: options.priorityLimits || null
     }
   };
   return snapshot;
