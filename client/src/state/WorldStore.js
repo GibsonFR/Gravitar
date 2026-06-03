@@ -104,10 +104,14 @@ export class WorldStore {
     return this.networkClock?.renderServerTimeMs?.() || this.lastServerTime || Date.now();
   }
 
+  getEstimatedServerNowMs() {
+    return this.networkClock?.estimatedServerNowMs?.() || this.lastServerTime || Date.now();
+  }
+
   sampleInterpolatedEntity(kind, entity, options = {}) {
     if (!entity?.id || !this.interpolationStore) return entity;
     if (options.skipLocal && (entity.id | 0) === (this.myId | 0)) return entity;
-    const renderTime = this.getRenderServerTimeMs();
+    const renderTime = Number.isFinite(Number(options.renderTimeMs)) ? Number(options.renderTimeMs) : this.getRenderServerTimeMs();
     const sampled = this.interpolationStore.sample(kind, entity.id, renderTime, options);
     if (!sampled) return entity;
     return { ...entity, ...sampled, _interpolated: true };
@@ -130,7 +134,14 @@ export class WorldStore {
 
   getRenderProjectiles() {
     const out = [];
-    for (const projectile of this.projectiles.values()) out.push(this.sampleInterpolatedEntity('projectile', projectile, { maxExtrapolateMs: 130 }));
+    const projectileRenderTime = this.getEstimatedServerNowMs();
+    for (const projectile of this.projectiles.values()) {
+      out.push(this.sampleInterpolatedEntity('projectile', projectile, {
+        renderTimeMs: projectileRenderTime,
+        maxExtrapolateMs: 180,
+        projectileLowLatency: true
+      }));
+    }
     return out;
   }
 
