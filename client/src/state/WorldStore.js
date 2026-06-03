@@ -1,3 +1,4 @@
+import { NetworkEventDeduper } from '../net/NetworkEventDeduper.js';
 import { EntityInterpolationStore } from './EntityInterpolationStore.js';
 
 function statusIdOf(entry) {
@@ -39,6 +40,8 @@ export class WorldStore {
     this.loots = new Map();
     this.pendingSfx = [];
     this.pendingCombatFx = [];
+    this.networkEvents = [];
+    this.eventDeduper = new NetworkEventDeduper();
     this.chatMessages = [];
     this.chatUnread = 0;
     this.pendingCommands = new Map();
@@ -103,6 +106,7 @@ export class WorldStore {
   setNetStats(netStats) {
     this.netStats = netStats || null;
     this.netStats?.setInterpolationStore?.(this.interpolationStore);
+    this.netStats?.setEventDeduper?.(this.eventDeduper);
   }
 
   setNetworkClock(clock) {
@@ -115,6 +119,42 @@ export class WorldStore {
 
   getInputReconciliationStats() {
     return this.inputHistory?.stats?.() || null;
+  }
+
+  applyNetworkEvents(events = []) {
+    const accepted = this.eventDeduper.filter(events);
+    if (!accepted.length) return;
+    this.networkEvents.push(...accepted);
+    if (this.networkEvents.length > 512) this.networkEvents.splice(0, this.networkEvents.length - 512);
+
+    for (const ev of accepted) {
+      if (ev.type === 'sfx.world' && ev.payload) {
+        this.pendingSfx.push({
+          type: ev.payload.sfxType,
+          sx: ev.sx | 0,
+          sy: ev.sy | 0,
+          x: ev.x,
+          y: ev.y,
+          variant: ev.payload.variant | 0,
+          frameId: ev.payload.frameId || '',
+          slot: ev.payload.slot || '',
+          sourceKind: ev.payload.sourceKind || '',
+          mobProfile: ev.payload.mobProfile || '',
+          mobId: ev.payload.mobId || '',
+          visualKind: ev.payload.visualKind || ''
+        });
+      } else if (ev.type === 'sfx.player' && ev.payload) {
+        this.pendingSfx.push({
+          type: ev.payload.sfxType,
+          variant: ev.payload.variant | 0,
+          resourceKey: ev.payload.resourceKey || '',
+          itemId: ev.payload.itemId || '',
+          group: ev.payload.group || ''
+        });
+      } else if (String(ev.type || '').startsWith('combat.')) {
+        this.pendingCombatFx.push(ev.payload || ev);
+      }
+    }
   }
 
   getRenderServerTimeMs() {
@@ -950,17 +990,19 @@ export class WorldStore {
       this.myState.selectedKind = this.localPrediction.selectedKind || '';
       this.myState.selectedId = this.localPrediction.selectedId || 0;
     }
-    if (msg.worldSfx?.length) this.pendingSfx.push(...msg.worldSfx);
+    const hasNetworkEvents = Array.isArray(msg.events) && msg.events.length > 0;
+    if (hasNetworkEvents) this.applyNetworkEvents(msg.events);
+    if (!hasNetworkEvents && msg.worldSfx?.length) this.pendingSfx.push(...msg.worldSfx);
     if (msg.combatFx?.length) {
       this.applyCombatFxEvents(msg.combatFx);
-      this.pendingCombatFx.push(...msg.combatFx.filter((fx) => fx?.type !== 'structure_state'));
+      if (!hasNetworkEvents) this.pendingCombatFx.push(...msg.combatFx.filter((fx) => fx?.type !== 'structure_state'));
     }
     if (Array.isArray(msg.players)) this.interpolationStore.pushMany('player', msg.players.filter((p) => (p.id | 0) !== (this.myId | 0)), this.lastServerTime);
     if (Array.isArray(msg.mobs)) this.interpolationStore.pushMany('mob', msg.mobs, this.lastServerTime);
     if (Array.isArray(msg.projectiles)) this.interpolationStore.pushMany('projectile', msg.projectiles, this.lastServerTime);
     if (Array.isArray(msg.logisticDrones)) this.interpolationStore.pushMany('logisticDrone', msg.logisticDrones, this.lastServerTime);
     if (Array.isArray(msg.loots)) this.interpolationStore.pushMany('loot', msg.loots, this.lastServerTime);
-    if (msg.me?.sfx?.length) this.pendingSfx.push(...msg.me.sfx);
+    if (!hasNetworkEvents && msg.me?.sfx?.length) this.pendingSfx.push(...msg.me.sfx);
     if (Array.isArray(msg.players)) this._syncMap(this.players, msg.players, { snapOwnPlayer: false, preserveOwnPlayerPosition: true });
     if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs);
     // Les entités statiques du secteur sont volontairement envoyées moins souvent.

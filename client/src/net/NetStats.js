@@ -78,6 +78,7 @@ export class NetStats {
     this.clock = null;
     this.interpolation = null;
     this.inputHistory = null;
+    this.eventDeduper = null;
   }
 
   setClock(clock) {
@@ -90,6 +91,10 @@ export class NetStats {
 
   setInputHistory(history) {
     this.inputHistory = history || null;
+  }
+
+  setEventDeduper(deduper) {
+    this.eventDeduper = deduper || null;
   }
 
   setEnabled(value) {
@@ -150,7 +155,7 @@ export class NetStats {
       areaEffects: Array.isArray(msg?.areaEffects) ? msg.areaEffects.length : 0
     };
     this.snapshotSections = Object.fromEntries(Object.entries(msg || {}).map(([k, v]) => [k, Array.isArray(v) ? v.length : (v && typeof v === 'object' ? 1 : 0)]));
-    this.eventsInWindow += (Array.isArray(msg?.combatFx) ? msg.combatFx.length : 0) + (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0);
+    this.eventsInWindow += (Array.isArray(msg?.events) ? msg.events.length : 0) + (Array.isArray(msg?.combatFx) ? msg.combatFx.length : 0) + (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0);
     this.sfxInWindow += (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0) + (Array.isArray(msg?.me?.sfx) ? msg.me.sfx.length : 0);
   }
 
@@ -293,7 +298,8 @@ export class NetStats {
       serverTime: this.serverTime,
       clock: this.clock?.snapshot?.() || null,
       interpolation: this.interpolation?.stats?.() || null,
-      inputHistory: this.inputHistory?.stats?.() || null
+      inputHistory: this.inputHistory?.stats?.() || null,
+      eventDeduper: this.eventDeduper?.stats?.() || null
     };
   }
 }

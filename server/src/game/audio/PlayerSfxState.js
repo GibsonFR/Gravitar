@@ -15,6 +15,10 @@ export function queuePlayerSfx(player, type, variant = 0, meta = null) {
   player.sfx.pending.push(ev);
 }
 
+export function peekPlayerSfx(player) {
+  return player?.sfx?.pending ?? [];
+}
+
 export function drainPlayerSfx(player) {
   if (!player?.sfx?.pending?.length) return [];
   const out = player.sfx.pending;
