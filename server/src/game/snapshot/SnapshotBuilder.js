@@ -1,4 +1,5 @@
 import { WORLD } from '../constants.js';
+import { attachSnapshotNetMetrics, pruneUndefinedSnapshotFields } from './SnapshotSlimmer.js';
 import { peekWorldSfx } from '../audio/WorldSfxState.js';
 import { peekPlayerSfx } from '../audio/PlayerSfxState.js';
 import { buildNetworkEventsFromLegacy } from '../events/NetworkEventStream.js';
