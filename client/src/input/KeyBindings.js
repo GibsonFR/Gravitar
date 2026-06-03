@@ -1,4 +1,4 @@
-export const CONTROL_BINDING_STORAGE_KEY = 'spacefrontier.controls.v235';
+export const CONTROL_BINDING_STORAGE_KEY = 'spacefrontier.controls.v259';
 
 export const CONTROL_BINDING_DEFS = Object.freeze([
   { id: 'abilityA', label: 'Capacité A', group: 'Combat', defaultCode: 'KeyA' },
@@ -18,6 +18,14 @@ export const CONTROL_BINDING_DEFS = Object.freeze([
 ]);
 
 const DEFAULT_BINDINGS = Object.freeze(Object.fromEntries(CONTROL_BINDING_DEFS.map((def) => [def.id, def.defaultCode])));
+
+function sanitizeControlUserKey(value = '') {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9_.@-]+/g, '_').slice(0, 80) || 'local';
+}
+
+function controlsStorageKey(userKey = 'local') {
+  return `${CONTROL_BINDING_STORAGE_KEY}.${sanitizeControlUserKey(userKey)}`;
+}
 
 const CODE_LABELS = Object.freeze({
   Space: 'Espace',
@@ -46,23 +54,25 @@ export function normalizeKeyBindings(bindings = {}) {
   return out;
 }
 
-export function loadKeyBindings() {
+export function loadKeyBindings(userKey = 'local') {
   try {
-    return normalizeKeyBindings(JSON.parse(localStorage.getItem(CONTROL_BINDING_STORAGE_KEY) || '{}'));
+    const scoped = JSON.parse(localStorage.getItem(controlsStorageKey(userKey)) || 'null');
+    if (scoped && typeof scoped === 'object') return normalizeKeyBindings(scoped);
+    return normalizeKeyBindings(JSON.parse(localStorage.getItem('spacefrontier.controls.v235') || '{}'));
   } catch {
     return getDefaultKeyBindings();
   }
 }
 
-export function saveKeyBindings(bindings = {}) {
+export function saveKeyBindings(bindings = {}, userKey = 'local') {
   const normalized = normalizeKeyBindings(bindings);
-  localStorage.setItem(CONTROL_BINDING_STORAGE_KEY, JSON.stringify(normalized));
+  localStorage.setItem(controlsStorageKey(userKey), JSON.stringify(normalized));
   return normalized;
 }
 
-export function resetKeyBindings() {
+export function resetKeyBindings(userKey = 'local') {
   const defaults = getDefaultKeyBindings();
-  localStorage.setItem(CONTROL_BINDING_STORAGE_KEY, JSON.stringify(defaults));
+  localStorage.setItem(controlsStorageKey(userKey), JSON.stringify(defaults));
   return defaults;
 }
 
@@ -78,6 +88,19 @@ export function keyCodeToLabel(code = '') {
   return value.replace(/^Control/, 'Ctrl ').replace(/^Shift/, 'Maj ').replace(/^Alt/, 'Alt ');
 }
 
+
+function semanticKeyToCode(ev) {
+  const key = String(ev?.key || '').trim();
+  if (/^[a-zA-Z]$/.test(key)) return `Key${key.toUpperCase()}`;
+  if (/^[0-9]$/.test(key)) return `Digit${key}`;
+  return '';
+}
+
+function isSpecialPhysicalCode(code = '') {
+  return /^(Arrow|Escape|Space|Enter|Tab|Backspace|Delete|Home|End|Page|Insert|F\d+$|Numpad|Shift|Control|Alt|Meta)/.test(String(code || ''));
+}
+
+
 export function eventToBindingCode(ev) {
   if (!ev) return '';
   if (ev.type === 'wheel') return Number(ev.deltaY || 0) < 0 ? 'WheelUp' : 'WheelDown';
@@ -86,7 +109,11 @@ export function eventToBindingCode(ev) {
     if (ev.button === 1) return 'MouseMiddle';
     if (ev.button === 2) return 'MouseRight';
   }
-  return String(ev.code || ev.key || '').trim();
+  const semantic = semanticKeyToCode(ev);
+  if (semantic) return semantic;
+  const code = String(ev.code || '').trim();
+  if (isSpecialPhysicalCode(code)) return code;
+  return String(ev.key || code || '').trim();
 }
 
 export function isControlMatch(bindings, actionId, ev) {

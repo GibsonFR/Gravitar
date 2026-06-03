@@ -232,6 +232,7 @@ export function startApp() {
   const shipPanel = new ShipPanelView(sendCmd);
   dock.registerPanel({ id: 'ship', title: 'Vaisseau', iconMarkup: getShipIconSvg(), panelEl: shipPanel.el, shellClass: 'ui-panel-shell--ship', group: 'game' });
 
+  let lastOptionsUserKey = 'local';
   const optionsPanel = new OptionsPanelView((settings) => {
     audio.applySettings(settings);
     graphicsOptions = { ...graphicsOptions, ...settings };
@@ -241,6 +242,19 @@ export function startApp() {
   audio.applySettings(optionsPanel.getSettings());
   view.setRenderScale(optionsPanel.getSettings().renderScale);
   dock.registerPanel({ id: 'options', title: 'Options', iconMarkup: getOptionsIconSvg(), panelEl: optionsPanel.el, group: 'utility' });
+
+  function getOptionsUserKey() {
+    const s = store.myState || {};
+    return String(s.accountKey || s.accountName || s.pseudo || s.id || store.myId || 'local');
+  }
+
+  function syncOptionsUserKey() {
+    const next = getOptionsUserKey();
+    if (!next || next === lastOptionsUserKey) return;
+    lastOptionsUserKey = next;
+    optionsPanel.setUserKey?.(next);
+  }
+
 
   const basePanel = new BasePanelView(sendCmd, () => { if (dock.activeId === 'base') dock.toggle('base'); });
   dock.registerPanel({ id: 'base', title: 'Build', iconMarkup: getBaseIconSvg(), panelEl: basePanel.el, group: 'game' });
@@ -830,6 +844,7 @@ export function startApp() {
     audio.playPending(store.consumePendingSfx());
 
     const me = store.getMe();
+    syncOptionsUserKey();
     audio.update(me, input);
     const dt = Math.min(0.05, Math.max(0, t - lastFrameTime));
     lastFrameTime = t;

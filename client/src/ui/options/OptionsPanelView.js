@@ -2,16 +2,32 @@ import { CONTROL_BINDING_DEFS, findControlConflicts, keyCodeToLabel, eventToBind
 
 const DEFAULT_SETTINGS = Object.freeze({
   masterVolume: 0,
-  musicVolume: -18,
-  reactorVolume: -20,
-  sfxVolume: -12,
+  musicVolume: 0,
+  reactorVolume: 0,
+  sfxVolume: 0,
   starDensity: 1,
-  showGrid: true,
+  showGrid: false,
   showFx: true,
   renderScale: 1
 });
 
+const OPTIONS_STORAGE_BASE_KEY = 'spacefrontier.options.v259';
+
 const AUDIO_KEYS = new Set(['masterVolume', 'musicVolume', 'reactorVolume', 'sfxVolume']);
+
+function sanitizeUserKey(value = '') {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9_.@-]+/g, '_').slice(0, 80) || 'local';
+}
+
+function optionsStorageKey(userKey = '') {
+  const user = sanitizeUserKey(userKey || 'local');
+  return `${OPTIONS_STORAGE_BASE_KEY}.${user}`;
+}
+
+function readLegacySettings() {
+  try { return JSON.parse(localStorage.getItem('spacefrontier.options') || '{}') || {}; } catch { return {}; }
+}
+
 
 function clamp01(v) { return Math.max(0, Math.min(1, Number(v) || 0)); }
 function clamp(v, min, max) {
@@ -26,16 +42,23 @@ function normalizeAudioDb(key, value) {
   if (n > 0 && n <= 1) return Math.round(-60 + n * 60);
   return clamp(n, -60, 0);
 }
-function loadSettings() {
+function normalizeSettings(raw = {}) {
+  const merged = { ...DEFAULT_SETTINGS, ...(raw || {}) };
+  for (const key of AUDIO_KEYS) merged[key] = normalizeAudioDb(key, merged[key]);
+  merged.starDensity = clamp01(merged.starDensity);
+  merged.renderScale = clamp(merged.renderScale, 0.6, 1);
+  merged.showGrid = merged.showGrid === true;
+  merged.showFx = merged.showFx !== false;
+  return merged;
+}
+
+function loadSettings(userKey = 'local') {
   try {
-    const raw = JSON.parse(localStorage.getItem('spacefrontier.options') || '{}');
-    const merged = { ...DEFAULT_SETTINGS, ...raw };
-    for (const key of AUDIO_KEYS) merged[key] = normalizeAudioDb(key, merged[key]);
-    merged.starDensity = clamp01(merged.starDensity);
-    merged.renderScale = clamp(merged.renderScale, 0.6, 1);
-    merged.showGrid = merged.showGrid !== false;
-    merged.showFx = merged.showFx !== false;
-    return merged;
+    const scopedRaw = JSON.parse(localStorage.getItem(optionsStorageKey(userKey)) || 'null');
+    if (scopedRaw && typeof scopedRaw === 'object') return normalizeSettings(scopedRaw);
+    const legacy = readLegacySettings();
+    for (const key of AUDIO_KEYS) delete legacy[key];
+    return normalizeSettings(legacy);
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -44,8 +67,9 @@ function loadSettings() {
 export class OptionsPanelView {
   constructor(onChange) {
     this.onChange = typeof onChange === 'function' ? onChange : null;
-    this.settings = loadSettings();
-    this.keyBindings = loadKeyBindings();
+    this.userKey = 'local';
+    this.settings = loadSettings(this.userKey);
+    this.keyBindings = loadKeyBindings(this.userKey);
     this.captureControlId = '';
     this.boundCapture = null;
     this.el = document.createElement('section');
@@ -109,13 +133,34 @@ export class OptionsPanelView {
       if (reset) {
         ev.preventDefault();
         ev.stopPropagation();
-        this.keyBindings = resetKeyBindings();
+        this.keyBindings = resetKeyBindings(this.userKey);
         this.renderControls();
         this.emitChange();
       }
     });
     this.refreshAll();
     this.renderControls();
+  }
+
+  setUserKey(userKey = 'local') {
+    const next = sanitizeUserKey(userKey || 'local');
+    if (!next || next === this.userKey) return;
+    this.userKey = next;
+    this.settings = loadSettings(this.userKey);
+    this.keyBindings = loadKeyBindings(this.userKey);
+    this.refreshInputValues();
+    this.refreshAll();
+    this.renderControls();
+    this.emitChange();
+  }
+
+  refreshInputValues() {
+    for (const input of this.el.querySelectorAll('[data-key]')) {
+      const key = input.dataset.key;
+      if (!key) continue;
+      if (input.type === 'checkbox') input.checked = !!this.settings[key];
+      else input.value = this.settings[key];
+    }
   }
 
   emitChange() {
@@ -183,7 +228,7 @@ export class OptionsPanelView {
     if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
     const code = eventToBindingCode(ev);
     if (!code) return;
-    this.keyBindings = saveKeyBindings({ ...this.keyBindings, [controlId]: code });
+    this.keyBindings = saveKeyBindings({ ...this.keyBindings, [controlId]: code }, this.userKey);
     this.stopControlCapture(true);
     this.emitChange();
   }
@@ -199,7 +244,7 @@ export class OptionsPanelView {
 
   renderAudioSlider(label, key) {
     const value = this.settings[key];
-    return `<label class="options-row"><span>${label}</span><input type="range" min="-60" max="0" step="1" value="${value}" data-key="${key}"><b data-value="${key}">0 dB</b></label>`;
+    return `<label class="options-row"><span>${label}</span><input type="range" min="-60" max="0" step="1" value="${value}" data-key="${key}"><b data-value="${key}">100%</b></label>`;
   }
 
   renderToggle(label, key) {
@@ -211,7 +256,8 @@ export class OptionsPanelView {
     if (!node) return;
     if (AUDIO_KEYS.has(key)) {
       const db = clamp(this.settings[key], -60, 0);
-      node.textContent = db <= -60 ? 'muet' : `${db} dB`;
+      const pct = db <= -60 ? 0 : Math.round(Math.pow(10, db / 20) * 100);
+      node.textContent = pct <= 0 ? 'muet' : `${pct}%`;
       return;
     }
     node.textContent = `${Math.round((Number(this.settings[key]) || 0) * 100)}%`;
@@ -222,7 +268,7 @@ export class OptionsPanelView {
   }
 
   save() {
-    localStorage.setItem('spacefrontier.options', JSON.stringify(this.settings));
+    localStorage.setItem(optionsStorageKey(this.userKey), JSON.stringify(this.settings));
     this.emitChange();
   }
 

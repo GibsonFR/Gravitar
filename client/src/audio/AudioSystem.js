@@ -20,7 +20,7 @@ export class AudioSystem {
     this.music = new MusicPlaylist();
     this.reactor = new ReactorLoop();
     this.masterVolume = 0;
-    this.sfxVolume = -12;
+    this.sfxVolume = 0;
     this.sfxBus = null;
   }
 
@@ -52,8 +52,8 @@ export class AudioSystem {
   applySettings(settings = {}) {
     this.masterVolume = clampDb(settings.masterVolume, this.masterVolume);
     this.sfxVolume = clampDb(settings.sfxVolume, this.sfxVolume);
-    const musicDb = clampDb(settings.musicVolume, -18);
-    const reactorDb = clampDb(settings.reactorVolume, -20);
+    const musicDb = clampDb(settings.musicVolume, 0);
+    const reactorDb = clampDb(settings.reactorVolume, 0);
     const sfxGain = dbToGain(this.masterVolume + this.sfxVolume);
     this.music.setVolume(dbToGain(this.masterVolume + musicDb));
     this.reactor.setVolume(dbToGain(this.masterVolume + reactorDb));
