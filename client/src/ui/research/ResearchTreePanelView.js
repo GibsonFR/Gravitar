@@ -14,29 +14,49 @@ const PACK_LABELS = {
 };
 
 const NODE_POS = {
-  construction_foundations: [70, 170],
-  industry_smelting_control: [70, 330],
-  automation_routing: [320, 80],
-  automation_sorting: [560, 80],
-  energy_distribution: [345, 245],
-  advanced_industry: [345, 405],
-  resource_scanning: [630, 60],
-  logistics_basic: [875, 60],
-  logistics_fast: [1085, 60],
-  logistics_advanced: [1295, 60],
-  advanced_logistics: [1295, 60],
-  electronics_processing: [630, 230],
-  bio_processing: [630, 390],
-  defense_turrets: [630, 550],
-  advanced_research: [930, 270],
-  equipment_mark_ii: [1120, 150],
-  equipment_rd_station: [1320, 150],
-  equipment_mark_iii: [1520, 150],
-  alien_anomaly_analysis: [1720, 230],
-  equipment_mark_iv: [1920, 150],
-  equipment_mark_v: [2120, 150],
-  pirate_reverse_engineering: [1240, 485]
+  construction_foundations: [80, 180],
+  industry_smelting_control: [80, 410],
+
+  automation_routing: [365, 80],
+  automation_sorting: [650, 80],
+
+  energy_distribution: [365, 300],
+  advanced_industry: [365, 520],
+
+  resource_scanning: [760, 210],
+  electronics_processing: [760, 420],
+  bio_processing: [760, 630],
+  defense_turrets: [760, 840],
+
+  logistics_basic: [1070, 90],
+  logistics_fast: [1370, 90],
+  logistics_advanced: [1670, 90],
+  advanced_logistics: [1670, 90],
+
+  advanced_research: [1100, 390],
+  equipment_mark_ii: [1390, 300],
+  equipment_rd_station: [1680, 300],
+  equipment_mark_iii: [1970, 300],
+  alien_anomaly_analysis: [2260, 440],
+  equipment_mark_iv: [2550, 300],
+  equipment_mark_v: [2840, 300],
+
+  pirate_reverse_engineering: [1410, 690]
 };
+
+const NODE_SIZE = {
+  width: 210,
+  height: 82,
+  gapX: 56,
+  gapY: 42
+};
+
+function projectPosition(project, index = 0) {
+  if (NODE_POS[project?.id]) return NODE_POS[project.id];
+  const col = index % 4;
+  const row = Math.floor(index / 4);
+  return [90 + col * 300, 920 + row * 130];
+}
 
 function packCost(cost = {}) {
   const entries = Object.entries(cost || {}).filter(([, amount]) => (amount | 0) > 0);
@@ -249,13 +269,14 @@ export class ResearchTreePanelView {
 
     const active = (data.active || [])[0] || null;
     const activeIds = new Set((data.active || []).map((a) => a.projectId));
-    const nodeW = 178;
-    const nodeH = 72;
-    const maxX = Math.max(1500, ...projects.map((p) => (NODE_POS[p.id]?.[0] || 0) + nodeW + 60));
-    const maxY = Math.max(730, ...projects.map((p) => (NODE_POS[p.id]?.[1] || 0) + nodeH + 60));
+    const nodeW = NODE_SIZE.width;
+    const nodeH = NODE_SIZE.height;
+    const positions = new Map(projects.map((p, i) => [p.id, projectPosition(p, i)]));
+    const maxX = Math.max(1800, ...projects.map((p, i) => (positions.get(p.id)?.[0] ?? projectPosition(p, i)[0]) + nodeW + NODE_SIZE.gapX));
+    const maxY = Math.max(980, ...projects.map((p, i) => (positions.get(p.id)?.[1] ?? projectPosition(p, i)[1]) + nodeH + NODE_SIZE.gapY));
     const lines = projects.flatMap((p) => prereqIds(p).map((id) => {
-      const a = NODE_POS[id];
-      const b = NODE_POS[p.id];
+      const a = positions.get(id);
+      const b = positions.get(p.id);
       if (!a || !b) return '';
       const done = !!projects.find((x) => x.id === id)?.completed;
       return `<path class="research-tree-panel__edge ${done ? 'is-done' : ''}" d="M${a[0] + nodeW},${a[1] + nodeH / 2} C${a[0] + nodeW + 80},${a[1] + nodeH / 2} ${b[0] - 80},${b[1] + nodeH / 2} ${b[0]},${b[1] + nodeH / 2}" />`;
@@ -284,7 +305,7 @@ export class ResearchTreePanelView {
           <div class="research-tree-panel__canvas" style="width:${maxX}px;height:${maxY}px">
             <svg class="research-tree-panel__edges" width="${maxX}" height="${maxY}" viewBox="0 0 ${maxX} ${maxY}">${lines}</svg>
             ${projects.map((p) => {
-              const pos = NODE_POS[p.id] || [80, 80];
+              const pos = positions.get(p.id) || projectPosition(p, 0);
               const branch = (data.branches || []).find((b) => b.id === p.branch) || {};
               const state = nodeState(p, activeIds);
               return `<button type="button" class="research-tree-panel__node is-${state}" data-research-node="1" data-project="${escapeHtml(p.id)}" style="--x:${pos[0]}px;--y:${pos[1]}px;--branch:${escapeHtml(branch.colorHex || '#7edcff')}">
