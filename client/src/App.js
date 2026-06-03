@@ -875,23 +875,27 @@ export function startApp() {
     drawSectorBoundary(ctx, view, camX, camY, store.world);
     if (me) drawGroundMarker(ctx, view, me, camX, camY, t);
 
+    const renderPlayers = store.getRenderPlayers();
+    const renderMobs = store.getRenderMobs();
+    const renderProjectiles = store.getRenderProjectiles();
+
     for (const s of store.stations.values()) drawStation(ctx, view, s, camX, camY, t);
     for (const st of store.structures.values()) drawStructure(ctx, view, st, camX, camY, t, store.structures);
     drawStructureBuildPreview(ctx, view, basePanel.getPreview(store, mouseWorld), camX, camY, t);
     drawPortals(ctx, view, store, camX, camY);
     for (const a of store.asteroids.values()) drawAsteroid(ctx, view, a, camX, camY);
-    for (const mob of store.mobs.values()) drawMob(ctx, view, mob, camX, camY, t);
+    for (const mob of renderMobs) drawMob(ctx, view, mob, camX, camY, t);
     if (graphicsOptions.showFx) fxStore.sync(store, t);
     for (const l of store.loots.values()) drawLoot(ctx, view, l, camX, camY);
     for (const d of store.logisticDrones.values()) drawLogisticDrone(ctx, view, d, camX, camY, t);
     if (graphicsOptions.showFx) fxStore.drawTrails(ctx, view, camX, camY, t);
-    for (const p of store.projectiles.values()) drawProjectile(ctx, view, p, camX, camY);
+    for (const p of renderProjectiles) drawProjectile(ctx, view, p, camX, camY);
     for (const effect of store.areaEffects.values()) drawAreaEffect(ctx, view, effect, camX, camY, t);
     if (graphicsOptions.showFx) {
       fxStore.drawImpacts(ctx, view, camX, camY, t);
       fxStore.drawDamageNumbers(ctx, view, camX, camY, t);
     }
-    for (const mob of store.mobs.values()) drawWorldStatuses(ctx, view, mob, camX, camY, t);
+    for (const mob of renderMobs) drawWorldStatuses(ctx, view, mob, camX, camY, t);
     for (const a of store.asteroids.values()) drawWorldStatuses(ctx, view, a, camX, camY, t);
 
     {
@@ -899,8 +903,14 @@ export function startApp() {
       const selectedId = store.localPrediction?.selectedId || store.myState?.selectedId || 0;
       if (selectedKind && selectedId) {
         let target = null;
-        if (selectedKind === 'player') target = store.players.get(selectedId);
-        if (selectedKind === 'mob') target = store.mobs.get(selectedId);
+        if (selectedKind === 'player') {
+          const raw = store.players.get(selectedId);
+          target = raw && (raw.id | 0) !== (store.myId | 0) ? store.sampleInterpolatedEntity('player', raw, { maxExtrapolateMs: 90 }) : raw;
+        }
+        if (selectedKind === 'mob') {
+          const raw = store.mobs.get(selectedId);
+          target = raw ? store.sampleInterpolatedEntity('mob', raw, { maxExtrapolateMs: 110 }) : raw;
+        }
         if (selectedKind === 'asteroid') target = store.asteroids.get(selectedId);
         if (selectedKind === 'station') target = store.stations.get(selectedId);
         if (selectedKind === 'structure') target = store.structures.get(selectedId);
@@ -912,7 +922,7 @@ export function startApp() {
       }
     }
 
-    for (const p of store.players.values()) drawShip(ctx, view, p, camX, camY, t, mouseWorld, store.players, store.asteroids);
+    for (const p of renderPlayers) drawShip(ctx, view, p, camX, camY, t, mouseWorld, store.players, store.asteroids);
 
     if (me) drawBlindViewportMask(ctx, view, me, t);
 
