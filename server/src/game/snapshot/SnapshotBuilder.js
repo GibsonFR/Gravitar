@@ -116,6 +116,6 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     loots: buildLootSnapshots(state.loots, nearDynamic)
   };
   pruneUndefinedSnapshotFields(snapshot);
-  attachSnapshotNetMetrics(snapshot, { legacyEvents, partialSections: [], priorityLimits: null });
+  attachSnapshotNetMetrics(snapshot, { legacyEvents });
   return snapshot;
 }

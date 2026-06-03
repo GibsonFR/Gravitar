@@ -1,5 +1,6 @@
-// V274c: partial/prioritized snapshots are disabled.
-// Kept as a harmless placeholder so old imports or audits do not break if a branch still references this file.
+// Removed in rollback_pre_partial.
+// Partial/prioritized snapshots were disabled because absence from a snapshot is meaningful
+// for mobs, loots, asteroids/resources and structures without tombstones/versioning.
 export function buildSnapshotPriorityPlan() {
   return {
     enabled: false,

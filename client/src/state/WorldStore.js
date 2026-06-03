@@ -1215,7 +1215,6 @@ export class WorldStore {
     }
   }
 
-
   applySnapshot(msg) {
     const snapLocalNow = performance.now();
     this.lastSnapAt = snapLocalNow;
