@@ -10233,3 +10233,20 @@ button.station-item-icon[draggable="true"]:active,
   transition: none !important;
   opacity: .98;
 }
+
+
+/* Local drag surface: immediate mouse-follow for floating HUD windows. */
+.build-pin-hud {
+  will-change: left, top;
+  transform: none;
+}
+.build-pin-hud.is-dragging {
+  cursor: grabbing;
+  pointer-events: auto;
+  user-select: none;
+  transition: none !important;
+  filter: drop-shadow(0 18px 42px rgba(0,0,0,.42));
+}
+.build-pin-hud.is-dragging .build-pin-hud__head {
+  cursor: grabbing;
+}

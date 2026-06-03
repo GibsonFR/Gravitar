@@ -1,4 +1,5 @@
 import { getResearchName, getStructureResearchRequirement, isStructureUnlockedByResearch } from '../../../../shared/content/research/ScienceResearchDefs.js';
+import { LocalDragSurface, clampDragToViewport } from '../common/LocalDragSurface.js';
 const BASE_TILE = 64;
 const SECTOR_HALF = 2000;
 const BUILD_RANGE = 1200;
@@ -1167,6 +1168,7 @@ export class BasePanelView {
     this.pinHud = document.createElement('aside');
     this.pinHud.className = 'build-pin-hud is-hidden';
     this.pinHudDrag = null;
+    this.pinHudDragger = null;
     this.pinHudCollapsed = loadBuildPinHudCollapsed();
     document.body.appendChild(this.pinHud);
     this.el = document.createElement('div');
@@ -1236,15 +1238,29 @@ export class BasePanelView {
       ev.stopPropagation();
       this.togglePin(pinBtn.dataset.detailPinType || '');
     });
-    this.pinHud.addEventListener('pointerdown', (ev) => this.handlePinHudPointerDown(ev), { capture: true });
+    this.pinHud.addEventListener('pointerdown', (ev) => {
+      if (this.handlePinHudAction(ev)) return;
+    }, { capture: true });
     this.pinHud.addEventListener('click', (ev) => {
+      const target = ev.target instanceof Element ? ev.target : null;
+      if (target?.closest?.('[data-build-pin-act]')) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
+      }
       ev.preventDefault();
       ev.stopPropagation();
     }, { capture: true });
-    window.addEventListener('pointermove', (ev) => this.handlePinHudPointerMove(ev), { capture: true });
-    document.addEventListener('pointermove', (ev) => this.handlePinHudPointerMove(ev), { capture: true });
-    window.addEventListener('pointerup', () => this.finishPinHudDrag(), { capture: true });
-    document.addEventListener('pointerup', () => this.finishPinHudDrag(), { capture: true });
+    this.pinHudDragger = new LocalDragSurface(this.pinHud, {
+      handleSelector: '[data-build-pin-drag]',
+      ignoreSelector: 'button,input,textarea,select,a,[data-build-pin-act],[data-no-drag]',
+      clamp: (pos, el) => clampDragToViewport(pos, el, 8),
+      onCommit: (pos) => {
+        const next = clampBuildPinHudPos(pos, this.pinHud);
+        this.applyPinHudPosition(next);
+        saveBuildPinHudPos(next);
+      }
+    });
     window.addEventListener('resize', () => this.clampPinHudIntoView());
     this.refresh();
     this.renderPinHud();
@@ -1289,7 +1305,9 @@ export class BasePanelView {
 
   applyPinHudPosition(pos = null) {
     if (!this.pinHud) return;
+    if (!pos && this.pinHud.classList.contains('is-dragging')) return;
     const next = clampBuildPinHudPos(pos || loadBuildPinHudPos() || { x: window.innerWidth - 378, y: 92 }, this.pinHud);
+    this.pinHud.style.transform = 'none';
     this.pinHud.style.left = `${next.x}px`;
     this.pinHud.style.top = `${next.y}px`;
     this.pinHud.style.right = 'auto';
@@ -1304,71 +1322,33 @@ export class BasePanelView {
     saveBuildPinHudPos(pos);
   }
 
-  handlePinHudPointerDown(ev) {
-    const target = ev.target;
-    if (!(target instanceof Element)) return;
+  handlePinHudAction(ev) {
+    const target = ev.target instanceof Element ? ev.target : null;
+    const act = target?.closest?.('[data-build-pin-act]');
+    if (!act) return false;
+    ev.preventDefault();
     ev.stopPropagation();
-    const act = target.closest('[data-build-pin-act]');
-    if (act) {
-      ev.preventDefault();
-      const type = act.dataset.pinType || '';
-      const action = act.dataset.buildPinAct || '';
-      if (action === 'inc') this.adjustPin(type, 1);
-      else if (action === 'dec') this.adjustPin(type, -1);
-      else if (action === 'remove') this.removePin(type);
-      else if (action === 'clear') this.clearPins();
-      else if (action === 'collapse') {
-        this.pinHudCollapsed = !this.pinHudCollapsed;
-        saveBuildPinHudCollapsed(this.pinHudCollapsed);
-        this.renderPinHud();
-      }
-      return;
+    const type = act.dataset.pinType || '';
+    const action = act.dataset.buildPinAct || '';
+    if (action === 'inc') this.adjustPin(type, 1);
+    else if (action === 'dec') this.adjustPin(type, -1);
+    else if (action === 'remove') this.removePin(type);
+    else if (action === 'clear') this.clearPins();
+    else if (action === 'collapse') {
+      this.pinHudCollapsed = !this.pinHudCollapsed;
+      saveBuildPinHudCollapsed(this.pinHudCollapsed);
+      this.renderPinHud();
     }
-    const handle = target.closest('[data-build-pin-drag]');
-    if (!handle || target.closest('button')) return;
-    ev.preventDefault();
-    const rect = this.pinHud.getBoundingClientRect();
-    this.pinHudDrag = {
-      pointerId: ev.pointerId,
-      dx: ev.clientX - rect.left,
-      dy: ev.clientY - rect.top,
-      lastX: ev.clientX,
-      lastY: ev.clientY
-    };
-    this.pinHud.classList.add('is-dragging');
-    try { this.pinHud.setPointerCapture?.(ev.pointerId); } catch {}
+    return true;
   }
 
-  handlePinHudPointerMove(ev) {
-    if (!this.pinHudDrag || !this.pinHud) return;
-    if (this.pinHudDrag.pointerId != null && ev.pointerId != null && ev.pointerId !== this.pinHudDrag.pointerId) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    this.pinHudDrag.lastX = ev.clientX;
-    this.pinHudDrag.lastY = ev.clientY;
-    const next = clampBuildPinHudPos({ x: ev.clientX - this.pinHudDrag.dx, y: ev.clientY - this.pinHudDrag.dy }, this.pinHud);
-    this.pinHud.style.left = `${next.x}px`;
-    this.pinHud.style.top = `${next.y}px`;
-    this.pinHud.style.right = 'auto';
-    this.pinHud.style.bottom = 'auto';
-  }
-
-  finishPinHudDrag() {
-    if (!this.pinHudDrag || !this.pinHud) return;
-    this.pinHudDrag = null;
-    this.pinHud.classList.remove('is-dragging');
-    const rect = this.pinHud.getBoundingClientRect();
-    const pos = clampBuildPinHudPos({ x: rect.left, y: rect.top }, this.pinHud);
-    this.applyPinHudPosition(pos);
-    saveBuildPinHudPos(pos);
-  }
 
   renderPinHud() {
     if (!this.pinHud) return;
     const pins = (this.pinnedBuilds || []).filter((pin) => !!structureDef(pin.type));
     this.pinHud.classList.toggle('is-hidden', !pins.length);
     this.pinHud.classList.toggle('is-collapsed', !!this.pinHudCollapsed);
-    if (pins.length) this.applyPinHudPosition();
+    if (pins.length && !this.pinHud.classList.contains('is-dragging')) this.applyPinHudPosition();
     if (!pins.length) {
       this.pinHud.innerHTML = '';
       return;
