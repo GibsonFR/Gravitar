@@ -1,7 +1,7 @@
 import { WORLD } from '../constants.js';
 import { attachSnapshotNetMetrics, pruneUndefinedSnapshotFields } from './SnapshotSlimmer.js';
 import { peekWorldSfx } from '../audio/WorldSfxState.js';
-import { peekPlayerSfx } from '../audio/PlayerSfxState.js';
+import { drainPlayerSfx } from '../audio/PlayerSfxState.js';
 import { buildNetworkEventsFromLegacy } from '../events/NetworkEventStream.js';
 import { drainAbilityProtocolEvents } from '../events/AbilityProtocolEvents.js';
 import { peekStatusEventsForPlayer, peekPassiveEventsForPlayer } from '../events/StatusPassiveEvents.js';
@@ -75,7 +75,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
   // at 60 Hz while docked was the source of Render heap growth/OOM and clunky station UI.
   const visibleWorldSfx = peekWorldSfx(state).filter(nearDynamic);
   const visibleCombatFx = peekCombatFx(state).filter(nearDynamic);
-  const playerSfx = peekPlayerSfx(me);
+  const playerSfx = drainPlayerSfx(me);
   const abilityProtocolEvents = drainAbilityProtocolEvents(me);
   const statusEvents = peekStatusEventsForPlayer(state, me);
   const passiveEvents = peekPassiveEventsForPlayer(state, me);
