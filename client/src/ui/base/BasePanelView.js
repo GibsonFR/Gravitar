@@ -792,6 +792,7 @@ function formatCostWithStock(store, cost = {}) {
 
 const BUILD_PIN_STORAGE_KEY = 'gravitar.buildPins.v1';
 const BUILD_PIN_HUD_POS_KEY = 'gravitar.buildPinHud.pos.v1';
+const BUILD_PIN_HUD_COLLAPSED_KEY = 'gravitar.buildPinHud.collapsed.v1';
 
 function loadBuildPins() {
   try {
@@ -829,6 +830,15 @@ function saveBuildPinHudPos(pos) {
     else localStorage.setItem(BUILD_PIN_HUD_POS_KEY, JSON.stringify({ x: Math.round(pos.x), y: Math.round(pos.y) }));
   } catch {}
 }
+
+function loadBuildPinHudCollapsed() {
+  try { return localStorage.getItem(BUILD_PIN_HUD_COLLAPSED_KEY) === '1'; } catch { return false; }
+}
+
+function saveBuildPinHudCollapsed(collapsed) {
+  try { localStorage.setItem(BUILD_PIN_HUD_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch {}
+}
+
 
 function clampBuildPinHudPos(pos, el = null) {
   const width = Math.max(260, el?.offsetWidth || 360);
@@ -1157,6 +1167,7 @@ export class BasePanelView {
     this.pinHud = document.createElement('aside');
     this.pinHud.className = 'build-pin-hud is-hidden';
     this.pinHudDrag = null;
+    this.pinHudCollapsed = loadBuildPinHudCollapsed();
     document.body.appendChild(this.pinHud);
     this.el = document.createElement('div');
     this.el.className = 'base-panel';
@@ -1304,6 +1315,11 @@ export class BasePanelView {
       else if (action === 'dec') this.adjustPin(type, -1);
       else if (action === 'remove') this.removePin(type);
       else if (action === 'clear') this.clearPins();
+      else if (action === 'collapse') {
+        this.pinHudCollapsed = !this.pinHudCollapsed;
+        saveBuildPinHudCollapsed(this.pinHudCollapsed);
+        this.renderPinHud();
+      }
       return;
     }
     const handle = target.closest('[data-build-pin-drag]');
@@ -1340,6 +1356,7 @@ export class BasePanelView {
     if (!this.pinHud) return;
     const pins = (this.pinnedBuilds || []).filter((pin) => !!structureDef(pin.type));
     this.pinHud.classList.toggle('is-hidden', !pins.length);
+    this.pinHud.classList.toggle('is-collapsed', !!this.pinHudCollapsed);
     if (pins.length) this.applyPinHudPosition();
     if (!pins.length) {
       this.pinHud.innerHTML = '';
@@ -1369,13 +1386,18 @@ export class BasePanelView {
     this.pinHud.innerHTML = `
       <div class="build-pin-hud__head" data-build-pin-drag="1">
         <div>
-          <div class="build-pin-hud__eyebrow">Objectif construction</div>
+          <div class="build-pin-hud__eyebrow">Objectif construction <span class="build-pin-hud__drag-label">· déplacer</span></div>
           <div class="build-pin-hud__title">${ready ? 'Prêt à construire' : `${missingTotal} ressource${missingTotal > 1 ? 's' : ''} manquante${missingTotal > 1 ? 's' : ''}`}</div>
         </div>
-        <button type="button" data-build-pin-act="clear" title="Tout retirer">×</button>
+        <div class="build-pin-hud__head-actions">
+          <button type="button" data-build-pin-act="collapse" title="${this.pinHudCollapsed ? 'Déplier' : 'Réduire'}">${this.pinHudCollapsed ? '▣' : '—'}</button>
+          <button type="button" data-build-pin-act="clear" title="Tout retirer">×</button>
+        </div>
       </div>
-      <div class="build-pin-hud__builds">${buildRows}</div>
-      <div class="build-pin-hud__resources">${renderPinnedCostRows(this.store, totals)}</div>
+      <div class="build-pin-hud__content">
+        <div class="build-pin-hud__builds">${buildRows}</div>
+        <div class="build-pin-hud__resources">${renderPinnedCostRows(this.store, totals)}</div>
+      </div>
     `;
   }
 

@@ -471,7 +471,7 @@ export function drawStars(ctx, view, camX, camY, density = 1, biome = null, t = 
     salt: 0x369c
   });
 
-  drawBiomePattern(ctx, view, camX, camY, bg, biomeId);
+  // V230 QoL: no foreground biome line overlay; keep stars/nebula/astre clean.
   drawShootingStars(ctx, view, camX, camY, bg, biomeId, sectorSeed, t);
 }
 

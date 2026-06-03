@@ -10166,39 +10166,59 @@ button.station-item-icon[draggable="true"]:active,
 }
 
 
-/* V237 research-tree layout hotfix: larger cards and cleaner spacing for split logistics/automation branches. */
-.research-tree-panel__viewport {
-  overflow: hidden;
+/* Build resource tracker QoL: compact, easier to drag, collapsible. */
+.build-pin-hud {
+  width: min(330px, calc(100vw - 28px));
+  max-height: min(520px, calc(100vh - 88px));
+  resize: both;
+  min-width: 268px;
+  min-height: 74px;
 }
-
-.research-tree-panel__canvas {
-  transform-origin: 0 0;
+.build-pin-hud.is-collapsed {
+  max-height: 74px;
+  resize: none;
 }
-
-.research-tree-panel__node {
-  width: 210px;
-  min-height: 82px;
-  padding: 12px 14px 12px 34px;
-  white-space: normal;
-  text-align: left;
-  line-height: 1.15;
+.build-pin-hud.is-collapsed .build-pin-hud__content {
+  display: none;
 }
-
-.research-tree-panel__node strong {
-  display: block;
-  max-width: 156px;
-  overflow-wrap: anywhere;
-  word-break: normal;
+.build-pin-hud__head {
+  align-items: center;
+  padding: 10px 12px;
+  user-select: none;
 }
-
-.research-tree-panel__node small {
-  display: block;
-  max-width: 156px;
-  margin-top: 4px;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
+.build-pin-hud__drag-label {
+  opacity: .55;
+  font-weight: 800;
+  letter-spacing: .06em;
 }
-
-.research-tree-panel__edge {
-  pointer-events: none;
+.build-pin-hud__head-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.build-pin-hud__head-actions button {
+  width: 26px;
+  height: 26px;
+}
+.build-pin-hud__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.build-pin-hud__builds {
+  max-height: 132px;
+}
+.build-pin-hud__resources {
+  max-height: min(230px, calc(100vh - 260px));
+}
+.build-pin-hud__res {
+  padding: 7px 9px;
+  margin-top: 6px;
+}
+.build-pin-hud__res-top {
+  font-size: 11px;
+}
+.build-pin-hud__missing {
+  margin-top: 3px;
 }

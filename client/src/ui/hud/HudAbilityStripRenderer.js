@@ -13,6 +13,29 @@ const SLOT_ACCENTS = {
   P: { r: 223, g: 179, b: 94 }
 };
 
+
+const passiveVisualState = {
+  frameId: '',
+  stacks: 0,
+  lastAt: 0
+};
+
+function smoothPassiveStacks(frameId, target, maxStacks) {
+  const now = performance.now();
+  const dt = Math.max(0, Math.min(0.12, (now - (passiveVisualState.lastAt || now)) / 1000));
+  passiveVisualState.lastAt = now;
+  if (passiveVisualState.frameId !== frameId) {
+    passiveVisualState.frameId = frameId;
+    passiveVisualState.stacks = target;
+    return target;
+  }
+  const speed = target > passiveVisualState.stacks ? 18 : 9;
+  passiveVisualState.stacks += (target - passiveVisualState.stacks) * Math.min(1, dt * speed);
+  if (Math.abs(passiveVisualState.stacks - target) < 0.035) passiveVisualState.stacks = target;
+  return Math.max(0, Math.min(maxStacks, passiveVisualState.stacks));
+}
+
+
 function drawHint(ctx, dpr, x, y, text, accent, scale) {
   ctx.font = `${9 * scale * dpr}px Segoe UI`;
   const w = ctx.measureText(text).width / dpr + 16 * scale;
@@ -35,11 +58,15 @@ function drawPassiveCard(ctx, dpr, r, me, myState, scale) {
 
   if (myState?.frameState?.passiveMaxStacks > 0) {
     const fs = myState.frameState;
+    const frameId = String(me?.frameId || myState?.frameId || 'vanguard').toLowerCase();
     const maxStacks = Math.min(fs.passiveMaxStacks ?? 10, 10);
-    const active = Math.min(fs.passiveStacks ?? 0, maxStacks);
+    const active = smoothPassiveStacks(frameId, Math.min(fs.passiveStacks ?? 0, maxStacks), maxStacks);
     const pipW = (r.w - 10 * scale - (maxStacks - 1) * 2 * scale) / maxStacks;
     for (let i = 0; i < maxStacks; i += 1) {
-      fillRoundedRect(ctx, dpr, r.x + 5 * scale + i * (pipW + 2 * scale), r.y + r.h - 5 * scale, pipW, 2.4 * scale, 1.1, i < active ? 'rgba(223,179,94,0.94)' : 'rgba(74,78,92,0.78)');
+      const fill = Math.max(0, Math.min(1, active - i));
+      const x = r.x + 5 * scale + i * (pipW + 2 * scale);
+      fillRoundedRect(ctx, dpr, x, r.y + r.h - 5 * scale, pipW, 2.4 * scale, 1.1, 'rgba(74,78,92,0.78)');
+      if (fill > 0.01) fillRoundedRect(ctx, dpr, x, r.y + r.h - 5 * scale, pipW * fill, 2.4 * scale, 1.1, 'rgba(223,179,94,0.94)');
     }
   }
 }

@@ -6,7 +6,7 @@ import { InputController } from './input/InputController.js';
 import { isControlMatch } from './input/KeyBindings.js';
 import { AudioSystem } from './audio/AudioSystem.js';
 
-import { drawStars, drawGrid } from './render/BackgroundRenderer.js';
+import { drawStars } from './render/BackgroundRenderer.js';
 import { drawGroundMarker } from './render/GroundMarkerRenderer.js';
 import { drawSelectionRing } from './render/SelectionRenderer.js';
 
@@ -180,7 +180,7 @@ export function startApp() {
   const input = createInputState();
   store.inputRef = input;
   const audio = new AudioSystem();
-  let graphicsOptions = { starDensity: 1, showGrid: true, showFx: true, renderScale: 1 };
+  let graphicsOptions = { starDensity: 1, showGrid: false, showFx: true, renderScale: 1 };
   const fxStore = new VisualFxStore();
   const uiRoot = document.getElementById('ui-root');
   const dock = new TopRightDock(uiRoot);
@@ -828,8 +828,6 @@ export function startApp() {
     ctx.fillRect(0, 0, view.w, view.h);
 
     drawStars(ctx, view, camX, camY, graphicsOptions.starDensity, store.myState?.sectorBiome || null, performance.now() * 0.001);
-    if (graphicsOptions.showGrid) drawGrid(ctx, view, camX, camY, store.world);
-
     if (me) drawGroundMarker(ctx, view, me, camX, camY, t);
 
     for (const s of store.stations.values()) drawStation(ctx, view, s, camX, camY, t);
