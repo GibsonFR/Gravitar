@@ -183,7 +183,17 @@ export function applyStatus(entity, effectId, duration, options = {}) {
     if (supportsStacksStatus(def)) existing.stacks = clamp((existing.stacks ?? 1) + (options.stacks ?? 1), 1, maxStacks);
     if (tickEvery > 0) existing.tickEvery = tickEvery;
     if (periodicDamage > 0) existing.periodicDamage = periodicDamage;
-    return { ok: true, refreshed: true, key };
+    return {
+      ok: true,
+      refreshed: true,
+      key,
+      effectId,
+      duration: finalDuration,
+      value,
+      stacks: existing.stacks ?? 1,
+      hostile: !!options.hostile,
+      label: existing.label || options.label || ''
+    };
   }
 
   rack.effects.set(key, {
@@ -205,7 +215,17 @@ export function applyStatus(entity, effectId, duration, options = {}) {
     appliedAt: eventTimeMs
   });
 
-  return { ok: true, refreshed: false, key };
+  return {
+    ok: true,
+    refreshed: false,
+    key,
+    effectId,
+    duration: finalDuration,
+    value,
+    stacks: supportsStacksStatus(def) ? clamp(options.stacks ?? 1, 1, maxStacks) : 1,
+    hostile: !!options.hostile,
+    label: options.label ?? ''
+  };
 }
 
 export function tickStatusRack(entity, dt) {

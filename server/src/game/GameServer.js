@@ -22,6 +22,7 @@ import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
 import { clearWorldSfx } from './audio/WorldSfxState.js';
 import { clearCombatFx } from './combat/CombatFxState.js';
+import { clearStatusPassiveEvents } from './events/StatusPassiveEvents.js';
 import { applyCommand } from './commands/CommandRouter.js';
 import { ensureSectorLoaded } from './sector/SectorEnsure.js';
 import { visitSectorOnPlayer } from './map/PlayerMapState.js';
@@ -208,6 +209,7 @@ export function createGameServer() {
       autosaveAccounts(timeMs);
       clearWorldSfx(state);
       clearCombatFx(state);
+      clearStatusPassiveEvents(state);
     }
 
   }

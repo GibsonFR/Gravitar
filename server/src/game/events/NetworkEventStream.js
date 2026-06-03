@@ -124,7 +124,7 @@ function buildExplicitCombatEvents(state, playerId, timeMs, ev) {
   return out;
 }
 
-export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx = [], combatFx = [], playerSfx = [], abilityProtocolEvents = []) {
+export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx = [], combatFx = [], playerSfx = [], abilityProtocolEvents = [], statusEvents = [], passiveEvents = []) {
   const events = [];
   for (const ev of worldSfx) {
     events.push(baseEvent(state, 'sfx.world', 'worldSfx', playerId, timeMs, ev, {
@@ -199,6 +199,32 @@ export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx =
         frameId: ev.frameId || ''
       }
     });
+  }
+
+  for (const ev of statusEvents) {
+    events.push(baseEvent(state, 'status.applied', 'status', playerId, timeMs, ev, {
+      sourceId: ev.sourceId | 0,
+      sourceKind: ev.sourceKind || '',
+      targetId: ev.targetId | 0,
+      targetKind: ev.targetKind || '',
+      effectId: ev.effectId || '',
+      key: ev.key || '',
+      refreshed: !!ev.refreshed,
+      duration: q(ev.duration || 0, 3),
+      value: q(ev.value || 0, 3),
+      stacks: ev.stacks | 0,
+      label: ev.label || '',
+      hostile: !!ev.hostile
+    }));
+  }
+
+  for (const ev of passiveEvents) {
+    events.push(baseEvent(state, 'passive.changed', 'passive', playerId, timeMs, ev, {
+      playerId: ev.playerId | 0,
+      frameId: ev.frameId || '',
+      passiveId: ev.passiveId || '',
+      ...(ev.payload || {})
+    }));
   }
 
   return events;

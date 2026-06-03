@@ -43,6 +43,8 @@ export class WorldStore {
     this.networkEvents = [];
     this.typedCombatEvents = [];
     this.abilityProtocolEvents = [];
+    this.statusEvents = [];
+    this.passiveEvents = [];
     this.eventDeduper = new NetworkEventDeduper();
     this.chatMessages = [];
     this.chatUnread = 0;
@@ -174,11 +176,17 @@ export class WorldStore {
         if (String(ev.type || '').startsWith('ability.')) {
           this.abilityProtocolEvents.push(ev);
           this.applyAbilityProtocolEvent(ev);
+        } else if (ev.type === 'status.applied') {
+          this.statusEvents.push(ev);
+        } else if (ev.type === 'passive.changed') {
+          this.passiveEvents.push(ev);
         }
       }
     }
     if (this.typedCombatEvents.length > 512) this.typedCombatEvents.splice(0, this.typedCombatEvents.length - 512);
     if (this.abilityProtocolEvents.length > 256) this.abilityProtocolEvents.splice(0, this.abilityProtocolEvents.length - 256);
+    if (this.statusEvents.length > 256) this.statusEvents.splice(0, this.statusEvents.length - 256);
+    if (this.passiveEvents.length > 256) this.passiveEvents.splice(0, this.passiveEvents.length - 256);
   }
 
   applyAbilityProtocolEvent(ev) {

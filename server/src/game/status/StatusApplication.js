@@ -1,5 +1,6 @@
 import { applyStatus } from './StatusRack.js';
 import { getSimulationTimeMs } from '../util/Time.js';
+import { queueStatusAppliedEvent } from '../events/StatusPassiveEvents.js';
 
 function materializeSpec(state, source, target, spec) {
   if (!spec) return null;
@@ -19,12 +20,15 @@ export function applyStatusSpec(state, source, target, spec) {
     ...options
   } = resolved;
 
-  return applyStatus(target, effectId, duration, {
+  const finalOptions = {
     ...options,
     timeMs: getSimulationTimeMs(state, timeMs),
     sourceId: sourceId ?? source?.id ?? 0,
     hostile: hostile ?? (source?.id != null && target?.id != null && source.id !== target.id)
-  });
+  };
+  const result = applyStatus(target, effectId, duration, finalOptions);
+  queueStatusAppliedEvent(state, source, target, result, { ...finalOptions, effectId, duration });
+  return result;
 }
 
 export function applyStatusSpecs(state, source, target, specs) {

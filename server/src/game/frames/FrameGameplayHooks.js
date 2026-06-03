@@ -14,6 +14,7 @@ import {
 import { WEAPON_PULSE_MK1 } from '../../../../shared/content/combat/WeaponDefs.js';
 import { getAbilityInvestedLevel } from '../progression/AbilityInvestment.js';
 import { applyStatus, getStatusEntry, hasStatus, removeStatus } from '../status/StatusRack.js';
+import { queuePassiveChangedEvent } from '../events/StatusPassiveEvents.js';
 import { cleanseControlOnly } from '../status/StatusCleanse.js';
 import { STATUS_EFFECT_IDS as I } from '../../../../shared/content/status/StatusEffectIds.js';
 import { applyDashMove, applyPullMove, blocksDash } from '../status/StatusMotion.js';
@@ -319,12 +320,20 @@ function getBulwarkZ(player) { return getBulwarkAbilityTuning('Z', Math.max(1, g
 function getBulwarkE(player) { return getBulwarkAbilityTuning('E', Math.max(1, getAbilityInvestedLevel(player, 'E')), getBulwarkArmor(player)); }
 function getBulwarkR(player) { return getBulwarkAbilityTuning('R', Math.max(1, getAbilityInvestedLevel(player, 'R')), getBulwarkArmor(player)); }
 
-function addVanguardHeat(player, amount, timeMs) {
+function addVanguardHeat(state, player, amount, timeMs) {
   const fs = getVanguardState(player);
   if (!fs || amount <= 0) return;
+  const before = fs.passiveStacks || 0;
   fs.passiveStacks = clamp(fs.passiveStacks + amount, 0, VANGUARD_PASSIVE.maxStacks);
   fs.passiveLastGainAtMs = timeMs;
   fs.passiveDecayCarry = 0;
+  if (fs.passiveStacks !== before) queuePassiveChangedEvent(state, player, 'vanguard.heat', {
+    stacks: fs.passiveStacks,
+    previousStacks: before,
+    maxStacks: VANGUARD_PASSIVE.maxStacks,
+    amount,
+    reason: 'heat_gain'
+  });
 }
 
 function hasVanguardMark(target) {
@@ -490,7 +499,7 @@ function getBulwarkPlateCount(player) {
   return fs ? fs.plateDurations.length : 0;
 }
 
-function addBulwarkPlate(player) {
+function addBulwarkPlate(state, player) {
   const fs = getBulwarkState(player);
   if (!fs) return false;
   const max = BULWARK_PASSIVE.maxPlates;
@@ -504,9 +513,21 @@ function addBulwarkPlate(player) {
       }
     }
     fs.plateDurations[idx] = BULWARK_PASSIVE.plateDuration;
+    queuePassiveChangedEvent(state, player, 'bulwark.plates', {
+      plates: fs.plateDurations.length,
+      maxPlates: BULWARK_PASSIVE.maxPlates,
+      refreshed: true,
+      reason: 'plate_refresh'
+    });
     return false;
   }
   fs.plateDurations.push(BULWARK_PASSIVE.plateDuration);
+  queuePassiveChangedEvent(state, player, 'bulwark.plates', {
+    plates: fs.plateDurations.length,
+    maxPlates: BULWARK_PASSIVE.maxPlates,
+    refreshed: false,
+    reason: 'plate_gain'
+  });
   return true;
 }
 
@@ -535,7 +556,7 @@ function registerBulwarkBurstDamage(player, amount) {
   if (fs.recentDamageTaken < player.stats.maxHp * BULWARK_PASSIVE.plateBurstThresholdPctMaxHp) return false;
   fs.recentDamageTaken = 0;
   fs.plateGainIcdLeft = BULWARK_PASSIVE.plateGainInternalCooldown;
-  return addBulwarkPlate(player);
+  return addBulwarkPlate(state, player);
 }
 
 function tickBulwarkPlates(player, dt) {
@@ -659,7 +680,7 @@ function handleInertialPhaseExit(state, player, timeMs) {
       hits += 1;
     });
   }
-  if (hits > 0) addVanguardHeat(player, hits, timeMs);
+  if (hits > 0) addVanguardHeat(state, player, hits, timeMs);
   if (tuning.restoreAChargeOnMaxHeat && fs.phaseStartedAtMaxHeat) {
     const a = getA(player);
     fs.empowerPct = a.empowerPct;
@@ -1127,7 +1148,7 @@ function handleVanguardProjectileImpact(state, owner, target, projectile, timeMs
   const fs = getVanguardState(owner);
   if (!fs) return;
 
-  if (projectile.autoAttackImpactRoll || (projectile.sourceAbilitySlot != null && projectile.sourceAbilitySlot !== -1)) addVanguardHeat(owner, 1, timeMs);
+  if (projectile.autoAttackImpactRoll || (projectile.sourceAbilitySlot != null && projectile.sourceAbilitySlot !== -1)) addVanguardHeat(state, owner, 1, timeMs);
 
   if (projectile.sourceAbilitySlot === -1) {
     const r = getR(owner);
@@ -1445,7 +1466,7 @@ function castVanguardZ(state, player, timeMs) {
       });
       hits += 1;
     });
-    if (hits > 0) addVanguardHeat(player, hits, timeMs);
+    if (hits > 0) addVanguardHeat(state, player, hits, timeMs);
     fs.trailLeft = z.trailSlowDuration;
     fs.trailStartX = fromX;
     fs.trailStartY = fromY;
