@@ -367,15 +367,7 @@ function updateRobotArm(state, arm, timeMs) {
       arm.automationStatus = 'blocked';
       arm.automationBlockedAt = timeMs;
       arm.automationJob.startedAt = timeMs - totalMs;
-      arm.automationItem = {
-        ...resourceMeta(arm.automationJob.key),
-        phase: 'arm_blocked',
-        progress: 1,
-        startedAt: Number(arm.automationJob.startedAt || timeMs),
-        totalMs,
-        reachTiles: reach,
-        at: timeMs
-      };
+      arm.automationItem = null;
       return false;
     }
     putOne(target, arm.automationJob.key);
@@ -410,9 +402,23 @@ function updateRobotArm(state, arm, timeMs) {
   }
   const key = takeOneMatching(source, (candidate) => canPut(target, candidate));
   if (!key) return false;
-  arm.automationJob = { key, startedAt: timeMs, totalMs, reachTiles: reach };
+
+  const visualItemId = nextLogisticVisualItemId(state);
+  arm.automationJob = { key, startedAt: timeMs, totalMs, reachTiles: reach, visualItemId };
   arm.automationStatus = '';
   arm.lastAutomationAt = timeMs;
+
+  queueLogisticTransferEvent(state, 'arm_pickup', {
+    visualItemId,
+    resourceKey: key,
+    colorHex: resourceMeta(key).colorHex,
+    source,
+    target,
+    carrier: arm,
+    totalMs,
+    timeMs
+  });
+
   ensureArmVisual(arm, timeMs);
   source.updatedAt = timeMs;
   arm.updatedAt = timeMs;
