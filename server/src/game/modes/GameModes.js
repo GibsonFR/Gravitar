@@ -673,6 +673,105 @@ export function ensureTestRocketMixerBench(state, player, timeMs) {
 }
 
 
+
+export function ensureTestFactorioLogisticsBench(state, player, timeMs) {
+  if (!state?.structures || !player) return;
+  const worldId = String(player.worldId || '');
+  const sx = SPECIAL_SECTORS.TEST_FACTORIO_LOGISTICS.sx | 0;
+  const sy = SPECIAL_SECTORS.TEST_FACTORIO_LOGISTICS.sy | 0;
+  if ((player.sx | 0) !== sx || (player.sy | 0) !== sy) return;
+
+  const owner = {
+    ownerId: player.id | 0,
+    ownerKey: player.accountKey || 'test',
+    ownerName: player.pseudo || 'Test',
+    timeMs
+  };
+
+  const core = ensureTestStructure(state, worldId, 'base_core', sx, sy, 0, 0, owner);
+  if (core) {
+    core.claimRadius = Math.max(core.claimRadius || 0, 1800);
+    core.powered = true;
+    core.updatedAt = timeMs;
+  }
+
+  const chest = (x, y, resources = {}) => {
+    const st = ensureTestStructure(state, worldId, 'storage', sx, sy, x, y, owner);
+    if (!st) return null;
+    st.storage ??= { kind: 'resources', resources: {}, capacity: 240 };
+    st.storage.kind = 'resources';
+    st.storage.capacity = Math.max(st.storage.capacity || 0, 240);
+    for (const [key, amount] of Object.entries(resources || {})) {
+      st.storage.resources[key] = Math.max(st.storage.resources[key] | 0, amount | 0);
+    }
+    st.powered = true;
+    st.updatedAt = timeMs;
+    return st;
+  };
+
+  const belt = (type, x, y, orientation = 'r', resources = {}) => {
+    const st = ensureTestStructure(state, worldId, type, sx, sy, x, y, { ...owner, orientation });
+    if (!st) return null;
+    st.orientation = orientation;
+    st.storage ??= { kind: 'conveyor', resources: {}, capacity: 1 };
+    st.storage.kind = 'conveyor';
+    st.storage.capacity = Math.max(st.storage.capacity || 0, 1);
+    for (const [key, amount] of Object.entries(resources || {})) {
+      st.storage.resources[key] = Math.max(st.storage.resources[key] | 0, amount | 0);
+    }
+    st.powered = true;
+    st.updatedAt = timeMs;
+    return st;
+  };
+
+  const arm = (type, x, y, orientation = 'r') => {
+    const st = ensureTestStructure(state, worldId, type, sx, sy, x, y, { ...owner, orientation });
+    if (!st) return null;
+    st.orientation = orientation;
+    st.powered = true;
+    st.updatedAt = timeMs;
+    return st;
+  };
+
+  chest(-448, -192, { ironOre: 80, copper: 40 });
+  arm('robot_arm', -384, -192, 'r');
+  belt('conveyor', -320, -192, 'r');
+  belt('conveyor', -256, -192, 'r');
+  belt('fast_conveyor', -192, -192, 'r');
+  belt('splitter', -128, -192, 'r');
+  belt('fast_conveyor', -64, -224, 'r');
+  belt('fast_conveyor', 0, -224, 'r');
+  arm('fast_arm', 64, -224, 'r');
+  chest(128, -224, {});
+  belt('conveyor', -64, -160, 'r');
+  belt('conveyor', 0, -160, 'r');
+  arm('robot_arm', 64, -160, 'r');
+  chest(128, -160, {});
+
+  chest(-448, 64, { silicon: 40 });
+  chest(-448, 192, { quartz: 40 });
+  arm('robot_arm', -384, 64, 'r');
+  arm('robot_arm', -384, 192, 'r');
+  belt('conveyor', -320, 64, 'r');
+  belt('conveyor', -320, 192, 'r');
+  belt('merger', -256, 128, 'r');
+  belt('fast_conveyor', -192, 128, 'r');
+  belt('fast_conveyor', -128, 128, 'r');
+  arm('fast_arm', -64, 128, 'r');
+  chest(0, 128, {});
+
+  chest(-448, 384, { ironIngot: 40 });
+  arm('long_arm', -320, 384, 'r');
+  belt('conveyor', -192, 384, 'r');
+  belt('conveyor', -128, 384, 'r');
+  arm('long_arm', 0, 384, 'r');
+  chest(128, 384, {});
+
+  belt('conveyor', -448, -448, 'r', { ironOre: 1 });
+  player.forceFullUiSnapshot = true;
+}
+
+
 export function ensureTestTurretsBench(state, player, timeMs) {
   if (!state?.structures || !player) return;
   const worldId = String(player.worldId || '');
@@ -810,6 +909,7 @@ export function setPlayerTestWorld(state, player, timeMs, testWorldId = 'test-hu
   ensureTestIndustrialConverterBench(state, player, timeMs);
   ensureTestRocketWorkshopBench(state, player, timeMs);
   ensureTestTurretsBench(state, player, timeMs);
+  ensureTestFactorioLogisticsBench(state, player, timeMs);
   if (player.progression) {
     player.progression.level = Math.max(player.progression.level ?? 1, def.level | 0 || 50);
     player.progression.xp = 0;
