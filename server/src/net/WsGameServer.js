@@ -129,7 +129,7 @@ export function createWsGameServer(httpServer, game) {
           });
           ws.send(ack);
           accountOut(Buffer.byteLength(ack));
-          const statePacket = game.buildStateV2?.(id, Date.now());
+          const statePacket = game.buildBootstrapV2?.(id, Date.now(), { reason: 'deploy_v2' }) || game.buildStateV2?.(id, Date.now());
           if (statePacket) {
             const payload = JSON.stringify(statePacket);
             ws.send(payload);

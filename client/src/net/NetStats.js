@@ -29,6 +29,8 @@ export class NetStats {
     this.packetsOutWindow = 0;
     this.framesWindow = 0;
     this.snapshotsInWindow = 0;
+    this.stateV2InWindow = 0;
+    this.stateV2InWindow = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
@@ -51,6 +53,7 @@ export class NetStats {
     this.frameMsMax = 0;
     this.lastFrameAt = 0;
     this.snapshotsPerSec = 0;
+    this.stateV2PerSec = 0;
     this.inputsPerSec = 0;
     this.commandsPerSec = 0;
     this.cmdAcksPerSec = 0;
@@ -222,7 +225,8 @@ export class NetStats {
   recordSnapshot(msg, bytes = 0) {
     const now = nowMs();
     const b = finite(bytes, 0);
-    this.snapshotsInWindow += 1;
+    if (msg?.t === 'state_v2') this.stateV2InWindow += 1;
+    else this.snapshotsInWindow += 1;
     this.lastSnapshotBytes = b;
     this.avgSnapshotBytes = ema(this.avgSnapshotBytes, b, 0.10);
     this.maxSnapshotBytes = Math.max(this.maxSnapshotBytes, b);
@@ -405,6 +409,7 @@ export class NetStats {
     this.packetsOutPerSec = this.packetsOutWindow / elapsed;
     this.fps = this.framesWindow / elapsed;
     this.snapshotsPerSec = this.snapshotsInWindow / elapsed;
+    this.stateV2PerSec = this.stateV2InWindow / elapsed;
     this.inputsPerSec = this.inputsOutWindow / elapsed;
     this.commandsPerSec = this.commandsOutWindow / elapsed;
     this.cmdAcksPerSec = this.cmdAcksInWindow / elapsed;
@@ -444,6 +449,7 @@ export class NetStats {
       snapshotGapMs: this.snapshotGapMs,
       snapshotGapJitterMs: this.snapshotGapJitterMs,
       snapshotsPerSec: this.snapshotsPerSec,
+      stateV2PerSec: this.stateV2PerSec,
       packetsInPerSec: this.packetsInPerSec,
       packetsOutPerSec: this.packetsOutPerSec,
       totalPacketsIn: this.totalPacketsIn,

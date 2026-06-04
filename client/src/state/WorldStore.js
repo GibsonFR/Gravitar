@@ -1462,6 +1462,25 @@ export class WorldStore {
     }
   }
 
+  applyPlayerStateV2(player) {
+    if (!player) return;
+    const id = player.id | 0;
+    if (!id) return;
+    const current = this.players.get(id) || {};
+    const next = {
+      ...current,
+      ...player,
+      vitals: player.vitals || player.stats || current.vitals,
+      radius: Number(player.radius || current.radius || 22),
+      engine: Number(player.engine || current.engine || 250),
+      _serverX: player.x,
+      _serverY: player.y,
+      _tx: player.x,
+      _ty: player.y
+    };
+    this.players.set(id, next);
+  }
+
   applySectorBootstrap(bootstrap) {
     if (!bootstrap) return;
     this.currentSectorBootstrapId = bootstrap.id || `${bootstrap.worldId || 'endless'}:${bootstrap.sx | 0}:${bootstrap.sy | 0}`;
@@ -1479,16 +1498,13 @@ export class WorldStore {
     this.lastServerTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : Date.now();
     this.lastServerTimeAt = snapLocalNow;
     this.myState = this._mergeMyState(msg.me ?? null);
+    if (msg.me) this.applyPlayerStateV2(msg.me);
     this.applySectorBootstrap(msg.sectorBootstrap);
     if (this.myState?.id) this.myId = this.myState.id | 0;
 
+    if (msg.me) this.applyPlayerStateV2(msg.me);
     if (Array.isArray(msg.players)) {
-      for (const p of msg.players) {
-        const id = p.id | 0;
-        if (!id) continue;
-        const current = this.players.get(id) || {};
-        this.players.set(id, { ...current, ...p, _serverX: p.x, _serverY: p.y, _tx: p.x, _ty: p.y });
-      }
+      for (const p of msg.players) this.applyPlayerStateV2(p);
       this.interpolationStore?.pushMany?.('player', msg.players.filter((p) => (p.id | 0) !== (this.myId | 0)), this.lastServerTime);
     }
 

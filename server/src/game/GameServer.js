@@ -185,8 +185,11 @@ export function createGameServer() {
         if (fullUi) lastFullSnapshotByPlayer.set(id, timeMs);
         if (staticWorld) lastStaticWorldByPlayer.set(id, timeMs);
         lastSectorKeyByPlayer.set(id, sectorKey);
+        const needsSectorBootstrap = sectorChanged || staticWorld || fullUi;
         const snap = NET_V2_RESET_ENABLED
-          ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld, sectorBootstrap: sectorChanged || staticWorld || fullUi })
+          ? (needsSectorBootstrap
+            ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld, sectorBootstrap: true })
+            : buildNetV2StatePacket(state, id, timeMs))
           : buildSnapshot(state, id, timeMs, { fullUi, staticWorld });
         snap.ackInputSeq = p.lastInputSeq | 0;
         snap.net = {
@@ -240,6 +243,9 @@ export function createGameServer() {
     handleCommand,
     buildStateV2(playerId, timeMs = getSimulationTimeMs(state, nowMs())) {
       return buildNetV2StatePacket(state, playerId, timeMs);
+    },
+    buildBootstrapV2(playerId, timeMs = getSimulationTimeMs(state, nowMs()), options = {}) {
+      return buildNetV2BootstrapSnapshot(state, playerId, timeMs, { fullUi: true, staticWorld: true, sectorBootstrap: true, ...options });
     },
     isNetV2ResetEnabled() {
       return NET_V2_RESET_ENABLED;
