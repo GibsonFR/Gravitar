@@ -519,6 +519,12 @@ export class ClientPrediction {
     this.spawnLocalCastArea(me, aim, slot);
     me._localActionFlashUntil = performance.now() + 180;
 
+    // If the player is already holding movement while casting, force an input
+    // packet immediately after the cast. The server will continue the same
+    // primaryHold movement without waiting for mouse release/repress.
+    const inputRef = this.store?.inputRef || null;
+    if (inputRef?.rightDown && inputRef?.holdActive && !inputRef?.suppressRightHoldUntilUp) inputRef.forceSend = true;
+
     this.queueNetAction({
       type: 'cast',
       slot,

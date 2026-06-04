@@ -282,7 +282,10 @@ function applyActionPacket(state, player, action, timeMs) {
       slot: action.slot,
       seq: action.seq | 0,
       timeMs,
-      clientPoseApplied: true,
+      // Non-dash spells must not become pose-authoritative. The client may have
+      // played local feedback/projectile/animation, but the server must keep
+      // simulating normal held movement from primaryHold.
+      clientPoseApplied: !!action.clientAppliedDash,
       clientAppliedDash: !!action.clientAppliedDash,
       localAuthorityMs,
       dashLine,
@@ -407,8 +410,15 @@ export function applyInputMessage(state, player, rawMsg, timeMs) {
     applyPrimaryClick(state, player, msg.px, msg.py);
   }
 
-  if (msg.primaryHold && player.holdMoveAllowed && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
+  if (msg.primaryHold && Number.isFinite(msg.px) && Number.isFinite(msg.py)) {
+    // The client only sends primaryHold when it has decided that the right mouse
+    // drag is a movement hold (selection clicks use suppressRightHoldUntilUp and
+    // therefore do not send primaryHold). After spells/sector transfers, old
+    // legacy paths can leave holdMoveAllowed=false while the physical mouse is
+    // still pressed; gating here makes the server stop moving until release/repress.
     const world = screenToWorld(player, msg.px, msg.py);
+    player.holdMoveAllowed = true;
+    player.lastPrimaryHoldMoveAt = timeMs;
     setMoveTarget(player, world.x, world.y, { clearSelection: true });
   }
 

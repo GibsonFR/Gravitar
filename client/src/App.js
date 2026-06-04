@@ -831,7 +831,7 @@ export function startApp() {
     }
     const nowMs = performance.now();
     const inputSignature = makeInputSignature(primaryHold, actionBatch.length);
-    const hasImmediateAction = actionBatch.length > 0 || input.clickQueued || input.targetClickQueued || input.interactTap || input.rocketTap || input.moveWorldQueued;
+    const hasImmediateAction = !!input.forceSend || actionBatch.length > 0 || input.clickQueued || input.targetClickQueued || input.interactTap || input.rocketTap || input.moveWorldQueued;
     const changed = inputSignature !== lastInputSignature;
     const minInterval = changed || primaryHold ? NET_V2_INPUT_INTERVAL_MS : NET_V2_IDLE_INPUT_INTERVAL_MS;
     if (!hasImmediateAction && nowMs - lastInputPacketAt < minInterval) return;
@@ -890,6 +890,7 @@ export function startApp() {
       abilitySeq: store.localPrediction?.abilitySeq | 0
     });
 
+    input.forceSend = false;
     input.moveWorldQueued = false;
     input.clickQueued = false;
     input.targetClickQueued = false;

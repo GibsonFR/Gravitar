@@ -357,7 +357,7 @@ function updateAbilityCasting(state, player, dt, timeMs) {
       slot: action.slot,
       clientPoseApplied: !!action.clientPoseApplied,
       clientAppliedDash: !!action.clientAppliedDash,
-      localAuthorityMs: Number(action.localAuthorityMs) || 1600,
+      localAuthorityMs: action.clientAppliedDash ? (Number(action.localAuthorityMs) || 220) : 0,
       dashLine: action.dashLine || null,
       seq: action.seq | 0,
       aimX: action.aimX,
@@ -392,8 +392,10 @@ function updateAbilityCasting(state, player, dt, timeMs) {
       player.mouseSx = req.aimX - player.x + player.viewportW * 0.5;
       player.mouseSy = req.aimY - player.y + player.viewportH * 0.5;
     }
-    if (req.clientPoseApplied) {
-      const localAuthorityMs = Math.max(900, Math.min(4000, Number(req.localAuthorityMs) || 1600));
+    if (req.clientPoseApplied && req.clientAppliedDash) {
+      const localAuthorityMs = Math.max(120, Math.min(360, Number(req.localAuthorityMs) || 220));
+      // A dash may briefly override pose, but it must not permanently break a
+      // right-mouse hold. The next primaryHold packet will re-arm move target.
       player.hasMoveTarget = false;
       player.holdMoveAllowed = false;
       player.autoTargetKind = '';
@@ -404,10 +406,15 @@ function updateAbilityCasting(state, player, dt, timeMs) {
         slot,
         seq: req.seq | 0,
         until: timeMs + localAuthorityMs,
-        dashAlreadyApplied: !!req.clientAppliedDash,
+        dashAlreadyApplied: true,
         dashLine: req.dashLine || null
       };
       player.clientAuthoritativeUntil = Math.max(player.clientAuthoritativeUntil || 0, timeMs + localAuthorityMs);
+    } else {
+      // Standard projectile/area/buff spells must not clear voluntary movement.
+      // Holding right click before/during/after the spell remains the same input
+      // stream and observers keep receiving server-simulated pose packets.
+      player._activeClientAppliedAbility = null;
     }
     const ok = tryCastAbility(state, player, slot, timeMs);
     if (ok) {
