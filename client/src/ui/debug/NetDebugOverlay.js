@@ -61,12 +61,22 @@ export class NetDebugOverlay {
     this.lastRenderAt = 0;
     this.visible = true;
     document.body.appendChild(this.el);
-    this.el.addEventListener('click', (ev) => {
+    const handleDownloadClick = (ev) => {
       const btn = ev.target?.closest?.('[data-action="net-debug-download-log"]');
       if (!btn) return;
       ev.preventDefault();
       ev.stopPropagation();
       this.netStats?.downloadDebugLog?.();
+    };
+    this.el.addEventListener('click', handleDownloadClick, true);
+    this.el.addEventListener('pointerdown', handleDownloadClick, true);
+    this.el.addEventListener('mousedown', handleDownloadClick, true);
+    window.addEventListener('keydown', (ev) => {
+      if (!this.visible) return;
+      if ((ev.ctrlKey || ev.metaKey) && ev.shiftKey && ev.code === 'KeyL') {
+        ev.preventDefault();
+        this.netStats?.downloadDebugLog?.();
+      }
     });
     this.netStats?.setVisible?.(true);
     this.render(true);
@@ -146,7 +156,7 @@ export class NetDebugOverlay {
         <span>Input max</span><b>${s.inputHistory?.maxPendingObserved ?? 0} / ${fmtMs(s.inputHistory?.maxPendingAgeObservedMs)}</b>
         <span>Tick</span><b>${s.serverTick | 0}</b>
       </div>
-      <div class="net-debug-overlay__hint">F9 : masquer/afficher · overlay permanent debug</div>
+      <div class="net-debug-overlay__hint">F9 : masquer/afficher · Ctrl+Shift+L : download log</div>
     `;
   }
 }
