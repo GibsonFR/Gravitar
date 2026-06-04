@@ -506,8 +506,11 @@ function drawConveyorMotion(ctx, view, s, w, h, t, structures) {
 
 function drawRobotArmBody(ctx, view, s, w, h) {
   const preview = s.automationItem || null;
-  const p = preview ? localAutomationProgress(preview) : null;
-  const profile = armMotionProfile(s, preview?.phase === 'arm_blocked' ? 1 : (p ?? 0.5), w, h);
+  const packetProgress = Number(s._logisticArmProgress);
+  const hasPacketProgress = Number.isFinite(packetProgress);
+  const p = hasPacketProgress ? packetProgress : (preview ? localAutomationProgress(preview) : null);
+  const blocked = String(s.automationStatus || '').toLowerCase() === 'blocked';
+  const profile = armMotionProfile(s, preview?.phase === 'arm_blocked' || blocked ? 1 : (p ?? 0.5), w, h);
   ctx.save();
   rotateToDir(ctx, s);
 
@@ -557,7 +560,7 @@ function drawRobotArmBody(ctx, view, s, w, h) {
   ctx.arc(w * 0.40, 0, 3.2 * view.dpr, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = 'rgba(255, 231, 166, .28)';
+  ctx.strokeStyle = hasPacketProgress ? 'rgba(255, 246, 186, .62)' : 'rgba(255, 231, 166, .28)';
   ctx.lineWidth = 1.2 * view.dpr;
   ctx.beginPath();
   ctx.moveTo(-w * 0.42, 0);
@@ -565,6 +568,14 @@ function drawRobotArmBody(ctx, view, s, w, h) {
   ctx.moveTo(w * 0.30, 0);
   ctx.lineTo(w * 0.42, 0);
   ctx.stroke();
+
+  if (hasPacketProgress) {
+    ctx.strokeStyle = 'rgba(255, 236, 160, .42)';
+    ctx.lineWidth = 1.1 * view.dpr;
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(w, h) * (0.23 + Math.sin(packetProgress * Math.PI) * 0.035), 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   if (s.type === 'fast_arm') {
     ctx.strokeStyle = 'rgba(255, 243, 184, .56)';
@@ -600,6 +611,33 @@ function logisticEventProgress(ev) {
 function worldPointFromStructureRef(ref, fallback = { x: 0, y: 0 }) {
   if (!ref) return { ...fallback };
   return { x: Number(ref.x) || 0, y: Number(ref.y) || 0 };
+}
+
+
+export function applyLogisticTransferVisualsToStructures(store) {
+  if (!store?.structures?.values) return;
+  for (const st of store.structures.values()) {
+    if (st) {
+      st._logisticArmProgress = undefined;
+      st._logisticArmVisualItemId = 0;
+    }
+  }
+
+  const source = store?.logisticTransferVisuals;
+  const events = source instanceof Map ? Array.from(source.values()) : (Array.isArray(source) ? source : []);
+  if (!events.length) return;
+
+  const now = performance.now();
+  for (const ev of events) {
+    if (now > Number(ev._localUntil || 0)) continue;
+    const carrier = ev.carrier || null;
+    if (!carrier || !isArmType(carrier.type)) continue;
+    const arm = store.structures.get(carrier.id | 0);
+    if (!arm) continue;
+    const progress = logisticEventProgress(ev);
+    arm._logisticArmProgress = Math.max(0, Math.min(1, progress));
+    arm._logisticArmVisualItemId = ev.visualItemId | 0;
+  }
 }
 
 export function drawLogisticTransferEventVisuals(ctx, view, store, camX, camY) {
