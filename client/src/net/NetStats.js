@@ -23,6 +23,28 @@ export class NetStats {
     this.lastPingSentAt = 0;
     this.pingSeq = 0;
 
+    this.pushDebugHistory({
+      kind: 'aggregate',
+      fps: this.fps,
+      frameMsAvg: this.frameMsAvg,
+      frameMsMax: this.frameMsMax,
+      rttMs: this.rttMs,
+      jitterMs: this.jitterMs,
+      snapshotsPerSec: this.snapshotsPerSec,
+      stateV2PerSec: this.stateV2PerSec,
+      packetsInPerSec: this.packetsInPerSec,
+      packetsOutPerSec: this.packetsOutPerSec,
+      bytesInPerSec: this.bytesInPerSec,
+      bytesOutPerSec: this.bytesOutPerSec,
+      inputsPerSec: this.inputsPerSec,
+      pendingInputs: this.pendingInputs,
+      avgSnapshotBytes: this.avgSnapshotBytes,
+      maxSnapshotBytes: this.maxSnapshotBytes,
+      clientEntityCounts: { ...this.clientEntityCounts },
+      clientEventCounts: { ...this.clientEventCounts },
+      packetTypeInPerSec: { ...this.packetTypeInPerSec },
+      packetTypeOutPerSec: { ...this.packetTypeOutPerSec }
+    });
     this.bytesInWindow = 0;
     this.bytesOutWindow = 0;
     this.packetsInWindow = 0;
@@ -74,6 +96,9 @@ export class NetStats {
     this.totalPacketsOut = 0;
     this.totalBytesIn = 0;
     this.totalBytesOut = 0;
+    this.debugHistoryMs = 10000;
+    this.debugHistory = [];
+    this.debugSequence = 0;
     this.lastSnapshotBytes = 0;
     this.avgSnapshotBytes = 0;
     this.maxSnapshotBytes = 0;
@@ -181,6 +206,49 @@ export class NetStats {
     };
   }
 
+  pushDebugHistory(entry = {}) {
+    const now = nowMs();
+    const item = {
+      seq: ++this.debugSequence,
+      at: now,
+      wallTime: Date.now(),
+      ...entry
+    };
+    this.debugHistory.push(item);
+    const cutoff = now - this.debugHistoryMs;
+    while (this.debugHistory.length && Number(this.debugHistory[0].at || 0) < cutoff) this.debugHistory.shift();
+  }
+
+  getDebugHistory() {
+    const cutoff = nowMs() - this.debugHistoryMs;
+    return this.debugHistory.filter((entry) => Number(entry.at || 0) >= cutoff);
+  }
+
+  downloadDebugLog() {
+    const snapshot = this.snapshot();
+    const history = this.getDebugHistory();
+    const payload = {
+      kind: 'gravitar_net_debug_log',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      durationMs: this.debugHistoryMs,
+      current: snapshot,
+      history
+    };
+    const text = JSON.stringify(payload, null, 2);
+    const blob = new Blob([text], { type: 'application/json' });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `gravitar-net-debug-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 1000);
+  }
+
   recordFrame() {
     const now = nowMs();
     if (this.lastFrameAt > 0) {
@@ -212,6 +280,11 @@ export class NetStats {
     this.lastPacketType = String(type || '');
     const key = String(type || 'unknown');
     this.packetTypeInWindow[key] = (this.packetTypeInWindow[key] || 0) + 1;
+    this.pushDebugHistory({
+      kind: 'packet_in',
+      type: key,
+      bytes: finite(bytes, 0)
+    });
   }
 
   recordOutboundPacket(type = '', bytes = 0) {
@@ -220,6 +293,11 @@ export class NetStats {
     this.lastPacketOutBytes = finite(bytes, 0);
     const key = String(type || 'unknown');
     this.packetTypeOutWindow[key] = (this.packetTypeOutWindow[key] || 0) + 1;
+    this.pushDebugHistory({
+      kind: 'packet_out',
+      type: key,
+      bytes: finite(bytes, 0)
+    });
   }
 
   recordSnapshot(msg, bytes = 0) {
@@ -326,6 +404,32 @@ export class NetStats {
     this.logisticEventsInWindow += logistics;
     this.projectileEventsInWindow += projectiles;
     this.sfxInWindow += worldSfx + (Array.isArray(msg?.me?.sfx) ? msg.me.sfx.length : 0);
+    this.pushDebugHistory({
+      kind: msg?.t === 'state_v2' ? 'state_v2' : 'snapshot',
+      type: msg?.t || 'unknown',
+      bytes: b,
+      protocol: msg?.protocol || '',
+      netV2Reset: !!this.netV2Reset,
+      staticWorld: !!msg?.staticWorld || !!msg?.net?.staticWorld,
+      fullUi: !!msg?.fullUi || !!msg?.net?.fullUi,
+      sectorBootstrap: !!msg?.sectorBootstrap,
+      serverTime: this.serverTime,
+      serverTick: this.serverTick,
+      ackInputSeq: msg?.ackInputSeq | 0,
+      counts: {
+        players: Array.isArray(msg?.players) ? msg.players.length : 0,
+        asteroids: Array.isArray(msg?.asteroids) ? msg.asteroids.length : 0,
+        mobs: Array.isArray(msg?.mobs) ? msg.mobs.length : 0,
+        projectiles: Array.isArray(msg?.projectiles) ? msg.projectiles.length : 0,
+        structures: Array.isArray(msg?.structures) ? msg.structures.length : 0,
+        loots: Array.isArray(msg?.loots) ? msg.loots.length : 0,
+        sectorAsteroids: Array.isArray(msg?.sectorBootstrap?.asteroids) ? msg.sectorBootstrap.asteroids.length : 0,
+        sectorMobs: Array.isArray(msg?.sectorBootstrap?.mobs) ? msg.sectorBootstrap.mobs.length : 0,
+        sectorStructures: Array.isArray(msg?.sectorBootstrap?.structures) ? msg.sectorBootstrap.structures.length : 0
+      },
+      events: { ...this.lastSnapshotEventCounts },
+      sectionBytes: { ...this.lastSectionBytes }
+    });
   }
 
   recordInput(obj, bytes = 0, wsBufferedAmount = 0) {
@@ -415,6 +519,28 @@ export class NetStats {
     this.cmdAcksPerSec = this.cmdAcksInWindow / elapsed;
     this.eventsPerSec = this.eventsInWindow / elapsed;
     this.sfxPerSec = this.sfxInWindow / elapsed;
+    this.pushDebugHistory({
+      kind: 'aggregate',
+      fps: this.fps,
+      frameMsAvg: this.frameMsAvg,
+      frameMsMax: this.frameMsMax,
+      rttMs: this.rttMs,
+      jitterMs: this.jitterMs,
+      snapshotsPerSec: this.snapshotsPerSec,
+      stateV2PerSec: this.stateV2PerSec,
+      packetsInPerSec: this.packetsInPerSec,
+      packetsOutPerSec: this.packetsOutPerSec,
+      bytesInPerSec: this.bytesInPerSec,
+      bytesOutPerSec: this.bytesOutPerSec,
+      inputsPerSec: this.inputsPerSec,
+      pendingInputs: this.pendingInputs,
+      avgSnapshotBytes: this.avgSnapshotBytes,
+      maxSnapshotBytes: this.maxSnapshotBytes,
+      clientEntityCounts: { ...this.clientEntityCounts },
+      clientEventCounts: { ...this.clientEventCounts },
+      packetTypeInPerSec: { ...this.packetTypeInPerSec },
+      packetTypeOutPerSec: { ...this.packetTypeOutPerSec }
+    });
     this.bytesInWindow = 0;
     this.bytesOutWindow = 0;
     this.packetsInWindow = 0;
@@ -456,6 +582,7 @@ export class NetStats {
       totalPacketsOut: this.totalPacketsOut,
       totalBytesIn: this.totalBytesIn,
       totalBytesOut: this.totalBytesOut,
+      debugHistoryCount: this.getDebugHistory().length,
       lastPacketInBytes: this.lastPacketInBytes,
       lastPacketOutBytes: this.lastPacketOutBytes,
       lastPacketType: this.lastPacketType,

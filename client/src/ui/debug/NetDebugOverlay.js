@@ -61,6 +61,13 @@ export class NetDebugOverlay {
     this.lastRenderAt = 0;
     this.visible = true;
     document.body.appendChild(this.el);
+    this.el.addEventListener('click', (ev) => {
+      const btn = ev.target?.closest?.('[data-action="net-debug-download-log"]');
+      if (!btn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.netStats?.downloadDebugLog?.();
+    });
     this.netStats?.setVisible?.(true);
     this.render(true);
   }
@@ -83,9 +90,13 @@ export class NetDebugOverlay {
     this.lastRenderAt = now;
     const s = this.netStats.snapshot();
     this.el.innerHTML = `
-      <div class="net-debug-overlay__title">DEBUG NET/PERF</div>
+      <div class="net-debug-overlay__head">
+        <div class="net-debug-overlay__title">DEBUG NET/PERF</div>
+        <button class="net-debug-overlay__btn" type="button" data-action="net-debug-download-log">Download log</button>
+      </div>
       <div class="net-debug-overlay__grid">
         <span>Protocol</span><b>${s.netV2Reset ? 'NET V2 RESET' : (s.protocol || 'legacy')}</b>
+        <span>Log 10s</span><b>${s.debugHistoryCount || 0} entrées</b>
         <span>Sector boot</span><b>${s.lastSectorBootstrap ? 'received' : '—'} · ${sectorBootstrapLine(s.sectorBootstrapCounts)}</b>
         <span>Projectile lab</span><b>${s.projectileLabMinimal ? 'MINIMAL SNAPSHOT' : 'normal'}</b>
         <span>FPS</span><b>${fmtRate(s.fps)} · ${fmtMs(s.frameMsAvg)}</b>
