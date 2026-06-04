@@ -417,8 +417,27 @@ export class WorldStore {
         const current = this.projectiles.get(projectileId) || {};
         const isOwnProjectile = (projectile.sourceId | 0) === (this.myId | 0);
         const me = isOwnProjectile ? this.getMe() : null;
-        const spawnX = isOwnProjectile && Number.isFinite(Number(me?.x)) ? Number(me.x) : (Number(projectile.x) || 0);
-        const spawnY = isOwnProjectile && Number.isFinite(Number(me?.y)) ? Number(me.y) : (Number(projectile.y) || 0);
+        const serverSpawnX = Number(projectile.x) || 0;
+        const serverSpawnY = Number(projectile.y) || 0;
+        const spawnX = isOwnProjectile && Number.isFinite(Number(me?.x)) ? Number(me.x) : serverSpawnX;
+        const spawnY = isOwnProjectile && Number.isFinite(Number(me?.y)) ? Number(me.y) : serverSpawnY;
+
+        let vx = Number(projectile.vx || 0);
+        let vy = Number(projectile.vy || 0);
+        if (isOwnProjectile) {
+          const speed = Math.max(1, Math.hypot(vx, vy));
+          const aimX = Number(projectile.aimX);
+          const aimY = Number(projectile.aimY);
+          if (Number.isFinite(aimX) && Number.isFinite(aimY)) {
+            const dx = aimX - spawnX;
+            const dy = aimY - spawnY;
+            const len = Math.hypot(dx, dy);
+            if (len > 0.001) {
+              vx = (dx / len) * speed;
+              vy = (dy / len) * speed;
+            }
+          }
+        }
         const serverNow = this._estimateServerNow();
         const eventServerTime = Number(ev.serverTime || 0) || this.lastServerTime || Date.now();
         const elapsedMs = Math.max(0, Math.min(1200, serverNow - eventServerTime));
@@ -429,10 +448,12 @@ export class WorldStore {
           kind: 'projectile',
           x: spawnX,
           y: spawnY,
+          vx,
+          vy,
           _tx: spawnX,
           _ty: spawnY,
-          _serverX: spawnX,
-          _serverY: spawnY,
+          _serverX: serverSpawnX,
+          _serverY: serverSpawnY,
           _packetSpawnLocalAt: performance.now() - elapsedMs,
           _packetStartX: spawnX,
           _packetStartY: spawnY,
@@ -448,12 +469,17 @@ export class WorldStore {
         this.projectiles.delete(projectileId);
         this.interpolationStore?.maps?.delete?.(`projectile:${projectileId}`);
         if (action === 'impact') {
+          const impactTargetId = ev.target?.id | 0;
+          const impactTargetKind = ev.target?.kind || '';
+          const impactTarget = this.getEntityByEventTarget(impactTargetKind, impactTargetId);
+          const impactX = Number.isFinite(Number(impactTarget?.x)) ? Number(impactTarget.x) : Number(ev.x || ev.projectile?.x || 0);
+          const impactY = Number.isFinite(Number(impactTarget?.y)) ? Number(impactTarget.y) : Number(ev.y || ev.projectile?.y || 0);
           this.pendingProjectileImpacts.push({
             projectileId,
-            x: Number(ev.x || ev.projectile?.x || 0),
-            y: Number(ev.y || ev.projectile?.y || 0),
-            targetId: ev.target?.id | 0,
-            targetKind: ev.target?.kind || '',
+            x: impactX,
+            y: impactY,
+            targetId: impactTargetId,
+            targetKind: impactTargetKind,
             projectile: ev.projectile || null,
             visualKind: ev.impact?.visualKind || ev.projectile?.visualKind || '',
             sourceSlot: ev.impact?.sourceAbilitySlot || ev.projectile?.sourceAbilitySlot || '',
@@ -1658,15 +1684,59 @@ export class WorldStore {
     this.clearRemotePlayers(msg?.reason || 'sector_unload');
   }
 
+  _syncMobsFromWorldDelta(mobs, serverTime) {
+    if (!Array.isArray(mobs)) return;
+    const seen = new Set();
+    this.interpolationStore?.pushMany?.('mob', mobs, serverTime || this.lastServerTime || Date.now());
+
+    for (const mob of mobs) {
+      const id = mob?.id | 0;
+      if (!id) continue;
+      seen.add(id);
+      const current = this.mobs.get(id);
+      if (!current) {
+        this.mobs.set(id, { ...mob });
+        continue;
+      }
+      // Keep rendered pose client-side; interpolationStore is the source for mob rendering.
+      // The delta updates authoritative vitals/status/meta without snapping x/y every 250ms.
+      const merged = {
+        ...current,
+        ...mob,
+        x: current.x,
+        y: current.y,
+        vx: Number.isFinite(Number(mob.vx)) ? Number(mob.vx) : current.vx,
+        vy: Number.isFinite(Number(mob.vy)) ? Number(mob.vy) : current.vy,
+        _serverX: mob.x,
+        _serverY: mob.y,
+        _tx: current.x,
+        _ty: current.y
+      };
+      this.mobs.set(id, this._applyLocalVitalAuthority(current, this._applyLocalDamageToEntity(merged), performance.now()));
+    }
+
+    for (const id of [...this.mobs.keys()]) {
+      const item = this.mobs.get(id);
+      if (!seen.has(id) && !item?.localOnly) {
+        this.mobs.delete(id);
+        this.interpolationStore?.maps?.delete?.(`mob:${id}`);
+      }
+    }
+  }
+
   applyWorldEntitiesDeltaV2(msg) {
     if (!msg) return;
     const expected = this.currentSectorBootstrapId || '';
     const sectorId = `${msg.worldId || 'endless'}:${msg.sx | 0}:${msg.sy | 0}`;
     if (expected && sectorId !== expected) return;
 
+    const serverTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : (this.lastServerTime || Date.now());
     if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true });
-    if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs);
-    if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots);
+    if (Array.isArray(msg.mobs)) this._syncMobsFromWorldDelta(msg.mobs, serverTime);
+    if (Array.isArray(msg.loots)) {
+      this.interpolationStore?.pushMany?.('loot', msg.loots, serverTime);
+      this._syncMap(this.loots, msg.loots);
+    }
   }
 
   applySectorBootstrap(bootstrap) {
@@ -1800,6 +1870,12 @@ export class WorldStore {
       if (this.myState?.id) this.myId = this.myState.id | 0;
       this.syncLocalCooldownAuthorityFromStatus(msg.me, msg);
       this.applyPlayerStateV2(msg.me);
+    }
+
+    if (msg?.me) {
+      this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
+      if (msg.me.id) this.myId = msg.me.id | 0;
+      this.applyPlayerStateV2(msg.me, { preservePose: true });
     }
 
     if (Array.isArray(msg?.players)) {
@@ -2047,11 +2123,10 @@ export class WorldStore {
       if (d2 <= r * r) {
         projectile.x = target.x;
         projectile.y = target.y;
-        if (!projectile._impactApplied && !projectile._visualOnly && projectile._impactDamage > 0 && projectile._targetKind !== 'station') {
-          this.applyLocalDamage(projectile._targetKind, projectile._targetId, projectile._impactDamage, target.x, target.y);
-          if (projectile._targetKind !== 'asteroid') {
-            this.noteLocalPassiveEvent(projectile.sourceAbilitySlot || projectile.visualKind || 'local_projectile_hit', 1, { authorityMs: 1250 });
-          }
+        if (!projectile._impactApplied) {
+          // Net V2 combat authority: local projectiles are visual-only for HP.
+          // Damage, death and drops must come from combat_events_v2/world_entities_delta_v2,
+          // otherwise mobs appear killed locally then reappear when the server delta arrives.
           projectile._impactApplied = true;
         }
         this._spawnLocalImpact(projectile, target);

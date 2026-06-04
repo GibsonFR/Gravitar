@@ -11,6 +11,7 @@ import {
 import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot.js';
 import { buildStatusSnapshot } from '../status/StatusView.js';
 import { buildFrameUiState } from '../frames/FrameGameplayHooks.js';
+import { buildInventorySnapshot } from '../inventory/InventorySnapshot.js';
 
 function q(v, decimals = 2) {
   const n = Number(v);
@@ -188,7 +189,7 @@ function playerPoseCompact(player, selfId = 0) {
   };
 }
 
-function playerStatusCompact(player, selfId = 0) {
+function playerStatusCompact(player, selfId = 0, state = null) {
   if (!player) return null;
   return {
     id: player.id | 0,
@@ -213,7 +214,8 @@ function playerStatusCompact(player, selfId = 0) {
     selectedKind: player.selectedKind || '',
     selectedId: player.selectedId | 0,
     autoTargetKind: player.autoTargetKind || '',
-    autoTargetId: player.autoTargetId | 0
+    autoTargetId: player.autoTargetId | 0,
+    inv: (player.id | 0) === (selfId | 0) ? buildInventorySnapshot(player.inv, state?.stations?.get?.(player.dockedStationId || 0) ?? null) : undefined
   };
 }
 
@@ -500,7 +502,7 @@ export function buildNetV2PlayerStatusPacket(state, playerId, timeMs) {
   if (!me) return null;
   const players = [...state.players.values()]
     .filter((p) => sameWorldSector(p, me))
-    .map((p) => playerStatusCompact(p, playerId))
+    .map((p) => playerStatusCompact(p, playerId, state))
     .filter(Boolean);
 
   return {
@@ -508,7 +510,7 @@ export function buildNetV2PlayerStatusPacket(state, playerId, timeMs) {
     protocol: 'net_v2_reset',
     time: timeMs,
     tick: getSimulationTick(state),
-    me: playerStatusCompact(me, playerId),
+    me: playerStatusCompact(me, playerId, state),
     players,
     ackInputSeq: me.lastInputSeq | 0,
     net: {

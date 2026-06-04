@@ -163,6 +163,8 @@ export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, spee
     worldId: String(owner.worldId || 'endless'),
     x: startX,
     y: startY,
+    aimX: tx,
+    aimY: ty,
     vx: dir.x * speed + owner.vx * 0.1,
     vy: dir.y * speed + owner.vy * 0.1,
     radius,

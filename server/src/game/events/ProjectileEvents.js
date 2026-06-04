@@ -40,6 +40,8 @@ function projectilePayload(projectile) {
     tint: projectile.tint || null,
     sourceId: projectile.sourceId | 0,
     sourceKind: String(projectile.sourceKind || ''),
+    aimX: q(projectile.aimX || projectile.targetX || projectile.x || 0),
+    aimY: q(projectile.aimY || projectile.targetY || projectile.y || 0),
     bornAt: projectile.bornAt || 0,
     visualKind: projectile.visualKind || 'auto',
     visualSlot: projectile.visualSlot || '',
