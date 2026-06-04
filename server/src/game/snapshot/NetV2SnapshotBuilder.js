@@ -8,6 +8,7 @@ import {
   buildStructureSnapshots,
   buildLootSnapshots
 } from './builders/BuildWorldEntitySnapshots.js';
+import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot.js';
 
 function q(v, decimals = 2) {
   const n = Number(v);
@@ -208,12 +209,13 @@ function playerStatusCompact(player, selfId = 0) {
   };
 }
 
-function playerSessionCompact(player, selfId = 0) {
+function playerSessionCompact(player, selfId = 0, state = null, timeMs = Date.now()) {
   if (!player) return null;
-  return {
+  const isSelf = (player.id | 0) === (selfId | 0);
+  const base = {
     id: player.id | 0,
     pseudo: player.pseudo || `Pilote ${player.id | 0}`,
-    isSelf: (player.id | 0) === (selfId | 0),
+    isSelf,
     worldId: String(player.worldId || 'endless'),
     sx: player.sx | 0,
     sy: player.sy | 0,
@@ -229,8 +231,36 @@ function playerSessionCompact(player, selfId = 0) {
     },
     authStatus: player.authStatus || null,
     dockedStationId: player.dockedStationId | 0 || 0,
-    dockPhase: player.dockPhase || 'none'
+    dockPhase: player.dockPhase || 'none',
+    dockStationId: player.dockStationId || 0,
+    dockProg01: player.dockProg01 || 0,
+    abilityA: player.abilityA || null,
+    abilityZ: player.abilityZ || null,
+    abilityE: player.abilityE || null,
+    abilityR: player.abilityR || null,
+    frameState: player.frameState || {},
+    level: player.progression?.level ?? 1
   };
+
+  // For the local player, session/loadout is the initial big state that the HUD,
+  // abilities, auto-attack profile and equipment panel need. This is intentionally
+  // not sent every frame; it belongs to session bootstrap/session packet.
+  if (isSelf) {
+    const full = buildMeSnapshot(player, timeMs, state, { includeSfx: false }) || {};
+    return {
+      ...base,
+      ...full,
+      isSelf,
+      worldId: base.worldId,
+      sx: base.sx,
+      sy: base.sy,
+      gameMode: base.gameMode,
+      testWorldId: base.testWorldId,
+      battleSessionId: base.battleSessionId
+    };
+  }
+
+  return base;
 }
 
 function sameWorldSector(a, b) {
@@ -294,7 +324,7 @@ export function buildNetV2BootstrapSnapshot(state, playerId, timeMs, options = {
     tick: getSimulationTick(state),
     seed: state.seed | 0,
     world: WORLD,
-    me: playerLite(me, playerId),
+    me: me ? { ...playerLite(me, playerId), ...buildMeSnapshot(me, timeMs, state, { includeSfx: false }) } : null,
     players,
     events: [],
     ackInputSeq: me?.lastInputSeq | 0,
@@ -468,7 +498,7 @@ export function buildNetV2PlayerSessionPacket(state, playerId, timeMs) {
   if (!me) return null;
   const players = [...state.players.values()]
     .filter((p) => sameWorldSector(p, me))
-    .map((p) => playerSessionCompact(p, playerId))
+    .map((p) => playerSessionCompact(p, playerId, state, timeMs))
     .filter(Boolean);
 
   return {

@@ -135,6 +135,12 @@ export function createWsGameServer(httpServer, game) {
             ws.send(payload);
             accountOut(Buffer.byteLength(payload));
           }
+          const sessionPacket = game.buildSessionV2?.(id, Date.now());
+          if (sessionPacket) {
+            const payload = JSON.stringify(sessionPacket);
+            ws.send(payload);
+            accountOut(Buffer.byteLength(payload));
+          }
         }
         return;
       }

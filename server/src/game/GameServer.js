@@ -555,6 +555,9 @@ export function createGameServer() {
     buildBootstrapV2(playerId, timeMs = getSimulationTimeMs(state, nowMs()), options = {}) {
       return buildNetV2BootstrapSnapshot(state, playerId, timeMs, { fullUi: true, staticWorld: true, sectorBootstrap: true, ...options });
     },
+    buildSessionV2(playerId, timeMs = getSimulationTimeMs(state, nowMs())) {
+      return buildNetV2PlayerSessionPacket(state, playerId, timeMs);
+    },
     isNetV2ResetEnabled() {
       return NET_V2_RESET_ENABLED;
     },
