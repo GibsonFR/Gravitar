@@ -30,6 +30,7 @@ export class NetStats {
     this.framesWindow = 0;
     this.snapshotsInWindow = 0;
     this.stateV2InWindow = 0;
+    this.posePacketsInWindow = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
@@ -53,6 +54,7 @@ export class NetStats {
     this.lastFrameAt = 0;
     this.snapshotsPerSec = 0;
     this.stateV2PerSec = 0;
+    this.posePacketsPerSec = 0;
     this.inputsPerSec = 0;
     this.commandsPerSec = 0;
     this.cmdAcksPerSec = 0;
@@ -282,6 +284,27 @@ export class NetStats {
     });
   }
 
+  recordPosePacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.posePacketsInWindow += 1;
+    this.lastSnapshotBytes = b;
+    this.serverTick = finite(msg?.tick, this.serverTick);
+    this.netV2Reset = !!msg?.net?.netV2Reset || msg?.protocol === 'net_v2_reset';
+    this.lastProtocol = msg?.protocol || (this.netV2Reset ? 'net_v2_reset' : this.lastProtocol);
+    this.serverTime = finite(msg?.time, this.serverTime);
+    this.pushDebugHistory({
+      kind: 'player_pose_v2',
+      type: msg?.t || 'player_pose_v2',
+      bytes: b,
+      protocol: msg?.protocol || '',
+      serverTime: this.serverTime,
+      serverTick: this.serverTick,
+      counts: {
+        players: Array.isArray(msg?.players) ? msg.players.length : 0
+      }
+    });
+  }
+
   recordSnapshot(msg, bytes = 0) {
     const now = nowMs();
     const b = finite(bytes, 0);
@@ -496,6 +519,7 @@ export class NetStats {
     this.fps = this.framesWindow / elapsed;
     this.snapshotsPerSec = this.snapshotsInWindow / elapsed;
     this.stateV2PerSec = this.stateV2InWindow / elapsed;
+    this.posePacketsPerSec = this.posePacketsInWindow / elapsed;
     this.inputsPerSec = this.inputsOutWindow / elapsed;
     this.commandsPerSec = this.commandsOutWindow / elapsed;
     this.cmdAcksPerSec = this.cmdAcksInWindow / elapsed;
@@ -510,6 +534,7 @@ export class NetStats {
       jitterMs: this.jitterMs,
       snapshotsPerSec: this.snapshotsPerSec,
       stateV2PerSec: this.stateV2PerSec,
+      posePacketsPerSec: this.posePacketsPerSec,
       packetsInPerSec: this.packetsInPerSec,
       packetsOutPerSec: this.packetsOutPerSec,
       bytesInPerSec: this.bytesInPerSec,
@@ -530,6 +555,7 @@ export class NetStats {
     this.framesWindow = 0;
     this.snapshotsInWindow = 0;
     this.stateV2InWindow = 0;
+    this.posePacketsInWindow = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
@@ -559,6 +585,7 @@ export class NetStats {
       snapshotGapJitterMs: this.snapshotGapJitterMs,
       snapshotsPerSec: this.snapshotsPerSec,
       stateV2PerSec: this.stateV2PerSec,
+      posePacketsPerSec: this.posePacketsPerSec,
       packetsInPerSec: this.packetsInPerSec,
       packetsOutPerSec: this.packetsOutPerSec,
       totalPacketsIn: this.totalPacketsIn,

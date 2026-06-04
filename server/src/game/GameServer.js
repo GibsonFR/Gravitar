@@ -20,7 +20,7 @@ import { updateEquipmentRDStations } from './structures/StructureEquipmentRDStat
 import { createPlayer } from './player/PlayerFactory.js';
 import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
-import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket } from './snapshot/NetV2SnapshotBuilder.js';
+import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket } from './snapshot/NetV2SnapshotBuilder.js';
 import { clearWorldSfx } from './audio/WorldSfxState.js';
 import { clearCombatFx } from './combat/CombatFxState.js';
 import { clearStatusPassiveEvents } from './events/StatusPassiveEvents.js';
@@ -35,6 +35,7 @@ const ACCOUNT_AUTOSAVE_INTERVAL_MS = Number(process.env.GRAVITAR_AUTOSAVE_MS || 
 const NET_V2_RESET_ENABLED = process.env.GRAVITAR_NET_V2_RESET !== '0';
 const NET_V2_ACTIVE_STATE_RATE_MS = Math.max(50, Number(process.env.GRAVITAR_NET_V2_ACTIVE_STATE_RATE_MS || 100));
 const NET_V2_IDLE_STATE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_IDLE_STATE_RATE_MS || 1000));
+const NET_V2_POSE_RATE_MS = Math.max(33, Number(process.env.GRAVITAR_NET_V2_POSE_RATE_MS || 67));
 
 export function createGameServer() {
   const state = createGameState();
@@ -43,6 +44,7 @@ export function createGameServer() {
   let last = nowMs();
   let acc = 0;
   let snapAcc = 0;
+  let poseAcc = 0;
   let running = false;
   let loopHandle = null;
   const lastFullSnapshotByPlayer = new Map();
@@ -213,6 +215,7 @@ export function createGameServer() {
     last = t;
     acc += dt;
     snapAcc += dt;
+    poseAcc += dt;
 
     while (acc >= TICK) {
       const stepTimeMs = Math.round(t - acc * 1000 + TICK * 1000);
@@ -220,8 +223,20 @@ export function createGameServer() {
       acc -= TICK;
     }
 
+    if (NET_V2_RESET_ENABLED && poseAcc * 1000 >= NET_V2_POSE_RATE_MS) {
+      poseAcc = 0;
+      const ids = getConnectedIds();
+      const timeMs = setSimulationTime(state, nowMs());
+      for (const id of ids) {
+        if (!state.players.has(id)) continue;
+        const packet = buildNetV2PlayerPosePacket(state, id, timeMs);
+        if (packet) sendSnapshot(id, packet);
+      }
+    }
+
     if (snapAcc >= SNAP_RATE) {
       snapAcc = 0;
+    poseAcc = 0;
       const ids = getConnectedIds();
       const timeMs = setSimulationTime(state, nowMs());
       for (const id of ids) {
@@ -233,10 +248,12 @@ export function createGameServer() {
         const previousSectorKey = lastSectorKeyByPlayer.get(id) || '';
         const sectorChanged = previousSectorKey !== sectorKey;
         const forceFullUi = !!p?.forceFullUiSnapshot;
-        const fullUi = forceFullUi || sectorChanged || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
         const combatPressure = (p.autoTargetId | 0) > 0 || !!p.selectedId || (p.cooldownALeft || 0) > 0 || (p.cooldownZLeft || 0) > 0 || (p.cooldownELeft || 0) > 0 || (p.cooldownRLeft || 0) > 0;
+        const legacyFullUi = forceFullUi || sectorChanged || (timeMs - previousFullAt >= SNAP_FULL_UI_RATE_MS);
         const staticRateMs = combatPressure ? SNAP_STATIC_WORLD_RATE_MS_COMBAT : SNAP_STATIC_WORLD_RATE_MS;
-        const staticWorld = fullUi || sectorChanged || (timeMs - previousStaticAt >= staticRateMs);
+        const legacyStaticWorld = legacyFullUi || sectorChanged || (timeMs - previousStaticAt >= staticRateMs);
+        const fullUi = NET_V2_RESET_ENABLED ? (forceFullUi || sectorChanged) : legacyFullUi;
+        const staticWorld = NET_V2_RESET_ENABLED ? (forceFullUi || sectorChanged) : legacyStaticWorld;
         if (fullUi) lastFullSnapshotByPlayer.set(id, timeMs);
         if (staticWorld) lastStaticWorldByPlayer.set(id, timeMs);
         lastSectorKeyByPlayer.set(id, sectorKey);

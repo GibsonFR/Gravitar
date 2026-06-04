@@ -104,6 +104,11 @@ export class NetClient {
         this.netStats.recordSnapshot(msg, raw.length);
         this.store.applyStateV2?.(msg);
       }
+      if (msg.t === 'player_pose_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordPosePacket?.(msg, raw.length);
+        this.store.applyPlayerPoseV2?.(msg);
+      }
       if (msg.t === 'chat') this.store.applyChatMessage(msg);
       if (msg.t === 'cmd_ack') {
         this.netStats.recordCommandAck();

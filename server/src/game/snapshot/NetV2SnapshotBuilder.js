@@ -150,6 +150,31 @@ function playerStateCompact(player, selfId = 0) {
   };
 }
 
+function playerPoseCompact(player, selfId = 0) {
+  if (!player) return null;
+  return {
+    id: player.id | 0,
+    kind: 'player',
+    worldId: String(player.worldId || 'endless'),
+    sx: player.sx | 0,
+    sy: player.sy | 0,
+    x: q(player.x),
+    y: q(player.y),
+    vx: q(player.vx || 0, 3),
+    vy: q(player.vy || 0, 3),
+    rot: q(player.visualRot ?? player.rot ?? 0, 4),
+    aimRot: q(player.aimRot ?? player.rot ?? 0, 4),
+    radius: q(player.radius || 22),
+    engine: q(player.engine || 250),
+    frameId: player.frameId || '',
+    selectedKind: player.selectedKind || '',
+    selectedId: player.selectedId | 0,
+    autoTargetKind: player.autoTargetKind || '',
+    autoTargetId: player.autoTargetId | 0,
+    isSelf: (player.id | 0) === (selfId | 0)
+  };
+}
+
 function sameWorldSector(a, b) {
   return !!a && !!b
     && String(a.worldId || 'endless') === String(b.worldId || 'endless')
@@ -246,6 +271,29 @@ export function buildNetV2StatePacket(state, playerId, timeMs) {
       netV2Reset: true,
       packet: 'state_v2',
       compact: true
+    }
+  };
+}
+
+export function buildNetV2PlayerPosePacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  const players = [...state.players.values()]
+    .filter((p) => (p.id | 0) !== (playerId | 0))
+    .filter((p) => sameWorldSector(p, me))
+    .map((p) => playerPoseCompact(p, playerId))
+    .filter(Boolean);
+
+  if (!players.length) return null;
+
+  return {
+    t: 'player_pose_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    players,
+    net: {
+      netV2Reset: true,
+      packet: 'player_pose_v2'
     }
   };
 }

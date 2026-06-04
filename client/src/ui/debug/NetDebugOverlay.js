@@ -125,6 +125,7 @@ export class NetDebugOverlay {
         <span>Snap age</span><b>${fmtMs(s.clock?.ageOfLastSnapshotMs)}</b>
         <span>Snap/s</span><b>${fmtRate(s.snapshotsPerSec)}</b>
         <span>StateV2/s</span><b>${fmtRate(s.stateV2PerSec)}</b>
+        <span>Pose/s</span><b>${fmtRate(s.posePacketsPerSec)}</b>
         <span>Input/s</span><b>${fmtRate(s.inputsPerSec)}</b>
         <span>Pending input</span><b>${s.inputHistory?.pending ?? (s.pendingInputs | 0)}</b>
         <span>Input age</span><b>${fmtMs(s.inputHistory?.oldestPendingAgeMs)}</b>

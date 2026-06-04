@@ -1518,6 +1518,33 @@ export class WorldStore {
     if (Array.isArray(bootstrap.loots)) this._syncMap(this.loots, bootstrap.loots);
   }
 
+  applyPlayerPoseV2(msg) {
+    const snapLocalNow = performance.now();
+    const serverTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : Date.now();
+    this.lastServerTime = serverTime;
+    this.lastServerTimeAt = snapLocalNow;
+    const remotePlayers = Array.isArray(msg?.players)
+      ? msg.players.filter((p) => (p.id | 0) !== (this.myId | 0))
+      : [];
+
+    if (!remotePlayers.length) return;
+
+    for (const p of remotePlayers) {
+      const id = p.id | 0;
+      if (!id) continue;
+      const current = this.players.get(id) || {};
+      this.players.set(id, {
+        ...current,
+        ...p,
+        _serverX: p.x,
+        _serverY: p.y,
+        _tx: p.x,
+        _ty: p.y
+      });
+    }
+    this.interpolationStore?.pushMany?.('player', remotePlayers, serverTime);
+  }
+
   applyStateV2(msg) {
     const snapLocalNow = performance.now();
     this.lastSnapAt = snapLocalNow;
