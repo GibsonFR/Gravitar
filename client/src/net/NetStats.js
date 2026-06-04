@@ -207,6 +207,9 @@ export class NetStats {
   }
 
   pushDebugHistory(entry = {}) {
+    if (!Array.isArray(this.debugHistory)) this.debugHistory = [];
+    if (!Number.isFinite(Number(this.debugHistoryMs))) this.debugHistoryMs = 10000;
+    if (!Number.isFinite(Number(this.debugSequence))) this.debugSequence = 0;
     const now = nowMs();
     const item = {
       seq: ++this.debugSequence,
@@ -220,7 +223,9 @@ export class NetStats {
   }
 
   getDebugHistory() {
-    const cutoff = nowMs() - this.debugHistoryMs;
+    if (!Array.isArray(this.debugHistory)) return [];
+    const historyMs = Number.isFinite(Number(this.debugHistoryMs)) ? Number(this.debugHistoryMs) : 10000;
+    const cutoff = nowMs() - historyMs;
     return this.debugHistory.filter((entry) => Number(entry.at || 0) >= cutoff);
   }
 
