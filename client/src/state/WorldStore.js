@@ -184,9 +184,11 @@ export class WorldStore {
     const now = performance.now();
     if (cd > 0.02) {
       this.localPrediction.localAbilityReadyAt[s] = now + (cd + 0.04) * 1000;
-      this.localPrediction.localAbilityLastCastAt[s] = Math.max(this.localPrediction.localAbilityLastCastAt[s] || 0, now);
+      this.localPrediction.localAbilityLastCastAt[s] = now;
+      if (this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks[s] = now + 120;
     } else {
       this.localPrediction.localAbilityReadyAt[s] = 0;
+      this.localPrediction.localAbilityLastCastAt[s] = 0;
       if (this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks[s] = 0;
     }
     if (Number.isFinite(Number(payload.energyLeft))) {
@@ -318,7 +320,10 @@ export class WorldStore {
       if (!Number.isFinite(authoritativeCd)) continue;
       const lastCast = this.localPrediction.localAbilityLastCastAt?.[slot] || 0;
       const recentLocalCast = lastCast > 0 && now - lastCast < 420;
-      if (authoritativeCd <= 0.03 && !recentLocalCast) {
+      if (authoritativeCd > 0.03) {
+        if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = now + (authoritativeCd + 0.04) * 1000;
+        if (this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks[slot] = now + 90;
+      } else if (!recentLocalCast) {
         if (this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt[slot] = 0;
         if (this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt[slot] = 0;
         if (this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks[slot] = 0;
@@ -630,6 +635,25 @@ export class WorldStore {
     const slot = String(payload.slot || '').toUpperCase();
     if (!slot || !this.localPrediction) return;
     const now = performance.now();
+
+    if (ev.type === 'ability.accepted' && payload && !payload._fallbackSfxQueued) {
+      const explicit = String(payload.sfxType || '').trim();
+      const fallback = explicit || (slot ? `ability_${slot.toLowerCase()}` : '');
+      // Some abilities, notably Sigil E, validate through the ability protocol
+      // without producing a separate world SFX packet. Queue a local fallback so
+      // accepted casts are never silent. This is de-duped by event id/accepted event.
+      if (fallback) {
+        this.pendingSfx.push({
+          type: fallback,
+          variant: payload.variant | 0,
+          slot,
+          sourceKind: 'ability.accepted',
+          playerId: payload.playerId | 0,
+          targetPlayerId: payload.targetPlayerId | 0
+        });
+        payload._fallbackSfxQueued = true;
+      }
+    }
 
     if (ev.type === 'ability.rejected') {
       const cooldownMs = Math.max(0, Number(payload.cooldownLeft || 0) * 1000);
@@ -1322,23 +1346,17 @@ export class WorldStore {
   _mergeAbilityHudWithCooldowns(abilityHud, cooldowns) {
     if (!abilityHud || !cooldowns) return abilityHud;
     const out = { ...abilityHud };
-    const now = performance.now();
     for (const slot of ['A', 'Z', 'E', 'R']) {
-      if (!out[slot] || !Number.isFinite(cooldowns[slot])) continue;
-      const locked = now < (this.localPrediction.localCooldownLocks?.[slot] || 0);
-      const localReady = this.localPrediction.localAbilityReadyAt?.[slot] || 0;
-      const locallyOwnedCooldown = now < localReady + 220;
-      const localLeft = this.myState?.cooldowns?.[slot];
-      const localHudLeft = this.myState?.abilityHud?.[slot]?.cooldownLeft;
-      if ((locked || locallyOwnedCooldown) && (Number.isFinite(localLeft) || Number.isFinite(localHudLeft))) {
-        out[slot] = { ...out[slot], cooldownLeft: Math.max(0, Number.isFinite(localLeft) ? localLeft : localHudLeft) };
-      } else {
-        out[slot] = { ...out[slot], cooldownLeft: Math.max(0, cooldowns[slot]) };
-      }
+      const cd = Number(cooldowns?.[slot] ?? cooldowns?.[slot.toLowerCase()]);
+      if (!out[slot] || !Number.isFinite(cd)) continue;
+      // Net V2: cooldown display has a single authority.
+      // Local prediction may trigger immediate feedback, but as soon as a server
+      // status/event arrives, the UI must follow that one value, not keep a second
+      // hidden local timer alive.
+      out[slot] = { ...out[slot], cooldownLeft: Math.max(0, cd) };
     }
     return out;
   }
-
 
   _applyLocalAbilityAuthority(myState) {
     if (!myState) return myState;

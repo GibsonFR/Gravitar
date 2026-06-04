@@ -356,16 +356,23 @@ export function createGameServer() {
         Math.round(Number(p.vitals?.hp || 0)),
         Math.round(Number(p.vitals?.shield || 0)),
         Math.round(Number(p.vitals?.energy || 0)),
-        Math.round(Number(p.cooldowns?.a || 0) * 10),
-        Math.round(Number(p.cooldowns?.z || 0) * 10),
-        Math.round(Number(p.cooldowns?.e || 0) * 10),
-        Math.round(Number(p.cooldowns?.r || 0) * 10),
+        Math.round(Number(p.cooldowns?.A || p.cooldowns?.a || 0) * 10),
+        Math.round(Number(p.cooldowns?.Z || p.cooldowns?.z || 0) * 10),
+        Math.round(Number(p.cooldowns?.E || p.cooldowns?.e || 0) * 10),
+        Math.round(Number(p.cooldowns?.R || p.cooldowns?.r || 0) * 10),
         Math.round(Number(p.rocketCooldownLeft || 0) * 10),
         p.selectedKind || '',
         p.selectedId | 0,
         p.autoTargetKind || '',
         p.autoTargetId | 0,
-        Array.isArray(p.statuses) ? p.statuses.length : 0
+        ...(Array.isArray(p.statuses) ? p.statuses.map((s) => [
+          s?.id || s?.effectId || '',
+          s?.key || '',
+          s?.markKey || '',
+          Math.round(Number(s?.durationLeft || 0) * 10),
+          s?.stacks | 0,
+          s?.label || ''
+        ]) : [])
       ])
     });
   }

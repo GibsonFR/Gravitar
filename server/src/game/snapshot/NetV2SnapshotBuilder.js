@@ -9,6 +9,7 @@ import {
   buildLootSnapshots
 } from './builders/BuildWorldEntitySnapshots.js';
 import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot.js';
+import { buildStatusSnapshot } from '../status/StatusView.js';
 
 function q(v, decimals = 2) {
   const n = Number(v);
@@ -67,7 +68,7 @@ function playerLite(player, selfId = 0) {
       energy: q(player.stats?.energy ?? 0),
       maxEnergy: q(player.stats?.maxEnergy ?? 0)
     },
-    statuses: Array.isArray(player.statuses) ? player.statuses.slice(0, 8) : [],
+    statuses: buildStatusSnapshot(player, 8),
     abilityA: player.abilityA || null,
     abilityZ: player.abilityZ || null,
     abilityE: player.abilityE || null,
@@ -205,7 +206,7 @@ function playerStatusCompact(player, selfId = 0) {
       R: q(player.cooldownRLeft || 0)
     },
     rocketCooldownLeft: q(player.rocketCooldownLeft || 0),
-    statuses: Array.isArray(player.statuses) ? player.statuses : [],
+    statuses: buildStatusSnapshot(player, 8),
     selectedKind: player.selectedKind || '',
     selectedId: player.selectedId | 0,
     autoTargetKind: player.autoTargetKind || '',

@@ -374,7 +374,17 @@ export class NetStats {
       players: this.lastStatusPacket.players,
       ackInputSeq: this.ackInputSeq,
       serverTime: this.serverTime,
-      serverTick: this.serverTick
+      serverTick: this.serverTick,
+      sample: (Array.isArray(msg?.players) ? msg.players : []).slice(0, 3).map((p) => ({
+        id: p?.id | 0,
+        cooldowns: p?.cooldowns || {},
+        statuses: (Array.isArray(p?.statuses) ? p.statuses : []).map((s) => ({
+          id: s?.id || s?.effectId || '',
+          durationLeft: s?.durationLeft,
+          label: s?.label || '',
+          markKey: s?.markKey || ''
+        }))
+      }))
     });
   }
 
