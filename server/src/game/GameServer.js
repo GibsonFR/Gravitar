@@ -23,6 +23,7 @@ import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
 import { clearWorldSfx } from './audio/WorldSfxState.js';
 import { clearCombatFx } from './combat/CombatFxState.js';
 import { clearStatusPassiveEvents } from './events/StatusPassiveEvents.js';
+import { pruneLogisticTransferEvents } from './events/LogisticTransferEvents.js';
 import { applyCommand } from './commands/CommandRouter.js';
 import { ensureSectorLoaded } from './sector/SectorEnsure.js';
 import { visitSectorOnPlayer } from './map/PlayerMapState.js';
@@ -210,6 +211,7 @@ export function createGameServer() {
       clearWorldSfx(state);
       clearCombatFx(state);
       clearStatusPassiveEvents(state);
+      pruneLogisticTransferEvents(state, timeMs);
     }
 
   }

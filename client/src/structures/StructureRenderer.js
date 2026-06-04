@@ -320,51 +320,27 @@ function extractorItemPoint(w, h, progress, preview = null) {
   return { x: 0, y: 0 };
 }
 
-function localLoopProgress(s, fallbackMs = 700) {
-  const totalMs = Math.max(1, Number(s?.automationItem?.totalMs) || Number(s?._localAutomationTotalMs) || fallbackMs);
-  const existing = Number(s?._localLoopStartedAt);
-  const key = `${s?.id || 0}:${s?.storagePreview?.key || s?.automationItem?.key || ''}:${s?.automationStatus || ''}:${totalMs}`;
-  if (s?._localLoopKey !== key || !Number.isFinite(existing)) {
-    s._localLoopKey = key;
-    s._localLoopStartedAt = performance.now();
-  }
-  return ((performance.now() - s._localLoopStartedAt) % totalMs) / totalMs;
-}
-
 function drawAutomationItem(ctx, view, s, w, h, t) {
-  const live = s.automationItem || null;
-  const preview = live || s._automationFadeItem || s.storagePreview || null;
+  const preview = s.automationItem || s._automationFadeItem || s.storagePreview || null;
   const used = Number(s.storageUsed || 0);
   if (!preview && used <= 0) return;
-
   const color = preview?.colorHex || 'rgba(230,245,255,.95)';
-  const blocked = String(s.automationStatus || '').toLowerCase() === 'blocked'
-    || preview?.phase === 'blocked'
-    || preview?.phase === 'arm_blocked';
-
+  const rawProgress = localAutomationProgress(preview);
+  const idlePulse = 0.5 + 0.18 * Math.sin(t * 3.0 + (s.id | 0));
+  const progress = rawProgress == null
+    ? (s.automationItem ? Math.max(0, Math.min(1, (performance.now() - Number(s.automationPulse || 0)) / 700)) : idlePulse)
+    : rawProgress;
+  const blocked = preview?.phase === 'blocked' || preview?.phase === 'arm_blocked' || s.automationStatus === 'blocked';
   const fadeUntil = Number(preview?._fadeUntil || 0);
   const fade = fadeUntil > 0 ? Math.max(0, Math.min(1, (fadeUntil - performance.now()) / 220)) : 1;
-
-  let progress = localAutomationProgress(live || s._automationFadeItem);
-  if (progress == null && isConveyorType(s.type) && preview) {
-    const fallbackMs = s.type === 'fast_conveyor' ? 420 : s.type === 'splitter' ? 760 : s.type === 'merger' ? 700 : 720;
-    progress = localLoopProgress(s, fallbackMs);
-  }
-  if (progress == null && isArmType(s.type) && live) {
-    const fallbackMs = s.type === 'fast_arm' ? 560 : s.type === 'long_arm' ? 1150 : 920;
-    progress = localLoopProgress(s, fallbackMs);
-  }
-  if (progress == null) {
-    progress = 0.5 + 0.18 * Math.sin(t * 3.0 + (s.id | 0));
-  }
-
   ctx.save();
   ctx.globalAlpha *= fade;
-
+  let point = { x: 0, y: 0 };
+  let chipDir = dirOf(s);
   if (isConveyorType(s.type)) {
     ctx.save();
     rotateToDir(ctx, s);
-    const point = conveyorItemPoint(s, w, h, blocked ? 1 : progress, preview);
+    point = conveyorItemPoint(s, w, h, blocked ? 1 : progress, preview);
     drawResourceChip(ctx, view, color, point.x, point.y, Math.max(5, Math.min(w, h) * 0.105), { x: 1, y: 0 }, preview?.amount | 0 || 1);
     if (blocked) {
       ctx.strokeStyle = 'rgba(255,120,120,.95)';
@@ -378,27 +354,23 @@ function drawAutomationItem(ctx, view, s, w, h, t) {
     }
     ctx.restore();
   } else if (isArmType(s.type)) {
-    if (!live && !s._automationFadeItem) {
-      ctx.restore();
-      return;
-    }
     ctx.save();
     rotateToDir(ctx, s);
     const pose = armMotionProfile(s, blocked ? 1 : progress, w, h);
-    drawResourceChip(ctx, view, color, pose.grip.x, pose.grip.y, Math.max(5.2, Math.min(w, h) * 0.11), { x: 1, y: 0 }, 1);
+    point = pose.grip;
+    drawResourceChip(ctx, view, color, point.x, point.y, Math.max(5.2, Math.min(w, h) * 0.11), { x: 1, y: 0 }, 1);
     if (blocked) {
       ctx.strokeStyle = 'rgba(255,120,120,.95)';
       ctx.lineWidth = 2 * view.dpr;
       ctx.beginPath();
-      ctx.arc(pose.grip.x, pose.grip.y, 8 * view.dpr, 0, Math.PI * 2);
+      ctx.arc(point.x, point.y, 8 * view.dpr, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.restore();
   } else {
-    const point = extractorItemPoint(w, h, blocked ? 1 : progress, preview);
-    drawResourceChip(ctx, view, color, point.x, point.y, Math.max(5.4, Math.min(w, h) * 0.11), dirOf(s), preview?.amount | 0 || 1);
+    point = extractorItemPoint(w, h, blocked ? 1 : progress, preview);
+    drawResourceChip(ctx, view, color, point.x, point.y, Math.max(5.4, Math.min(w, h) * 0.11), chipDir, preview?.amount | 0 || 1);
   }
-
   ctx.restore();
 }
 
@@ -617,6 +589,69 @@ function drawRobotArmBody(ctx, view, s, w, h) {
 function drawRobotArmMotion(ctx, view, s, w, h) {
   drawRobotArmBody(ctx, view, s, w, h);
 }
+
+function logisticEventProgress(ev) {
+  const totalMs = Math.max(1, Number(ev?.totalMs || 0) || 500);
+  const started = Number(ev?._localStartedAt);
+  if (!Number.isFinite(started)) return 1;
+  return Math.max(0, Math.min(1, (performance.now() - started) / totalMs));
+}
+
+function worldPointFromStructureRef(ref, fallback = { x: 0, y: 0 }) {
+  if (!ref) return { ...fallback };
+  return { x: Number(ref.x) || 0, y: Number(ref.y) || 0 };
+}
+
+export function drawLogisticTransferEventVisuals(ctx, view, store, camX, camY) {
+  const events = store?.logisticTransferVisuals || [];
+  if (!events.length) return;
+  const now = performance.now();
+  for (const ev of events) {
+    if (now > Number(ev._localUntil || 0)) continue;
+    const p = logisticEventProgress(ev);
+    const key = ev.resourceKey || '';
+    const color = ev.colorHex || ev.resourceColorHex || '#d7e5ff';
+    const action = String(ev.action || '').toLowerCase();
+    const carrier = ev.carrier || null;
+    const source = ev.source || null;
+    const target = ev.target || null;
+    let x = 0;
+    let y = 0;
+    let dir = { x: 1, y: 0 };
+    if (carrier && isConveyorType(carrier.type)) {
+      const fake = { ...carrier, type: carrier.type || 'conveyor', orientation: carrier.orientation || 'r' };
+      const local = conveyorItemPoint(fake, Number(carrier.w || 64), Number(carrier.h || 64), p, { slot: ev.slot || 'front' });
+      const d = dirOf(fake);
+      const angle = d.x > 0 ? 0 : d.y > 0 ? Math.PI / 2 : d.x < 0 ? Math.PI : -Math.PI / 2;
+      const ca = Math.cos(angle);
+      const sa = Math.sin(angle);
+      x = (Number(carrier.x) || 0) + local.x * ca - local.y * sa;
+      y = (Number(carrier.y) || 0) + local.x * sa + local.y * ca;
+      dir = d;
+    } else if (carrier && isArmType(carrier.type)) {
+      const fake = { ...carrier, type: carrier.type || 'robot_arm', orientation: carrier.orientation || 'r' };
+      const profile = armMotionProfile(fake, p, Number(carrier.w || 64), Number(carrier.h || 64));
+      const d = dirOf(fake);
+      const angle = d.x > 0 ? 0 : d.y > 0 ? Math.PI / 2 : d.x < 0 ? Math.PI : -Math.PI / 2;
+      const ca = Math.cos(angle);
+      const sa = Math.sin(angle);
+      x = (Number(carrier.x) || 0) + profile.grip.x * ca - profile.grip.y * sa;
+      y = (Number(carrier.y) || 0) + profile.grip.x * sa + profile.grip.y * ca;
+      dir = d;
+    } else {
+      const a = worldPointFromStructureRef(source);
+      const b = worldPointFromStructureRef(target, a);
+      x = a.x + (b.x - a.x) * p;
+      y = a.y + (b.y - a.y) * p;
+    }
+    const screen = worldToScreen(view, x, y, camX, camY);
+    ctx.save();
+    ctx.translate(screen.x, screen.y);
+    drawResourceChip(ctx, view, color, 0, 0, 6.5 * view.dpr, dir, 1);
+    ctx.restore();
+  }
+}
+
 function drawDirectionArrow(ctx, view, s, w, h, label = false) {
   const d = dirOf(s);
   const len = Math.min(w, h) * 0.34;

@@ -2,6 +2,7 @@ import { getStructureDef } from './StructureDefs.js';
 import { getMachineRecipe } from '../../../../shared/content/crafting/MachineRecipes.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { EQUIPMENT_RD_ALLOWED_SCIENCES } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
+import { queueLogisticTransferEvent } from '../events/LogisticTransferEvents.js';
 
 const RESOURCE_CAPACITY_DEFAULT = 80;
 const MACHINE_INPUT_CAPACITY = 160;
@@ -324,6 +325,16 @@ function updateConveyor(state, belt, timeMs) {
   map[key] = (map[key] | 0) - 1;
   clean(map);
   putOne(chosen.target, key);
+  queueLogisticTransferEvent(state, 'conveyor_transfer', {
+    resourceKey: key,
+    colorHex: resourceMeta(key).colorHex,
+    source: belt,
+    target: chosen.target,
+    carrier: belt,
+    slot: chosen.slot || '',
+    totalMs,
+    timeMs
+  });
   const def = getStructureDef(belt.type);
   const outputs = def?.automationOutputs || ['front'];
   if (outputs.length > 1) belt.automationOutputIndex = ((belt.automationOutputIndex | 0) + 1) % outputs.length;
@@ -379,6 +390,15 @@ function updateRobotArm(state, arm, timeMs) {
       return false;
     }
     putOne(target, arm.automationJob.key);
+    queueLogisticTransferEvent(state, 'arm_drop', {
+      resourceKey: arm.automationJob.key,
+      colorHex: resourceMeta(arm.automationJob.key).colorHex,
+      source: arm,
+      target,
+      carrier: arm,
+      totalMs,
+      timeMs
+    });
     arm.automationJob = null;
     arm.automationItem = null;
     arm.automationStatus = '';

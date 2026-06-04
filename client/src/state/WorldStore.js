@@ -33,6 +33,7 @@ export class WorldStore {
     this.stations = new Map();
     this.structures = new Map();
     this.automationVisuals = new Map();
+    this.logisticTransferVisuals = [];
     this.portals = new Map();
     this.projectiles = new Map();
     this.logisticDrones = new Map();
@@ -301,6 +302,33 @@ export class WorldStore {
         if (this.localPrediction.lastAbilityReject?.slot === slot) this.localPrediction.lastAbilityReject = null;
       }
     }
+  }
+
+  applyLogisticTransferEvents(events = []) {
+    if (!Array.isArray(events) || !events.length) return;
+    const now = performance.now();
+    const serverNow = this._estimateServerNow();
+    for (const ev of events) {
+      const id = `lt:${ev.id || 0}:${ev.action || ''}`;
+      if (this.eventDeduper?.seen?.has?.(id)) continue;
+      this.eventDeduper?.seen?.add?.(id);
+      const totalMs = Math.max(80, Number(ev.totalMs || 0) || 500);
+      const elapsed = Math.max(0, serverNow - Number(ev.serverTime || serverNow));
+      this.logisticTransferVisuals.push({
+        ...ev,
+        _localStartedAt: now - Math.min(totalMs, elapsed),
+        _localUntil: now - Math.min(totalMs, elapsed) + totalMs + 180,
+        totalMs
+      });
+    }
+    if (this.logisticTransferVisuals.length > 512) {
+      this.logisticTransferVisuals.splice(0, this.logisticTransferVisuals.length - 512);
+    }
+  }
+
+  pruneLogisticTransferVisuals(now = performance.now()) {
+    if (!Array.isArray(this.logisticTransferVisuals) || !this.logisticTransferVisuals.length) return;
+    this.logisticTransferVisuals = this.logisticTransferVisuals.filter((ev) => now <= Number(ev._localUntil || 0));
   }
 
   applyNetworkEvents(events = []) {
@@ -909,12 +937,6 @@ export class WorldStore {
     return this.lastServerTime + Math.max(0, performance.now() - this.lastServerTimeAt);
   }
 
-  _storagePreviewVisualKey(st) {
-    const p = st?.storagePreview || null;
-    if (!p?.key) return '';
-    return `${st.id || 0}:${st.type || ''}:${p.key}:${p.amount | 0}:${st.automationStatus || ''}`;
-  }
-
   _automationVisualKey(item) {
     if (!item || typeof item !== 'object') return '';
     return `${item.key || ''}:${item.phase || ''}:${Number(item.startedAt) || 0}:${Number(item.totalMs) || 0}`;
@@ -967,7 +989,7 @@ export class WorldStore {
       if (!id || !this.structures.has(id)) continue;
       const current = this.structures.get(id);
       const normalized = this._normalizeStructureSnapshot(snap, serverNow, current);
-      const next = {
+      this.structures.set(id, {
         ...current,
         storageUsed: normalized.storageUsed ?? current.storageUsed,
         storagePreview: normalized.storagePreview ?? null,
@@ -984,20 +1006,7 @@ export class WorldStore {
         depositMax: normalized.depositMax ?? current.depositMax,
         depositId: normalized.depositId ?? current.depositId,
         extractionProgress: normalized.extractionProgress ?? current.extractionProgress
-      };
-      const prevPreviewKey = this._storagePreviewVisualKey(current);
-      const nextPreviewKey = this._storagePreviewVisualKey(next);
-      if (prevPreviewKey && prevPreviewKey === nextPreviewKey && Number.isFinite(Number(current?._localLoopStartedAt))) {
-        next._localLoopStartedAt = current._localLoopStartedAt;
-        next._localLoopKey = current._localLoopKey;
-        next._localAutomationTotalMs = current._localAutomationTotalMs;
-      } else if (nextPreviewKey) {
-        next._localLoopStartedAt = performance.now();
-        next._localLoopKey = nextPreviewKey;
-        const t = String(next.type || '').toLowerCase();
-        next._localAutomationTotalMs = t === 'fast_conveyor' ? 420 : t === 'splitter' ? 760 : t === 'merger' ? 700 : 720;
-      }
-      this.structures.set(id, next);
+      });
     }
   }
 
@@ -1280,6 +1289,8 @@ export class WorldStore {
       this.myState.selectedId = this.localPrediction.selectedId || 0;
     }
     const hasNetworkEvents = Array.isArray(msg.events) && msg.events.length > 0;
+    if (Array.isArray(msg.logisticTransferEvents)) this.applyLogisticTransferEvents(msg.logisticTransferEvents);
+    this.pruneLogisticTransferVisuals(snapLocalNow);
     if (hasNetworkEvents) this.applyNetworkEvents(msg.events);
     if (!hasNetworkEvents && msg.worldSfx?.length) this.pendingSfx.push(...msg.worldSfx);
     if (msg.combatFx?.length) {

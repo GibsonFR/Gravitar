@@ -12,7 +12,7 @@ import { drawGroundMarker } from './render/GroundMarkerRenderer.js';
 import { drawSelectionRing } from './render/SelectionRenderer.js';
 
 import { drawStation } from './station/StationRenderer.js';
-import { drawStructure, drawStructureBuildPreview } from './structures/StructureRenderer.js';
+import { drawStructure, drawStructureBuildPreview, drawLogisticTransferEventVisuals } from './structures/StructureRenderer.js';
 import { drawPortals } from './portal/PortalRenderer.js';
 import { drawAsteroid } from './asteroid/AsteroidRenderer.js';
 import { drawProjectile } from './projectile/ProjectileRenderer.js';
@@ -881,6 +881,7 @@ export function startApp() {
 
     for (const s of store.stations.values()) drawStation(ctx, view, s, camX, camY, t);
     for (const st of store.structures.values()) drawStructure(ctx, view, st, camX, camY, t, store.structures);
+    drawLogisticTransferEventVisuals(ctx, view, store, camX, camY);
     drawStructureBuildPreview(ctx, view, basePanel.getPreview(store, mouseWorld), camX, camY, t);
     drawPortals(ctx, view, store, camX, camY);
     for (const a of store.asteroids.values()) drawAsteroid(ctx, view, a, camX, camY);
