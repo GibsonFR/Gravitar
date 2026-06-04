@@ -788,10 +788,15 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
 
   const ang = Number.isFinite(p.rot) ? p.rot : 0;
   const palette = getShipFramePalette(p.frameId);
+  const camouflaged = hasStatus(p, 'camouflage');
+  const camouflageAlpha = camouflaged ? (p.isSelf ? 0.42 : 0.08) : 1;
 
   drawFrameTrail(ctx, view, p, camX, camY, t);
   drawFrameSignatureAura(ctx, view, p, sx, sy, t);
-  if (ENABLE_LEGACY_SHIP_STATUS_OVERLAYS) drawShipStatusOverlays(ctx, view, p, sx, sy, t);
+  if (camouflaged || ENABLE_LEGACY_SHIP_STATUS_OVERLAYS) drawShipStatusOverlays(ctx, view, p, sx, sy, t);
+
+  ctx.save();
+  ctx.globalAlpha *= camouflageAlpha;
 
   if (vitals?.shield > 0.001) {
     const r = p.radius + 6 + 2 * (vitals.shield / Math.max(1, vitals.maxShield));
@@ -890,4 +895,5 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
     ctx.font = `${10 * view.dpr}px Segoe UI`;
     ctx.fillText(`${p.level}`, bx * view.dpr, (by + 4) * view.dpr);
   }
+  ctx.restore();
 }

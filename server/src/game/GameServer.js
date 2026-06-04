@@ -372,7 +372,16 @@ export function createGameServer() {
           Math.round(Number(s?.durationLeft || 0) * 10),
           s?.stacks | 0,
           s?.label || ''
-        ]) : [])
+        ]) : []),
+        p.frameState?.kind || '',
+        Math.round(Number(p.frameState?.trailLeft || 0) * 10),
+        Math.round(Number(p.frameState?.trailStartX || 0)),
+        Math.round(Number(p.frameState?.trailStartY || 0)),
+        Math.round(Number(p.frameState?.trailEndX || 0)),
+        Math.round(Number(p.frameState?.trailEndY || 0)),
+        Math.round(Number(p.frameState?.veilLeft || 0) * 10),
+        Math.round(Number(p.frameState?.pulseLeft || 0) * 10),
+        p.frameState?.pulseKind || ''
       ])
     });
   }

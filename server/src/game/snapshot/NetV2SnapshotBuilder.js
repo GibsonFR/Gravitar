@@ -10,6 +10,7 @@ import {
 } from './builders/BuildWorldEntitySnapshots.js';
 import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot.js';
 import { buildStatusSnapshot } from '../status/StatusView.js';
+import { buildFrameUiState } from '../frames/FrameGameplayHooks.js';
 
 function q(v, decimals = 2) {
   const n = Number(v);
@@ -69,6 +70,7 @@ function playerLite(player, selfId = 0) {
       maxEnergy: q(player.stats?.maxEnergy ?? 0)
     },
     statuses: buildStatusSnapshot(player, 8),
+    frameState: buildFrameUiState(player, Date.now()) || player.frameState || {},
     abilityA: player.abilityA || null,
     abilityZ: player.abilityZ || null,
     abilityE: player.abilityE || null,

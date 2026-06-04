@@ -1448,64 +1448,50 @@ export class WorldStore {
 
   _mergeMyState(next) {
     if (!next) return null;
-    if (!next.lite || !this.myState) {
-      const now = performance.now();
-      const cooldowns = { ...(next.cooldowns || {}) };
-      for (const slot of ['A', 'Z', 'E', 'R']) {
-        const localReady = this.localPrediction.localAbilityReadyAt?.[slot] || 0;
-        const serverCd = Number(next.cooldowns?.[slot] ?? cooldowns[slot] ?? 0);
-        const lastCast = this.localPrediction.localAbilityLastCastAt?.[slot] || 0;
-        const recentLocalCast = lastCast > 0 && now - lastCast < 420;
-        if (
-          (serverCd > 0.03 || recentLocalCast) &&
-          (now < (this.localPrediction.localCooldownLocks?.[slot] || 0) || now < localReady + 220) &&
-          Number.isFinite(this.myState.cooldowns?.[slot])
-        ) {
-          cooldowns[slot] = this.myState.cooldowns[slot];
-        }
-      }
-      const merged = {
-        ...next,
-        cooldowns,
-        abilityHud: this._mergeAbilityHudWithCooldowns(next.abilityHud, cooldowns)
-      };
-      // Pendant quelques centaines de ms après un clic de level-up, on garde le HUD
-      // local optimiste. Le serveur confirmera ensuite, mais le clic ne doit pas
-      // sembler refusé/rollbacké à cause d'un snapshot précédent.
-      for (const slot of ['A', 'Z', 'E', 'R']) {
-        if (now < (this.localPrediction.localUpgradeLocks?.[slot] || 0) && this.myState.abilityHud?.[slot] && merged.abilityHud?.[slot]) {
-          merged.abilityHud[slot] = { ...merged.abilityHud[slot], ...this.myState.abilityHud[slot] };
-        }
-      }
-      if (now < Math.max(...Object.values(this.localPrediction.localUpgradeLocks || { none: 0 }))) {
-        merged.progression = this.myState.progression ?? merged.progression;
-      }
-      return this._applyLocalAbilityAuthority(merged);
-    }
-    const now = performance.now();
-    const cooldowns = { ...(this.myState.cooldowns || {}), ...(next.cooldowns || {}) };
+
+    const cooldowns = { ...(this.myState?.cooldowns || {}), ...(next.cooldowns || {}) };
     for (const slot of ['A', 'Z', 'E', 'R']) {
-      const serverCd = Number(next.cooldowns?.[slot] ?? cooldowns[slot] ?? 0);
-      const lastCast = this.localPrediction.localAbilityLastCastAt?.[slot] || 0;
-      const recentLocalCast = lastCast > 0 && now - lastCast < 420;
-      if ((serverCd > 0.03 || recentLocalCast) && now < (this.localPrediction.localCooldownLocks?.[slot] || 0) && Number.isFinite(this.myState.cooldowns?.[slot])) {
-        cooldowns[slot] = this.myState.cooldowns[slot];
+      const raw = cooldowns[slot] ?? cooldowns[slot.toLowerCase()] ?? 0;
+      const n = Number(raw);
+      cooldowns[slot] = Math.max(0, Number.isFinite(n) ? n : 0);
+    }
+
+    const base = (!next.lite || !this.myState)
+      ? { ...next }
+      : {
+          ...this.myState,
+          ...next,
+          sessionSetup: { ...(this.myState.sessionSetup || {}), ...(next.sessionSetup || {}) },
+          progression: next.progression ?? this.myState.progression,
+          statuses: next.statuses ?? this.myState.statuses,
+          frameState: next.frameState ?? this.myState.frameState,
+          derived: next.derived ?? this.myState.derived,
+          bastions: next.bastions ?? this.myState.bastions,
+          sfx: next.sfx ?? []
+        };
+
+    const merged = {
+      ...base,
+      cooldowns,
+      abilityHud: this._mergeAbilityHudWithCooldowns(next.abilityHud ?? this.myState?.abilityHud, cooldowns)
+    };
+
+    const now = performance.now();
+    for (const slot of ['A', 'Z', 'E', 'R']) {
+      if (now < (this.localPrediction.localUpgradeLocks?.[slot] || 0) && this.myState?.abilityHud?.[slot] && merged.abilityHud?.[slot]) {
+        merged.abilityHud[slot] = {
+          ...merged.abilityHud[slot],
+          ...this.myState.abilityHud[slot],
+          cooldownLeft: merged.abilityHud[slot].cooldownLeft
+        };
       }
     }
-    const mergedLite = {
-      ...this.myState,
-      ...next,
-      sessionSetup: { ...(this.myState.sessionSetup || {}), ...(next.sessionSetup || {}) },
-      cooldowns,
-      progression: next.progression ?? this.myState.progression,
-      abilityHud: this._mergeAbilityHudWithCooldowns(next.abilityHud ?? this.myState.abilityHud, cooldowns),
-      statuses: next.statuses ?? this.myState.statuses,
-      frameState: next.frameState ?? this.myState.frameState,
-      derived: next.derived ?? this.myState.derived,
-      bastions: next.bastions ?? this.myState.bastions,
-      sfx: next.sfx ?? []
-    };
-    return this._applyLocalAbilityAuthority(mergedLite);
+
+    if (now < Math.max(...Object.values(this.localPrediction.localUpgradeLocks || { none: 0 }))) {
+      merged.progression = this.myState?.progression ?? merged.progression;
+    }
+
+    return this._applyLocalAbilityAuthority(merged);
   }
 
   applyChatMessage(msg) {
@@ -1705,23 +1691,31 @@ export class WorldStore {
     return player;
   }
 
+  serverCooldownAgeSec(msg = null) {
+    const serverTime = Number(msg?.time);
+    if (!Number.isFinite(serverTime) || serverTime <= 0 || !this.networkClock?.estimatedServerNowMs) return 0;
+    const ageMs = Math.max(0, this.networkClock.estimatedServerNowMs() - serverTime);
+    return Math.min(0.35, ageMs / 1000);
+  }
+
   syncLocalCooldownAuthorityFromStatus(player, msg = null) {
     if (!player || (player.id | 0) !== (this.myId | 0)) return;
     const now = performance.now();
     const cd = this.normalizePlayerCooldownKeys(player)?.cooldowns || {};
     const slots = ['A', 'Z', 'E', 'R'];
+
     if (!this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt = {};
     if (!this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt = {};
     if (!this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks = {};
     if (!this.myState) return;
-
     if (!this.myState.cooldowns) this.myState.cooldowns = {};
+
+    const ageSec = this.serverCooldownAgeSec(msg);
     for (const slot of slots) {
-      const left = Math.max(0, Number(cd[slot]) || 0);
-      // The server is the source of truth for remaining cooldown.
-      // Do not keep Math.max(local, server): that freezes an outdated optimistic
-      // local timer and makes the HUD say "ready" or "not ready" at the wrong time.
-      const safeLeft = left > 0.02 ? left + 0.04 : 0;
+      const rawLeft = Math.max(0, Number(cd[slot]) || 0);
+      const left = Math.max(0, rawLeft - ageSec);
+      const safeLeft = left > 0.02 ? left + 0.015 : 0;
+
       this.myState.cooldowns[slot] = safeLeft;
       const hud = this.myState.abilityHud?.[slot];
       if (hud) hud.cooldownLeft = safeLeft;
@@ -1729,7 +1723,7 @@ export class WorldStore {
       if (safeLeft > 0) {
         this.localPrediction.localAbilityReadyAt[slot] = now + safeLeft * 1000;
         this.localPrediction.localAbilityLastCastAt[slot] = Math.max(this.localPrediction.localAbilityLastCastAt[slot] || 0, now);
-        this.localPrediction.localCooldownLocks[slot] = now + Math.min(160, safeLeft * 1000);
+        this.localPrediction.localCooldownLocks[slot] = now + 45;
       } else {
         this.localPrediction.localAbilityReadyAt[slot] = 0;
         this.localPrediction.localCooldownLocks[slot] = 0;
@@ -1738,7 +1732,6 @@ export class WorldStore {
       }
     }
   }
-
 
   applyInputAckV2(msg) {
     const snapLocalNow = performance.now();

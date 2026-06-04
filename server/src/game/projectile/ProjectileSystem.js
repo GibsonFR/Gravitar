@@ -42,6 +42,33 @@ function segmentHitsCircle(x1, y1, x2, y2, cx, cy, radius) {
   return distPointToSegmentSq(cx, cy, x1, y1, x2, y2) <= radius * radius;
 }
 
+function segmentRectImpactPoint(x1, y1, x2, y2, rect, pad = 0) {
+  const w = Number(rect.w || rect.radius * 2 || 0) + pad * 2;
+  const h = Number(rect.h || rect.radius * 2 || 0) + pad * 2;
+  if (!(w > 0) || !(h > 0)) return null;
+  const left = Number(rect.x) - w * 0.5;
+  const right = Number(rect.x) + w * 0.5;
+  const top = Number(rect.y) - h * 0.5;
+  const bottom = Number(rect.y) + h * 0.5;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  let best = null;
+  const add = (t, x, y) => {
+    if (t >= 0 && t <= 1 && x >= left - 0.001 && x <= right + 0.001 && y >= top - 0.001 && y <= bottom + 0.001) {
+      if (!best || t < best.t) best = { t, x, y };
+    }
+  };
+  if (Math.abs(dx) > 0.000001) {
+    let t = (left - x1) / dx; add(t, left, y1 + dy * t);
+    t = (right - x1) / dx; add(t, right, y1 + dy * t);
+  }
+  if (Math.abs(dy) > 0.000001) {
+    let t = (top - y1) / dy; add(t, x1 + dx * t, top);
+    t = (bottom - y1) / dy; add(t, x1 + dx * t, bottom);
+  }
+  return best ? { x: best.x, y: best.y } : null;
+}
+
 function projectileImpactPoint(proj, hit, oldX, oldY) {
   const fallback = { x: Number(proj?.x) || 0, y: Number(proj?.y) || 0 };
   if (!proj || !hit) return fallback;
@@ -51,24 +78,40 @@ function projectileImpactPoint(proj, hit, oldX, oldY) {
   const y2 = Number(proj.y);
   if (![x1, y1, x2, y2].every(Number.isFinite)) return fallback;
 
+  if (Number.isFinite(Number(hit.w)) || Number.isFinite(Number(hit.h))) {
+    const rectHit = segmentRectImpactPoint(x1, y1, x2, y2, hit, Math.max(0, Number(proj.radius || 0)));
+    if (rectHit) return rectHit;
+  }
+
   const hx = Number(hit.x);
   const hy = Number(hit.y);
-  const hr = Number(hit.radius || 0) + Number(proj.radius || 0);
-  if (Number.isFinite(hx) && Number.isFinite(hy) && hr > 0) {
+  const hitRadius = Number(hit.radius || 0);
+  const collisionRadius = hitRadius + Number(proj.radius || 0);
+  if (Number.isFinite(hx) && Number.isFinite(hy) && collisionRadius > 0) {
     const dx = x2 - x1;
     const dy = y2 - y1;
     const fx = x1 - hx;
     const fy = y1 - hy;
     const a = dx * dx + dy * dy;
     const b = 2 * (fx * dx + fy * dy);
-    const c = fx * fx + fy * fy - hr * hr;
+    const c = fx * fx + fy * fy - collisionRadius * collisionRadius;
     const disc = b * b - 4 * a * c;
     if (a > 0.000001 && disc >= 0) {
       const s = Math.sqrt(disc);
       const t1 = (-b - s) / (2 * a);
       const t2 = (-b + s) / (2 * a);
       const t = [t1, t2].filter((v) => v >= 0 && v <= 1).sort((aa, bb) => aa - bb)[0];
-      if (Number.isFinite(t)) return { x: x1 + dx * t, y: y1 + dy * t };
+      if (Number.isFinite(t)) {
+        const cx = x1 + dx * t;
+        const cy = y1 + dy * t;
+        if (hitRadius > 0) {
+          const nx = cx - hx;
+          const ny = cy - hy;
+          const len = Math.hypot(nx, ny);
+          if (len > 0.0001) return { x: hx + (nx / len) * hitRadius, y: hy + (ny / len) * hitRadius };
+        }
+        return { x: cx, y: cy };
+      }
     }
   }
 
