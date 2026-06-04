@@ -1,6 +1,7 @@
 import { newEntityId } from '../state/GameState.js';
 import { LOOT_DEFS } from './LootDefs.js';
 import { getItemDef } from '../../../../shared/content/items/ItemDefs.js';
+import { queueLootSpawnedEvent } from '../events/WorldEntityEvents.js';
 
 const LEGACY_LOOT_ALIASES = {
   ore: 'ironVein',
@@ -32,7 +33,7 @@ export function spawnLootInSector(state, sx, sy, x, y, defKey, timeMs, sourceKin
 
   const id = newEntityId(state);
 
-  state.loots.set(id, {
+  const loot = {
     kind: 'loot',
     id,
     sx: sx | 0,
@@ -52,7 +53,9 @@ export function spawnLootInSector(state, sx, sy, x, y, defKey, timeMs, sourceKin
     despawnAt: timeMs + def.lifetimeSec * 1000,
     sourceKind,
     sourceId
-  });
+  };
+  state.loots.set(id, loot);
+  queueLootSpawnedEvent(state, loot);
 
   return id;
 }
@@ -64,7 +67,7 @@ export function spawnItemLootInSector(state, sx, sy, x, y, itemId, timeMs, optio
   const id = newEntityId(state);
   const tier = Math.max(1, def.tier | 0);
   const c = options.color || (tier >= 3 ? { r: 255, g: 124, b: 229 } : tier >= 2 ? { r: 255, g: 205, b: 98 } : { r: 124, g: 233, b: 255 });
-  state.loots.set(id, {
+  const loot = {
     kind: 'loot',
     id,
     sx: sx | 0,
@@ -88,6 +91,8 @@ export function spawnItemLootInSector(state, sx, sy, x, y, itemId, timeMs, optio
     despawnAt: timeMs + (options.lifetimeSec ?? 300) * 1000,
     sourceKind: options.sourceKind || '',
     sourceId: options.sourceId || 0
-  });
+  };
+  state.loots.set(id, loot);
+  queueLootSpawnedEvent(state, loot);
   return id;
 }

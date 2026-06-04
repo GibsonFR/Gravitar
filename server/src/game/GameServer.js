@@ -21,13 +21,14 @@ import { createPlayer } from './player/PlayerFactory.js';
 import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
 import { buildNetworkEventsFromLegacy } from './events/NetworkEventStream.js';
-import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket, buildNetV2InputAckPacket, buildNetV2PlayerStatusPacket, buildNetV2PlayerSessionPacket, buildNetV2ProjectileEventsPacket, buildNetV2CombatEventsPacket, buildNetV2NetworkEventsPacket, buildNetV2WorldEntitiesDeltaPacket, buildNetV2CargoPacket, buildNetV2MobPosePacket } from './snapshot/NetV2SnapshotBuilder.js';
+import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket, buildNetV2InputAckPacket, buildNetV2PlayerStatusPacket, buildNetV2PlayerSessionPacket, buildNetV2ProjectileEventsPacket, buildNetV2CombatEventsPacket, buildNetV2NetworkEventsPacket, buildNetV2WorldEventsPacket, buildNetV2CargoPacket, buildNetV2CargoBootstrapPacket, buildNetV2CargoDeltaPacket, buildNetV2CargoSummary, buildNetV2MobPosePacket } from './snapshot/NetV2SnapshotBuilder.js';
 import { clearWorldSfx, peekWorldSfx } from './audio/WorldSfxState.js';
 import { drainPlayerSfx } from './audio/PlayerSfxState.js';
 import { clearCombatFx, peekCombatFx } from './combat/CombatFxState.js';
 import { clearStatusPassiveEvents, peekStatusEventsForPlayer, peekPassiveEventsForPlayer } from './events/StatusPassiveEvents.js';
 import { pruneLogisticTransferEvents } from './events/LogisticTransferEvents.js';
 import { peekProjectileEventsForPlayer } from './events/ProjectileEvents.js';
+import { peekWorldEntityEventsForPlayer, pruneWorldEntityEvents } from './events/WorldEntityEvents.js';
 import { drainAbilityProtocolEvents } from './events/AbilityProtocolEvents.js';
 import { applyCommand } from './commands/CommandRouter.js';
 import { ensureSectorLoaded } from './sector/SectorEnsure.js';
@@ -43,7 +44,6 @@ const NET_V2_POSE_RATE_MS = Math.max(25, Number(process.env.GRAVITAR_NET_V2_POSE
 const NET_V2_STATUS_ACTIVE_RATE_MS = Math.max(80, Number(process.env.GRAVITAR_NET_V2_STATUS_ACTIVE_RATE_MS || 150));
 const NET_V2_STATUS_IDLE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_STATUS_IDLE_RATE_MS || 1000));
 const NET_V2_SESSION_HEARTBEAT_MS = Math.max(0, Number(process.env.GRAVITAR_NET_V2_SESSION_HEARTBEAT_MS || 0));
-const NET_V2_WORLD_DELTA_MS = Math.max(60, Number(process.env.GRAVITAR_NET_V2_WORLD_DELTA_MS || 80));
 
 export function createGameServer() {
   const state = createGameState();
@@ -70,8 +70,6 @@ export function createGameServer() {
   const sentProjectileEventIdsByPlayer = new Map();
   const sentCombatEventIdsByPlayer = new Map();
   const sentNetworkEventIdsByPlayer = new Map();
-  const lastWorldDeltaV2ByPlayer = new Map();
-  const lastWorldDeltaV2SignatureByPlayer = new Map();
   const lastCargoV2ByPlayer = new Map();
   const lastCargoV2SignatureByPlayer = new Map();
   let lastAccountAutosaveAt = 0;
@@ -126,8 +124,6 @@ export function createGameServer() {
     sentProjectileEventIdsByPlayer.delete(id);
     sentCombatEventIdsByPlayer.delete(id);
     sentNetworkEventIdsByPlayer.delete(id);
-    lastWorldDeltaV2ByPlayer.delete(id);
-    lastWorldDeltaV2SignatureByPlayer.delete(id);
     lastCargoV2ByPlayer.delete(id);
     lastCargoV2SignatureByPlayer.delete(id);
     state.players.delete(id);
@@ -352,15 +348,24 @@ export function createGameServer() {
 
   function sendNetV2CargoPacket(id, player, timeMs, sendPacket, options = {}) {
     if (!NET_V2_RESET_ENABLED || !player) return;
-    const packet = buildNetV2CargoPacket(state, id, timeMs);
-    if (!packet) return;
-    const sig = netV2CargoSignature(packet);
-    const prevSig = lastCargoV2SignatureByPlayer.get(id) || '';
-    const prevAt = lastCargoV2ByPlayer.get(id) || 0;
-    if (!options.force && sig === prevSig && timeMs - prevAt < 1200) return;
-    if (sendPacket(id, packet)) {
+
+    if (options.force) {
+      const bootstrap = buildNetV2CargoBootstrapPacket(state, id, timeMs);
+      if (bootstrap && sendPacket(id, bootstrap)) {
+        lastCargoV2ByPlayer.set(id, timeMs);
+        lastCargoV2SignatureByPlayer.set(id, netV2CargoSignature(bootstrap));
+        lastCargoSummaryByPlayer.set(id, buildNetV2CargoSummary(state, id));
+      }
+      return;
+    }
+
+    const previous = lastCargoSummaryByPlayer.get(id) || null;
+    const delta = buildNetV2CargoDeltaPacket(state, id, previous, timeMs);
+    if (!delta) return;
+    if (sendPacket(id, delta)) {
       lastCargoV2ByPlayer.set(id, timeMs);
-      lastCargoV2SignatureByPlayer.set(id, sig);
+      lastCargoSummaryByPlayer.set(id, delta.summary || buildNetV2CargoSummary(state, id));
+      lastCargoV2SignatureByPlayer.set(id, JSON.stringify(delta.summary || {}));
     }
   }
 
@@ -397,21 +402,6 @@ export function createGameServer() {
     });
   }
 
-  function sendNetV2WorldEntitiesDelta(id, player, timeMs, sendPacket, options = {}) {
-    if (!NET_V2_RESET_ENABLED || !player) return;
-    const packet = buildNetV2WorldEntitiesDeltaPacket(state, id, timeMs);
-    if (!packet) return;
-    const sig = netV2WorldDeltaSignature(packet);
-    const prevSig = lastWorldDeltaV2SignatureByPlayer.get(id) || '';
-    const prevAt = lastWorldDeltaV2ByPlayer.get(id) || 0;
-    const changed = sig !== prevSig;
-    if (!options.force && !changed && timeMs - prevAt < 1500) return;
-    if (!options.force && changed && timeMs - prevAt < NET_V2_WORLD_DELTA_MS) return;
-    if (sendPacket(id, packet)) {
-      lastWorldDeltaV2ByPlayer.set(id, timeMs);
-      lastWorldDeltaV2SignatureByPlayer.set(id, sig);
-    }
-  }
 
   function sendNetV2ProjectileCombatPackets(id, player, timeMs, sendPacket) {
     if (!NET_V2_RESET_ENABLED || !player) return;
@@ -589,7 +579,7 @@ export function createGameServer() {
         if (!state.players.has(id)) continue;
         syncNetV2PlayerLifecycleForObserver(id, timeMs, sendSnapshot);
         const player = state.players.get(id);
-        sendNetV2WorldEntitiesDelta(id, player, timeMs, sendSnapshot);
+        sendNetV2WorldEvents(id, player, timeMs, sendSnapshot);
         sendNetV2MobPosePacket(id, player, timeMs, sendSnapshot);
         sendNetV2CargoPacket(id, player, timeMs, sendSnapshot);
         // Pose first: projectiles/network events can be bursty, but remote movement must
@@ -655,7 +645,7 @@ export function createGameServer() {
           knownRemotePlayersByObserver.set(id, visibleRemoteIdSet(p));
           sendNetV2StatusSessionPackets(id, p, timeMs, sendSnapshot, { forceStatus: true, forceSession: true });
           sendNetV2CargoPacket(id, p, timeMs, sendSnapshot, { force: true });
-          sendNetV2WorldEntitiesDelta(id, p, timeMs, sendSnapshot, { force: true });
+          sendNetV2WorldEvents(id, p, timeMs, sendSnapshot);
         }
         if (sent && process.env.NET_DEBUG === '1') {
           const prevLog = lastNetStatsAtByPlayer.get(id) || 0;

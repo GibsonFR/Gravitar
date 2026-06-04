@@ -57,5 +57,5 @@ export function tryResolveLootPickup(state, loot) {
     addResource(bestPlayer.inv, loot.resource, loot.amount);
   }
   queuePlayerSfx(bestPlayer, SFX_EVENT_TYPES.COLLECT, (Math.random() * 6) | 0, { resourceKey: pickedResourceKey, itemId: pickedItemId });
-  return true;
+  return { playerId: bestPlayer.id | 0, resourceKey: pickedResourceKey, itemId: pickedItemId, amount: loot.amount || 0 };
 }

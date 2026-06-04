@@ -594,34 +594,6 @@ export function buildNetV2NetworkEventsPacket(state, playerId, events, timeMs) {
 }
 
 
-export function buildNetV2WorldEntitiesDeltaPacket(state, playerId, timeMs) {
-  const me = state.players.get(playerId) || null;
-  if (!me) return null;
-  const sx = me.sx | 0;
-  const sy = me.sy | 0;
-  const worldId = String(me.worldId || 'endless');
-  const inSector = (entity) => sameSector(entity, sx, sy) && sameWorld(entity, worldId);
-
-  return {
-    t: 'world_entities_delta_v2',
-    protocol: 'net_v2_reset',
-    time: timeMs,
-    tick: getSimulationTick(state),
-    worldId,
-    sx,
-    sy,
-    asteroids: buildAsteroidSnapshots(state.asteroids, inSector),
-    mobs: buildMobSnapshots(state.mobs, inSector, { compact: false }),
-    loots: buildLootSnapshots(state.loots, inSector),
-    net: {
-      netV2Reset: true,
-      packet: 'world_entities_delta_v2',
-      authoritativeSectorEntities: true
-    }
-  };
-}
-
-
 export function buildNetV2CargoPacket(state, playerId, timeMs) {
   const me = state.players.get(playerId) || null;
   if (!me) return null;
@@ -680,4 +652,77 @@ export function buildNetV2MobPosePacket(state, playerId, timeMs) {
       packet: 'mob_pose_v2'
     }
   };
+}
+
+
+export function buildNetV2WorldEventsPacket(state, playerId, events, timeMs) {
+  const list = (Array.isArray(events) ? events : []).filter(Boolean);
+  if (!list.length) return null;
+  return {
+    t: 'world_events_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    events: list,
+    net: {
+      netV2Reset: true,
+      packet: 'world_events_v2'
+    }
+  };
+}
+
+function summarizeCargo(inv) {
+  const resources = inv?.resources || {};
+  const entries = Object.entries(resources)
+    .filter(([, amount]) => Number(amount) !== 0)
+    .map(([resource, amount]) => [resource, Number(amount)]);
+  return {
+    used: Number(inv?.used ?? inv?.cargoUsed ?? 0),
+    resources: entries
+  };
+}
+
+export function buildNetV2CargoDeltaPacket(state, playerId, previousSummary, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me?.inv) return null;
+  const current = summarizeCargo(me.inv);
+  const previous = previousSummary || { used: 0, resources: [] };
+  const prevMap = new Map(previous.resources || []);
+  const curMap = new Map(current.resources || []);
+  const changed = [];
+  for (const [resource, amount] of curMap) {
+    const prev = Number(prevMap.get(resource) || 0);
+    if (Math.abs(amount - prev) > 0.0001) changed.push({ resource, amount, delta: amount - prev });
+  }
+  for (const [resource, amount] of prevMap) {
+    if (!curMap.has(resource)) changed.push({ resource, amount: 0, delta: -Number(amount || 0) });
+  }
+  if (!changed.length && Number(current.used || 0) === Number(previous.used || 0)) return null;
+  return {
+    t: 'cargo_delta_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    used: current.used,
+    changes: changed,
+    summary: current,
+    net: {
+      netV2Reset: true,
+      packet: 'cargo_delta_v2'
+    }
+  };
+}
+
+export function buildNetV2CargoBootstrapPacket(state, playerId, timeMs) {
+  const packet = buildNetV2CargoPacket(state, playerId, timeMs);
+  if (!packet) return null;
+  packet.t = 'cargo_bootstrap_v2';
+  packet.net = { ...(packet.net || {}), packet: 'cargo_bootstrap_v2', bootstrap: true };
+  return packet;
+}
+
+export function buildNetV2CargoSummary(state, playerId) {
+  const me = state.players.get(playerId) || null;
+  if (!me?.inv) return null;
+  return summarizeCargo(me.inv);
 }

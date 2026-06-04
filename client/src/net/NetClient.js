@@ -140,15 +140,20 @@ export class NetClient {
         this.netStats.recordNetworkEventsPacket?.(msg, raw.length);
         this.store.applyNetworkEventsV2?.(msg);
       }
-      if (msg.t === 'world_entities_delta_v2') {
+      if (msg.t === 'world_events_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
-        this.netStats.recordWorldEntitiesDeltaPacket?.(msg, raw.length);
-        this.store.applyWorldEntitiesDeltaV2?.(msg);
+        this.netStats.recordWorldEventsPacket?.(msg, raw.length);
+        this.store.applyWorldEventsV2?.(msg);
       }
-      if (msg.t === 'cargo_v2') {
+      if (msg.t === 'cargo_v2' || msg.t === 'cargo_bootstrap_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordCargoPacket?.(msg, raw.length);
         this.store.applyCargoV2?.(msg);
+      }
+      if (msg.t === 'cargo_delta_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordCargoDeltaPacket?.(msg, raw.length);
+        this.store.applyCargoDeltaV2?.(msg);
       }
       if (msg.t === 'mob_pose_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());

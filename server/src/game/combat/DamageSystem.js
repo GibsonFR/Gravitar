@@ -30,6 +30,7 @@ import { GAME_MODES, WORLD_IDS, clearPlayerBattleResidue, leaveBattleSession, re
 import { triggerEquipmentHitProcs, triggerEquipmentTakeHitProcs } from '../equipment/EquipmentProcSystem.js';
 import { canPlayerDamageStructure, destroyStructure, isStructureProtectedByCore } from '../structures/StructureSystem.js';
 import { markAsteroidDestroyedForRespawn } from '../asteroid/AsteroidRespawnState.js';
+import { queueAsteroidDamageEvent, queueAsteroidDestroyedEvent } from '../events/WorldEntityEvents.js';
 
 
 function triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs) {
@@ -465,6 +466,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   if (target.kind === 'asteroid') {
     if (target.stats.hp <= 0) return;
     const died = applyHullDamage(target.stats, finalAmount);
+    queueAsteroidDamageEvent(state, target);
     grantLifesteal(sourcePlayer, finalAmount);
     if (!died) triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs);
     if (target.demoDummy) {
@@ -482,6 +484,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
         onEntityKilledByFrame(state, sourcePlayer, target);
       }
       target.dropsSpawned = false;
+      queueAsteroidDestroyedEvent(state, target);
 
       if (target.sig) {
         markAsteroidDestroyedForRespawn(state, target, timeMs);
