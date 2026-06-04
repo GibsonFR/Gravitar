@@ -909,6 +909,12 @@ export class WorldStore {
     return this.lastServerTime + Math.max(0, performance.now() - this.lastServerTimeAt);
   }
 
+  _storagePreviewVisualKey(st) {
+    const p = st?.storagePreview || null;
+    if (!p?.key) return '';
+    return `${st.id || 0}:${st.type || ''}:${p.key}:${p.amount | 0}:${st.automationStatus || ''}`;
+  }
+
   _automationVisualKey(item) {
     if (!item || typeof item !== 'object') return '';
     return `${item.key || ''}:${item.phase || ''}:${Number(item.startedAt) || 0}:${Number(item.totalMs) || 0}`;
@@ -961,7 +967,7 @@ export class WorldStore {
       if (!id || !this.structures.has(id)) continue;
       const current = this.structures.get(id);
       const normalized = this._normalizeStructureSnapshot(snap, serverNow, current);
-      this.structures.set(id, {
+      const next = {
         ...current,
         storageUsed: normalized.storageUsed ?? current.storageUsed,
         storagePreview: normalized.storagePreview ?? null,
@@ -978,7 +984,20 @@ export class WorldStore {
         depositMax: normalized.depositMax ?? current.depositMax,
         depositId: normalized.depositId ?? current.depositId,
         extractionProgress: normalized.extractionProgress ?? current.extractionProgress
-      });
+      };
+      const prevPreviewKey = this._storagePreviewVisualKey(current);
+      const nextPreviewKey = this._storagePreviewVisualKey(next);
+      if (prevPreviewKey && prevPreviewKey === nextPreviewKey && Number.isFinite(Number(current?._localLoopStartedAt))) {
+        next._localLoopStartedAt = current._localLoopStartedAt;
+        next._localLoopKey = current._localLoopKey;
+        next._localAutomationTotalMs = current._localAutomationTotalMs;
+      } else if (nextPreviewKey) {
+        next._localLoopStartedAt = performance.now();
+        next._localLoopKey = nextPreviewKey;
+        const t = String(next.type || '').toLowerCase();
+        next._localAutomationTotalMs = t === 'fast_conveyor' ? 420 : t === 'splitter' ? 760 : t === 'merger' ? 700 : 720;
+      }
+      this.structures.set(id, next);
     }
   }
 
