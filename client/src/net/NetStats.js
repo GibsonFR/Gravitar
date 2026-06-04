@@ -575,7 +575,9 @@ export class NetStats {
         id: ev?.id | 0,
         type: ev?.type || '',
         targetId: ev?.targetId | 0,
-        lootId: ev?.lootId | 0,
+        lootId: ev?.lootId | 0 || ev?.loot?.id | 0,
+        resource: ev?.loot?.resource || '',
+        amount: ev?.loot?.amount || 0,
         hpAfter: ev?.hpAfter,
         reason: ev?.reason || ''
       })),

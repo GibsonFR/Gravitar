@@ -1730,6 +1730,116 @@ export class WorldStore {
     }
   }
 
+  applyWorldEventsV2(msg) {
+    const events = Array.isArray(msg?.events) ? msg.events : [];
+    if (!events.length) return;
+
+    for (const ev of events) {
+      const type = String(ev?.type || '');
+
+      if (type === 'asteroid_damage') {
+        const id = ev.targetId | 0;
+        const asteroid = this.asteroids.get(id);
+        if (!asteroid) continue;
+        const hp = Math.max(0, Number(ev.hpAfter || 0));
+        const maxHp = Math.max(0, Number(ev.maxHp || asteroid.vitals?.maxHp || asteroid.stats?.maxHp || 0));
+        asteroid.vitals = {
+          ...(asteroid.vitals || {}),
+          hp,
+          maxHp
+        };
+        asteroid.stats = {
+          ...(asteroid.stats || {}),
+          hp,
+          maxHp
+        };
+        asteroid._lastDamageAt = performance.now();
+        if (hp <= 0) {
+          // Keep removal authoritative on asteroid_destroyed when available, but
+          // do not leave a zero-HP ghost if the destroy packet is delayed/missed.
+          asteroid._pendingDestroyAt = performance.now();
+        }
+        continue;
+      }
+
+      if (type === 'asteroid_destroyed') {
+        const id = ev.targetId | 0;
+        if (id) {
+          this.asteroids.delete(id);
+          this.interpolationStore?.maps?.delete?.(`asteroid:${id}`);
+        }
+        continue;
+      }
+
+      if (type === 'loot_spawned') {
+        const loot = ev.loot || null;
+        const id = loot?.id | 0;
+        if (!id) continue;
+        this.loots.set(id, {
+          ...loot,
+          id,
+          kind: 'loot',
+          radius: Number(loot.radius || 10),
+          amount: Number(loot.amount || 0)
+        });
+        this.interpolationStore?.pushMany?.('loot', [this.loots.get(id)], Number(msg.time || this.lastServerTime || Date.now()));
+        continue;
+      }
+
+      if (type === 'loot_removed') {
+        const id = ev.lootId | 0;
+        if (id) {
+          this.loots.delete(id);
+          this.interpolationStore?.maps?.delete?.(`loot:${id}`);
+        }
+        continue;
+      }
+    }
+  }
+
+  applyCargoV2(msg) {
+    if (!msg?.inv) return;
+    this.myState = {
+      ...(this.myState || {}),
+      inv: msg.inv
+    };
+  }
+
+  applyCargoDeltaV2(msg) {
+    if (!this.myState) this.myState = {};
+    const inv = this.myState.inv || {
+      credits: 0,
+      creditsLabel: 'Crédits pirates',
+      cargoUsed: 0,
+      cargoMax: 0,
+      cargoFill01: 0,
+      totalSellValue: 0,
+      resources: []
+    };
+
+    const rows = Array.isArray(inv.resources) ? [...inv.resources] : [];
+    const byKey = new Map(rows.map((row) => [String(row.key || ''), { ...row }]));
+
+    for (const change of Array.isArray(msg?.changes) ? msg.changes : []) {
+      const key = String(change?.resource || change?.key || '');
+      if (!key) continue;
+      const amount = Math.max(0, Number(change.amount || 0));
+      const existing = byKey.get(key) || { key, name: key, amount: 0, cargoPerUnit: 1, colorHex: '#d0d7e4', sellable: true, sellTotalValue: 0 };
+      existing.amount = amount;
+      byKey.set(key, existing);
+    }
+
+    const cargoUsed = Number.isFinite(Number(msg?.used)) ? Number(msg.used) : Number(inv.cargoUsed || 0);
+    const cargoMax = Number(inv.cargoMax || 0);
+
+    this.myState.inv = {
+      ...inv,
+      cargoUsed,
+      cargoFill01: Math.max(0, Math.min(1, cargoUsed / Math.max(1, cargoMax || 1))),
+      resources: [...byKey.values()]
+    };
+  }
+
   applyWorldEntitiesDeltaV2(msg) {
     if (!msg) return;
     const expected = this.currentSectorBootstrapId || '';
