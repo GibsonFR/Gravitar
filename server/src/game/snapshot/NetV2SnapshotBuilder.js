@@ -173,6 +173,8 @@ function playerPoseCompact(player, selfId = 0) {
     moveTy: q(player.moveTy || 0),
     moveIntentSeq: player.moveIntentSeq | 0,
     moveIntentStartedAt: player.moveIntentStartedAt || 0,
+    clientAuthorityLeftMs: Math.max(0, Math.round((Number(player.clientAuthoritativeUntil || 0) - Date.now()))),
+    lastAbilityFreshAt: player.lastAbilityFreshAt || 0,
     selectedKind: player.selectedKind || '',
     selectedId: player.selectedId | 0,
     autoTargetKind: player.autoTargetKind || '',

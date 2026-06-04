@@ -131,7 +131,7 @@ function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
   //
   // Ne jamais recopier cx/cy sur un input de mouvement standard, sinon la fluidité
   // observée dépend directement de la fréquence d'input client.
-  const clientPoseAuthority = !!abilityFresh || (Number.isFinite(player.clientAuthoritativeUntil) && timeMs <= player.clientAuthoritativeUntil);
+  const clientPoseAuthority = Number.isFinite(player.clientAuthoritativeUntil) && timeMs <= player.clientAuthoritativeUntil;
 
   if (clientPoseAuthority && Number.isFinite(msg.cx) && Number.isFinite(msg.cy)) {
     const oldX = player.x;
@@ -168,7 +168,12 @@ function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
   if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
   player.lastClientPoseAt = timeMs;
 
-  if (abilityFresh) player.clientAuthoritativeUntil = Math.max(player.clientAuthoritativeUntil || 0, timeMs + 1400);
+  // An ability input by itself must not enable long client pose authority.
+  // Only an explicit client-applied dash branch may do that below. Otherwise
+  // observers see movement cadence depend on sparse local input after a spell.
+  if (abilityFresh) {
+    player.lastAbilityFreshAt = timeMs;
+  }
 }
 
 function applyClientPoseFromAction(state, player, action, timeMs) {
@@ -247,18 +252,29 @@ function applyActionPacket(state, player, action, timeMs) {
   }
 
   if (action.type === 'cast') {
-    if (Number.isFinite(action.castLocalX) && Number.isFinite(action.castLocalY)) {
+    if (action.clientAppliedDash && Number.isFinite(action.castLocalX) && Number.isFinite(action.castLocalY)) {
+      const oldX = player.x;
+      const oldY = player.y;
+      const oldSx = player.sx | 0;
+      const oldSy = player.sy | 0;
       player.x = action.castLocalX;
       player.y = action.castLocalY;
       if (Number.isFinite(action.castLocalSx)) player.sx = action.castLocalSx | 0;
       if (Number.isFinite(action.castLocalSy)) player.sy = action.castLocalSy | 0;
+      if (clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy)) revertClientPose(player, oldX, oldY, oldSx, oldSy);
+    } else if (Number.isFinite(action.castLocalX) && Number.isFinite(action.castLocalY)) {
+      player.lastClientAbilityHintX = action.castLocalX;
+      player.lastClientAbilityHintY = action.castLocalY;
+      player.lastClientAbilityHintAt = timeMs;
     }
     if (Number.isFinite(action.aimX) && Number.isFinite(action.aimY)) {
       player.mouseSx = action.aimX - player.x + player.viewportW * 0.5;
       player.mouseSy = action.aimY - player.y + player.viewportH * 0.5;
     }
     if (!Array.isArray(player.pendingAbilityCasts)) player.pendingAbilityCasts = [];
-    const localAuthorityMs = Math.max(900, Math.min(4000, Number(action.localAuthorityMs) || 1600));
+    const localAuthorityMs = action.clientAppliedDash
+      ? Math.max(120, Math.min(360, Number(action.localAuthorityMs) || 220))
+      : 0;
     const dashLine = Number.isFinite(action.dashStartX) && Number.isFinite(action.dashStartY) && Number.isFinite(action.dashEndX) && Number.isFinite(action.dashEndY)
       ? { startX: action.dashStartX, startY: action.dashStartY, endX: action.dashEndX, endY: action.dashEndY }
       : null;
@@ -273,8 +289,12 @@ function applyActionPacket(state, player, action, timeMs) {
       aimX: action.aimX,
       aimY: action.aimY
     });
-    player.clientAppliedAbilityPose = { slot: action.slot, seq: action.seq | 0, until: timeMs + localAuthorityMs, dashAlreadyApplied: !!action.clientAppliedDash, dashLine };
-    player.clientAuthoritativeUntil = Math.max(player.clientAuthoritativeUntil || 0, timeMs + localAuthorityMs);
+    player.clientAppliedAbilityPose = action.clientAppliedDash
+      ? { slot: action.slot, seq: action.seq | 0, until: timeMs + localAuthorityMs, dashAlreadyApplied: true, dashLine }
+      : null;
+    if (action.clientAppliedDash && localAuthorityMs > 0) {
+      player.clientAuthoritativeUntil = Math.max(player.clientAuthoritativeUntil || 0, timeMs + localAuthorityMs);
+    }
     if (player.pendingAbilityCasts.length > 8) player.pendingAbilityCasts.splice(0, player.pendingAbilityCasts.length - 8);
     return;
   }

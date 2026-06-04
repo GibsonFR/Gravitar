@@ -200,7 +200,7 @@ function canCastAbilityLocalFirst(store, me, myState, slot) {
     return true;
   }
 
-  if (lastLocalCastAt > 0) return now + 25 >= localReadyAt;
+  if (lastLocalCastAt > 0) return now + 65 >= localReadyAt;
   return serverCd <= 0.03;
 }
 
