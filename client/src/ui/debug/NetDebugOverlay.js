@@ -19,6 +19,18 @@ function countLine(counts = {}) {
   return `P:${counts.players || 0} M:${counts.mobs || 0} Pr:${counts.projectiles || 0} A:${counts.asteroids || 0} S:${counts.structures || 0} L:${counts.loots || 0}`;
 }
 
+function clientCountLine(counts = {}) {
+  return `P:${counts.players || 0} M:${counts.mobs || 0} Pr:${counts.projectiles || 0} A:${counts.asteroids || 0} S:${counts.structures || 0} L:${counts.loots || 0}`;
+}
+
+function eventCountLine(counts = {}) {
+  return `E:${counts.events || 0} FX:${counts.combatFx || 0} WS:${counts.worldSfx || 0} L:${counts.logistics || 0} P:${counts.projectiles || 0}`;
+}
+
+function localEventLine(counts = {}) {
+  return `pT:${counts.projectileTombstones || 0} pIds:${counts.projectileEventIds || 0} log:${counts.logisticVisuals || 0} fx:${counts.pendingCombatFx || 0}`;
+}
+
 function topSectionLine(bytes = {}) {
   const items = Object.entries(bytes || {})
     .filter(([, v]) => Number(v) > 0)
@@ -63,7 +75,7 @@ export class NetDebugOverlay {
   render(force = false) {
     if (!this.visible || !this.netStats) return;
     const now = performance.now();
-    if (!force && now - this.lastRenderAt < 250) return;
+    if (!force && now - this.lastRenderAt < 500) return;
     this.lastRenderAt = now;
     const s = this.netStats.snapshot();
     this.el.innerHTML = `
@@ -100,6 +112,12 @@ export class NetDebugOverlay {
         <span>Interp buf</span><b>E:${s.interpolation?.entities || 0} S:${s.interpolation?.samples || 0}</b>
         <span>Events/s</span><b>${fmtRate(s.eventsPerSec)}</b>
         <span>Server events</span><b>${fmtRate(s.serverEventsPerSec)} · L:${fmtRate(s.logisticEventsPerSec)} P:${fmtRate(s.projectileEventsPerSec)}</b>
+        <span>Event age</span><b>${fmtMs(s.serverEventAgeAvgMs)} / ${fmtMs(s.serverEventAgeMaxMs)}</b>
+        <span>Proj ev age</span><b>${fmtMs(s.projectileEventAgeAvgMs)} / ${fmtMs(s.projectileEventAgeMaxMs)}</b>
+        <span>Log ev age</span><b>${fmtMs(s.logisticEventAgeAvgMs)} / ${fmtMs(s.logisticEventAgeMaxMs)}</b>
+        <span>Last snap ev</span><b>${eventCountLine(s.lastSnapshotEventCounts)}</b>
+        <span>Client entities</span><b>${clientCountLine(s.clientEntityCounts)}</b>
+        <span>Local event buf</span><b>${localEventLine(s.clientEventCounts)}</b>
         <span>Event dedup</span><b>${s.eventDeduper?.accepted || 0}/${s.eventDeduper?.duplicates || 0}</b>
         <span>Event HUD</span><b>A:${s.eventDrivenHud?.abilityUpdates || 0} D:${s.eventDrivenHud?.damageUpdates || 0} S:${s.eventDrivenHud?.statusUpdates || 0} P:${s.eventDrivenHud?.passiveUpdates || 0}</b>
         <span>Last reject</span><b>${s.eventDrivenHud?.lastAbilityReject ? `${s.eventDrivenHud.lastAbilityReject.slot}:${s.eventDrivenHud.lastAbilityReject.reason}` : '—'}</b>

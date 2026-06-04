@@ -89,6 +89,15 @@ export class NetStats {
 
     this.serverTick = 0;
     this.serverTime = 0;
+    this.serverEventAgeAvgMs = 0;
+    this.serverEventAgeMaxMs = 0;
+    this.projectileEventAgeAvgMs = 0;
+    this.projectileEventAgeMaxMs = 0;
+    this.logisticEventAgeAvgMs = 0;
+    this.logisticEventAgeMaxMs = 0;
+    this.lastSnapshotEventCounts = {};
+    this.clientEntityCounts = {};
+    this.clientEventCounts = {};
     this.inputSeq = 0;
     this.ackInputSeq = 0;
     this.pendingInputs = 0;
@@ -140,6 +149,29 @@ export class NetStats {
   setVisible(value) {
     this.visible = !!value;
     this.setEnabled(this.visible || this.enabled);
+  }
+
+  recordClientState(store) {
+    if (!store) return;
+    this.clientEntityCounts = {
+      projectiles: store.projectiles?.size || 0,
+      players: store.players?.size || 0,
+      mobs: store.mobs?.size || 0,
+      asteroids: store.asteroids?.size || 0,
+      structures: store.structures?.size || 0,
+      loots: store.loots?.size || 0,
+      drones: store.logisticDrones?.size || 0,
+      areaEffects: store.areaEffects?.size || 0
+    };
+    this.clientEventCounts = {
+      projectileTombstones: store.projectileEventTombstones?.size || 0,
+      projectileEventIds: store.projectileEventIds?.size || 0,
+      logisticVisuals: store.logisticTransferVisuals?.size || 0,
+      logisticCompleted: store.logisticCompletedVisualItems?.size || 0,
+      networkEvents: Array.isArray(store.networkEvents) ? store.networkEvents.length : 0,
+      pendingCombatFx: Array.isArray(store.pendingCombatFx) ? store.pendingCombatFx.length : 0,
+      pendingSfx: Array.isArray(store.pendingSfx) ? store.pendingSfx.length : 0
+    };
   }
 
   recordFrame() {
@@ -228,6 +260,47 @@ export class NetStats {
     const worldSfx = (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0);
     const logistics = (Array.isArray(msg?.logisticTransferEvents) ? msg.logisticTransferEvents.length : 0);
     const projectiles = (Array.isArray(msg?.projectileEvents) ? msg.projectileEvents.length : 0);
+    this.lastSnapshotEventCounts = {
+      events: genericEvents,
+      combatFx,
+      worldSfx,
+      logistics,
+      projectiles,
+      meSfx: Array.isArray(msg?.me?.sfx) ? msg.me.sfx.length : 0
+    };
+    const eventAge = (arr) => {
+      if (!Array.isArray(arr) || !arr.length || this.serverTime <= 0) return null;
+      let sum = 0;
+      let max = 0;
+      let count = 0;
+      for (const ev of arr) {
+        const age = Math.max(0, this.serverTime - finite(ev?.serverTime, this.serverTime));
+        sum += age;
+        max = Math.max(max, age);
+        count += 1;
+      }
+      return count ? { avg: sum / count, max } : null;
+    };
+    const logAge = eventAge(msg?.logisticTransferEvents);
+    const projAge = eventAge(msg?.projectileEvents);
+    const allAges = [
+      ...(Array.isArray(msg?.events) ? msg.events : []),
+      ...(Array.isArray(msg?.logisticTransferEvents) ? msg.logisticTransferEvents : []),
+      ...(Array.isArray(msg?.projectileEvents) ? msg.projectileEvents : [])
+    ];
+    const allAge = eventAge(allAges);
+    if (logAge) {
+      this.logisticEventAgeAvgMs = ema(this.logisticEventAgeAvgMs, logAge.avg, 0.18);
+      this.logisticEventAgeMaxMs = Math.max(this.logisticEventAgeMaxMs, logAge.max);
+    }
+    if (projAge) {
+      this.projectileEventAgeAvgMs = ema(this.projectileEventAgeAvgMs, projAge.avg, 0.18);
+      this.projectileEventAgeMaxMs = Math.max(this.projectileEventAgeMaxMs, projAge.max);
+    }
+    if (allAge) {
+      this.serverEventAgeAvgMs = ema(this.serverEventAgeAvgMs, allAge.avg, 0.18);
+      this.serverEventAgeMaxMs = Math.max(this.serverEventAgeMaxMs, allAge.max);
+    }
     this.eventsInWindow += genericEvents + combatFx + worldSfx + logistics + projectiles;
     this.serverEventsInWindow += logistics + projectiles;
     this.logisticEventsInWindow += logistics;
@@ -402,6 +475,15 @@ export class NetStats {
       droppedByBackpressure: this.droppedByBackpressure,
       serverTick: this.serverTick,
       serverTime: this.serverTime,
+      serverEventAgeAvgMs: this.serverEventAgeAvgMs,
+      serverEventAgeMaxMs: this.serverEventAgeMaxMs,
+      projectileEventAgeAvgMs: this.projectileEventAgeAvgMs,
+      projectileEventAgeMaxMs: this.projectileEventAgeMaxMs,
+      logisticEventAgeAvgMs: this.logisticEventAgeAvgMs,
+      logisticEventAgeMaxMs: this.logisticEventAgeMaxMs,
+      lastSnapshotEventCounts: { ...this.lastSnapshotEventCounts },
+      clientEntityCounts: { ...this.clientEntityCounts },
+      clientEventCounts: { ...this.clientEventCounts },
       clock: this.clock?.snapshot?.() || null,
       interpolation: this.interpolation?.stats?.() || null,
       inputHistory: this.inputHistory?.stats?.() || null,

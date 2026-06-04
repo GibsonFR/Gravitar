@@ -42,6 +42,40 @@ function segmentHitsCircle(x1, y1, x2, y2, cx, cy, radius) {
   return distPointToSegmentSq(cx, cy, x1, y1, x2, y2) <= radius * radius;
 }
 
+function projectileImpactPoint(proj, hit, oldX, oldY) {
+  const fallback = { x: Number(proj?.x) || 0, y: Number(proj?.y) || 0 };
+  if (!proj || !hit) return fallback;
+  const x1 = Number(oldX);
+  const y1 = Number(oldY);
+  const x2 = Number(proj.x);
+  const y2 = Number(proj.y);
+  if (![x1, y1, x2, y2].every(Number.isFinite)) return fallback;
+
+  const hx = Number(hit.x);
+  const hy = Number(hit.y);
+  const hr = Number(hit.radius || 0) + Number(proj.radius || 0);
+  if (Number.isFinite(hx) && Number.isFinite(hy) && hr > 0) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const fx = x1 - hx;
+    const fy = y1 - hy;
+    const a = dx * dx + dy * dy;
+    const b = 2 * (fx * dx + fy * dy);
+    const c = fx * fx + fy * fy - hr * hr;
+    const disc = b * b - 4 * a * c;
+    if (a > 0.000001 && disc >= 0) {
+      const s = Math.sqrt(disc);
+      const t1 = (-b - s) / (2 * a);
+      const t2 = (-b + s) / (2 * a);
+      const t = [t1, t2].filter((v) => v >= 0 && v <= 1).sort((aa, bb) => aa - bb)[0];
+      if (Number.isFinite(t)) return { x: x1 + dx * t, y: y1 + dy * t };
+    }
+  }
+
+  return fallback;
+}
+
+
 function pointInsideExpandedRect(x, y, wall, pad) {
   const w = wall.w || wall.radius * 2;
   const h = wall.h || wall.radius * 2;
@@ -270,7 +304,8 @@ export function updateProjectiles(state, dt, timeMs = null) {
         }
       }
 
-      queueProjectileImpactEvent(state, proj, hit, timeMs, { reason: 'hit' });
+      const impactPoint = projectileImpactPoint(proj, hit, oldX, oldY);
+      queueProjectileImpactEvent(state, proj, hit, timeMs, { reason: 'hit', x: impactPoint.x, y: impactPoint.y });
 
       if (proj.pierceLeft > 0) {
         proj.pierceLeft -= 1;

@@ -105,13 +105,15 @@ export function queueProjectileSpawnEvent(state, projectile, timeMs = Date.now()
 
 export function queueProjectileImpactEvent(state, projectile, target = null, timeMs = Date.now(), options = {}) {
   if (!projectile) return null;
+  const impactX = Number.isFinite(Number(options.x)) ? Number(options.x) : projectile.x;
+  const impactY = Number.isFinite(Number(options.y)) ? Number(options.y) : projectile.y;
   const payload = {
     action: 'impact',
     projectileId: projectile.id | 0,
     projectile: projectilePayload(projectile),
     target: entityRef(target),
-    x: q(projectile.x),
-    y: q(projectile.y),
+    x: q(impactX),
+    y: q(impactY),
     reason: String(options.reason || 'hit'),
     impact: {
       splashRadius: q(projectile.splashRadius || 0),
