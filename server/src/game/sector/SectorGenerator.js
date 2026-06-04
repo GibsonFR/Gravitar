@@ -837,15 +837,46 @@ function generateTestFactorioLogisticsContent(state, sx, sy, timeMs, h) {
 
   spawnStation(state, sx, sy, 1450, -1350, true, h ^ 0xfacc10, timeMs);
 
-  const chest = (x, y, resources = {}) => spawnTestStructure(state, 'storage', sx, sy, x, y, {
+  const ownerId = -237;
+  const ownerKey = 'test_factorio_logistics';
+  const ownerName = 'Test logistique';
+  const now = Date.now();
+
+  const add = (type, x, y, options = {}) => {
+    const st = createStructure(state, type, sx, sy, x, y, {
+      ownerId,
+      ownerKey,
+      ownerName,
+      worldId: 'endless',
+      createdAt: now,
+      updatedAt: now,
+      ...options
+    });
+    if (!st) return null;
+    st.owned = true;
+    st.testStructure = true;
+    st.powered = true;
+    state.structures.set(st.id, st);
+    return st;
+  };
+
+  add('base_core', 0, 0, {
+    ownerId,
+    ownerKey,
+    ownerName,
+    claimRadius: 1800
+  });
+
+  const chest = (x, y, resources = {}) => add('storage', x, y, {
     storage: { kind: 'resources', capacity: 240, resources: { ...resources } }
   });
-  const belt = (type, x, y, orientation = 'r', resources = {}) => spawnTestStructure(state, type, sx, sy, x, y, {
+  const belt = (type, x, y, orientation = 'r', resources = {}) => add(type, x, y, {
     orientation,
     storage: { kind: 'conveyor', capacity: 1, resources: { ...resources } }
   });
-  const arm = (type, x, y, orientation = 'r') => spawnTestStructure(state, type, sx, sy, x, y, { orientation });
+  const arm = (type, x, y, orientation = 'r') => add(type, x, y, { orientation });
 
+  // Ligne A : coffre source -> bras -> convoyeurs -> splitter -> deux sorties.
   chest(-448, -192, { ironOre: 80, copper: 40 });
   arm('robot_arm', -384, -192, 'r');
   belt('conveyor', -320, -192, 'r');
@@ -861,6 +892,7 @@ function generateTestFactorioLogisticsContent(state, sx, sy, timeMs, h) {
   arm('robot_arm', 64, -160, 'r');
   chest(128, -160, {});
 
+  // Ligne B : deux coffres -> deux bras -> merger -> sortie unique.
   chest(-448, 64, { silicon: 40 });
   chest(-448, 192, { quartz: 40 });
   arm('robot_arm', -384, 64, 'r');
@@ -873,6 +905,7 @@ function generateTestFactorioLogisticsContent(state, sx, sy, timeMs, h) {
   arm('fast_arm', -64, 128, 'r');
   chest(0, 128, {});
 
+  // Ligne C : bras long, avec une case vide entre source/bras et bras/sortie.
   chest(-448, 384, { ironIngot: 40 });
   arm('long_arm', -320, 384, 'r');
   belt('conveyor', -192, 384, 'r');
@@ -880,6 +913,7 @@ function generateTestFactorioLogisticsContent(state, sx, sy, timeMs, h) {
   arm('long_arm', 0, 384, 'r');
   chest(128, 384, {});
 
+  // Cas volontairement bloqué : doit montrer une sortie bloquée.
   belt('conveyor', -448, -448, 'r', { ironOre: 1 });
 
   const resources = [
