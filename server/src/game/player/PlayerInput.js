@@ -124,15 +124,13 @@ function setMoveTarget(player, x, y, options = {}) {
 function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
   if (player.sessionSetupPending || timeMs < (player.ignoreClientPoseUntil ?? 0)) return;
 
-  // Net V2 movement authority split:
-  // - normal movement = server simulation from move intention;
-  // - client cx/cy = diagnostic/correction hint only;
-  // - ability/dash = short client-authoritative pose accepted.
+  // Net V2:
+  // - déplacement normal : le client envoie une intention, le serveur simule ;
+  // - cx/cy ordinaires : hint/debug seulement ;
+  // - dash/ability : autorité locale courte acceptée.
   //
-  // The old behavior copied cx/cy on every ordinary input. That made remote
-  // observers depend on input frequency: spam-click/hold looked smooth, but a
-  // single click produced sparse server recalc/jumps. We now keep standard
-  // movement independent from client input cadence.
+  // Ne jamais recopier cx/cy sur un input de mouvement standard, sinon la fluidité
+  // observée dépend directement de la fréquence d'input client.
   const clientPoseAuthority = !!abilityFresh || (Number.isFinite(player.clientAuthoritativeUntil) && timeMs <= player.clientAuthoritativeUntil);
 
   if (clientPoseAuthority && Number.isFinite(msg.cx) && Number.isFinite(msg.cy)) {
@@ -194,13 +192,17 @@ function applyClientPoseFromAction(state, player, action, timeMs) {
   }
   if (Number.isFinite(action.cthrust)) player.localThrust = action.cthrust;
   player.lastClientPoseAt = timeMs;
-  player.clientAuthoritativeUntil = timeMs + 1200;
+  if (action.type === 'cast' && action.clientAppliedDash) player.clientAuthoritativeUntil = timeMs + 1200;
 }
 
 
 function applyActionPacket(state, player, action, timeMs) {
   if (!action || (action.seq | 0) <= (player.lastActionSeq | 0)) return;
-  applyClientPoseFromAction(state, player, action, timeMs);
+
+  // Très important : les actions de déplacement/target/interact ne doivent pas
+  // réappliquer la pose locale du client. Elles ne transportent qu'une intention.
+  // Les seules actions qui peuvent donner une autorité de pose temporaire sont
+  // les abilities/dash explicitement traitées dans leur branche dédiée.
   player.lastActionSeq = action.seq | 0;
 
   if (action.type === 'move') {

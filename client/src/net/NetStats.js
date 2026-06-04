@@ -443,7 +443,18 @@ export class NetStats {
         sectorStructures: Array.isArray(msg?.sectorBootstrap?.structures) ? msg.sectorBootstrap.structures.length : 0
       },
       events: { ...this.lastSnapshotEventCounts },
-      sectionBytes: { ...this.lastSectionBytes }
+      sectionBytes: { ...this.lastSectionBytes },
+      posePreview: Array.isArray(msg?.players) ? msg.players.slice(0, 3).map((p) => ({
+        id: p.id | 0,
+        x: Number(p.x || 0),
+        y: Number(p.y || 0),
+        vx: Number(p.vx || 0),
+        vy: Number(p.vy || 0),
+        hasMoveTarget: !!p.hasMoveTarget,
+        moveTx: Number(p.moveTx || 0),
+        moveTy: Number(p.moveTy || 0),
+        moveIntentSeq: p.moveIntentSeq | 0
+      })) : []
     });
   }
 

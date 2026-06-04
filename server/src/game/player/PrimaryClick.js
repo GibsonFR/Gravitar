@@ -83,6 +83,10 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
       player.selectedId = attack.id;
       player.autoTargetKind = attack.kind;
       player.autoTargetId = attack.id;
+      if (player.hasMoveTarget) {
+        player.moveIntentSeq = (player.moveIntentSeq | 0) + 1;
+        player.moveIntentEndedAt = Date.now();
+      }
       player.hasMoveTarget = false;
       player.holdMoveAllowed = false;
       player.groundMarkerTimer = 0;
@@ -98,6 +102,10 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
         player.forceFullUiSnapshot = true;
         player.selectedKind = 'structure';
         player.selectedId = storage.id | 0;
+        if (player.hasMoveTarget) {
+          player.moveIntentSeq = (player.moveIntentSeq | 0) + 1;
+          player.moveIntentEndedAt = Date.now();
+        }
         player.hasMoveTarget = false;
         player.holdMoveAllowed = false;
         player.groundMarkerTimer = 0;

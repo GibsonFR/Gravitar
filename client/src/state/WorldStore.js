@@ -667,9 +667,8 @@ export class WorldStore {
       remotePlayerLowLatency: true
     });
 
-    // Primary path: pose packets are now the authoritative remote-motion stream.
-    // Intent rendering is only a fallback if the interpolation buffer is actually
-    // late. It must not fight the normal interpolation path every frame.
+    // Source principale : player_pose_v2 interpolé.
+    // L'intention ne sert que de fallback quand le buffer est réellement en retard.
     if (!player.hasMoveTarget || !sampled?._interpolationLateMs || sampled._interpolationLateMs < 45) return sampled;
 
     const tx = Number(player.moveTx);
@@ -681,7 +680,10 @@ export class WorldStore {
     const d = Math.hypot(dx, dy);
     if (d <= 8) return sampled;
 
-    const speed = Math.max(0, Math.min(Number(player.engine || sampled.engine || 260), Math.hypot(Number(sampled.vx || player.vx || 0), Number(sampled.vy || player.vy || 0)) || Number(player.engine || sampled.engine || 260)));
+    const speed = Math.max(0, Math.min(
+      Number(player.engine || sampled.engine || 260),
+      Math.hypot(Number(sampled.vx || player.vx || 0), Number(sampled.vy || player.vy || 0)) || Number(player.engine || sampled.engine || 260)
+    ));
     const extraMs = Math.min(110, Math.max(0, Number(sampled._interpolationLateMs || 0)));
     const step = Math.min(d, speed * (extraMs / 1000));
 
