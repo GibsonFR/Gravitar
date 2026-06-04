@@ -228,6 +228,7 @@ export class NetStats {
       networkEvents: Array.isArray(store.networkEvents) ? store.networkEvents.length : 0,
       pendingCombatFx: Array.isArray(store.pendingCombatFx) ? store.pendingCombatFx.length : 0,
       pendingSfx: Array.isArray(store.pendingSfx) ? store.pendingSfx.length : 0,
+      hiddenRemotePlayers: store.hiddenRemotePlayers?.size || 0,
       lastRemotePlayerPruneReason: store.lastRemotePlayerPruneReason || '',
       lastRemotePlayerClearReason: store.lastRemotePlayerClearReason || ''
     };

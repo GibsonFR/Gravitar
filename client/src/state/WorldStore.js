@@ -11,6 +11,14 @@ function statusIdOf(entry) {
   return String(entry?.id || entry?.effectId || entry?.type || '').toLowerCase();
 }
 
+
+function hasStatusId(entity, id) {
+  const wanted = String(id || '').toLowerCase();
+  return (Array.isArray(entity?.statuses) ? entity.statuses : []).some((s) =>
+    String(s?.id || s?.effectId || s?.key || '').toLowerCase() === wanted
+  );
+}
+
 function hasAuthoritativeControlStatus(entity) {
   const statuses = Array.isArray(entity?.statuses) ? entity.statuses : [];
   for (const st of statuses) {
@@ -59,6 +67,7 @@ export class WorldStore {
     this.abilityProtocolEvents = [];
     this.statusEvents = [];
     this.passiveEvents = [];
+    this.hiddenRemotePlayers = new Map();
     this.eventDrivenHudStats = {
       abilityUpdates: 0,
       abilityRejects: 0,
@@ -1606,6 +1615,7 @@ export class WorldStore {
     for (const id of [...this.players.keys()]) {
       if ((id | 0) !== (this.myId | 0)) this.removeRemotePlayer(id);
     }
+    this.hiddenRemotePlayers?.clear?.();
     this.lastRemotePlayerClearReason = reason;
   }
 
@@ -1632,7 +1642,7 @@ export class WorldStore {
   applySectorBootstrap(bootstrap) {
     if (!bootstrap) return;
     const nextBootstrapId = bootstrap.id || `${bootstrap.worldId || 'endless'}:${bootstrap.sx | 0}:${bootstrap.sy | 0}`;
-    if (this.currentSectorBootstrapId && this.currentSectorBootstrapId !== nextBootstrapId) this.clearRemotePlayers('sector_bootstrap_changed');
+    if (this.currentSectorBootstrapId && this.currentSectorBootstrapId !== nextBootstrapId) { this.clearRemotePlayers('sector_bootstrap_changed'); this.hiddenRemotePlayers?.clear?.(); }
     this.currentSectorBootstrapId = nextBootstrapId;
     if (Array.isArray(bootstrap.asteroids)) this._syncMap(this.asteroids, bootstrap.asteroids, { preserveLocalRotation: true });
     if (Array.isArray(bootstrap.mobs)) this._syncMap(this.mobs, bootstrap.mobs);
@@ -1656,6 +1666,7 @@ export class WorldStore {
     for (const p of remotePlayers) {
       const id = p.id | 0;
       if (!id) continue;
+      if (this.hiddenRemotePlayers?.has?.(id)) continue;
       const current = this.players.get(id) || {};
       this.players.set(id, {
         ...current,
@@ -1698,11 +1709,18 @@ export class WorldStore {
     return Math.min(0.35, ageMs / 1000);
   }
 
+  serverCooldownAgeSec(msg = null) {
+    const serverTime = Number(msg?.time);
+    if (!Number.isFinite(serverTime) || serverTime <= 0 || !this.networkClock?.estimatedServerNowMs) return 0;
+    const ageMs = Math.max(0, this.networkClock.estimatedServerNowMs() - serverTime);
+    return Math.min(0.35, ageMs / 1000);
+  }
+
   syncLocalCooldownAuthorityFromStatus(player, msg = null) {
     if (!player || (player.id | 0) !== (this.myId | 0)) return;
     const now = performance.now();
     const cd = this.normalizePlayerCooldownKeys(player)?.cooldowns || {};
-    const slots = ['A', 'Z', 'E', 'R'];
+    const ageSec = this.serverCooldownAgeSec(msg);
 
     if (!this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt = {};
     if (!this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt = {};
@@ -1710,8 +1728,7 @@ export class WorldStore {
     if (!this.myState) return;
     if (!this.myState.cooldowns) this.myState.cooldowns = {};
 
-    const ageSec = this.serverCooldownAgeSec(msg);
-    for (const slot of slots) {
+    for (const slot of ['A', 'Z', 'E', 'R']) {
       const rawLeft = Math.max(0, Number(cd[slot]) || 0);
       const left = Math.max(0, rawLeft - ageSec);
       const safeLeft = left > 0.02 ? left + 0.015 : 0;
@@ -1761,9 +1778,31 @@ export class WorldStore {
         if (!p) continue;
         this.normalizePlayerCooldownKeys(p);
         const isSelf = (p.id | 0) === (this.myId | 0);
-        if (isSelf) this.syncLocalCooldownAuthorityFromStatus(p, msg);
-        this.applyPlayerStateV2(p, { preservePose: true });
-        if (isSelf) this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });
+        if (isSelf) {
+          this.syncLocalCooldownAuthorityFromStatus(p, msg);
+          this.applyPlayerStateV2(p, { preservePose: true });
+          this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });
+          continue;
+        }
+
+        // Camouflage visibility rule:
+        // remote camouflaged players are removed from local render/pose buffers.
+        // They still exist and can be hit server-side, but observers do not get
+        // live position/render until camouflage ends.
+        if (hasStatusId(p, 'camouflage')) {
+          const current = this.players.get(p.id | 0) || {};
+          this.hiddenRemotePlayers.set(p.id | 0, { ...current, ...p, hiddenReason: 'camouflage' });
+          this.removeRemotePlayer(p.id | 0);
+          continue;
+        }
+
+        if (this.hiddenRemotePlayers?.has?.(p.id | 0)) {
+          const hidden = this.hiddenRemotePlayers.get(p.id | 0) || {};
+          this.hiddenRemotePlayers.delete(p.id | 0);
+          this.applyPlayerStateV2({ ...hidden, ...p }, { preservePose: false, correction: true });
+        } else {
+          this.applyPlayerStateV2(p, { preservePose: true });
+        }
       }
       if (msg?.net?.authoritativePlayers) {
         this.pruneRemotePlayersNotIn(msg.players.map((p) => p?.id | 0), 'player_status_v2');
@@ -2080,8 +2119,8 @@ export class WorldStore {
     const now = performance.now();
     this.localPrediction.abilitySeq = (this.localPrediction.abilitySeq | 0) + 1;
     const authorityMs = Math.max(160, Math.min(380, Number(meta.authorityMs) || 220));
-    this.localPrediction.localCooldownLocks[s] = Math.max(this.localPrediction.localCooldownLocks[s] || 0, now + 160);
-    this.localPrediction.localAbilityAuthorityUntil = Math.max(this.localPrediction.localAbilityAuthorityUntil || 0, now + authorityMs);
+    this.localPrediction.localCooldownLocks[s] = Math.max(this.localPrediction.localCooldownLocks[s] || 0, now + 45);
+    this.localPrediction.localAbilityAuthorityUntil = Math.max(this.localPrediction.localAbilityAuthorityUntil || 0, now + Math.min(160, authorityMs));
     if (!this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt = {};
     if (!this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt = {};
     if (Number.isFinite(cooldownLeft)) {

@@ -789,7 +789,7 @@ export function drawShip(ctx, view, p, camX, camY, t, mouseWorld, players, aster
   const ang = Number.isFinite(p.rot) ? p.rot : 0;
   const palette = getShipFramePalette(p.frameId);
   const camouflaged = hasStatus(p, 'camouflage');
-  const camouflageAlpha = camouflaged ? (p.isSelf ? 0.42 : 0.08) : 1;
+  const camouflageAlpha = camouflaged ? (p.isSelf ? 0.42 : 0.0) : 1;
 
   drawFrameTrail(ctx, view, p, camX, camY, t);
   drawFrameSignatureAura(ctx, view, p, sx, sy, t);

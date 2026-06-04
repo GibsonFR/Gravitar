@@ -209,6 +209,7 @@ function playerStatusCompact(player, selfId = 0) {
     },
     rocketCooldownLeft: q(player.rocketCooldownLeft || 0),
     statuses: buildStatusSnapshot(player, 8),
+    frameState: buildFrameUiState(player, Date.now()) || player.frameState || {},
     selectedKind: player.selectedKind || '',
     selectedId: player.selectedId | 0,
     autoTargetKind: player.autoTargetKind || '',
@@ -270,6 +271,23 @@ function playerSessionCompact(player, selfId = 0, state = null, timeMs = Date.no
   return base;
 }
 
+
+function hasStatusId(entity, id) {
+  const wanted = String(id || '').toLowerCase();
+  return (Array.isArray(entity?.statuses) ? entity.statuses : []).some((s) =>
+    String(s?.id || s?.effectId || s?.key || '').toLowerCase() === wanted
+  );
+}
+
+function canObserverReceivePlayerPose(target, observer) {
+  if (!target || !observer) return false;
+  if ((target.id | 0) === (observer.id | 0)) return true;
+  // Camouflage is a gameplay visibility state: observers should not receive
+  // real-time pose updates while it is active. Hits/collisions remain server-side.
+  if (hasStatusId(target, 'camouflage')) return false;
+  return true;
+}
+
 function sameWorldSector(a, b) {
   return !!a && !!b
     && String(a.worldId || 'endless') === String(b.worldId || 'endless')
@@ -299,8 +317,8 @@ function buildSectorBootstrap(state, me, timeMs) {
     sx,
     sy,
     builtAt: timeMs,
-    asteroids: buildAsteroidSnapshots(state.asteroids, inSector),
-    mobs: buildMobSnapshots(state.mobs, inSector, { compact: false }),
+    asteroids: buildAsteroidSnapshots(state.asteroids, inWorldSector),
+    mobs: buildMobSnapshots(state.mobs, inWorldSector, { compact: false }),
     stations: buildStationSnapshots(state.stations, inSector),
     structures: buildStructureSnapshots(state.structures, inWorldSector, me),
     portals: buildPortalSnapshots(state.portals, inSector, state, me, timeMs),
@@ -375,6 +393,7 @@ export function buildNetV2PlayerPosePacket(state, playerId, timeMs) {
   const players = [...state.players.values()]
     .filter((p) => (p.id | 0) !== (playerId | 0))
     .filter((p) => sameWorldSector(p, me))
+    .filter((p) => canObserverReceivePlayerPose(p, me))
     .map((p) => playerPoseCompact(p, playerId))
     .filter(Boolean);
 
