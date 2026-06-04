@@ -140,6 +140,11 @@ export class NetClient {
         this.netStats.recordNetworkEventsPacket?.(msg, raw.length);
         this.store.applyNetworkEventsV2?.(msg);
       }
+      if (msg.t === 'world_entities_delta_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordWorldEntitiesDeltaPacket?.(msg, raw.length);
+        this.store.applyWorldEntitiesDeltaV2?.(msg);
+      }
       if (msg.t === 'player_enter_sector_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordLifecyclePacket?.(msg, raw.length);

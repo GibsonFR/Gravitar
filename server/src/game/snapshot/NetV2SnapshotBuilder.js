@@ -591,3 +591,31 @@ export function buildNetV2NetworkEventsPacket(state, playerId, events, timeMs) {
     }
   };
 }
+
+
+export function buildNetV2WorldEntitiesDeltaPacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  const sx = me.sx | 0;
+  const sy = me.sy | 0;
+  const worldId = String(me.worldId || 'endless');
+  const inSector = (entity) => sameSector(entity, sx, sy) && sameWorld(entity, worldId);
+
+  return {
+    t: 'world_entities_delta_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    worldId,
+    sx,
+    sy,
+    asteroids: buildAsteroidSnapshots(state.asteroids, inSector),
+    mobs: buildMobSnapshots(state.mobs, inSector, { compact: false }),
+    loots: buildLootSnapshots(state.loots, inSector),
+    net: {
+      netV2Reset: true,
+      packet: 'world_entities_delta_v2',
+      authoritativeSectorEntities: true
+    }
+  };
+}

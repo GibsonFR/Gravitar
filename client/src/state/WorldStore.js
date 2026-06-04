@@ -172,7 +172,9 @@ export class WorldStore {
     if (k === 'player') return this.players.get(targetId) || null;
     if (k === 'mob') return this.mobs.get(targetId) || null;
     if (k === 'structure') return this.structures.get(targetId) || null;
-    return this.players.get(targetId) || this.mobs.get(targetId) || this.structures.get(targetId) || null;
+    if (k === 'asteroid') return this.asteroids.get(targetId) || null;
+    if (k === 'loot') return this.loots.get(targetId) || null;
+    return this.players.get(targetId) || this.mobs.get(targetId) || this.asteroids.get(targetId) || this.structures.get(targetId) || this.loots.get(targetId) || null;
   }
 
   setAbilityCooldownFromEvent(slot, cooldownSec = 0, payload = {}) {
@@ -413,8 +415,10 @@ export class WorldStore {
         const projectile = ev.projectile || null;
         if (!projectile) continue;
         const current = this.projectiles.get(projectileId) || {};
-        const spawnX = Number(projectile.x) || 0;
-        const spawnY = Number(projectile.y) || 0;
+        const isOwnProjectile = (projectile.sourceId | 0) === (this.myId | 0);
+        const me = isOwnProjectile ? this.getMe() : null;
+        const spawnX = isOwnProjectile && Number.isFinite(Number(me?.x)) ? Number(me.x) : (Number(projectile.x) || 0);
+        const spawnY = isOwnProjectile && Number.isFinite(Number(me?.y)) ? Number(me.y) : (Number(projectile.y) || 0);
         const serverNow = this._estimateServerNow();
         const eventServerTime = Number(ev.serverTime || 0) || this.lastServerTime || Date.now();
         const elapsedMs = Math.max(0, Math.min(1200, serverNow - eventServerTime));
@@ -1535,6 +1539,21 @@ export class WorldStore {
         this.noteLocalPassiveEvent(sourceSlot || 'server_hit', 1, { authorityMs: 900 });
       }
 
+      if (ev?.type === 'damage') {
+        const id = ev.targetId | 0;
+        const kind = String(ev.targetKind || '').toLowerCase();
+        const target = this.getEntityByEventTarget(kind, id);
+        if (target?.vitals) {
+          const amount = Math.max(0, Number(ev.amount || 0));
+          const hp = Math.max(0, Number(target.vitals.hp ?? target.vitals.health ?? 0) - amount);
+          target.vitals = { ...target.vitals, hp };
+          target._lastDamageAt = performance.now();
+          if (kind === 'asteroid' && hp <= 0) this.asteroids.delete(id);
+          if (kind === 'mob' && hp <= 0) this.mobs.delete(id);
+        }
+        continue;
+      }
+
       if (ev?.type !== 'structure_state') continue;
       const id = ev.structureId | 0 || ev.targetId | 0;
       if (!id) continue;
@@ -1560,7 +1579,7 @@ export class WorldStore {
     const correction = !!options.correction || !!player.correction || !!player.forceCorrection;
     const hasCurrentPose = Number.isFinite(Number(current.x)) && Number.isFinite(Number(current.y));
 
-    if ((isSelf || options.preservePose) && hasCurrentPose && !correction) {
+    if ((isSelf || options.preservePose) && hasCurrentPose && !correction && !options.snapOwnPlayer) {
       const next = {
         ...current,
         ...player,
@@ -1637,6 +1656,17 @@ export class WorldStore {
 
   applySectorUnloadV2(msg) {
     this.clearRemotePlayers(msg?.reason || 'sector_unload');
+  }
+
+  applyWorldEntitiesDeltaV2(msg) {
+    if (!msg) return;
+    const expected = this.currentSectorBootstrapId || '';
+    const sectorId = `${msg.worldId || 'endless'}:${msg.sx | 0}:${msg.sy | 0}`;
+    if (expected && sectorId !== expected) return;
+
+    if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true });
+    if (Array.isArray(msg.mobs)) this._syncMap(this.mobs, msg.mobs);
+    if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots);
   }
 
   applySectorBootstrap(bootstrap) {
@@ -1842,10 +1872,12 @@ export class WorldStore {
     this.lastSnapAt = snapLocalNow;
     this.lastServerTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : Date.now();
     this.lastServerTimeAt = snapLocalNow;
+    const hasSectorBootstrap = !!msg.sectorBootstrap;
     this.myState = this._mergeMyState(msg.me ?? null);
     if (this.myState?.id) this.myId = this.myState.id | 0;
-    if (msg.me) this.applyPlayerStateV2(msg.me);
-    this.applySectorBootstrap(msg.sectorBootstrap);
+    if (hasSectorBootstrap) this.applySectorBootstrap(msg.sectorBootstrap);
+    if (msg.me) this.applyPlayerStateV2(msg.me, { correction: hasSectorBootstrap, snapOwnPlayer: hasSectorBootstrap });
+    if (!hasSectorBootstrap) this.applySectorBootstrap(msg.sectorBootstrap);
 
     if (Array.isArray(msg.players)) {
       for (const p of msg.players) {

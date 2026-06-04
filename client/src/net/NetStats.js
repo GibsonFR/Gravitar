@@ -35,16 +35,24 @@ export class NetStats {
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
     this.lifecyclePacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -92,6 +100,7 @@ export class NetStats {
     this.ackPacketsPerSec = 0;
     this.statusPacketsPerSec = 0;
     this.sessionPacketsPerSec = 0;
+    this.worldDeltaPacketsPerSec = 0;
     this.inputsPerSec = 0;
     this.commandsPerSec = 0;
     this.cmdAcksPerSec = 0;
@@ -153,6 +162,7 @@ export class NetStats {
     this.lastLifecyclePacket = null;
     this.lastStatusPacket = null;
     this.lastSessionPacket = null;
+    this.lastWorldDeltaPacket = null;
     this.clientEntityCounts = {};
     this.clientEventCounts = {};
     this.inputSeq = 0;
@@ -426,6 +436,29 @@ export class NetStats {
       ids: this.lastLifecyclePacket.ids,
       players: this.lastLifecyclePacket.players,
       reason: this.lastLifecyclePacket.reason,
+      serverTime: msg?.time || 0,
+      serverTick: msg?.tick || 0
+    });
+  }
+
+  recordWorldEntitiesDeltaPacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.worldDeltaPacketsInWindow += 1;
+    this.lastWorldDeltaPacket = {
+      asteroids: Array.isArray(msg?.asteroids) ? msg.asteroids.length : 0,
+      mobs: Array.isArray(msg?.mobs) ? msg.mobs.length : 0,
+      loots: Array.isArray(msg?.loots) ? msg.loots.length : 0,
+      sector: `${msg?.worldId || 'endless'}:${msg?.sx | 0}:${msg?.sy | 0}`,
+      bytes: b
+    };
+    this.pushDebugHistory({
+      kind: 'world_entities_delta_v2',
+      type: msg?.t || 'world_entities_delta_v2',
+      bytes: b,
+      asteroids: this.lastWorldDeltaPacket.asteroids,
+      mobs: this.lastWorldDeltaPacket.mobs,
+      loots: this.lastWorldDeltaPacket.loots,
+      sector: this.lastWorldDeltaPacket.sector,
       serverTime: msg?.time || 0,
       serverTick: msg?.tick || 0
     });
@@ -781,6 +814,7 @@ export class NetStats {
     this.ackPacketsPerSec = this.ackPacketsInWindow / elapsed;
     this.statusPacketsPerSec = this.statusPacketsInWindow / elapsed;
     this.sessionPacketsPerSec = this.sessionPacketsInWindow / elapsed;
+    this.worldDeltaPacketsPerSec = this.worldDeltaPacketsInWindow / elapsed;
     this.inputsPerSec = this.inputsOutWindow / elapsed;
     this.commandsPerSec = this.commandsOutWindow / elapsed;
     this.cmdAcksPerSec = this.cmdAcksInWindow / elapsed;
@@ -800,6 +834,8 @@ export class NetStats {
       ackPacketsPerSec: this.ackPacketsPerSec,
       statusPacketsPerSec: this.statusPacketsPerSec,
       sessionPacketsPerSec: this.sessionPacketsPerSec,
+      worldDeltaPacketsPerSec: this.worldDeltaPacketsPerSec,
+      lastWorldDeltaPacket: this.lastWorldDeltaPacket,
       lastStatusPacket: this.lastStatusPacket,
       lastSessionPacket: this.lastSessionPacket,
       lastLifecyclePacket: this.lastLifecyclePacket,
@@ -828,16 +864,24 @@ export class NetStats {
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
     this.lifecyclePacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
+    this.worldDeltaPacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -891,6 +935,8 @@ export class NetStats {
       ackPacketsPerSec: this.ackPacketsPerSec,
       statusPacketsPerSec: this.statusPacketsPerSec,
       sessionPacketsPerSec: this.sessionPacketsPerSec,
+      worldDeltaPacketsPerSec: this.worldDeltaPacketsPerSec,
+      lastWorldDeltaPacket: this.lastWorldDeltaPacket,
       lastStatusPacket: this.lastStatusPacket,
       lastSessionPacket: this.lastSessionPacket,
       lastLifecyclePacket: this.lastLifecyclePacket,
