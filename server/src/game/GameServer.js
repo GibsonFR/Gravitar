@@ -35,7 +35,7 @@ const ACCOUNT_AUTOSAVE_INTERVAL_MS = Number(process.env.GRAVITAR_AUTOSAVE_MS || 
 const NET_V2_RESET_ENABLED = process.env.GRAVITAR_NET_V2_RESET !== '0';
 const NET_V2_ACTIVE_STATE_RATE_MS = Math.max(50, Number(process.env.GRAVITAR_NET_V2_ACTIVE_STATE_RATE_MS || 100));
 const NET_V2_IDLE_STATE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_IDLE_STATE_RATE_MS || 1000));
-const NET_V2_POSE_RATE_MS = Math.max(33, Number(process.env.GRAVITAR_NET_V2_POSE_RATE_MS || 67));
+const NET_V2_POSE_RATE_MS = Math.max(33, Number(process.env.GRAVITAR_NET_V2_POSE_RATE_MS || 50));
 
 export function createGameServer() {
   const state = createGameState();
@@ -236,7 +236,6 @@ export function createGameServer() {
 
     if (snapAcc >= SNAP_RATE) {
       snapAcc = 0;
-    poseAcc = 0;
       const ids = getConnectedIds();
       const timeMs = setSimulationTime(state, nowMs());
       for (const id of ids) {

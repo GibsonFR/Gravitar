@@ -642,7 +642,10 @@ export class WorldStore {
 
   getRemotePlayerRenderServerTimeMs() {
     const clock = this.networkClock?.snapshot?.() || null;
-    const delay = Math.max(38, Math.min(72, Number(clock?.interpolationDelayMs || 120) * 0.45));
+    // Les joueurs distants doivent être interpolés, pas extrapolés en permanence.
+    // Avec des poses ~20 Hz, on garde environ 2 samples de retard pour lisser la gigue.
+    const baseDelay = Number(clock?.interpolationDelayMs || 120);
+    const delay = Math.max(82, Math.min(145, baseDelay * 0.75));
     return this.getEstimatedServerNowMs() - delay;
   }
 
@@ -662,7 +665,7 @@ export class WorldStore {
       if ((p.id | 0) === (this.myId | 0)) out.push(p);
       else out.push(this.sampleInterpolatedEntity('player', p, {
         renderTimeMs: remotePlayerRenderTime,
-        maxExtrapolateMs: 95,
+        maxExtrapolateMs: 130,
         remotePlayerLowLatency: true
       }));
     }
@@ -1472,7 +1475,7 @@ export class WorldStore {
     const correction = !!options.correction || !!player.correction || !!player.forceCorrection;
     const hasCurrentPose = Number.isFinite(Number(current.x)) && Number.isFinite(Number(current.y));
 
-    if (isSelf && hasCurrentPose && !correction) {
+    if ((isSelf || options.preservePose) && hasCurrentPose && !correction) {
       const next = {
         ...current,
         ...player,
@@ -1556,8 +1559,12 @@ export class WorldStore {
     this.applySectorBootstrap(msg.sectorBootstrap);
 
     if (Array.isArray(msg.players)) {
-      for (const p of msg.players) this.applyPlayerStateV2(p);
-      this.interpolationStore?.pushMany?.('player', msg.players.filter((p) => (p.id | 0) !== (this.myId | 0)), this.lastServerTime);
+      for (const p of msg.players) {
+        const isSelf = (p.id | 0) === (this.myId | 0);
+        this.applyPlayerStateV2(p, { preservePose: !isSelf });
+      }
+      // Net V2 : player_pose_v2 est l'unique source de pose distante.
+      // state_v2 transporte état/session/vitals/cooldowns, mais ne doit pas polluer le buffer d'interpolation.
     }
 
     if (Number.isFinite(Number(msg.ackInputSeq))) this.ackInputSeq = Number(msg.ackInputSeq) | 0;

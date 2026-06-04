@@ -31,6 +31,9 @@ export class NetStats {
     this.snapshotsInWindow = 0;
     this.stateV2InWindow = 0;
     this.posePacketsInWindow = 0;
+    this.lastPosePacketAt = 0;
+    this.posePacketGapMs = 0;
+    this.posePacketGapMaxMs = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
@@ -285,8 +288,15 @@ export class NetStats {
   }
 
   recordPosePacket(msg, bytes = 0) {
+    const now = nowMs();
     const b = finite(bytes, 0);
     this.posePacketsInWindow += 1;
+    if (this.lastPosePacketAt > 0) {
+      const gap = now - this.lastPosePacketAt;
+      this.posePacketGapMs = ema(this.posePacketGapMs, gap, 0.18);
+      this.posePacketGapMaxMs = Math.max(this.posePacketGapMaxMs, gap);
+    }
+    this.lastPosePacketAt = now;
     this.lastSnapshotBytes = b;
     this.serverTick = finite(msg?.tick, this.serverTick);
     this.netV2Reset = !!msg?.net?.netV2Reset || msg?.protocol === 'net_v2_reset';
@@ -556,6 +566,9 @@ export class NetStats {
     this.snapshotsInWindow = 0;
     this.stateV2InWindow = 0;
     this.posePacketsInWindow = 0;
+    this.lastPosePacketAt = 0;
+    this.posePacketGapMs = 0;
+    this.posePacketGapMaxMs = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
