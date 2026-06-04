@@ -658,16 +658,50 @@ export class WorldStore {
     return { ...entity, ...sampled, _interpolated: true };
   }
 
+  sampleRemoteIntentPlayer(player) {
+    if (!player || (player.id | 0) === (this.myId | 0)) return player;
+    if (!player.hasMoveTarget) return player;
+
+    const sampled = this.sampleInterpolatedEntity('player', player, {
+      renderTimeMs: this.getRemotePlayerRenderServerTimeMs(),
+      maxExtrapolateMs: 180,
+      remotePlayerLowLatency: true
+    });
+
+    // If interpolation is late and the server says the remote still has a move intent,
+    // continue a very short deterministic extrapolation toward the same target.
+    // This avoids the "single click = stair-step" feel when packets are sparse for a moment.
+    if (!sampled?._interpolationLateMs || sampled._interpolationLateMs <= 30) return sampled;
+
+    const tx = Number(player.moveTx);
+    const ty = Number(player.moveTy);
+    if (!Number.isFinite(tx) || !Number.isFinite(ty)) return sampled;
+
+    const dx = tx - Number(sampled.x || 0);
+    const dy = ty - Number(sampled.y || 0);
+    const d = Math.hypot(dx, dy);
+    if (d <= 8) return sampled;
+
+    const vx = Number(sampled.vx || player.vx || 0);
+    const vy = Number(sampled.vy || player.vy || 0);
+    const speed = Math.max(0, Math.min(Number(player.engine || 260), Math.hypot(vx, vy) || Number(player.engine || 260)));
+    const extraMs = Math.min(120, Math.max(0, Number(sampled._interpolationLateMs || 0)));
+    const step = Math.min(d, speed * (extraMs / 1000));
+
+    return {
+      ...sampled,
+      x: Number(sampled.x || 0) + (dx / d) * step,
+      y: Number(sampled.y || 0) + (dy / d) * step,
+      vx: (dx / d) * speed,
+      vy: (dy / d) * speed
+    };
+  }
+
   getRenderPlayers() {
     const out = [];
-    const remotePlayerRenderTime = this.getRemotePlayerRenderServerTimeMs();
     for (const p of this.players.values()) {
       if ((p.id | 0) === (this.myId | 0)) out.push(p);
-      else out.push(this.sampleInterpolatedEntity('player', p, {
-        renderTimeMs: remotePlayerRenderTime,
-        maxExtrapolateMs: 130,
-        remotePlayerLowLatency: true
-      }));
+      else out.push(this.sampleRemoteIntentPlayer(p));
     }
     return out;
   }

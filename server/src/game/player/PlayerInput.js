@@ -114,6 +114,8 @@ function setMoveTarget(player, x, y, options = {}) {
   player.groundMarkerX = x;
   player.groundMarkerY = y;
   player.groundMarkerTimer = 0.85;
+  player.moveIntentSeq = (player.moveIntentSeq | 0) + 1;
+  player.moveIntentStartedAt = Date.now();
   clearAutoAttack(player, { clearSelection: options.clearSelection !== false });
 }
 
@@ -149,7 +151,15 @@ function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
   }
   if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
   player.lastClientPoseAt = timeMs;
-  player.clientAuthoritativeUntil = timeMs + (abilityFresh ? 1400 : 650);
+
+  // Net V2 movement model:
+  // - ordinary movement is driven by a server-side move target and integrated every server tick;
+  // - client pose packets are accepted as validation/correction hints, but must not freeze
+  //   server simulation for 650 ms, otherwise a single click only updates observers when
+  //   the client sends its sparse idle input;
+  // - ability/dash packets may still keep short local authority because the client has
+  //   already played an immediate burst movement locally.
+  if (abilityFresh) player.clientAuthoritativeUntil = Math.max(player.clientAuthoritativeUntil || 0, timeMs + 1400);
 }
 
 function applyClientPoseFromAction(state, player, action, timeMs) {

@@ -62,6 +62,8 @@ function setMoveNearEntity(player, target, desiredRange) {
   player.groundMarkerX = player.moveTx;
   player.groundMarkerY = player.moveTy;
   player.groundMarkerTimer = 0.65;
+  player.moveIntentSeq = (player.moveIntentSeq | 0) + 1;
+  player.moveIntentStartedAt = Date.now();
   return true;
 }
 
@@ -579,6 +581,10 @@ export function updatePlayer(state, p, dt, timeMs = null) {
       mx = n.x;
       my = n.y;
     } else {
+      if (p.hasMoveTarget) {
+        p.moveIntentSeq = (p.moveIntentSeq | 0) + 1;
+        p.moveIntentEndedAt = Date.now();
+      }
       p.hasMoveTarget = false;
       p.vx = 0;
       p.vy = 0;
