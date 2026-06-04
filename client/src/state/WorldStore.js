@@ -1489,7 +1489,18 @@ export class WorldStore {
     }
     if (Array.isArray(msg.structureAutomation)) this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
-    if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles.filter((p) => Number(this.projectileEventTombstones?.get?.(p.id | 0) || 0) <= snapLocalNow));
+    if (Array.isArray(msg.projectiles)) {
+      const projectileSnapshots = msg.projectiles.filter((p) => Number(this.projectileEventTombstones?.get?.(p.id | 0) || 0) <= snapLocalNow);
+      if (msg.staticWorld) this._syncMap(this.projectiles, projectileSnapshots);
+      else {
+        for (const p of projectileSnapshots) {
+          const id = p.id | 0;
+          if (!id) continue;
+          const current = this.projectiles.get(id) || {};
+          this.projectiles.set(id, { ...current, ...p });
+        }
+      }
+    }
     if (Array.isArray(msg.logisticDrones)) this._syncMap(this.logisticDrones, msg.logisticDrones);
     if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);
     if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots);

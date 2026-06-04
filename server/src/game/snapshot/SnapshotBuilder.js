@@ -84,6 +84,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const events = buildNetworkEventsFromLegacy(state, playerId, timeMs, visibleWorldSfx, visibleCombatFx, playerSfx, abilityProtocolEvents, statusEvents, passiveEvents);
   const logisticTransferEvents = peekLogisticTransferEventsForPlayer(state, me);
   const projectileEvents = peekProjectileEventsForPlayer(state, me);
+  const includeProjectileSnapshots = staticWorld || fullUi || !!options.includeProjectileSnapshots;
 
   const snapshot = {
     t: 'snap',
@@ -113,7 +114,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     structureAutomation: staticWorld ? buildStructureAutomationSnapshots(state.structures, nearStatic) : buildStructureAutomationCombatSnapshots(state.structures, nearDynamic),
     portals: staticWorld ? buildPortalSnapshots(state.portals, nearStatic, state, me, timeMs) : undefined,
     staticWorld,
-    projectiles: buildProjectileSnapshots(state.projectiles, nearDynamic),
+    projectiles: includeProjectileSnapshots ? buildProjectileSnapshots(state.projectiles, nearDynamic) : undefined,
     logisticDrones: buildLogisticDroneSnapshots(state.structures, nearDynamic, timeMs),
     areaEffects: [
       ...buildAreaEffectSnapshots(state.areaEffects, nearDynamic),
