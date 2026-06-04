@@ -1462,11 +1462,37 @@ export class WorldStore {
     }
   }
 
-  applyPlayerStateV2(player) {
+  applyPlayerStateV2(player, options = {}) {
     if (!player) return;
     const id = player.id | 0;
     if (!id) return;
+
+    const isSelf = id === (this.myId | 0) || !!player.isSelf;
     const current = this.players.get(id) || {};
+    const correction = !!options.correction || !!player.correction || !!player.forceCorrection;
+    const hasCurrentPose = Number.isFinite(Number(current.x)) && Number.isFinite(Number(current.y));
+
+    if (isSelf && hasCurrentPose && !correction) {
+      const next = {
+        ...current,
+        ...player,
+        x: current.x,
+        y: current.y,
+        vx: current.vx,
+        vy: current.vy,
+        rot: current.rot,
+        _serverX: player.x,
+        _serverY: player.y,
+        _tx: current.x,
+        _ty: current.y,
+        vitals: player.vitals || player.stats || current.vitals,
+        radius: Number(player.radius || current.radius || 22),
+        engine: Number(player.engine || current.engine || 250)
+      };
+      this.players.set(id, next);
+      return;
+    }
+
     const next = {
       ...current,
       ...player,
@@ -1498,11 +1524,10 @@ export class WorldStore {
     this.lastServerTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : Date.now();
     this.lastServerTimeAt = snapLocalNow;
     this.myState = this._mergeMyState(msg.me ?? null);
+    if (this.myState?.id) this.myId = this.myState.id | 0;
     if (msg.me) this.applyPlayerStateV2(msg.me);
     this.applySectorBootstrap(msg.sectorBootstrap);
-    if (this.myState?.id) this.myId = this.myState.id | 0;
 
-    if (msg.me) this.applyPlayerStateV2(msg.me);
     if (Array.isArray(msg.players)) {
       for (const p of msg.players) this.applyPlayerStateV2(p);
       this.interpolationStore?.pushMany?.('player', msg.players.filter((p) => (p.id | 0) !== (this.myId | 0)), this.lastServerTime);

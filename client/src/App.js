@@ -760,8 +760,7 @@ export function startApp() {
     input.suppressRightHoldUntilUp = false;
   }
 
-  function makeInputSignature(primaryHold, mouseForServer, actionCount) {
-    const me = store.getMe();
+  function makeInputSignature(primaryHold, actionCount) {
     const localMoveX = Math.round((store.localPrediction?.moveX ?? 0) * 100) / 100;
     const localMoveY = Math.round((store.localPrediction?.moveY ?? 0) * 100) / 100;
     const selectedKind = store.localPrediction?.selectedKind || store.myState?.selectedKind || '';
@@ -778,14 +777,10 @@ export function startApp() {
       actionCount | 0,
       localMoveX,
       localMoveY,
-      Math.round(Number(mouseForServer?.x || 0) / 8),
-      Math.round(Number(mouseForServer?.y || 0) / 8),
       selectedKind,
       selectedId | 0,
       attackKind,
-      attackId | 0,
-      Math.round(Number(me?.x || 0) / 3),
-      Math.round(Number(me?.y || 0) / 3)
+      attackId | 0
     ].join('|');
   }
 
@@ -834,9 +829,8 @@ export function startApp() {
         }
       }
     }
-
     const nowMs = performance.now();
-    const inputSignature = makeInputSignature(primaryHold, mouseForServer, actionBatch.length);
+    const inputSignature = makeInputSignature(primaryHold, actionBatch.length);
     const hasImmediateAction = actionBatch.length > 0 || input.clickQueued || input.targetClickQueued || input.interactTap || input.rocketTap || input.moveWorldQueued;
     const changed = inputSignature !== lastInputSignature;
     const minInterval = changed || primaryHold ? NET_V2_INPUT_INTERVAL_MS : NET_V2_IDLE_INPUT_INTERVAL_MS;
