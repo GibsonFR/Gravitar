@@ -11,6 +11,7 @@ import { sameWorld } from '../modes/GameModes.js';
 import { canPlayerDamageStructure, distanceSqToStructureRect } from '../structures/StructureSystem.js';
 import { STRUCTURE_TYPES } from '../structures/StructureDefs.js';
 import { damageLogisticDroneByProjectile } from '../structures/StructureLogistics.js';
+import { queueProjectileSpawnEvent, queueProjectileImpactEvent, queueProjectileDestroyEvent } from '../events/ProjectileEvents.js';
 
 function circleHitsRect(cx, cy, radius, wall) {
   const w = wall.w || wall.radius * 2;
@@ -77,11 +78,12 @@ export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, spee
   const startY = owner.y + dir.y * (owner.radius + 8);
   const id = newEntityId(state);
 
-  state.projectiles.set(id, {
+  const projectile = {
     id,
     kind: 'projectile',
     sx: owner.sx | 0,
     sy: owner.sy | 0,
+    worldId: String(owner.worldId || 'endless'),
     x: startX,
     y: startY,
     vx: dir.x * speed + owner.vx * 0.1,
@@ -112,7 +114,10 @@ export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, spee
     pierceLeft: extras?.pierceLeft ?? 0,
     hitIds: extras?.hitIds ?? new Set(),
     maxLifetimeMs: extras?.maxLifetimeMs ?? 0
-  });
+  };
+
+  state.projectiles.set(id, projectile);
+  queueProjectileSpawnEvent(state, projectile, timeMs);
 
   return id;
 }
@@ -265,9 +270,12 @@ export function updateProjectiles(state, dt, timeMs = null) {
         }
       }
 
+      queueProjectileImpactEvent(state, proj, hit, timeMs, { reason: 'hit' });
+
       if (proj.pierceLeft > 0) {
         proj.pierceLeft -= 1;
       } else {
+        queueProjectileDestroyEvent(state, proj, timeMs, 'impact');
         state.projectiles.delete(proj.id);
         continue;
       }
@@ -281,6 +289,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
     ) {
       const sourcePlayer = state.players.get(proj.sourceId) ?? null;
       if (sourcePlayer) onProjectileExpireForFrame(state, sourcePlayer, proj, timeMs);
+      queueProjectileDestroyEvent(state, proj, timeMs, 'expired');
       state.projectiles.delete(proj.id);
     }
   }

@@ -45,6 +45,9 @@ export class WorldStore {
     this.logisticCompletedVisualItems = new Map();
     this.portals = new Map();
     this.projectiles = new Map();
+    this.projectileEventIds = new Set();
+    this.projectileEventOrder = [];
+    this.projectileEventTombstones = new Map();
     this.logisticDrones = new Map();
     this.areaEffects = new Map();
     this.loots = new Map();
@@ -327,6 +330,86 @@ export class WorldStore {
       if (old) this.logisticTransferEventIds.delete(old);
     }
     return true;
+  }
+
+  _acceptProjectileEvent(ev) {
+    const id = ev?.id | 0;
+    if (!id) return true;
+    const key = `projectile:${id}`;
+    if (!this.projectileEventIds) this.projectileEventIds = new Set();
+    if (!this.projectileEventOrder) this.projectileEventOrder = [];
+    if (this.projectileEventIds.has(key)) return false;
+    this.projectileEventIds.add(key);
+    this.projectileEventOrder.push(key);
+    while (this.projectileEventOrder.length > 4096) {
+      const old = this.projectileEventOrder.shift();
+      if (old) this.projectileEventIds.delete(old);
+    }
+    return true;
+  }
+
+  applyProjectileEvents(events = []) {
+    if (!Array.isArray(events) || !events.length) return;
+    if (!(this.projectileEventTombstones instanceof Map)) this.projectileEventTombstones = new Map();
+
+    const now = performance.now();
+    const ordered = events
+      .filter((ev) => ev && this._acceptProjectileEvent(ev))
+      .sort((a, b) => (Number(a.serverTime || 0) - Number(b.serverTime || 0)) || ((a.id | 0) - (b.id | 0)));
+
+    for (const ev of ordered) {
+      const action = String(ev.action || '').toLowerCase();
+      const projectileId = ev.projectileId | 0;
+      if (!projectileId) continue;
+
+      if (action === 'spawn') {
+        const tombstoneUntil = Number(this.projectileEventTombstones.get(projectileId) || 0);
+        if (tombstoneUntil > now) continue;
+
+        const projectile = ev.projectile || null;
+        if (!projectile) continue;
+        const current = this.projectiles.get(projectileId) || {};
+        const next = {
+          ...current,
+          ...projectile,
+          id: projectileId,
+          kind: 'projectile',
+          x: Number(projectile.x) || 0,
+          y: Number(projectile.y) || 0,
+          _tx: Number(projectile.x) || 0,
+          _ty: Number(projectile.y) || 0,
+          _serverX: Number(projectile.x) || 0,
+          _serverY: Number(projectile.y) || 0
+        };
+        this.projectiles.set(projectileId, next);
+        this.interpolationStore?.pushMany?.('projectile', [next], Number(ev.serverTime || this.lastServerTime || Date.now()));
+        continue;
+      }
+
+      if (action === 'impact' || action === 'destroy') {
+        this.projectileEventTombstones.set(projectileId, now + 2500);
+        this.projectiles.delete(projectileId);
+        if (action === 'impact') {
+          this.pendingCombatFx.push({
+            type: 'projectile_impact',
+            x: Number(ev.x || ev.projectile?.x || 0),
+            y: Number(ev.y || ev.projectile?.y || 0),
+            targetId: ev.target?.id | 0,
+            targetKind: ev.target?.kind || '',
+            visualKind: ev.impact?.visualKind || ev.projectile?.visualKind || '',
+            sourceSlot: ev.impact?.sourceAbilitySlot || ev.projectile?.sourceAbilitySlot || '',
+            crit: !!ev.impact?.crit
+          });
+        }
+      }
+    }
+  }
+
+  pruneProjectileEventState(now = performance.now()) {
+    if (!(this.projectileEventTombstones instanceof Map) || !this.projectileEventTombstones.size) return;
+    for (const [id, until] of this.projectileEventTombstones.entries()) {
+      if (now > Number(until || 0)) this.projectileEventTombstones.delete(id);
+    }
   }
 
   applyLogisticTransferEvents(events = []) {
@@ -1378,7 +1461,9 @@ export class WorldStore {
     }
     const hasNetworkEvents = Array.isArray(msg.events) && msg.events.length > 0;
     if (Array.isArray(msg.logisticTransferEvents)) this.applyLogisticTransferEvents(msg.logisticTransferEvents);
+    if (Array.isArray(msg.projectileEvents)) this.applyProjectileEvents(msg.projectileEvents);
     this.pruneLogisticTransferVisuals(snapLocalNow);
+    this.pruneProjectileEventState(snapLocalNow);
     if (hasNetworkEvents) this.applyNetworkEvents(msg.events);
     if (!hasNetworkEvents && msg.worldSfx?.length) this.pendingSfx.push(...msg.worldSfx);
     if (msg.combatFx?.length) {
@@ -1404,7 +1489,7 @@ export class WorldStore {
     }
     if (Array.isArray(msg.structureAutomation)) this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
-    if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles);
+    if (Array.isArray(msg.projectiles)) this._syncMap(this.projectiles, msg.projectiles.filter((p) => Number(this.projectileEventTombstones?.get?.(p.id | 0) || 0) <= snapLocalNow));
     if (Array.isArray(msg.logisticDrones)) this._syncMap(this.logisticDrones, msg.logisticDrones);
     if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);
     if (Array.isArray(msg.loots)) this._syncMap(this.loots, msg.loots);

@@ -20,7 +20,7 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
 
 async function boot() {
   try {
-    const mod = await import('./src/App.js?v=logisticv237g');
+    const mod = await import('./src/App.js?v=update2projectileevents');
     mod.startApp();
   } catch (err) {
     showBootError(err, 'Erreur au chargement du jeu');

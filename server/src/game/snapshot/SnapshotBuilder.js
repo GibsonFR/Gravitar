@@ -6,6 +6,7 @@ import { buildNetworkEventsFromLegacy } from '../events/NetworkEventStream.js';
 import { drainAbilityProtocolEvents } from '../events/AbilityProtocolEvents.js';
 import { peekStatusEventsForPlayer, peekPassiveEventsForPlayer } from '../events/StatusPassiveEvents.js';
 import { peekCombatFx } from '../combat/CombatFxState.js';
+import { peekProjectileEventsForPlayer } from '../events/ProjectileEvents.js';
 import { peekLogisticTransferEventsForPlayer } from '../events/LogisticTransferEvents.js';
 import { getSimulationTick } from '../util/Time.js';
 import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot.js';
@@ -82,6 +83,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
   const passiveEvents = peekPassiveEventsForPlayer(state, me);
   const events = buildNetworkEventsFromLegacy(state, playerId, timeMs, visibleWorldSfx, visibleCombatFx, playerSfx, abilityProtocolEvents, statusEvents, passiveEvents);
   const logisticTransferEvents = peekLogisticTransferEventsForPlayer(state, me);
+  const projectileEvents = peekProjectileEventsForPlayer(state, me);
 
   const snapshot = {
     t: 'snap',
@@ -98,6 +100,7 @@ export function buildSnapshot(state, playerId, timeMs, options = {}) {
     world: WORLD,
     events,
     logisticTransferEvents,
+    projectileEvents,
     worldSfx: legacyEvents ? visibleWorldSfx : undefined,
     combatFx: legacyEvents ? visibleCombatFx : undefined,
     me: fullUi ? buildMeSnapshot(me, timeMs, state, { includeSfx: includeLegacyPlayerSfx }) : buildMeLiteSnapshot(me, timeMs, state, { includeSfx: includeLegacyPlayerSfx }),
