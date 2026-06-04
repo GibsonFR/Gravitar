@@ -42,7 +42,7 @@ const NET_V2_IDLE_STATE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_
 const NET_V2_POSE_RATE_MS = Math.max(25, Number(process.env.GRAVITAR_NET_V2_POSE_RATE_MS || 33));
 const NET_V2_STATUS_ACTIVE_RATE_MS = Math.max(80, Number(process.env.GRAVITAR_NET_V2_STATUS_ACTIVE_RATE_MS || 150));
 const NET_V2_STATUS_IDLE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_STATUS_IDLE_RATE_MS || 1000));
-const NET_V2_SESSION_HEARTBEAT_MS = Math.max(2000, Number(process.env.GRAVITAR_NET_V2_SESSION_HEARTBEAT_MS || 5000));
+const NET_V2_SESSION_HEARTBEAT_MS = Math.max(0, Number(process.env.GRAVITAR_NET_V2_SESSION_HEARTBEAT_MS || 0));
 
 export function createGameServer() {
   const state = createGameState();
@@ -421,7 +421,8 @@ export function createGameServer() {
       const sig = netV2SessionSignature(sessionPacket);
       const prevSig = lastSessionV2SignatureByPlayer.get(id) || '';
       const prevAt = lastSessionV2ByPlayer.get(id) || 0;
-      if (options.forceSession || sig !== prevSig || timeMs - prevAt >= NET_V2_SESSION_HEARTBEAT_MS) {
+      const heartbeatDue = NET_V2_SESSION_HEARTBEAT_MS > 0 && timeMs - prevAt >= NET_V2_SESSION_HEARTBEAT_MS;
+      if (options.forceSession || sig !== prevSig || heartbeatDue) {
         if (sendPacket(id, sessionPacket)) {
           lastSessionV2ByPlayer.set(id, timeMs);
           lastSessionV2SignatureByPlayer.set(id, sig);
@@ -489,10 +490,13 @@ export function createGameServer() {
       for (const id of ids) {
         if (!state.players.has(id)) continue;
         syncNetV2PlayerLifecycleForObserver(id, timeMs, sendSnapshot);
-        sendNetV2NetworkEvents(id, state.players.get(id), timeMs, sendSnapshot);
-        sendNetV2ProjectileCombatPackets(id, state.players.get(id), timeMs, sendSnapshot);
+        const player = state.players.get(id);
+        // Pose first: projectiles/network events can be bursty, but remote movement must
+        // keep its cadence even when an ability/projectile is emitted.
         const packet = buildNetV2PlayerPosePacket(state, id, timeMs);
         if (packet) sendSnapshot(id, packet);
+        sendNetV2NetworkEvents(id, player, timeMs, sendSnapshot);
+        sendNetV2ProjectileCombatPackets(id, player, timeMs, sendSnapshot);
       }
     }
 

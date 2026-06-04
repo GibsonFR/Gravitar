@@ -41,7 +41,10 @@ function getLauncherDef(player) {
 }
 
 function getWeaponProfile(player) {
-  return getWeaponDef(player)?.weaponProfile || null;
+  // During the Net V2 rebuild, auto-attack must remain functional even if the
+  // full equipment snapshot is temporarily absent or late. Use the basic pulse
+  // weapon as a safe server-side fallback instead of disabling auto-attack.
+  return getWeaponDef(player)?.weaponProfile || player?.weaponProfile || WEAPON_PULSE_MK1;
 }
 function getAutoAttackRange(player, weapon) {
   return (weapon?.range ?? WEAPON_PULSE_MK1.range) * Math.max(0.5, player.progressionBonuses?.autoRangeMult ?? 1);

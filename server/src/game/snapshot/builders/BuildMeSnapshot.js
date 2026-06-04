@@ -79,7 +79,7 @@ function buildTransitionSnapshot(player, timeMs) {
 function buildDerivedSnapshot(player) {
   const auto = getFrameAutoAttackProfile(player, { peekOnly: true });
   const equippedWeapon = getEquippedEquipmentDefs(player).find((def) => def?.categoryId === ITEM_CATEGORY_IDS.WEAPON) || null;
-  const weaponProfile = equippedWeapon?.weaponProfile || null;
+  const weaponProfile = equippedWeapon?.weaponProfile || player?.weaponProfile || null;
   const baseCooldown = weaponProfile ? (weaponProfile.cooldown ?? player.progressionBonuses?.autoAttackBaseCooldown ?? 0.70) : 0;
   const fireRateMult = player.progressionBonuses?.fireRateMult ?? 1;
   const attackSpeedBonus = 1 + (player.frameBonuses?.attackSpeed ?? 0);

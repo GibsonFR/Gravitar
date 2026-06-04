@@ -179,6 +179,15 @@ export class WorldStore {
         cooldownLeft: cd
       };
     }
+    if (!this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt = {};
+    if (!this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt = {};
+    const now = performance.now();
+    if (cd > 0.02) {
+      this.localPrediction.localAbilityReadyAt[s] = Math.max(this.localPrediction.localAbilityReadyAt[s] || 0, now + (cd + 0.04) * 1000);
+      this.localPrediction.localAbilityLastCastAt[s] = Math.max(this.localPrediction.localAbilityLastCastAt[s] || 0, now);
+    } else {
+      this.localPrediction.localAbilityReadyAt[s] = 0;
+    }
     if (Number.isFinite(Number(payload.energyLeft))) {
       if (this.myState.stats) this.myState.stats.energy = Math.max(0, Number(payload.energyLeft));
       if (this.myState.vitals) this.myState.vitals.energy = Math.max(0, Number(payload.energyLeft));
@@ -1677,6 +1686,41 @@ export class WorldStore {
     return player;
   }
 
+  syncLocalCooldownAuthorityFromStatus(player, msg = null) {
+    if (!player || (player.id | 0) !== (this.myId | 0)) return;
+    const now = performance.now();
+    const cd = this.normalizePlayerCooldownKeys(player)?.cooldowns || {};
+    const slots = ['A', 'Z', 'E', 'R'];
+    if (!this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt = {};
+    if (!this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt = {};
+    if (!this.localPrediction.localCooldownLocks) this.localPrediction.localCooldownLocks = {};
+    if (!this.myState) return;
+
+    if (!this.myState.cooldowns) this.myState.cooldowns = {};
+    for (const slot of slots) {
+      const left = Math.max(0, Number(cd[slot]) || 0);
+      const localLeft = Math.max(0, Number(this.myState.cooldowns[slot]) || 0);
+      // The server is the source of truth for "when can I cast again".
+      // Keep a small safety margin so the client cannot fire 100-200 ms too early
+      // between two status packets.
+      const safeLeft = left > 0.02 ? left + 0.06 : 0;
+      this.myState.cooldowns[slot] = Math.max(localLeft, left);
+      const hud = this.myState.abilityHud?.[slot];
+      if (hud) hud.cooldownLeft = Math.max(Number(hud.cooldownLeft) || 0, this.myState.cooldowns[slot]);
+
+      if (safeLeft > 0) {
+        this.localPrediction.localAbilityReadyAt[slot] = Math.max(this.localPrediction.localAbilityReadyAt[slot] || 0, now + safeLeft * 1000);
+        this.localPrediction.localAbilityLastCastAt[slot] = Math.max(this.localPrediction.localAbilityLastCastAt[slot] || 0, now);
+        this.localPrediction.localCooldownLocks[slot] = Math.max(this.localPrediction.localCooldownLocks[slot] || 0, now + Math.min(350, safeLeft * 1000));
+      } else if ((this.localPrediction.localAbilityReadyAt[slot] || 0) < now + 40) {
+        this.localPrediction.localAbilityReadyAt[slot] = 0;
+        if ((this.myState.cooldowns[slot] || 0) <= 0.02) this.myState.cooldowns[slot] = 0;
+        if (hud && (hud.cooldownLeft || 0) <= 0.02) hud.cooldownLeft = 0;
+      }
+    }
+  }
+
+
   applyInputAckV2(msg) {
     const snapLocalNow = performance.now();
     this.lastSnapAt = snapLocalNow;
@@ -1696,6 +1740,7 @@ export class WorldStore {
       this.normalizePlayerCooldownKeys(msg.me);
       this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
       if (this.myState?.id) this.myId = this.myState.id | 0;
+      this.syncLocalCooldownAuthorityFromStatus(msg.me, msg);
       this.applyPlayerStateV2(msg.me);
     }
 
@@ -1704,6 +1749,7 @@ export class WorldStore {
         if (!p) continue;
         this.normalizePlayerCooldownKeys(p);
         const isSelf = (p.id | 0) === (this.myId | 0);
+        if (isSelf) this.syncLocalCooldownAuthorityFromStatus(p, msg);
         this.applyPlayerStateV2(p, { preservePose: true });
         if (isSelf) this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });
       }
@@ -1723,6 +1769,7 @@ export class WorldStore {
       this.normalizePlayerCooldownKeys(msg.me);
       this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
       if (this.myState?.id) this.myId = this.myState.id | 0;
+      this.syncLocalCooldownAuthorityFromStatus(msg.me, msg);
       this.applyPlayerStateV2(msg.me);
     }
 
