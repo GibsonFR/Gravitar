@@ -56,9 +56,17 @@ export class NetStats {
     this.serverEventsInWindow = 0;
     this.logisticEventsInWindow = 0;
     this.projectileEventsInWindow = 0;
+    this.projectilePacketV2InWindow = 0;
+    this.combatPacketV2InWindow = 0;
+    this.projectilePacketV2InWindow = 0;
+    this.combatPacketV2InWindow = 0;
     this.serverEventsInWindow = 0;
     this.logisticEventsInWindow = 0;
     this.projectileEventsInWindow = 0;
+    this.projectilePacketV2InWindow = 0;
+    this.combatPacketV2InWindow = 0;
+    this.projectilePacketV2InWindow = 0;
+    this.combatPacketV2InWindow = 0;
 
     this.bytesInPerSec = 0;
     this.bytesOutPerSec = 0;
@@ -84,6 +92,8 @@ export class NetStats {
     this.serverEventsPerSec = 0;
     this.logisticEventsPerSec = 0;
     this.projectileEventsPerSec = 0;
+    this.projectilePacketV2PerSec = 0;
+    this.combatPacketV2PerSec = 0;
 
     this.lastPacketInBytes = 0;
     this.lastPacketOutBytes = 0;
@@ -128,6 +138,8 @@ export class NetStats {
     this.logisticEventAgeAvgMs = 0;
     this.logisticEventAgeMaxMs = 0;
     this.lastSnapshotEventCounts = {};
+    this.lastProjectilePacket = null;
+    this.lastCombatPacket = null;
     this.lastLifecyclePacket = null;
     this.lastStatusPacket = null;
     this.lastSessionPacket = null;
@@ -395,6 +407,67 @@ export class NetStats {
       reason: this.lastLifecyclePacket.reason,
       serverTime: msg?.time || 0,
       serverTick: msg?.tick || 0
+    });
+  }
+
+  recordProjectilePacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    const events = Array.isArray(msg?.events) ? msg.events : [];
+    this.projectilePacketV2InWindow += 1;
+    this.projectileEventsInWindow += events.length;
+    this.lastProjectilePacket = {
+      events: events.length,
+      bytes: b,
+      time: msg?.time || 0
+    };
+    this.serverTick = finite(msg?.tick, this.serverTick);
+    this.serverTime = finite(msg?.time, this.serverTime);
+    this.pushDebugHistory({
+      kind: 'projectile_events_v2',
+      type: msg?.t || 'projectile_events_v2',
+      bytes: b,
+      count: events.length,
+      serverTime: this.serverTime,
+      serverTick: this.serverTick,
+      events: events.slice(0, 8).map((ev) => ({
+        id: ev?.id | 0,
+        action: ev?.action || '',
+        projectileId: ev?.projectileId | 0,
+        x: ev?.x,
+        y: ev?.y,
+        targetId: ev?.target?.id | 0,
+        targetKind: ev?.target?.kind || ''
+      }))
+    });
+  }
+
+  recordCombatPacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    const events = Array.isArray(msg?.events) ? msg.events : [];
+    this.combatPacketV2InWindow += 1;
+    this.lastCombatPacket = {
+      events: events.length,
+      bytes: b,
+      time: msg?.time || 0
+    };
+    this.serverTick = finite(msg?.tick, this.serverTick);
+    this.serverTime = finite(msg?.time, this.serverTime);
+    this.pushDebugHistory({
+      kind: 'combat_events_v2',
+      type: msg?.t || 'combat_events_v2',
+      bytes: b,
+      count: events.length,
+      serverTime: this.serverTime,
+      serverTick: this.serverTick,
+      events: events.slice(0, 8).map((ev) => ({
+        id: ev?.id | 0,
+        type: ev?.type || '',
+        targetId: ev?.targetId | 0,
+        targetKind: ev?.targetKind || '',
+        amount: ev?.amount || 0,
+        x: ev?.x,
+        y: ev?.y
+      }))
     });
   }
 
@@ -724,9 +797,17 @@ export class NetStats {
     this.serverEventsInWindow = 0;
     this.logisticEventsInWindow = 0;
     this.projectileEventsInWindow = 0;
+    this.projectilePacketV2InWindow = 0;
+    this.combatPacketV2InWindow = 0;
+    this.projectilePacketV2InWindow = 0;
+    this.combatPacketV2InWindow = 0;
     this.serverEventsInWindow = 0;
     this.logisticEventsInWindow = 0;
     this.projectileEventsInWindow = 0;
+    this.projectilePacketV2InWindow = 0;
+    this.combatPacketV2InWindow = 0;
+    this.projectilePacketV2InWindow = 0;
+    this.combatPacketV2InWindow = 0;
     this.windowStartedAt = now;
     this.pendingInputs = this.inputHistory?.stats?.().pending ?? Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
   }
@@ -795,6 +876,10 @@ export class NetStats {
       serverEventsPerSec: this.serverEventsPerSec,
       logisticEventsPerSec: this.logisticEventsPerSec,
       projectileEventsPerSec: this.projectileEventsPerSec,
+      projectilePacketV2PerSec: this.projectilePacketV2PerSec,
+      combatPacketV2PerSec: this.combatPacketV2PerSec,
+      lastProjectilePacket: this.lastProjectilePacket,
+      lastCombatPacket: this.lastCombatPacket,
       sfxPerSec: this.sfxPerSec,
       wsBufferedAmount: this.wsBufferedAmount,
       skippedSnapshots: this.skippedSnapshots,

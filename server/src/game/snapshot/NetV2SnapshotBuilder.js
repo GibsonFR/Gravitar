@@ -485,3 +485,36 @@ export function buildNetV2PlayerSessionPacket(state, playerId, timeMs) {
     }
   };
 }
+
+
+export function buildNetV2ProjectileEventsPacket(state, playerId, events, timeMs) {
+  const list = (Array.isArray(events) ? events : []).filter(Boolean);
+  if (!list.length) return null;
+  return {
+    t: 'projectile_events_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    events: list,
+    net: {
+      netV2Reset: true,
+      packet: 'projectile_events_v2'
+    }
+  };
+}
+
+export function buildNetV2CombatEventsPacket(state, playerId, events, timeMs) {
+  const list = (Array.isArray(events) ? events : []).filter(Boolean);
+  if (!list.length) return null;
+  return {
+    t: 'combat_events_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    events: list,
+    net: {
+      netV2Reset: true,
+      packet: 'combat_events_v2'
+    }
+  };
+}

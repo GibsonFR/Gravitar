@@ -20,11 +20,12 @@ import { updateEquipmentRDStations } from './structures/StructureEquipmentRDStat
 import { createPlayer } from './player/PlayerFactory.js';
 import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
-import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket, buildNetV2InputAckPacket, buildNetV2PlayerStatusPacket, buildNetV2PlayerSessionPacket } from './snapshot/NetV2SnapshotBuilder.js';
+import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket, buildNetV2InputAckPacket, buildNetV2PlayerStatusPacket, buildNetV2PlayerSessionPacket, buildNetV2ProjectileEventsPacket, buildNetV2CombatEventsPacket } from './snapshot/NetV2SnapshotBuilder.js';
 import { clearWorldSfx } from './audio/WorldSfxState.js';
-import { clearCombatFx } from './combat/CombatFxState.js';
+import { clearCombatFx, peekCombatFx } from './combat/CombatFxState.js';
 import { clearStatusPassiveEvents } from './events/StatusPassiveEvents.js';
 import { pruneLogisticTransferEvents } from './events/LogisticTransferEvents.js';
+import { peekProjectileEventsForPlayer } from './events/ProjectileEvents.js';
 import { applyCommand } from './commands/CommandRouter.js';
 import { ensureSectorLoaded } from './sector/SectorEnsure.js';
 import { visitSectorOnPlayer } from './map/PlayerMapState.js';
@@ -62,6 +63,8 @@ export function createGameServer() {
   const lastStatusV2SignatureByPlayer = new Map();
   const lastSessionV2ByPlayer = new Map();
   const lastSessionV2SignatureByPlayer = new Map();
+  const sentProjectileEventIdsByPlayer = new Map();
+  const sentCombatEventIdsByPlayer = new Map();
   let lastAccountAutosaveAt = 0;
 
 
@@ -111,6 +114,8 @@ export function createGameServer() {
     lastStatusV2SignatureByPlayer.delete(id);
     lastSessionV2ByPlayer.delete(id);
     lastSessionV2SignatureByPlayer.delete(id);
+    sentProjectileEventIdsByPlayer.delete(id);
+    sentCombatEventIdsByPlayer.delete(id);
     state.players.delete(id);
   }
 
@@ -249,6 +254,63 @@ export function createGameServer() {
 
     for (const id of currentIds) known.add(id);
     knownRemotePlayersByObserver.set(observerId, known);
+  }
+
+  function inSameSectorForNetV2(ev, player) {
+    if (!ev || !player) return false;
+    const sx = ev.sx | 0;
+    const sy = ev.sy | 0;
+    if (sx !== (player.sx | 0) || sy !== (player.sy | 0)) return false;
+    const evWorld = String(ev.worldId || player.worldId || 'endless');
+    return evWorld === String(player.worldId || 'endless');
+  }
+
+  function takeUnsentById(map, playerId, items, maxRemember = 4096) {
+    let sent = map.get(playerId);
+    if (!sent) {
+      sent = new Set();
+      map.set(playerId, sent);
+    }
+    const out = [];
+    for (const item of items || []) {
+      const id = item?.id | 0;
+      if (!id) continue;
+      if (sent.has(id)) continue;
+      sent.add(id);
+      out.push(item);
+    }
+    if (sent.size > maxRemember) {
+      const keep = [...sent].slice(-Math.floor(maxRemember * 0.65));
+      map.set(playerId, new Set(keep));
+    }
+    return out;
+  }
+
+  function visibleCombatEventsForPlayer(player) {
+    if (!player) return [];
+    const worldId = String(player.worldId || 'endless');
+    return peekCombatFx(state).filter((ev) => {
+      if (!ev) return false;
+      if ((ev.sx | 0) !== (player.sx | 0) || (ev.sy | 0) !== (player.sy | 0)) return false;
+      const evWorld = String(ev.worldId || worldId);
+      return evWorld === worldId;
+    });
+  }
+
+  function sendNetV2ProjectileCombatPackets(id, player, timeMs, sendPacket) {
+    if (!NET_V2_RESET_ENABLED || !player) return;
+
+    const projectileEvents = takeUnsentById(sentProjectileEventIdsByPlayer, id, peekProjectileEventsForPlayer(state, player), 8192);
+    if (projectileEvents.length) {
+      const packet = buildNetV2ProjectileEventsPacket(state, id, projectileEvents, timeMs);
+      if (packet) sendPacket(id, packet);
+    }
+
+    const combatEvents = takeUnsentById(sentCombatEventIdsByPlayer, id, visibleCombatEventsForPlayer(player), 8192);
+    if (combatEvents.length) {
+      const packet = buildNetV2CombatEventsPacket(state, id, combatEvents, timeMs);
+      if (packet) sendPacket(id, packet);
+    }
   }
 
   function netV2StatusSignature(packet) {
@@ -393,6 +455,7 @@ export function createGameServer() {
       for (const id of ids) {
         if (!state.players.has(id)) continue;
         syncNetV2PlayerLifecycleForObserver(id, timeMs, sendSnapshot);
+        sendNetV2ProjectileCombatPackets(id, state.players.get(id), timeMs, sendSnapshot);
         const packet = buildNetV2PlayerPosePacket(state, id, timeMs);
         if (packet) sendSnapshot(id, packet);
       }

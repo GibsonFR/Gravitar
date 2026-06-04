@@ -349,6 +349,25 @@ export class WorldStore {
     return true;
   }
 
+  applyProjectileEventsV2(msg) {
+    const snapLocalNow = performance.now();
+    this.lastSnapAt = snapLocalNow;
+    this.lastServerTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : this.lastServerTime;
+    this.lastServerTimeAt = snapLocalNow;
+    if (Array.isArray(msg?.events)) this.applyProjectileEvents(msg.events);
+  }
+
+  applyCombatEventsV2(msg) {
+    const snapLocalNow = performance.now();
+    this.lastSnapAt = snapLocalNow;
+    this.lastServerTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : this.lastServerTime;
+    this.lastServerTimeAt = snapLocalNow;
+    const events = Array.isArray(msg?.events) ? msg.events : [];
+    if (!events.length) return;
+    this.applyCombatFxEvents(events);
+    this.pendingCombatFx.push(...events.filter((fx) => fx?.type !== 'structure_state'));
+  }
+
   applyProjectileEvents(events = []) {
     if (!Array.isArray(events) || !events.length) return;
     if (!(this.projectileEventTombstones instanceof Map)) this.projectileEventTombstones = new Map();

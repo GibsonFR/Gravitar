@@ -1,10 +1,18 @@
 export function createCombatFxState() {
-  return { pending: [] };
+  return { pending: [], nextId: 0 };
+}
+
+function nextCombatFxId(state) {
+  if (!state?.combatFx) return 0;
+  state.combatFx.nextId = (state.combatFx.nextId | 0) + 1;
+  if (state.combatFx.nextId > 2147483000) state.combatFx.nextId = 1;
+  return state.combatFx.nextId;
 }
 
 export function queueDamageNumber(state, target, amount, options = {}) {
   if (!state?.combatFx?.pending || !target || !Number.isFinite(amount) || amount <= 0) return;
   state.combatFx.pending.push({
+    id: nextCombatFxId(state),
     type: 'damage',
     sx: target.sx | 0,
     sy: target.sy | 0,
@@ -24,6 +32,7 @@ export function queueDamageNumber(state, target, amount, options = {}) {
 export function queueStructureState(state, structure, reason = '') {
   if (!state?.combatFx?.pending || !structure) return;
   state.combatFx.pending.push({
+    id: nextCombatFxId(state),
     type: 'structure_state',
     sx: structure.sx | 0,
     sy: structure.sy | 0,

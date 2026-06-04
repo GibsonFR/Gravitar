@@ -124,6 +124,16 @@ export class NetClient {
         this.netStats.recordPosePacket?.(msg, raw.length);
         this.store.applyPlayerPoseV2?.(msg);
       }
+      if (msg.t === 'projectile_events_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordProjectilePacket?.(msg, raw.length);
+        this.store.applyProjectileEventsV2?.(msg);
+      }
+      if (msg.t === 'combat_events_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordCombatPacket?.(msg, raw.length);
+        this.store.applyCombatEventsV2?.(msg);
+      }
       if (msg.t === 'player_enter_sector_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordLifecyclePacket?.(msg, raw.length);
