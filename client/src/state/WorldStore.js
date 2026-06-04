@@ -660,40 +660,60 @@ export class WorldStore {
 
   sampleRemoteIntentPlayer(player) {
     if (!player || (player.id | 0) === (this.myId | 0)) return player;
-    if (!player.hasMoveTarget) return player;
 
     const sampled = this.sampleInterpolatedEntity('player', player, {
       renderTimeMs: this.getRemotePlayerRenderServerTimeMs(),
-      maxExtrapolateMs: 180,
+      maxExtrapolateMs: 220,
       remotePlayerLowLatency: true
     });
 
-    // If interpolation is late and the server says the remote still has a move intent,
-    // continue a very short deterministic extrapolation toward the same target.
-    // This avoids the "single click = stair-step" feel when packets are sparse for a moment.
-    if (!sampled?._interpolationLateMs || sampled._interpolationLateMs <= 30) return sampled;
+    if (!player.hasMoveTarget) return sampled;
 
     const tx = Number(player.moveTx);
     const ty = Number(player.moveTy);
     if (!Number.isFinite(tx) || !Number.isFinite(ty)) return sampled;
 
-    const dx = tx - Number(sampled.x || 0);
-    const dy = ty - Number(sampled.y || 0);
-    const d = Math.hypot(dx, dy);
-    if (d <= 8) return sampled;
+    // Unified remote movement:
+    // The observer should not depend on whether the remote player keeps sending
+    // mouse-held inputs or only sent a single click. Once the server announces
+    // an active move target, the observer renders a continuous client-side motion
+    // toward that target between authoritative pose packets.
+    const now = performance.now();
+    const poseAt = Number(player._remotePoseLocalAt || now);
+    const elapsedMs = Math.max(0, Math.min(180, now - poseAt));
 
-    const vx = Number(sampled.vx || player.vx || 0);
-    const vy = Number(sampled.vy || player.vy || 0);
-    const speed = Math.max(0, Math.min(Number(player.engine || 260), Math.hypot(vx, vy) || Number(player.engine || 260)));
-    const extraMs = Math.min(120, Math.max(0, Number(sampled._interpolationLateMs || 0)));
-    const step = Math.min(d, speed * (extraMs / 1000));
+    const baseX = Number.isFinite(Number(player._remotePoseX)) ? Number(player._remotePoseX) : Number(sampled.x || player.x || 0);
+    const baseY = Number.isFinite(Number(player._remotePoseY)) ? Number(player._remotePoseY) : Number(sampled.y || player.y || 0);
+
+    const dx = tx - baseX;
+    const dy = ty - baseY;
+    const d = Math.hypot(dx, dy);
+    if (d <= 8) {
+      return {
+        ...sampled,
+        x: tx,
+        y: ty,
+        vx: 0,
+        vy: 0
+      };
+    }
+
+    const poseSpeed = Math.hypot(Number(player._remotePoseVx || 0), Number(player._remotePoseVy || 0));
+    const engineSpeed = Number(player.engine || sampled.engine || 260);
+    const speed = Math.max(0, Math.min(engineSpeed * 1.15, poseSpeed > 5 ? poseSpeed : engineSpeed));
+    const step = Math.min(d, speed * (elapsedMs / 1000));
+
+    const x = baseX + (dx / d) * step;
+    const y = baseY + (dy / d) * step;
 
     return {
       ...sampled,
-      x: Number(sampled.x || 0) + (dx / d) * step,
-      y: Number(sampled.y || 0) + (dy / d) * step,
+      x,
+      y,
       vx: (dx / d) * speed,
-      vy: (dy / d) * speed
+      vy: (dy / d) * speed,
+      _intentRendered: true,
+      _intentElapsedMs: elapsedMs
     };
   }
 
@@ -1576,7 +1596,13 @@ export class WorldStore {
         _serverX: p.x,
         _serverY: p.y,
         _tx: p.x,
-        _ty: p.y
+        _ty: p.y,
+        _remotePoseLocalAt: snapLocalNow,
+        _remotePoseServerTime: serverTime,
+        _remotePoseX: Number(p.x),
+        _remotePoseY: Number(p.y),
+        _remotePoseVx: Number(p.vx || 0),
+        _remotePoseVy: Number(p.vy || 0)
       });
     }
     this.interpolationStore?.pushMany?.('player', remotePlayers, serverTime);
