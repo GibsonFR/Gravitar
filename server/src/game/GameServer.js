@@ -72,6 +72,8 @@ export function createGameServer() {
   const sentNetworkEventIdsByPlayer = new Map();
   const lastCargoV2ByPlayer = new Map();
   const lastCargoV2SignatureByPlayer = new Map();
+  const lastCargoSummaryByPlayer = new Map();
+  const sentWorldEntityEventIdsByPlayer = new Map();
   let lastAccountAutosaveAt = 0;
 
 
@@ -126,6 +128,8 @@ export function createGameServer() {
     sentNetworkEventIdsByPlayer.delete(id);
     lastCargoV2ByPlayer.delete(id);
     lastCargoV2SignatureByPlayer.delete(id);
+    lastCargoSummaryByPlayer.delete(id);
+    sentWorldEntityEventIdsByPlayer.delete(id);
     state.players.delete(id);
   }
 
