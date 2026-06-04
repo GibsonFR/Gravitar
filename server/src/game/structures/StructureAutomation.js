@@ -330,7 +330,18 @@ function updateConveyorVisual(belt, timeMs) {
   }
   const totalMs = Math.max(1, Number(belt.automationMoving.totalMs) || 700);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(belt.automationMoving.startedAt || timeMs)) / totalMs));
-  belt.automationItem = { ...resourceMeta(key), phase: belt.automationStatus ? 'blocked' : 'belt', progress, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
+  const def = getStructureDef(belt.type);
+  const outputs = def?.automationOutputs || ['front'];
+  const outputSlot = outputs[Math.max(0, belt.automationOutputIndex | 0) % outputs.length] || 'front';
+  belt.automationItem = {
+    ...resourceMeta(key),
+    phase: belt.automationStatus ? 'blocked' : 'belt',
+    progress,
+    startedAt: Number(belt.automationMoving.startedAt || timeMs),
+    totalMs,
+    outputSlot,
+    at: timeMs
+  };
 }
 
 function updateConveyor(state, belt, timeMs) {
