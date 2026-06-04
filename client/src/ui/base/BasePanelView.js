@@ -620,8 +620,8 @@ export const BUILD_STRUCTURES = [
     h: 64,
     hp: 0,
     storageCapacity: 1,
-    role: 'Ligne locale bon marché pour relier extracteurs, machines et bras.',
-    stats: ['Cycle : 0.64 s', 'Buffer : 1', 'Sortie : avant'],
+    role: 'Déplace les ressources dans son sens.',
+    stats: ['Vitesse : normale', 'Buffer : 1'],
     cost: { ironOre: 6, copper: 2 }
   },
   {
@@ -638,8 +638,8 @@ export const BUILD_STRUCTURES = [
     h: 64,
     hp: 0,
     storageCapacity: 1,
-    role: 'Ligne locale rapide pour chaînes de production saturées.',
-    stats: ['Cycle : 0.36 s', 'Buffer : 1', 'Sortie : avant'],
+    role: 'Déplace les ressources plus vite.',
+    stats: ['Vitesse : rapide', 'Buffer : 1'],
     cost: { ironIngot: 2, copperWire: 2 }
   },
   {
@@ -656,8 +656,8 @@ export const BUILD_STRUCTURES = [
     h: 128,
     hp: 0,
     storageCapacity: 1,
-    role: 'Répartit une entrée vers deux sorties en alternance.',
-    stats: ['Cycle : 0.70 s', 'Entrée : arrière', 'Sorties : haut/bas avant'],
+    role: 'Une entrée à gauche, deux sorties à droite.',
+    stats: ['Entrée : 1', 'Sorties : 2'],
     cost: { ironIngot: 3, copperWire: 2 }
   },
   {
@@ -674,8 +674,8 @@ export const BUILD_STRUCTURES = [
     h: 128,
     hp: 0,
     storageCapacity: 1,
-    role: 'Fusionne deux entrées proches vers une sortie unique.',
-    stats: ['Cycle : 0.66 s', 'Entrées : arrière haut/bas', 'Sortie : avant'],
+    role: 'Deux entrées à gauche, une sortie à droite.',
+    stats: ['Entrées : 2', 'Sortie : 1'],
     cost: { ironIngot: 3, copperWire: 2 }
   },
   {
@@ -691,8 +691,8 @@ export const BUILD_STRUCTURES = [
     w: 64,
     h: 64,
     hp: 0,
-    role: 'Transfert précis entre coffres, machines et convoyeurs.',
-    stats: ['Cycle : 0.84 s', 'Portée : 1 case', 'Entrée arrière → sortie avant'],
+    role: 'Transfère des ressources entre deux bâtiments adjacents.',
+    stats: ['Portée : 1 case', 'Entrée arrière → sortie avant'],
     cost: { ironIngot: 2, copperWire: 2 }
   },
   {
@@ -708,8 +708,8 @@ export const BUILD_STRUCTURES = [
     w: 64,
     h: 64,
     hp: 0,
-    role: 'Transfert court rapide pour machines saturées.',
-    stats: ['Cycle : 0.50 s', 'Portée : 1 case', 'Entrée arrière → sortie avant'],
+    role: 'Transfert court plus rapide.',
+    stats: ['Portée : 1 case', 'Cycle rapide'],
     cost: { steelPlate: 1, copperWire: 3 }
   },
   {
@@ -725,8 +725,8 @@ export const BUILD_STRUCTURES = [
     w: 64,
     h: 64,
     hp: 0,
-    role: 'Transfert longue portée au-dessus d’une case intermédiaire.',
-    stats: ['Cycle : 1.04 s', 'Portée : 2 cases', 'Entrée arrière → sortie avant'],
+    role: 'Transfère par-dessus une case.',
+    stats: ['Portée : 2 cases', 'Cycle lent'],
     cost: { steelPlate: 1, copperWire: 3 }
   }];
 

@@ -50,54 +50,6 @@ function sameSector(a, b) {
 const CONVEYOR_TYPES = new Set(['conveyor', 'fast_conveyor', 'splitter', 'merger']);
 const ARM_TYPES = new Set(['robot_arm', 'fast_arm', 'long_arm']);
 
-
-const AUTOMATION_STATUS_LABELS = {
-  blocked: 'sortie bloquée',
-  target_full: 'sortie pleine',
-  target_rejects: 'sortie incompatible',
-  no_input: 'entrée vide',
-  no_input_structure: 'aucune entrée',
-  no_output: 'aucune sortie',
-  no_output_structure: 'aucune sortie',
-  input_empty: 'entrée vide',
-  no_power: 'manque énergie',
-  buffer_full: 'buffer plein',
-  no_deposit: 'aucun gisement',
-  disabled: 'arrêté'
-};
-
-function automationStatusLabel(s) {
-  const label = String(s?.automationStatusLabel || '').trim();
-  if (label) return label;
-  const code = String(s?.automationStatus || '').trim();
-  return AUTOMATION_STATUS_LABELS[code] || code;
-}
-
-function drawAutomationStatusText(ctx, view, s, w, h) {
-  const label = automationStatusLabel(s);
-  if (!label) return;
-  ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,.9)';
-  ctx.shadowBlur = 4 * view.dpr;
-  ctx.font = `${8.5 * view.dpr}px system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const textW = Math.max(w * 0.72, ctx.measureText(label).width + 12 * view.dpr);
-  const textH = 15 * view.dpr;
-  ctx.fillStyle = 'rgba(8, 14, 20, .82)';
-  ctx.strokeStyle = String(s?.automationStatus || '').includes('no_') || s?.automationStatus === 'input_empty'
-    ? 'rgba(255, 214, 130, .72)'
-    : 'rgba(255, 118, 118, .82)';
-  ctx.lineWidth = 1 * view.dpr;
-  ctx.beginPath();
-  roundedRect(ctx, -textW * 0.5, h * 0.43, textW, textH, 4 * view.dpr);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(245, 250, 255, .94)';
-  ctx.fillText(label, 0, h * 0.43 + textH * 0.52);
-  ctx.restore();
-}
-
 function isConveyorType(type) {
   return CONVEYOR_TYPES.has(String(type || '').toLowerCase());
 }
@@ -1035,11 +987,9 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.beginPath();
     } else if (isConveyor) {
       drawConveyorMotion(ctx, view, s, w, h, t, structures);
-      drawAutomationStatusText(ctx, view, s, w, h);
       ctx.beginPath();
     } else if (isRobotArm) {
       drawRobotArmMotion(ctx, view, s, w, h);
-      drawAutomationStatusText(ctx, view, s, w, h);
       ctx.beginPath();
     } else if (isTurret) {
 

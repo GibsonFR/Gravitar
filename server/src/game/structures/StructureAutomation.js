@@ -10,40 +10,6 @@ const FUEL_KEYS = new Set(['refinedFuel', 'biofuel', 'propellant']);
 const RD_SCIENCE_KEYS = new Set(EQUIPMENT_RD_ALLOWED_SCIENCES);
 const TILE = 64;
 
-const AUTOMATION_STATUS_LABELS = {
-  blocked: 'Sortie bloquée',
-  target_full: 'Sortie pleine',
-  target_rejects: 'Sortie incompatible',
-  no_input: 'Entrée vide',
-  no_input_structure: 'Aucune entrée',
-  no_output: 'Aucune sortie',
-  no_output_structure: 'Aucune sortie',
-  input_empty: 'Entrée vide',
-  disabled: 'Arrêté',
-  no_power: 'Manque énergie',
-  buffer_full: 'Buffer plein',
-  no_deposit: 'Aucun gisement'
-};
-
-function automationLabel(code) {
-  return AUTOMATION_STATUS_LABELS[String(code || '')] || String(code || '');
-}
-
-function setAutomationStatus(st, code = '', reason = '', timeMs = Date.now()) {
-  const normalized = String(code || '');
-  st.automationStatus = normalized;
-  st.automationStatusLabel = normalized ? automationLabel(normalized) : '';
-  st.automationStatusReason = normalized ? String(reason || st.automationStatusLabel || normalized) : '';
-  st.automationStatusAt = normalized ? timeMs : 0;
-}
-
-function clearAutomationStatus(st) {
-  st.automationStatus = '';
-  st.automationStatusLabel = '';
-  st.automationStatusReason = '';
-  st.automationStatusAt = 0;
-}
-
 function finite(v, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -245,17 +211,11 @@ function takeOneMatching(source, predicate = null) {
   return null;
 }
 
-function diagnoseInput(target, key) {
-  const dst = getInputMap(target, key);
-  if (!dst) return { ok: false, code: 'target_rejects', reason: 'La structure en face ne peut pas recevoir cette ressource.' };
-  const per = Number(RESOURCE_DEFS[key]?.cargoPerUnit) || 1;
-  const capacity = dst.capacity || RESOURCE_CAPACITY_DEFAULT;
-  if (usedCapacity(dst.map) + per > capacity) return { ok: false, code: 'target_full', reason: 'La sortie existe, mais son stockage ou son entrée est plein.' };
-  return { ok: true, code: '', reason: '' };
-}
-
 function canPut(target, key) {
-  return !!diagnoseInput(target, key).ok;
+  const dst = getInputMap(target, key);
+  if (!dst) return false;
+  const per = Number(RESOURCE_DEFS[key]?.cargoPerUnit) || 1;
+  return usedCapacity(dst.map) + per <= (dst.capacity || RESOURCE_CAPACITY_DEFAULT);
 }
 
 function putOne(target, key) {
@@ -297,31 +257,12 @@ function conveyorTargets(state, belt, key) {
   return targets;
 }
 
-function diagnoseConveyorOutput(state, belt, key) {
-  const ports = conveyorOutputPoints(belt);
-  let sawStructure = false;
-  let sawReject = false;
-  for (const port of ports) {
-    const target = findStructureAt(state, belt, port.point);
-    if (!target) continue;
-    sawStructure = true;
-    const diag = diagnoseInput(target, key);
-    if (diag.ok && isConveyorNetwork(target)) return { code: '', reason: '' };
-    if (diag.ok) return { code: 'target_rejects', reason: 'Les convoyeurs ne déposent que vers un convoyeur, un répartiteur ou un fusionneur.' };
-    if (diag.code === 'target_full') return { code: 'target_full', reason: diag.reason };
-    sawReject = true;
-  }
-  if (!sawStructure) return { code: 'no_output_structure', reason: 'Aucune structure connectée devant la sortie.' };
-  if (sawReject) return { code: 'target_rejects', reason: 'La structure connectée ne peut pas recevoir cette ressource.' };
-  return { code: 'blocked', reason: 'Aucune sortie disponible.' };
-}
-
 function updateConveyorVisual(belt, timeMs) {
   const key = conveyorItem(belt);
   if (!key) {
     belt.automationItem = null;
     belt.automationMoving = null;
-    clearAutomationStatus(belt);
+    belt.automationStatus = '';
     return;
   }
   if (!belt.automationMoving || belt.automationMoving.key !== key) {
@@ -342,8 +283,7 @@ function updateConveyor(state, belt, timeMs) {
   if (elapsed < totalMs) return false;
   const targets = conveyorTargets(state, belt, key);
   if (!targets.length) {
-    const diag = diagnoseConveyorOutput(state, belt, key);
-    setAutomationStatus(belt, diag.code || 'blocked', diag.reason, timeMs);
+    belt.automationStatus = 'blocked';
     belt.automationBlockedAt = timeMs;
     belt.automationMoving.startedAt = timeMs - totalMs;
     belt.automationItem = { ...resourceMeta(key), phase: 'blocked', progress: 1, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
@@ -358,7 +298,7 @@ function updateConveyor(state, belt, timeMs) {
   const outputs = def?.automationOutputs || ['front'];
   if (outputs.length > 1) belt.automationOutputIndex = ((belt.automationOutputIndex | 0) + 1) % outputs.length;
   belt.automationMoving = null;
-  clearAutomationStatus(belt);
+  belt.automationStatus = '';
   belt.automationPulse = timeMs;
   belt.updatedAt = timeMs;
   chosen.target.updatedAt = timeMs;
@@ -386,8 +326,7 @@ function updateRobotArm(state, arm, timeMs) {
     if (elapsed < totalMs) return false;
     const target = findStructureAt(state, arm, targetPoint(arm, true, reach));
     if (!target || !canPut(target, arm.automationJob.key)) {
-      const diag = target ? diagnoseInput(target, arm.automationJob.key) : { code: 'no_output_structure', reason: 'Aucune structure connectée devant le bras.' };
-      setAutomationStatus(arm, diag.code || 'blocked', diag.reason, timeMs);
+      arm.automationStatus = 'blocked';
       arm.automationBlockedAt = timeMs;
       arm.automationJob.startedAt = timeMs - totalMs;
       arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase: 'arm_blocked', progress: 1, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
@@ -396,7 +335,7 @@ function updateRobotArm(state, arm, timeMs) {
     putOne(target, arm.automationJob.key);
     arm.automationJob = null;
     arm.automationItem = null;
-    clearAutomationStatus(arm);
+    arm.automationStatus = '';
     arm.automationPulse = timeMs;
     arm.updatedAt = timeMs;
     target.updatedAt = timeMs;
@@ -406,23 +345,17 @@ function updateRobotArm(state, arm, timeMs) {
   const source = findStructureAt(state, arm, targetPoint(arm, false, reach));
   const target = findStructureAt(state, arm, targetPoint(arm, true, reach));
   if (!source || !target) {
-    setAutomationStatus(arm, !source ? 'no_input_structure' : 'no_output_structure', !source ? 'Aucune structure connectée derrière le bras.' : 'Aucune structure connectée devant le bras.', timeMs);
+    arm.automationStatus = !source ? 'no_input' : 'no_output';
     return false;
   }
   if (!hasOutput(source, (key) => canPut(target, key))) {
-    const sourceHasAny = hasOutput(source);
-    if (!sourceHasAny) setAutomationStatus(arm, 'input_empty', 'La structure d’entrée ne contient aucune ressource transférable.', timeMs);
-    else {
-      const first = resourceEntries(getOutputMap(source))[0]?.[0] || '';
-      const diag = first ? diagnoseInput(target, first) : { code: 'blocked', reason: 'Aucune ressource compatible avec la sortie.' };
-      setAutomationStatus(arm, diag.code || 'blocked', diag.reason || 'La sortie ne peut pas recevoir les ressources disponibles.', timeMs);
-    }
+    arm.automationStatus = hasOutput(source) ? 'blocked' : 'no_input';
     return false;
   }
   const key = takeOneMatching(source, (candidate) => canPut(target, candidate));
   if (!key) return false;
   arm.automationJob = { key, startedAt: timeMs, totalMs };
-  clearAutomationStatus(arm);
+  arm.automationStatus = '';
   arm.lastAutomationAt = timeMs;
   ensureArmVisual(arm, timeMs);
   source.updatedAt = timeMs;
@@ -472,7 +405,7 @@ function pushExtractorBuffer(state, extractor, timeMs) {
     map[key] = (map[key] | 0) - 1;
     clean(map);
     extractor.automationItem = { ...resourceMeta(key), phase: 'extractor_out', progress: 1, startedAt: timeMs - 160, totalMs: 260, at: timeMs };
-    clearAutomationStatus(extractor);
+    extractor.automationStatus = '';
     extractor.updatedAt = timeMs;
     target.updatedAt = timeMs;
     return true;
@@ -493,7 +426,7 @@ function updateExtractor(state, extractor, timeMs) {
   }
 
   if (!deposit) {
-    setAutomationStatus(extractor, 'no_deposit', 'Aucun gisement dans la portée de l’extracteur.', timeMs);
+    extractor.automationStatus = 'no_deposit';
     extractor.depositResourceKey = '';
     extractor.extractionProgress = 0;
     extractor.automationItem = null;
@@ -505,7 +438,7 @@ function updateExtractor(state, extractor, timeMs) {
   extractor.depositLabel = deposit.depositLabel || RESOURCE_DEFS[key]?.name || key;
 
   if (extractor.machineEnabled === false) {
-    setAutomationStatus(extractor, 'disabled', 'Extracteur arrêté manuellement.', timeMs);
+    extractor.automationStatus = 'disabled';
     extractor.extractionProgress = 0;
     extractor.automationItem = null;
     return changed;
@@ -513,7 +446,7 @@ function updateExtractor(state, extractor, timeMs) {
 
   const energyUse = Math.max(0, Number(def?.energyUse ?? extractor.energyUse) || 0);
   if (energyUse > 0 && !extractor.powered) {
-    setAutomationStatus(extractor, 'no_power', 'Production énergétique insuffisante.', timeMs);
+    extractor.automationStatus = 'no_power';
     extractor.extractionProgress = 0;
     extractor.automationItem = { ...resourceMeta(key), phase: 'no_power', progress: 0, startedAt: timeMs, totalMs: 1, at: timeMs };
     return changed;
@@ -522,7 +455,7 @@ function updateExtractor(state, extractor, timeMs) {
   const capacity = extractor.storage?.capacity || def?.storageCapacity || 8;
   const per = Number(RESOURCE_DEFS[key]?.cargoPerUnit) || 1;
   if (usedCapacity(map) + per > capacity) {
-    setAutomationStatus(extractor, 'buffer_full', 'Le buffer de sortie est plein.', timeMs);
+    extractor.automationStatus = 'buffer_full';
     extractor.extractionProgress = 0;
     return changed;
   }
@@ -534,7 +467,7 @@ function updateExtractor(state, extractor, timeMs) {
   extractor.automationItem = { ...resourceMeta(key), phase: 'extracting', progress: extractor.extractionProgress, startedAt: timeMs - Math.max(0, elapsed), totalMs: interval, at: timeMs };
 
   if (elapsed < interval) {
-    clearAutomationStatus(extractor);
+    extractor.automationStatus = '';
     return changed;
   }
 
@@ -542,7 +475,7 @@ function updateExtractor(state, extractor, timeMs) {
   map[key] = (map[key] | 0) + amount;
   extractor.lastExtractionAt = timeMs;
   extractor.extractionProgress = 0;
-  clearAutomationStatus(extractor);
+  extractor.automationStatus = '';
   extractor.updatedAt = timeMs;
   deposit.updatedAt = timeMs;
   return true;

@@ -319,7 +319,6 @@ function ensureTestStructure(state, worldId, type, sx, sy, x, y, options = {}) {
       exists.ownerName = options.ownerName || exists.ownerName || '';
       exists.updatedAt = options.timeMs || Date.now();
     }
-    if (options.orientation) exists.orientation = options.orientation;
     return exists;
   }
   const st = createStructure(state, type, sx | 0, sy | 0, x, y, {
@@ -328,8 +327,7 @@ function ensureTestStructure(state, worldId, type, sx, sy, x, y, options = {}) {
     ownerName: options.ownerName || 'Test',
     worldId,
     createdAt: options.timeMs || Date.now(),
-    updatedAt: options.timeMs || Date.now(),
-    orientation: options.orientation || undefined
+    updatedAt: options.timeMs || Date.now()
   });
   if (!st) return null;
   st.powered = true;
@@ -595,53 +593,6 @@ export function ensureTestLogisticDronesBench(state, player, timeMs) {
       ironOre: Math.max(remoteRequester.logisticRequests?.ironOre | 0, 55),
       lithiumOre: Math.max(remoteRequester.logisticRequests?.lithiumOre | 0, 25)
     };
-  }
-
-  const beltSource = ensureTestStructure(state, worldId, 'storage', sx, sy, -512, 640, { ...owner, orientation: 'r' });
-  if (beltSource) {
-    beltSource.storage ??= { kind: 'resources', resources: {}, capacity: 360 };
-    beltSource.storage.kind = 'resources';
-    beltSource.storage.capacity = Math.max(beltSource.storage.capacity || 0, 360);
-    beltSource.storage.resources = { ironOre: 120, copper: 80, quartz: 40 };
-    beltSource.updatedAt = timeMs;
-  }
-
-  ensureTestStructure(state, worldId, 'robot_arm', sx, sy, -416, 640, { ...owner, orientation: 'r' });
-  ensureTestStructure(state, worldId, 'conveyor', sx, sy, -352, 640, { ...owner, orientation: 'r' });
-  ensureTestStructure(state, worldId, 'splitter', sx, sy, -288, 640, { ...owner, orientation: 'r' });
-  ensureTestStructure(state, worldId, 'fast_conveyor', sx, sy, -224, 608, { ...owner, orientation: 'r' });
-  ensureTestStructure(state, worldId, 'fast_conveyor', sx, sy, -224, 672, { ...owner, orientation: 'r' });
-  ensureTestStructure(state, worldId, 'conveyor', sx, sy, -160, 608, { ...owner, orientation: 'r' });
-  ensureTestStructure(state, worldId, 'conveyor', sx, sy, -160, 672, { ...owner, orientation: 'r' });
-
-  const upperSink = ensureTestStructure(state, worldId, 'storage', sx, sy, -96, 608, { ...owner, orientation: 'r' });
-  if (upperSink) {
-    upperSink.storage ??= { kind: 'resources', resources: {}, capacity: 240 };
-    upperSink.storage.kind = 'resources';
-    upperSink.storage.capacity = Math.max(upperSink.storage.capacity || 0, 240);
-  }
-  const lowerSink = ensureTestStructure(state, worldId, 'storage', sx, sy, -96, 672, { ...owner, orientation: 'r' });
-  if (lowerSink) {
-    lowerSink.storage ??= { kind: 'resources', resources: {}, capacity: 240 };
-    lowerSink.storage.kind = 'resources';
-    lowerSink.storage.capacity = Math.max(lowerSink.storage.capacity || 0, 240);
-  }
-
-  const longArmSource = ensureTestStructure(state, worldId, 'storage', sx, sy, 288, 640, { ...owner, orientation: 'r' });
-  if (longArmSource) {
-    longArmSource.storage ??= { kind: 'resources', resources: {}, capacity: 240 };
-    longArmSource.storage.kind = 'resources';
-    longArmSource.storage.capacity = Math.max(longArmSource.storage.capacity || 0, 240);
-    longArmSource.storage.resources = { steelPlate: 60, copperWire: 80 };
-    longArmSource.updatedAt = timeMs;
-  }
-  ensureTestStructure(state, worldId, 'long_arm', sx, sy, 416, 640, { ...owner, orientation: 'r' });
-  ensureTestStructure(state, worldId, 'conveyor', sx, sy, 544, 640, { ...owner, orientation: 'r' });
-  const longArmSink = ensureTestStructure(state, worldId, 'storage', sx, sy, 608, 640, { ...owner, orientation: 'r' });
-  if (longArmSink) {
-    longArmSink.storage ??= { kind: 'resources', resources: {}, capacity: 240 };
-    longArmSink.storage.kind = 'resources';
-    longArmSink.storage.capacity = Math.max(longArmSink.storage.capacity || 0, 240);
   }
 }
 
