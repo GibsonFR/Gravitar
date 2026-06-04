@@ -81,6 +81,7 @@ export class NetDebugOverlay {
     this.el.innerHTML = `
       <div class="net-debug-overlay__title">DEBUG NET/PERF</div>
       <div class="net-debug-overlay__grid">
+        <span>Projectile lab</span><b>${s.projectileLabMinimal ? 'MINIMAL SNAPSHOT' : 'normal'}</b>
         <span>FPS</span><b>${fmtRate(s.fps)} · ${fmtMs(s.frameMsAvg)}</b>
         <span>Frame max</span><b>${fmtMs(s.frameMsMax)}</b>
         <span>Packets in</span><b>${fmtRate(s.packetsInPerSec)}/s · ${s.totalPacketsIn || 0}</b>

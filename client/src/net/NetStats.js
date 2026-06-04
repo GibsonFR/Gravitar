@@ -235,6 +235,7 @@ export class NetStats {
       this.inputHistory?.ack?.(this.ackInputSeq);
     }
     if (Number.isFinite(Number(msg?.net?.skippedSnapshots))) this.skippedSnapshots = Number(msg.net.skippedSnapshots) | 0;
+    this.projectileLabMinimal = !!msg?.net?.projectileLabMinimal;
 
     const serverTime = finite(msg?.time, 0);
     if (serverTime > 0) {
@@ -475,6 +476,7 @@ export class NetStats {
       droppedByBackpressure: this.droppedByBackpressure,
       serverTick: this.serverTick,
       serverTime: this.serverTime,
+      projectileLabMinimal: !!this.projectileLabMinimal,
       serverEventAgeAvgMs: this.serverEventAgeAvgMs,
       serverEventAgeMaxMs: this.serverEventAgeMaxMs,
       projectileEventAgeAvgMs: this.projectileEventAgeAvgMs,

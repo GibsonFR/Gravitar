@@ -18,6 +18,7 @@ export const SPECIAL_SECTORS = {
   TEST_LOGISTIC_DRONES: { sx: 9122, sy: -9100 },
   TEST_FACTORIO_LOGISTICS: { sx: 9124, sy: -9100 },
   TEST_TURRETS: { sx: 9123, sy: -9100 },
+  TEST_PROJECTILE_LAB: { sx: 9125, sy: -9100 },
   TEST_BIOME_METALLIC: { sx: 9110, sy: -9100, biomeId: 'metallic', label: 'Ceinture métallique' },
   TEST_BIOME_SILICATE: { sx: 9111, sy: -9100, biomeId: 'silicate', label: 'Champ cristallin' },
   TEST_BIOME_ORGANIC: { sx: 9112, sy: -9100, biomeId: 'organic', label: 'Nuage organique' },

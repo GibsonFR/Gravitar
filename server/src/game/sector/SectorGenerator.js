@@ -483,6 +483,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, 1140, 1320, SPECIAL_SECTORS.TEST_PROJECTILE_LAB.sx, SPECIAL_SECTORS.TEST_PROJECTILE_LAB.sy, '➹', {
+    label: 'Test projectiles isolé',
+    mode: 'test_projectile_lab',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -1001,6 +1007,35 @@ function generateTestFoundationsContent(state, sx, sy, timeMs, h) {
 
 
 
+
+function generateTestProjectileLabContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+
+  // Secteur volontairement pauvre : pas de structures de prod, pas de drones,
+  // pas de mobs auto-générés. Il sert à isoler le pipeline projectiles/eventbus.
+  spawnStation(state, sx, sy, -1500, 1450, true, h ^ 0x9125aa, timeMs);
+
+  const targets = [
+    ['ironOre', 520, -260, 48],
+    ['copper', 760, -40, 48],
+    ['quartz', 560, 220, 52],
+    ['silicon', 980, 260, 44],
+    ['ice', -520, -220, 50],
+    ['biomass', -760, 80, 54]
+  ];
+
+  targets.forEach(([resourceKey, x, y, radius], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x, y, radius, resourceKey, yieldValue: 9999, seed: h ^ (0x912500 + i), sig: `test_projectile_lab_target_${i}_${sx}_${sy}`
+    });
+  });
+}
+
+
 function generateTestTurretsContent(state, sx, sy, timeMs, h) {
   spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', { label: 'Retour hub test', radius: 52, autoTrigger: true });
   spawnStation(state, sx, sy, -1500, 1450, true, h ^ 0x223a01, timeMs);
@@ -1429,6 +1464,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testLogisticDrones = sx === SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sx && sy === SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sy;
   const testFactorioLogistics = sx === SPECIAL_SECTORS.TEST_FACTORIO_LOGISTICS.sx && sy === SPECIAL_SECTORS.TEST_FACTORIO_LOGISTICS.sy;
   const testTurrets = sx === SPECIAL_SECTORS.TEST_TURRETS.sx && sy === SPECIAL_SECTORS.TEST_TURRETS.sy;
+  const testProjectileLab = sx === SPECIAL_SECTORS.TEST_PROJECTILE_LAB.sx && sy === SPECIAL_SECTORS.TEST_PROJECTILE_LAB.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
   const stressArena = sx === SPECIAL_SECTORS.STRESS_ARENA.sx && sy === SPECIAL_SECTORS.STRESS_ARENA.sy;
@@ -1515,6 +1551,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testTurrets) {
     generateTestTurretsContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testProjectileLab) {
+    generateTestProjectileLabContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testBiomeSector) {

@@ -98,7 +98,7 @@ export function queueProjectileSpawnEvent(state, projectile, timeMs = Date.now()
     timeMs,
     scope: projectileScope(projectile),
     payload,
-    ttlMs: 450
+    ttlMs: 320
   });
   return toLegacyProjectileEvent(ev);
 }
@@ -127,7 +127,7 @@ export function queueProjectileImpactEvent(state, projectile, target = null, tim
     timeMs,
     scope: projectileScope(projectile),
     payload,
-    ttlMs: 450
+    ttlMs: 320
   });
   return toLegacyProjectileEvent(ev);
 }
@@ -147,7 +147,7 @@ export function queueProjectileDestroyEvent(state, projectile, timeMs = Date.now
     timeMs,
     scope: projectileScope(projectile),
     payload,
-    ttlMs: 450
+    ttlMs: 320
   });
   return toLegacyProjectileEvent(ev);
 }
