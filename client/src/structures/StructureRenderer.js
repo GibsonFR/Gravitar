@@ -270,104 +270,39 @@ function drawResourceChip(ctx, view, color, x, y, radius, dir, amount = 1) {
   }
 }
 
-function automationProgress(preview) {
-  if (!preview || typeof preview !== 'object') return null;
-  const p = localAutomationProgress(preview);
-  if (p != null) return p;
-  if (Number.isFinite(Number(preview.progress))) return Math.max(0, Math.min(1, Number(preview.progress)));
-  return null;
-}
-
-function splitterLaneY(slot, h) {
-  const st = String(slot || '').toLowerCase();
-  if (st === 'lower') return h * 0.25;
-  if (st === 'upper') return -h * 0.25;
-  return 0;
-}
-
-function conveyorChipPosition(s, w, h, progress) {
-  const type = String(s?.type || '').toLowerCase();
-  const p = smoothstep01(progress);
-  const fromX = -w * 0.35;
-  const toX = w * 0.35;
-  if (type === 'splitter') {
-    const branchStart = 0.48;
-    const branch = Math.max(0, Math.min(1, (p - branchStart) / (1 - branchStart)));
-    return {
-      x: fromX + (toX - fromX) * p,
-      y: splitterLaneY(s.automationItem?.outputSlot, h) * smoothstep01(branch)
-    };
-  }
-  if (type === 'merger') {
-    const y = -h * 0.25;
-    return {
-      x: fromX + (toX - fromX) * p,
-      y
-    };
-  }
-  return {
-    x: fromX + (toX - fromX) * p,
-    y: 0
-  };
-}
-
-function armChipPosition(s, w, h, progress) {
-  const p = smoothstep01(progress);
-  const reachScale = s.type === 'long_arm' ? 1.15 : 1;
-  return {
-    x: (p - 0.5) * w * 0.84 * reachScale,
-    y: Math.sin(p * Math.PI) * -h * 0.10
-  };
-}
-
-function drawStaticAutomationInventory(ctx, view, s, w, h) {
-  const preview = s.storagePreview || null;
-  const used = Number(s.storageUsed || 0);
-  if (!preview || used <= 0) return;
-  const color = preview?.colorHex || 'rgba(230,245,255,.95)';
-  const dir = { x: 1, y: 0 };
-  ctx.save();
-  rotateToDir(ctx, s);
-  ctx.globalAlpha *= 0.72;
-  const x = isConveyorType(s.type) ? -w * 0.32 : 0;
-  drawResourceChip(ctx, view, color, x, 0, Math.max(5, Math.min(w, h) * 0.095), dir, preview?.amount | 0 || 1);
-  ctx.restore();
-}
-
 function drawAutomationItem(ctx, view, s, w, h, t) {
-  const preview = s.automationItem || s._automationFadeItem || null;
-  if (!preview) {
-    drawStaticAutomationInventory(ctx, view, s, w, h);
-    return;
-  }
+  const preview = s.automationItem || s._automationFadeItem || s.storagePreview || null;
+  const used = Number(s.storageUsed || 0);
+  if (!preview && used <= 0) return;
   const color = preview?.colorHex || 'rgba(230,245,255,.95)';
-  const rawProgress = automationProgress(preview);
-  const progress = rawProgress == null ? 0 : rawProgress;
+  const dir = dirOf(s);
+  const rawProgress = localAutomationProgress(preview);
+  const idlePulse = 0.5 + 0.18 * Math.sin(t * 3.0 + (s.id | 0));
+  const progress = rawProgress == null
+    ? (s.automationItem ? Math.max(0, Math.min(1, (performance.now() - Number(s.automationPulse || 0)) / 700)) : idlePulse)
+    : rawProgress;
   const blocked = preview?.phase === 'blocked' || preview?.phase === 'arm_blocked' || s.automationStatus === 'blocked';
   const fadeUntil = Number(preview?._fadeUntil || 0);
   const fade = fadeUntil > 0 ? Math.max(0, Math.min(1, (fadeUntil - performance.now()) / 220)) : 1;
-  const phase = blocked ? 1 : progress;
-  const isArm = preview?.phase === 'arm' || preview?.phase === 'arm_blocked' || isArmType(s.type);
-  const pos = isArm ? armChipPosition(s, w, h, phase) : conveyorChipPosition(s, w, h, phase);
-  const radius = Math.max(5, Math.min(w, h) * (isArm ? 0.095 : 0.105));
-
+  let phase = blocked ? 1 : progress;
+  if (preview?.phase === 'arm') phase = smoothstep01(progress);
+  const travel = preview?.phase === 'arm' || preview?.phase === 'arm_blocked' ? 0.90 : 0.86;
+  const px = dir.x * (phase - 0.5) * w * travel;
+  const py = dir.y * (phase - 0.5) * h * travel;
   ctx.save();
-  rotateToDir(ctx, s);
   ctx.globalAlpha *= fade;
-  drawResourceChip(ctx, view, color, pos.x, pos.y, radius, { x: 1, y: 0 }, preview?.amount | 0 || 1);
+  drawResourceChip(ctx, view, color, px, py, Math.max(5, Math.min(w, h) * 0.105), dir, preview?.amount | 0 || 1);
   ctx.restore();
-
   if (blocked) {
     ctx.save();
-    rotateToDir(ctx, s);
     ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(255,120,120,.95)';
     ctx.lineWidth = 2.2 * view.dpr;
     ctx.beginPath();
-    ctx.moveTo(pos.x - 7 * view.dpr, pos.y - 7 * view.dpr);
-    ctx.lineTo(pos.x + 7 * view.dpr, pos.y + 7 * view.dpr);
-    ctx.moveTo(pos.x + 7 * view.dpr, pos.y - 7 * view.dpr);
-    ctx.lineTo(pos.x - 7 * view.dpr, pos.y + 7 * view.dpr);
+    ctx.moveTo(px - 7 * view.dpr, py - 7 * view.dpr);
+    ctx.lineTo(px + 7 * view.dpr, py + 7 * view.dpr);
+    ctx.moveTo(px + 7 * view.dpr, py - 7 * view.dpr);
+    ctx.lineTo(px - 7 * view.dpr, py + 7 * view.dpr);
     ctx.stroke();
     ctx.restore();
   }
