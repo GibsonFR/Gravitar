@@ -385,10 +385,10 @@ export class WorldStore {
         }
 
         if (action === 'arm_drop') {
-          // Le drop confirme la fin serveur, mais ne doit pas couper l'arc visuel du bras.
-          // Le pickup a déjà créé l'animation complète pickup -> drop ; on la laisse finir.
-          existing._localUntil = Math.max(existing._localUntil || 0, now + 120);
+          // Même logique que les tapis : l'animation active reste celle du pickup.
+          // Le drop confirme seulement que le serveur a validé la dépose.
           existing.exitEvent = ev;
+          existing._serverDropReceived = true;
           this.logisticTransferVisuals.set(visualItemId, existing);
           continue;
         }

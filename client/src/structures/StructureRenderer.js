@@ -509,8 +509,7 @@ function drawRobotArmBody(ctx, view, s, w, h) {
   const packetProgress = Number(s._logisticArmProgress);
   const hasPacketProgress = Number.isFinite(packetProgress);
   const p = hasPacketProgress ? packetProgress : (preview ? localAutomationProgress(preview) : null);
-  const blocked = String(s.automationStatus || '').toLowerCase() === 'blocked';
-  const profile = armMotionProfile(s, preview?.phase === 'arm_blocked' && !hasPacketProgress ? 1 : (p ?? 0.5), w, h);
+  const profile = armMotionProfile(s, p ?? 0.5, w, h);
   ctx.save();
   rotateToDir(ctx, s);
 
@@ -618,10 +617,9 @@ export function applyLogisticTransferVisualsToStructures(store) {
   if (!store?.structures?.values) return;
 
   for (const st of store.structures.values()) {
-    if (st) {
-      st._logisticArmProgress = undefined;
-      st._logisticArmVisualItemId = 0;
-    }
+    if (!st) continue;
+    st._logisticArmProgress = undefined;
+    st._logisticArmVisualItemId = 0;
   }
 
   const source = store?.logisticTransferVisuals;
@@ -629,13 +627,16 @@ export function applyLogisticTransferVisualsToStructures(store) {
   if (!events.length) return;
 
   const now = performance.now();
+
   for (const ev of events) {
     if (now > Number(ev._localUntil || 0)) continue;
-    const action = String(ev.action || '').toLowerCase();
-    if (action !== 'arm_pickup') continue;
-
     const carrier = ev.carrier || null;
     if (!carrier || !isArmType(carrier.type)) continue;
+
+    // Même principe que les tapis : l'entrée visuelle locale active pilote la pose.
+    // Le drop/exit ne crée pas un deuxième visuel ; il raccourcit ou confirme seulement l'item existant.
+    const action = String(ev.action || '').toLowerCase();
+    if (action !== 'arm_pickup') continue;
 
     const arm = store.structures.get(carrier.id | 0);
     if (!arm) continue;
@@ -664,22 +665,20 @@ export function drawLogisticTransferEventVisuals(ctx, view, store, camX, camY) {
       if (now > Number(ev._localUntil || 0)) continue;
 
       const action = String(ev.action || '').toLowerCase();
-      // Les drop/exit ne doivent pas dessiner une seconde ressource. Ils ne servent qu'à finir/tomber l'item existant.
-      if (action === 'arm_drop' || action === 'conveyor_exit') continue;
+      if (action !== 'conveyor_enter' && action !== 'arm_pickup') continue;
 
       const p = logisticEventProgress(ev);
       if (!Number.isFinite(p)) continue;
 
       const color = ev.colorHex || ev.resourceColorHex || '#d7e5ff';
       const carrier = ev.carrier || null;
-      const sourceRef = ev.source || null;
-      const targetRef = ev.target || null;
+      if (!carrier) continue;
 
       let x = 0;
       let y = 0;
       let dir = { x: 1, y: 0 };
 
-      if (carrier && isConveyorType(carrier.type)) {
+      if (isConveyorType(carrier.type)) {
         const fake = { ...carrier, type: carrier.type || 'conveyor', orientation: carrier.orientation || 'r' };
         const local = conveyorItemPoint(fake, Number(carrier.w || 64), Number(carrier.h || 64), p, { slot: ev.slot || 'front' });
         if (!Number.isFinite(local.x) || !Number.isFinite(local.y)) continue;
@@ -690,7 +689,7 @@ export function drawLogisticTransferEventVisuals(ctx, view, store, camX, camY) {
         x = (Number(carrier.x) || 0) + local.x * ca - local.y * sa;
         y = (Number(carrier.y) || 0) + local.x * sa + local.y * ca;
         dir = d;
-      } else if (carrier && isArmType(carrier.type)) {
+      } else if (isArmType(carrier.type)) {
         const fake = { ...carrier, type: carrier.type || 'robot_arm', orientation: carrier.orientation || 'r' };
         const profile = armMotionProfile(fake, p, Number(carrier.w || 64), Number(carrier.h || 64));
         if (!Number.isFinite(profile?.grip?.x) || !Number.isFinite(profile?.grip?.y)) continue;
@@ -702,18 +701,13 @@ export function drawLogisticTransferEventVisuals(ctx, view, store, camX, camY) {
         y = (Number(carrier.y) || 0) + profile.grip.x * sa + profile.grip.y * ca;
         dir = d;
       } else {
-        const a = worldPointFromStructureRef(sourceRef);
-        const b = worldPointFromStructureRef(targetRef, a);
-        x = a.x + (b.x - a.x) * p;
-        y = a.y + (b.y - a.y) * p;
+        continue;
       }
 
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-
       const screen = worldToScreen(view, x, y, camX, camY);
       if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) continue;
 
-      // Hard culling: if something is wrong with a packet, it cannot draw a giant screen artifact.
       const margin = 96 * view.dpr;
       if (screen.x < -margin || screen.y < -margin || screen.x > view.cssW * view.dpr + margin || screen.y > view.cssH * view.dpr + margin) continue;
 
