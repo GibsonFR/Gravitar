@@ -21,6 +21,8 @@ export function queueDamageNumber(state, target, amount, options = {}) {
     targetId: target.id ?? 0,
     targetKind: target.kind || '',
     amount: Math.max(0, amount),
+    hpAfter: Number.isFinite(Number(options.hpAfter)) ? Math.max(0, Number(options.hpAfter)) : undefined,
+    maxHp: Number.isFinite(Number(options.maxHp)) ? Math.max(0, Number(options.maxHp)) : undefined,
     shielded: !!options.shielded,
     crit: !!options.crit,
     periodic: !!options.periodic,

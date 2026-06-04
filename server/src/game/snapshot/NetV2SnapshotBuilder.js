@@ -214,8 +214,7 @@ function playerStatusCompact(player, selfId = 0, state = null) {
     selectedKind: player.selectedKind || '',
     selectedId: player.selectedId | 0,
     autoTargetKind: player.autoTargetKind || '',
-    autoTargetId: player.autoTargetId | 0,
-    inv: (player.id | 0) === (selfId | 0) ? buildInventorySnapshot(player.inv, state?.stations?.get?.(player.dockedStationId || 0) ?? null) : undefined
+    autoTargetId: player.autoTargetId | 0
   };
 }
 
@@ -618,6 +617,67 @@ export function buildNetV2WorldEntitiesDeltaPacket(state, playerId, timeMs) {
       netV2Reset: true,
       packet: 'world_entities_delta_v2',
       authoritativeSectorEntities: true
+    }
+  };
+}
+
+
+export function buildNetV2CargoPacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  const dockedStation = state?.stations?.get?.(me.dockedStationId || 0) ?? null;
+  return {
+    t: 'cargo_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    inv: buildInventorySnapshot(me.inv, dockedStation),
+    net: {
+      netV2Reset: true,
+      packet: 'cargo_v2'
+    }
+  };
+}
+
+function mobPoseCompact(mob) {
+  if (!mob) return null;
+  return {
+    id: mob.id | 0,
+    x: q(mob.x || 0, 2),
+    y: q(mob.y || 0, 2),
+    vx: q(mob.vx || 0, 3),
+    vy: q(mob.vy || 0, 3),
+    rot: q(mob.rot ?? mob.visualRot ?? 0, 4),
+    radius: q(mob.radius || 18),
+    sx: mob.sx | 0,
+    sy: mob.sy | 0,
+    worldId: String(mob.worldId || 'endless')
+  };
+}
+
+export function buildNetV2MobPosePacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  const sx = me.sx | 0;
+  const sy = me.sy | 0;
+  const worldId = String(me.worldId || 'endless');
+  const mobs = [...state.mobs.values()]
+    .filter((m) => sameSector(m, sx, sy) && sameWorld(m, worldId))
+    .map(mobPoseCompact)
+    .filter(Boolean);
+  if (!mobs.length) return null;
+  return {
+    t: 'mob_pose_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    worldId,
+    sx,
+    sy,
+    mobs,
+    net: {
+      netV2Reset: true,
+      packet: 'mob_pose_v2'
     }
   };
 }

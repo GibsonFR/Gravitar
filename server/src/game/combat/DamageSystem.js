@@ -356,12 +356,17 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   }
 
   if (target.kind !== 'structure') {
+    const predictedHpAfter = ['asteroid', 'mob'].includes(String(target.kind || ''))
+      ? Math.max(0, Number(target.stats?.hp ?? 0) - finalAmount)
+      : undefined;
     queueDamageNumber(state, target, finalAmount, {
       shielded,
       crit: !!options.crit,
       periodic: !!options.isPeriodic,
       sourceSlot: options.sourceSlot || '',
-      visualKind: options.visualKind || ''
+      visualKind: options.visualKind || '',
+      hpAfter: predictedHpAfter,
+      maxHp: target.stats?.maxHp
     });
     if (!options.isPeriodic) {
       queueWorldSfx(state, shielded ? SFX_EVENT_TYPES.DAMAGE_SHIELD : SFX_EVENT_TYPES.DAMAGE_HULL, target.sx, target.sy, target.x, target.y, options.crit ? 1 : 0);

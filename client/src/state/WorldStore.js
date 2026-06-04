@@ -472,8 +472,8 @@ export class WorldStore {
           const impactTargetId = ev.target?.id | 0;
           const impactTargetKind = ev.target?.kind || '';
           const impactTarget = this.getEntityByEventTarget(impactTargetKind, impactTargetId);
-          const impactX = Number.isFinite(Number(impactTarget?.x)) ? Number(impactTarget.x) : Number(ev.x || ev.projectile?.x || 0);
-          const impactY = Number.isFinite(Number(impactTarget?.y)) ? Number(impactTarget.y) : Number(ev.y || ev.projectile?.y || 0);
+          const impactX = Number.isFinite(Number(ev.x)) ? Number(ev.x) : (Number.isFinite(Number(impactTarget?.x)) ? Number(impactTarget.x) : Number(ev.projectile?.x || 0));
+          const impactY = Number.isFinite(Number(ev.y)) ? Number(ev.y) : (Number.isFinite(Number(impactTarget?.y)) ? Number(impactTarget.y) : Number(ev.projectile?.y || 0));
           this.pendingProjectileImpacts.push({
             projectileId,
             x: impactX,
@@ -1570,12 +1570,20 @@ export class WorldStore {
         const kind = String(ev.targetKind || '').toLowerCase();
         const target = this.getEntityByEventTarget(kind, id);
         if (target?.vitals) {
-          const amount = Math.max(0, Number(ev.amount || 0));
-          const hp = Math.max(0, Number(target.vitals.hp ?? target.vitals.health ?? 0) - amount);
-          target.vitals = { ...target.vitals, hp };
-          target._lastDamageAt = performance.now();
-          if (kind === 'asteroid' && hp <= 0) this.asteroids.delete(id);
-          if (kind === 'mob' && hp <= 0) this.mobs.delete(id);
+          const hpAfter = Number(ev.hpAfter);
+          if (Number.isFinite(hpAfter)) {
+            target.vitals = { ...target.vitals, hp: Math.max(0, hpAfter), maxHp: Number.isFinite(Number(ev.maxHp)) ? Number(ev.maxHp) : target.vitals.maxHp };
+            target._lastDamageAt = performance.now();
+            if (kind === 'asteroid' && hpAfter <= 0) this.asteroids.delete(id);
+            if (kind === 'mob' && hpAfter <= 0) this.mobs.delete(id);
+          } else if (kind === 'player' || kind === 'structure') {
+            const amount = Math.max(0, Number(ev.amount || 0));
+            const hp = Math.max(0, Number(target.vitals.hp ?? target.vitals.health ?? 0) - amount);
+            target.vitals = { ...target.vitals, hp };
+            target._lastDamageAt = performance.now();
+          } else {
+            target._lastDamageAt = performance.now();
+          }
         }
         continue;
       }
@@ -1687,7 +1695,6 @@ export class WorldStore {
   _syncMobsFromWorldDelta(mobs, serverTime) {
     if (!Array.isArray(mobs)) return;
     const seen = new Set();
-    this.interpolationStore?.pushMany?.('mob', mobs, serverTime || this.lastServerTime || Date.now());
 
     for (const mob of mobs) {
       const id = mob?.id | 0;
@@ -1698,21 +1705,20 @@ export class WorldStore {
         this.mobs.set(id, { ...mob });
         continue;
       }
-      // Keep rendered pose client-side; interpolationStore is the source for mob rendering.
-      // The delta updates authoritative vitals/status/meta without snapping x/y every 250ms.
-      const merged = {
+      // World delta is authoritative for mob existence/vitals/meta only.
+      // Real-time mob movement is mob_pose_v2, otherwise full deltas cause rollback.
+      this.mobs.set(id, {
         ...current,
         ...mob,
         x: current.x,
         y: current.y,
-        vx: Number.isFinite(Number(mob.vx)) ? Number(mob.vx) : current.vx,
-        vy: Number.isFinite(Number(mob.vy)) ? Number(mob.vy) : current.vy,
-        _serverX: mob.x,
-        _serverY: mob.y,
-        _tx: current.x,
-        _ty: current.y
-      };
-      this.mobs.set(id, this._applyLocalVitalAuthority(current, this._applyLocalDamageToEntity(merged), performance.now()));
+        vx: current.vx,
+        vy: current.vy,
+        _serverX: current._serverX,
+        _serverY: current._serverY,
+        _tx: current._tx,
+        _ty: current._ty
+      });
     }
 
     for (const id of [...this.mobs.keys()]) {

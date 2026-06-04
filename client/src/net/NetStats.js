@@ -36,23 +36,55 @@ export class NetStats {
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.lifecyclePacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -101,6 +133,8 @@ export class NetStats {
     this.statusPacketsPerSec = 0;
     this.sessionPacketsPerSec = 0;
     this.worldDeltaPacketsPerSec = 0;
+    this.cargoPacketsPerSec = 0;
+    this.mobPosePacketsPerSec = 0;
     this.inputsPerSec = 0;
     this.commandsPerSec = 0;
     this.cmdAcksPerSec = 0;
@@ -163,6 +197,8 @@ export class NetStats {
     this.lastStatusPacket = null;
     this.lastSessionPacket = null;
     this.lastWorldDeltaPacket = null;
+    this.lastCargoPacket = null;
+    this.lastMobPosePacket = null;
     this.clientEntityCounts = {};
     this.clientEventCounts = {};
     this.inputSeq = 0;
@@ -441,6 +477,45 @@ export class NetStats {
     });
   }
 
+  recordCargoPacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.cargoPacketsInWindow += 1;
+    this.lastCargoPacket = {
+      cargoUsed: msg?.inv?.cargoUsed || 0,
+      resources: Array.isArray(msg?.inv?.resources) ? msg.inv.resources.length : 0,
+      bytes: b
+    };
+    this.pushDebugHistory({
+      kind: 'cargo_v2',
+      type: msg?.t || 'cargo_v2',
+      bytes: b,
+      cargoUsed: this.lastCargoPacket.cargoUsed,
+      resources: this.lastCargoPacket.resources,
+      serverTime: msg?.time || 0,
+      serverTick: msg?.tick || 0
+    });
+  }
+
+  recordMobPosePacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    const mobs = Array.isArray(msg?.mobs) ? msg.mobs : [];
+    this.mobPosePacketsInWindow += 1;
+    this.lastMobPosePacket = {
+      mobs: mobs.length,
+      bytes: b,
+      sector: `${msg?.worldId || 'endless'}:${msg?.sx | 0}:${msg?.sy | 0}`
+    };
+    this.pushDebugHistory({
+      kind: 'mob_pose_v2',
+      type: msg?.t || 'mob_pose_v2',
+      bytes: b,
+      mobs: mobs.length,
+      sector: this.lastMobPosePacket.sector,
+      serverTime: msg?.time || 0,
+      serverTick: msg?.tick || 0
+    });
+  }
+
   recordWorldEntitiesDeltaPacket(msg, bytes = 0) {
     const b = finite(bytes, 0);
     this.worldDeltaPacketsInWindow += 1;
@@ -550,6 +625,7 @@ export class NetStats {
         targetId: ev?.targetId | 0,
         targetKind: ev?.targetKind || '',
         amount: ev?.amount || 0,
+        hpAfter: ev?.hpAfter,
         x: ev?.x,
         y: ev?.y
       }))
@@ -815,6 +891,8 @@ export class NetStats {
     this.statusPacketsPerSec = this.statusPacketsInWindow / elapsed;
     this.sessionPacketsPerSec = this.sessionPacketsInWindow / elapsed;
     this.worldDeltaPacketsPerSec = this.worldDeltaPacketsInWindow / elapsed;
+    this.cargoPacketsPerSec = this.cargoPacketsInWindow / elapsed;
+    this.mobPosePacketsPerSec = this.mobPosePacketsInWindow / elapsed;
     this.inputsPerSec = this.inputsOutWindow / elapsed;
     this.commandsPerSec = this.commandsOutWindow / elapsed;
     this.cmdAcksPerSec = this.cmdAcksInWindow / elapsed;
@@ -835,6 +913,10 @@ export class NetStats {
       statusPacketsPerSec: this.statusPacketsPerSec,
       sessionPacketsPerSec: this.sessionPacketsPerSec,
       worldDeltaPacketsPerSec: this.worldDeltaPacketsPerSec,
+      cargoPacketsPerSec: this.cargoPacketsPerSec,
+      mobPosePacketsPerSec: this.mobPosePacketsPerSec,
+      lastCargoPacket: this.lastCargoPacket,
+      lastMobPosePacket: this.lastMobPosePacket,
       lastWorldDeltaPacket: this.lastWorldDeltaPacket,
       lastStatusPacket: this.lastStatusPacket,
       lastSessionPacket: this.lastSessionPacket,
@@ -865,23 +947,55 @@ export class NetStats {
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.lifecyclePacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.ackPacketsInWindow = 0;
     this.statusPacketsInWindow = 0;
     this.sessionPacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.worldDeltaPacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
+    this.cargoPacketsInWindow = 0;
+    this.mobPosePacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -936,6 +1050,10 @@ export class NetStats {
       statusPacketsPerSec: this.statusPacketsPerSec,
       sessionPacketsPerSec: this.sessionPacketsPerSec,
       worldDeltaPacketsPerSec: this.worldDeltaPacketsPerSec,
+      cargoPacketsPerSec: this.cargoPacketsPerSec,
+      mobPosePacketsPerSec: this.mobPosePacketsPerSec,
+      lastCargoPacket: this.lastCargoPacket,
+      lastMobPosePacket: this.lastMobPosePacket,
       lastWorldDeltaPacket: this.lastWorldDeltaPacket,
       lastStatusPacket: this.lastStatusPacket,
       lastSessionPacket: this.lastSessionPacket,

@@ -145,6 +145,16 @@ export class NetClient {
         this.netStats.recordWorldEntitiesDeltaPacket?.(msg, raw.length);
         this.store.applyWorldEntitiesDeltaV2?.(msg);
       }
+      if (msg.t === 'cargo_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordCargoPacket?.(msg, raw.length);
+        this.store.applyCargoV2?.(msg);
+      }
+      if (msg.t === 'mob_pose_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordMobPosePacket?.(msg, raw.length);
+        this.store.applyMobPoseV2?.(msg);
+      }
       if (msg.t === 'player_enter_sector_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordLifecyclePacket?.(msg, raw.length);
