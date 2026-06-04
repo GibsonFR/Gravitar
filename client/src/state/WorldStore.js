@@ -369,17 +369,23 @@ export class WorldStore {
         const projectile = ev.projectile || null;
         if (!projectile) continue;
         const current = this.projectiles.get(projectileId) || {};
+        const spawnX = Number(projectile.x) || 0;
+        const spawnY = Number(projectile.y) || 0;
         const next = {
           ...current,
           ...projectile,
           id: projectileId,
           kind: 'projectile',
-          x: Number(projectile.x) || 0,
-          y: Number(projectile.y) || 0,
-          _tx: Number(projectile.x) || 0,
-          _ty: Number(projectile.y) || 0,
-          _serverX: Number(projectile.x) || 0,
-          _serverY: Number(projectile.y) || 0
+          x: spawnX,
+          y: spawnY,
+          _tx: spawnX,
+          _ty: spawnY,
+          _serverX: spawnX,
+          _serverY: spawnY,
+          _packetSpawnLocalAt: performance.now(),
+          _packetStartX: spawnX,
+          _packetStartY: spawnY,
+          _packetServerTime: Number(ev.serverTime || 0) || this.lastServerTime || Date.now()
         };
         this.projectiles.set(projectileId, next);
         this.interpolationStore?.pushMany?.('projectile', [next], Number(ev.serverTime || this.lastServerTime || Date.now()));
@@ -658,16 +664,47 @@ export class WorldStore {
     return out;
   }
 
+  sampleLocalPacketProjectile(projectile) {
+    if (!projectile?._packetSpawnLocalAt) return projectile;
+    const now = performance.now();
+    const dt = Math.max(0, (now - Number(projectile._packetSpawnLocalAt || now)) / 1000);
+    const x0 = Number(projectile._packetStartX);
+    const y0 = Number(projectile._packetStartY);
+    const vx = Number(projectile.vx || 0);
+    const vy = Number(projectile.vy || 0);
+    if (!Number.isFinite(x0) || !Number.isFinite(y0) || !Number.isFinite(vx) || !Number.isFinite(vy)) return projectile;
+
+    const maxLifetimeMs = Math.max(0, Number(projectile.maxLifetimeMs || 0) || 0);
+    const bornAt = Number(projectile.bornAt || 0);
+    const serverNow = this._estimateServerNow();
+    if (maxLifetimeMs > 0 && bornAt > 0 && serverNow - bornAt > maxLifetimeMs + 250) return null;
+
+    return {
+      ...projectile,
+      x: x0 + vx * dt,
+      y: y0 + vy * dt,
+      _packetLocal: true
+    };
+  }
+
   getRenderProjectiles() {
     const out = [];
     const projectileRenderTime = this.getEstimatedServerNowMs();
+    const stalePacketIds = [];
     for (const projectile of this.projectiles.values()) {
+      if (projectile?._packetSpawnLocalAt) {
+        const sampled = this.sampleLocalPacketProjectile(projectile);
+        if (sampled) out.push(sampled);
+        else stalePacketIds.push(projectile.id | 0);
+        continue;
+      }
       out.push(this.sampleInterpolatedEntity('projectile', projectile, {
         renderTimeMs: projectileRenderTime,
         maxExtrapolateMs: 180,
         projectileLowLatency: true
       }));
     }
+    for (const id of stalePacketIds) if (id) this.projectiles.delete(id);
     return out;
   }
 
