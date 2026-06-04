@@ -50,6 +50,7 @@ function sameSector(a, b) {
 const CONVEYOR_TYPES = new Set(['conveyor', 'fast_conveyor', 'splitter', 'merger']);
 const ARM_TYPES = new Set(['robot_arm', 'fast_arm', 'long_arm']);
 
+
 const AUTOMATION_STATUS_LABELS = {
   blocked: 'sortie bloquée',
   target_full: 'sortie pleine',

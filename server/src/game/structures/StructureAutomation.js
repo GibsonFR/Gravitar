@@ -330,18 +330,7 @@ function updateConveyorVisual(belt, timeMs) {
   }
   const totalMs = Math.max(1, Number(belt.automationMoving.totalMs) || 700);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(belt.automationMoving.startedAt || timeMs)) / totalMs));
-  const def = getStructureDef(belt.type);
-  const outputs = def?.automationOutputs || ['front'];
-  const outputSlot = outputs[Math.max(0, belt.automationOutputIndex | 0) % outputs.length] || 'front';
-  belt.automationItem = {
-    ...resourceMeta(key),
-    phase: belt.automationStatus ? 'blocked' : 'belt',
-    progress,
-    startedAt: Number(belt.automationMoving.startedAt || timeMs),
-    totalMs,
-    outputSlot,
-    at: timeMs
-  };
+  belt.automationItem = { ...resourceMeta(key), phase: belt.automationStatus === 'blocked' ? 'blocked' : 'belt', progress, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
 }
 
 function updateConveyor(state, belt, timeMs) {
@@ -383,7 +372,7 @@ function ensureArmVisual(arm, timeMs) {
   }
   const totalMs = Math.max(1, Number(arm.automationJob.totalMs) || 900);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(arm.automationJob.startedAt || timeMs)) / totalMs));
-  const phase = arm.automationStatus && arm.automationStatus !== 'no_input' && arm.automationStatus !== 'no_output' ? 'arm_blocked' : 'arm';
+  const phase = arm.automationStatus === 'blocked' ? 'arm_blocked' : 'arm';
   arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase, progress, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
 }
 
