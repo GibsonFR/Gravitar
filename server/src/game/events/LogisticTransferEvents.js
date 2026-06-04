@@ -1,14 +1,4 @@
-function ensure(state) {
-  if (!state) return null;
-  if (!Array.isArray(state.pendingLogisticTransferEvents)) state.pendingLogisticTransferEvents = [];
-  return state.pendingLogisticTransferEvents;
-}
-
-function nextId(state) {
-  state.nextLogisticTransferEventId = (state.nextLogisticTransferEventId | 0) + 1;
-  if (state.nextLogisticTransferEventId > 2147483000) state.nextLogisticTransferEventId = 1;
-  return state.nextLogisticTransferEventId;
-}
+import { queueServerEvent, peekServerEventsForPlayer, pruneServerEvents } from './ServerEventBus.js';
 
 export function nextLogisticVisualItemId(state) {
   state.nextLogisticVisualItemId = (state.nextLogisticVisualItemId | 0) + 1;
@@ -38,44 +28,60 @@ function structureRef(st) {
   } : null;
 }
 
-export function queueLogisticTransferEvent(state, action, options = {}) {
-  const arr = ensure(state);
-  if (!arr) return null;
-  const timeMs = Number(options.timeMs || Date.now());
-  const ev = {
-    id: nextId(state),
+function toLegacyLogisticEvent(ev) {
+  if (!ev) return null;
+  const payload = ev.payload || {};
+  return {
+    id: ev.id | 0,
     type: 'logistic.transfer',
-    serverTime: timeMs,
+    serverTime: Number(ev.serverTime || 0),
+    action: String(payload.action || ''),
+    visualItemId: payload.visualItemId | 0,
+    resourceKey: String(payload.resourceKey || ''),
+    colorHex: String(payload.colorHex || ''),
+    source: payload.source || null,
+    target: payload.target || null,
+    carrier: payload.carrier || null,
+    slot: String(payload.slot || ''),
+    totalMs: Math.max(1, Number(payload.totalMs || 0) || 1)
+  };
+}
+
+export function queueLogisticTransferEvent(state, action, options = {}) {
+  const visualItemId = options.visualItemId | 0 || nextLogisticVisualItemId(state);
+  const source = structureRef(options.source || null);
+  const target = structureRef(options.target || null);
+  const carrier = structureRef(options.carrier || null);
+  const totalMs = Math.max(1, Number(options.totalMs || 0) || 1);
+  const payload = {
     action: String(action || ''),
-    visualItemId: options.visualItemId | 0 || nextLogisticVisualItemId(state),
+    visualItemId,
     resourceKey: String(options.resourceKey || ''),
     colorHex: String(options.colorHex || ''),
-    source: structureRef(options.source || null),
-    target: structureRef(options.target || null),
-    carrier: structureRef(options.carrier || null),
+    source,
+    target,
+    carrier,
     slot: String(options.slot || ''),
-    totalMs: Math.max(1, Number(options.totalMs || 0) || 1)
+    totalMs
   };
-  arr.push(ev);
-  if (arr.length > 768) arr.splice(0, arr.length - 768);
-  return ev;
+  const ev = queueServerEvent(state, 'logistic.transfer', {
+    category: 'logistics',
+    timeMs: options.timeMs,
+    carrier: carrier || options.carrier || null,
+    source: source || options.source || null,
+    target: target || options.target || null,
+    payload,
+    ttlMs: Math.max(1800, totalMs + 450)
+  });
+  return toLegacyLogisticEvent(ev);
 }
 
 export function peekLogisticTransferEventsForPlayer(state, player) {
-  if (!Array.isArray(state?.pendingLogisticTransferEvents) || !player) return [];
-  const sx = player.sx | 0;
-  const sy = player.sy | 0;
-  const worldId = String(player.worldId || 'endless');
-  return state.pendingLogisticTransferEvents.filter((ev) => {
-    const ref = ev.carrier || ev.source || ev.target || null;
-    if (!ref) return false;
-    if ((ref.sx | 0) !== sx || (ref.sy | 0) !== sy) return false;
-    return String(ref.worldId || 'endless') === worldId;
-  });
+  return peekServerEventsForPlayer(state, player, { category: 'logistics', type: 'logistic.transfer' })
+    .map(toLegacyLogisticEvent)
+    .filter(Boolean);
 }
 
 export function pruneLogisticTransferEvents(state, timeMs = Date.now()) {
-  if (!Array.isArray(state?.pendingLogisticTransferEvents)) return;
-  const cutoff = Number(timeMs) - 1800;
-  state.pendingLogisticTransferEvents = state.pendingLogisticTransferEvents.filter((ev) => Number(ev.serverTime || 0) >= cutoff);
+  pruneServerEvents(state, timeMs);
 }
