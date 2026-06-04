@@ -20,6 +20,7 @@ import { updateEquipmentRDStations } from './structures/StructureEquipmentRDStat
 import { createPlayer } from './player/PlayerFactory.js';
 import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
+import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket } from './snapshot/NetV2SnapshotBuilder.js';
 import { clearWorldSfx } from './audio/WorldSfxState.js';
 import { clearCombatFx } from './combat/CombatFxState.js';
 import { clearStatusPassiveEvents } from './events/StatusPassiveEvents.js';
@@ -31,6 +32,7 @@ import { GAME_MODES, clearPlayerBattleResidue, updateModeSessions } from './mode
 import { buildEndlessSave } from './accounts/AccountStore.js';
 
 const ACCOUNT_AUTOSAVE_INTERVAL_MS = Number(process.env.GRAVITAR_AUTOSAVE_MS || 30000);
+const NET_V2_RESET_ENABLED = process.env.GRAVITAR_NET_V2_RESET !== '0';
 
 export function createGameServer() {
   const state = createGameState();
@@ -183,7 +185,9 @@ export function createGameServer() {
         if (fullUi) lastFullSnapshotByPlayer.set(id, timeMs);
         if (staticWorld) lastStaticWorldByPlayer.set(id, timeMs);
         lastSectorKeyByPlayer.set(id, sectorKey);
-        const snap = buildSnapshot(state, id, timeMs, { fullUi, staticWorld });
+        const snap = NET_V2_RESET_ENABLED
+          ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld })
+          : buildSnapshot(state, id, timeMs, { fullUi, staticWorld });
         snap.ackInputSeq = p.lastInputSeq | 0;
         snap.net = {
           ...(snap.net || {}),
@@ -192,7 +196,8 @@ export function createGameServer() {
           combatPressure,
           serverSnapBuiltAt: timeMs,
           lastInputAt: p.lastInputAt || 0,
-          lastClientAbilitySeq: p.lastClientAbilitySeq | 0
+          lastClientAbilitySeq: p.lastClientAbilitySeq | 0,
+          netV2Reset: NET_V2_RESET_ENABLED
         };
         if (forceFullUi) {
           p.forceFullUiSnapshot = false;
@@ -233,6 +238,12 @@ export function createGameServer() {
     removePlayer,
     handleInput,
     handleCommand,
+    buildStateV2(playerId, timeMs = getSimulationTimeMs(state, nowMs())) {
+      return buildNetV2StatePacket(state, playerId, timeMs);
+    },
+    isNetV2ResetEnabled() {
+      return NET_V2_RESET_ENABLED;
+    },
     start
   };
 }

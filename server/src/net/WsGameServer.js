@@ -82,7 +82,7 @@ export function createWsGameServer(httpServer, game) {
 
     game.addPlayer(id);
 
-    ws.send(JSON.stringify({ t: 'hello', id }));
+    ws.send(JSON.stringify({ t: 'hello', id, protocol: game.isNetV2ResetEnabled?.() ? 'net_v2_reset' : 'legacy' }));
 
     ws.on('message', (buf) => {
       let msg;
@@ -101,6 +101,14 @@ export function createWsGameServer(httpServer, game) {
         return;
       }
       if (msg.t === 'input') game.handleInput(id, msg);
+      if (msg.t === 'state_req_v2') {
+        const packet = game.buildStateV2?.(id, Date.now());
+        if (packet && ws.readyState === ws.OPEN) {
+          const payload = JSON.stringify(packet);
+          ws.send(payload);
+          accountOut(Buffer.byteLength(payload));
+        }
+      }
       if (msg.t === 'cmd') {
         let ok = false;
         let error = '';

@@ -81,6 +81,7 @@ export class NetDebugOverlay {
     this.el.innerHTML = `
       <div class="net-debug-overlay__title">DEBUG NET/PERF</div>
       <div class="net-debug-overlay__grid">
+        <span>Protocol</span><b>${s.netV2Reset ? 'NET V2 RESET' : (s.protocol || 'legacy')}</b>
         <span>Projectile lab</span><b>${s.projectileLabMinimal ? 'MINIMAL SNAPSHOT' : 'normal'}</b>
         <span>FPS</span><b>${fmtRate(s.fps)} · ${fmtMs(s.frameMsAvg)}</b>
         <span>Frame max</span><b>${fmtMs(s.frameMsMax)}</b>

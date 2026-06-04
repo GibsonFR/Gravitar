@@ -1462,6 +1462,27 @@ export class WorldStore {
     }
   }
 
+  applyStateV2(msg) {
+    const snapLocalNow = performance.now();
+    this.lastSnapAt = snapLocalNow;
+    this.lastServerTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : Date.now();
+    this.lastServerTimeAt = snapLocalNow;
+    this.myState = this._mergeMyState(msg.me ?? null);
+    if (this.myState?.id) this.myId = this.myState.id | 0;
+
+    if (Array.isArray(msg.players)) {
+      for (const p of msg.players) {
+        const id = p.id | 0;
+        if (!id) continue;
+        const current = this.players.get(id) || {};
+        this.players.set(id, { ...current, ...p, _serverX: p.x, _serverY: p.y, _tx: p.x, _ty: p.y });
+      }
+      this.interpolationStore?.pushMany?.('player', msg.players.filter((p) => (p.id | 0) !== (this.myId | 0)), this.lastServerTime);
+    }
+
+    if (Number.isFinite(Number(msg.ackInputSeq))) this.ackInputSeq = Number(msg.ackInputSeq) | 0;
+  }
+
   applySnapshot(msg) {
     const snapLocalNow = performance.now();
     this.lastSnapAt = snapLocalNow;
@@ -1471,7 +1492,7 @@ export class WorldStore {
     this.world = msg.world ?? this.world;
     this.session = msg.session ?? this.session;
     this.modes = msg.modes ?? this.modes;
-    this.playerDirectory = msg.playerDirectory ?? [];
+    this.playerDirectory = msg.playerDirectory ?? this.playerDirectory ?? [];
     this.myState = this._mergeMyState(msg.me ?? null);
     this.syncLocalAbilityCooldownAuthority(this.myState);
     if (hasAuthoritativeControlStatus(this.myState)) {

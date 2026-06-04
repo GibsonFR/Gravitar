@@ -1,0 +1,106 @@
+import { WORLD } from '../constants.js';
+import { getSimulationTick } from '../util/Time.js';
+
+function q(v, decimals = 2) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  const m = 10 ** decimals;
+  return Math.round(n * m) / m;
+}
+
+function playerLite(player, selfId = 0) {
+  if (!player) return null;
+  return {
+    id: player.id | 0,
+    pseudo: player.pseudo || `Pilote ${player.id | 0}`,
+    kind: 'player',
+    worldId: String(player.worldId || 'endless'),
+    sx: player.sx | 0,
+    sy: player.sy | 0,
+    x: q(player.x),
+    y: q(player.y),
+    vx: q(player.vx || 0, 3),
+    vy: q(player.vy || 0, 3),
+    rot: q(player.rot || 0, 4),
+    frameId: player.frameId || '',
+    selectedKind: player.selectedKind || '',
+    selectedId: player.selectedId | 0,
+    autoTargetKind: player.autoTargetKind || '',
+    autoTargetId: player.autoTargetId | 0,
+    isSelf: (player.id | 0) === (selfId | 0),
+    stats: {
+      hp: q(player.stats?.hp ?? player.hp ?? 0),
+      maxHp: q(player.stats?.maxHp ?? player.maxHp ?? 0),
+      shield: q(player.stats?.shield ?? 0),
+      maxShield: q(player.stats?.maxShield ?? 0),
+      energy: q(player.stats?.energy ?? 0),
+      maxEnergy: q(player.stats?.maxEnergy ?? 0)
+    },
+    cooldowns: {
+      a: q(player.cooldownALeft || 0),
+      z: q(player.cooldownZLeft || 0),
+      e: q(player.cooldownELeft || 0),
+      r: q(player.cooldownRLeft || 0)
+    }
+  };
+}
+
+function sameWorldSector(a, b) {
+  return !!a && !!b
+    && String(a.worldId || 'endless') === String(b.worldId || 'endless')
+    && (a.sx | 0) === (b.sx | 0)
+    && (a.sy | 0) === (b.sy | 0);
+}
+
+export function buildNetV2BootstrapSnapshot(state, playerId, timeMs, options = {}) {
+  const me = state.players.get(playerId) || null;
+  const players = [...state.players.values()]
+    .filter((p) => sameWorldSector(p, me))
+    .map((p) => playerLite(p, playerId))
+    .filter(Boolean);
+
+  return {
+    t: 'snap',
+    protocol: 'net_v2_reset',
+    minimal: true,
+    fullUi: !!options.fullUi,
+    staticWorld: !!options.staticWorld,
+    time: timeMs,
+    tick: getSimulationTick(state),
+    seed: state.seed | 0,
+    world: WORLD,
+    me: playerLite(me, playerId),
+    players,
+    events: [],
+    ackInputSeq: me?.lastInputSeq | 0,
+    net: {
+      netV2Reset: true,
+      minimalSnapshot: true,
+      fullUi: !!options.fullUi,
+      staticWorld: !!options.staticWorld,
+      serverSnapBuiltAt: timeMs
+    }
+  };
+}
+
+export function buildNetV2StatePacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  const players = [...state.players.values()]
+    .filter((p) => sameWorldSector(p, me))
+    .map((p) => playerLite(p, playerId))
+    .filter(Boolean);
+
+  return {
+    t: 'state_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    me: playerLite(me, playerId),
+    players,
+    ackInputSeq: me?.lastInputSeq | 0,
+    net: {
+      netV2Reset: true,
+      packet: 'state_v2'
+    }
+  };
+}

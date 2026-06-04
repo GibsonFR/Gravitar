@@ -88,6 +88,8 @@ export class NetStats {
     this.snapshotGapJitterMs = 0;
 
     this.serverTick = 0;
+    this.netV2Reset = false;
+    this.lastProtocol = '';
     this.serverTime = 0;
     this.serverEventAgeAvgMs = 0;
     this.serverEventAgeMaxMs = 0;
@@ -229,6 +231,8 @@ export class NetStats {
     }
     this.lastSnapshotAt = now;
     this.serverTick = finite(msg?.tick, this.serverTick);
+    this.netV2Reset = !!msg?.net?.netV2Reset || msg?.protocol === 'net_v2_reset';
+    this.lastProtocol = msg?.protocol || (this.netV2Reset ? 'net_v2_reset' : this.lastProtocol);
     this.serverTime = finite(msg?.time, this.serverTime);
     if (Number.isFinite(Number(msg?.ackInputSeq))) {
       this.ackInputSeq = Number(msg.ackInputSeq) | 0;
@@ -475,6 +479,8 @@ export class NetStats {
       skippedSnapshots: this.skippedSnapshots,
       droppedByBackpressure: this.droppedByBackpressure,
       serverTick: this.serverTick,
+      netV2Reset: !!this.netV2Reset,
+      protocol: this.lastProtocol,
       serverTime: this.serverTime,
       projectileLabMinimal: !!this.projectileLabMinimal,
       serverEventAgeAvgMs: this.serverEventAgeAvgMs,

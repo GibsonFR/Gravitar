@@ -87,6 +87,7 @@ export class NetClient {
       this.netStats.recordInboundPacket(msg?.t || 'unknown', raw.length);
       if (msg.t === 'hello') {
         if (msg.sessionToken) this.setSessionToken(msg.sessionToken);
+        this.protocol = msg.protocol || 'legacy';
         this.store.applyHello(msg.id, msg.sessionToken || '', !!msg.resumed);
       }
       if (msg.t === 'pong') {
@@ -97,6 +98,11 @@ export class NetClient {
         this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordSnapshot(msg, raw.length);
         this.store.applySnapshot(msg);
+      }
+      if (msg.t === 'state_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordSnapshot(msg, raw.length);
+        this.store.applyStateV2?.(msg);
       }
       if (msg.t === 'chat') this.store.applyChatMessage(msg);
       if (msg.t === 'cmd_ack') {
