@@ -43,6 +43,7 @@ export class VisualFxStore {
     this.damageNumbers = [];
     this.castBursts = [];
     this.lastProjectiles = new Map();
+    this.packetImpactIds = new Set();
     this.lastAreas = new Map();
     this.lastStatuses = new Map();
     this.lastSigilRuneStacks = new Map();
@@ -75,6 +76,41 @@ export class VisualFxStore {
         color: c
       });
     }
+    const projectileImpacts = store.consumePendingProjectileImpacts?.() ?? [];
+    for (const ev of projectileImpacts) {
+      const p = ev.projectile || ev || {};
+      const color = colorForProjectile({
+        ...p,
+        visualKind: ev.visualKind || p.visualKind,
+        sourceAbilitySlot: ev.sourceAbilitySlot || p.sourceAbilitySlot,
+        sourceFrameId: ev.sourceFrameId || p.sourceFrameId,
+        visualSlot: ev.visualSlot || p.visualSlot
+      });
+      const isRocket = (ev.visualKind || p.visualKind) === 'rocket';
+      const projectileId = ev.projectileId | 0;
+      if (projectileId) this.packetImpactIds.add(projectileId);
+      this.impacts.push({
+        x: ev.x,
+        y: ev.y,
+        t: now,
+        life: isRocket ? 0.48 : 0.22,
+        start: isRocket ? Math.max(8, ev.radius || p.radius || 6) : Math.max(3, ev.radius || p.radius || 3),
+        end: isRocket ? Math.max(30, ev.splashRadius || p.splashRadius || 34) : Math.max(13, (ev.radius || p.radius || 3) + 10),
+        color,
+        rays: isRocket ? 12 : (ev.crit ? 10 : 6),
+        kind: impactKindForProjectile({
+          ...p,
+          visualKind: ev.visualKind || p.visualKind,
+          sourceAbilitySlot: ev.sourceAbilitySlot || p.sourceAbilitySlot,
+          sourceFrameId: ev.sourceFrameId || p.sourceFrameId,
+          visualSlot: ev.visualSlot || p.visualSlot
+        }),
+        frameId: ev.sourceFrameId || p.sourceFrameId || '',
+        slot: ev.visualSlot || ev.sourceSlot || p.visualSlot || p.sourceAbilitySlot || ''
+      });
+      this.trails.delete(projectileId);
+    }
+
     const nextProjectiles = new Map();
     const projectileSource = Array.isArray(renderProjectiles) ? renderProjectiles : [...store.projectiles.values()];
 
@@ -106,6 +142,11 @@ export class VisualFxStore {
 
     for (const [id, old] of this.lastProjectiles.entries()) {
       if (nextProjectiles.has(id)) continue;
+      if (this.packetImpactIds.has(id | 0)) {
+        this.packetImpactIds.delete(id | 0);
+        this.trails.delete(id);
+        continue;
+      }
       const color = colorForProjectile(old);
       const isRocket = old.visualKind === 'rocket';
       this.impacts.push({

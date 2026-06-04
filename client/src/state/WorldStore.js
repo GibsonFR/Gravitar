@@ -53,6 +53,7 @@ export class WorldStore {
     this.loots = new Map();
     this.pendingSfx = [];
     this.pendingCombatFx = [];
+    this.pendingProjectileImpacts = [];
     this.networkEvents = [];
     this.typedCombatEvents = [];
     this.abilityProtocolEvents = [];
@@ -371,6 +372,9 @@ export class WorldStore {
         const current = this.projectiles.get(projectileId) || {};
         const spawnX = Number(projectile.x) || 0;
         const spawnY = Number(projectile.y) || 0;
+        const serverNow = this._estimateServerNow();
+        const eventServerTime = Number(ev.serverTime || 0) || this.lastServerTime || Date.now();
+        const elapsedMs = Math.max(0, Math.min(1200, serverNow - eventServerTime));
         const next = {
           ...current,
           ...projectile,
@@ -382,10 +386,10 @@ export class WorldStore {
           _ty: spawnY,
           _serverX: spawnX,
           _serverY: spawnY,
-          _packetSpawnLocalAt: performance.now(),
+          _packetSpawnLocalAt: performance.now() - elapsedMs,
           _packetStartX: spawnX,
           _packetStartY: spawnY,
-          _packetServerTime: Number(ev.serverTime || 0) || this.lastServerTime || Date.now()
+          _packetServerTime: eventServerTime
         };
         this.projectiles.set(projectileId, next);
         this.interpolationStore?.pushMany?.('projectile', [next], Number(ev.serverTime || this.lastServerTime || Date.now()));
@@ -396,15 +400,22 @@ export class WorldStore {
         this.projectileEventTombstones.set(projectileId, now + 2500);
         this.projectiles.delete(projectileId);
         if (action === 'impact') {
-          this.pendingCombatFx.push({
-            type: 'projectile_impact',
+          this.pendingProjectileImpacts.push({
+            projectileId,
             x: Number(ev.x || ev.projectile?.x || 0),
             y: Number(ev.y || ev.projectile?.y || 0),
             targetId: ev.target?.id | 0,
             targetKind: ev.target?.kind || '',
+            projectile: ev.projectile || null,
             visualKind: ev.impact?.visualKind || ev.projectile?.visualKind || '',
             sourceSlot: ev.impact?.sourceAbilitySlot || ev.projectile?.sourceAbilitySlot || '',
-            crit: !!ev.impact?.crit
+            sourceAbilitySlot: ev.impact?.sourceAbilitySlot || ev.projectile?.sourceAbilitySlot || '',
+            sourceFrameId: ev.projectile?.sourceFrameId || '',
+            visualSlot: ev.projectile?.visualSlot || ev.impact?.sourceAbilitySlot || '',
+            splashRadius: Number(ev.impact?.splashRadius || ev.projectile?.splashRadius || 0),
+            radius: Number(ev.projectile?.radius || 3),
+            crit: !!ev.impact?.crit,
+            serverTime: Number(ev.serverTime || 0)
           });
         }
       }
@@ -1528,14 +1539,20 @@ export class WorldStore {
     if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
     if (Array.isArray(msg.projectiles)) {
       const projectileSnapshots = msg.projectiles.filter((p) => Number(this.projectileEventTombstones?.get?.(p.id | 0) || 0) <= snapLocalNow);
-      if (msg.staticWorld) this._syncMap(this.projectiles, projectileSnapshots);
-      else {
-        for (const p of projectileSnapshots) {
-          const id = p.id | 0;
-          if (!id) continue;
-          const current = this.projectiles.get(id) || {};
-          this.projectiles.set(id, { ...current, ...p });
-        }
+      for (const p of projectileSnapshots) {
+        const id = p.id | 0;
+        if (!id) continue;
+        const current = this.projectiles.get(id) || {};
+        // Les snapshots projectiles sont désormais une correction, pas la source du rendu.
+        // On préserve les champs packet locaux pour éviter les snaps / doublons visuels.
+        this.projectiles.set(id, {
+          ...current,
+          ...p,
+          _packetSpawnLocalAt: current._packetSpawnLocalAt,
+          _packetStartX: current._packetStartX,
+          _packetStartY: current._packetStartY,
+          _packetServerTime: current._packetServerTime
+        });
       }
     }
     if (Array.isArray(msg.logisticDrones)) this._syncMap(this.logisticDrones, msg.logisticDrones);
@@ -1999,10 +2016,17 @@ export class WorldStore {
     return out;
   }
 
+  consumePendingProjectileImpacts() {
+    const arr = this.pendingProjectileImpacts;
+    this.pendingProjectileImpacts = [];
+    return arr || [];
+  }
+
   consumePendingCombatFx() {
     if (!this.pendingCombatFx.length) return [];
     const out = this.pendingCombatFx;
     this.pendingCombatFx = [];
+    this.pendingProjectileImpacts = [];
     return out;
   }
 
