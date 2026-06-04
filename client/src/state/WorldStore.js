@@ -1624,6 +1624,59 @@ export class WorldStore {
     this.interpolationStore?.pushMany?.('player', remotePlayers, serverTime);
   }
 
+  applyInputAckV2(msg) {
+    const snapLocalNow = performance.now();
+    this.lastSnapAt = snapLocalNow;
+    this.lastServerTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : this.lastServerTime;
+    this.lastServerTimeAt = snapLocalNow;
+    if (Number.isFinite(Number(msg?.ackInputSeq))) this.ackInputSeq = Number(msg.ackInputSeq) | 0;
+  }
+
+  applyPlayerStatusV2(msg) {
+    const snapLocalNow = performance.now();
+    this.lastSnapAt = snapLocalNow;
+    this.lastServerTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : this.lastServerTime;
+    this.lastServerTimeAt = snapLocalNow;
+    if (Number.isFinite(Number(msg?.ackInputSeq))) this.ackInputSeq = Number(msg.ackInputSeq) | 0;
+
+    if (msg?.me) {
+      this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
+      if (this.myState?.id) this.myId = this.myState.id | 0;
+      this.applyPlayerStateV2(msg.me);
+    }
+
+    if (Array.isArray(msg?.players)) {
+      for (const p of msg.players) {
+        if (!p) continue;
+        const isSelf = (p.id | 0) === (this.myId | 0);
+        this.applyPlayerStateV2(p, { preservePose: true });
+        if (isSelf) this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });
+      }
+    }
+  }
+
+  applyPlayerSessionV2(msg) {
+    const snapLocalNow = performance.now();
+    this.lastSnapAt = snapLocalNow;
+    this.lastServerTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : this.lastServerTime;
+    this.lastServerTimeAt = snapLocalNow;
+
+    if (msg?.me) {
+      this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
+      if (this.myState?.id) this.myId = this.myState.id | 0;
+      this.applyPlayerStateV2(msg.me);
+    }
+
+    if (Array.isArray(msg?.players)) {
+      for (const p of msg.players) {
+        if (!p) continue;
+        const isSelf = (p.id | 0) === (this.myId | 0);
+        this.applyPlayerStateV2(p, { preservePose: true });
+        if (isSelf) this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });
+      }
+    }
+  }
+
   applyStateV2(msg) {
     const snapLocalNow = performance.now();
     this.lastSnapAt = snapLocalNow;

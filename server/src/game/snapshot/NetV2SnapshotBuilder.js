@@ -180,6 +180,59 @@ function playerPoseCompact(player, selfId = 0) {
   };
 }
 
+function playerStatusCompact(player, selfId = 0) {
+  if (!player) return null;
+  return {
+    id: player.id | 0,
+    isSelf: (player.id | 0) === (selfId | 0),
+    vitals: {
+      hp: q(player.stats?.hp ?? player.hp ?? 0),
+      maxHp: q(player.stats?.maxHp ?? player.maxHp ?? 0),
+      shield: q(player.stats?.shield ?? 0),
+      maxShield: q(player.stats?.maxShield ?? 0),
+      energy: q(player.stats?.energy ?? 0),
+      maxEnergy: q(player.stats?.maxEnergy ?? 0)
+    },
+    cooldowns: {
+      a: q(player.cooldownALeft || 0),
+      z: q(player.cooldownZLeft || 0),
+      e: q(player.cooldownELeft || 0),
+      r: q(player.cooldownRLeft || 0)
+    },
+    rocketCooldownLeft: q(player.rocketCooldownLeft || 0),
+    statuses: Array.isArray(player.statuses) ? player.statuses : [],
+    selectedKind: player.selectedKind || '',
+    selectedId: player.selectedId | 0,
+    autoTargetKind: player.autoTargetKind || '',
+    autoTargetId: player.autoTargetId | 0
+  };
+}
+
+function playerSessionCompact(player, selfId = 0) {
+  if (!player) return null;
+  return {
+    id: player.id | 0,
+    pseudo: player.pseudo || `Pilote ${player.id | 0}`,
+    isSelf: (player.id | 0) === (selfId | 0),
+    worldId: String(player.worldId || 'endless'),
+    sx: player.sx | 0,
+    sy: player.sy | 0,
+    frameId: player.frameId || '',
+    frameName: player.frameName || '',
+    gameMode: player.gameMode || '',
+    testWorldId: player.testWorldId || '',
+    battleSessionId: player.battleSessionId || '',
+    sessionSetup: {
+      pending: !!player.sessionSetupPending,
+      step: player.sessionSetupStep || '',
+      authStatus: player.authStatus || null
+    },
+    authStatus: player.authStatus || null,
+    dockedStationId: player.dockedStationId | 0 || 0,
+    dockPhase: player.dockPhase || 'none'
+  };
+}
+
 function sameWorldSector(a, b) {
   return !!a && !!b
     && String(a.worldId || 'endless') === String(b.worldId || 'endless')
@@ -365,6 +418,68 @@ export function buildNetV2SectorUnloadPacket(state, observerId, previousSectorKe
     net: {
       netV2Reset: true,
       packet: 'sector_unload_v2'
+    }
+  };
+}
+
+
+export function buildNetV2InputAckPacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  return {
+    t: 'input_ack_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    ackInputSeq: me.lastInputSeq | 0,
+    net: {
+      netV2Reset: true,
+      packet: 'input_ack_v2'
+    }
+  };
+}
+
+export function buildNetV2PlayerStatusPacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  const players = [...state.players.values()]
+    .filter((p) => sameWorldSector(p, me))
+    .map((p) => playerStatusCompact(p, playerId))
+    .filter(Boolean);
+
+  return {
+    t: 'player_status_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    me: playerStatusCompact(me, playerId),
+    players,
+    ackInputSeq: me.lastInputSeq | 0,
+    net: {
+      netV2Reset: true,
+      packet: 'player_status_v2'
+    }
+  };
+}
+
+export function buildNetV2PlayerSessionPacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  const players = [...state.players.values()]
+    .filter((p) => sameWorldSector(p, me))
+    .map((p) => playerSessionCompact(p, playerId))
+    .filter(Boolean);
+
+  return {
+    t: 'player_session_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    me: playerSessionCompact(me, playerId),
+    players,
+    net: {
+      netV2Reset: true,
+      packet: 'player_session_v2'
     }
   };
 }

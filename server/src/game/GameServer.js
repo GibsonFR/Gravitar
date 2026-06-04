@@ -20,7 +20,7 @@ import { updateEquipmentRDStations } from './structures/StructureEquipmentRDStat
 import { createPlayer } from './player/PlayerFactory.js';
 import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
-import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket } from './snapshot/NetV2SnapshotBuilder.js';
+import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket, buildNetV2InputAckPacket, buildNetV2PlayerStatusPacket, buildNetV2PlayerSessionPacket } from './snapshot/NetV2SnapshotBuilder.js';
 import { clearWorldSfx } from './audio/WorldSfxState.js';
 import { clearCombatFx } from './combat/CombatFxState.js';
 import { clearStatusPassiveEvents } from './events/StatusPassiveEvents.js';
@@ -36,6 +36,9 @@ const NET_V2_RESET_ENABLED = process.env.GRAVITAR_NET_V2_RESET !== '0';
 const NET_V2_ACTIVE_STATE_RATE_MS = Math.max(50, Number(process.env.GRAVITAR_NET_V2_ACTIVE_STATE_RATE_MS || 100));
 const NET_V2_IDLE_STATE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_IDLE_STATE_RATE_MS || 1000));
 const NET_V2_POSE_RATE_MS = Math.max(25, Number(process.env.GRAVITAR_NET_V2_POSE_RATE_MS || 33));
+const NET_V2_STATUS_ACTIVE_RATE_MS = Math.max(80, Number(process.env.GRAVITAR_NET_V2_STATUS_ACTIVE_RATE_MS || 150));
+const NET_V2_STATUS_IDLE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_STATUS_IDLE_RATE_MS || 1000));
+const NET_V2_SESSION_HEARTBEAT_MS = Math.max(2000, Number(process.env.GRAVITAR_NET_V2_SESSION_HEARTBEAT_MS || 5000));
 
 export function createGameServer() {
   const state = createGameState();
@@ -54,6 +57,11 @@ export function createGameServer() {
   const lastStateV2ByPlayer = new Map();
   const lastStateV2SignatureByPlayer = new Map();
   const knownRemotePlayersByObserver = new Map();
+  const lastInputAckByPlayer = new Map();
+  const lastStatusV2ByPlayer = new Map();
+  const lastStatusV2SignatureByPlayer = new Map();
+  const lastSessionV2ByPlayer = new Map();
+  const lastSessionV2SignatureByPlayer = new Map();
   let lastAccountAutosaveAt = 0;
 
 
@@ -98,6 +106,11 @@ export function createGameServer() {
     lastStateV2ByPlayer.delete(id);
     lastStateV2SignatureByPlayer.delete(id);
     knownRemotePlayersByObserver.delete(id);
+    lastInputAckByPlayer.delete(id);
+    lastStatusV2ByPlayer.delete(id);
+    lastStatusV2SignatureByPlayer.delete(id);
+    lastSessionV2ByPlayer.delete(id);
+    lastSessionV2SignatureByPlayer.delete(id);
     for (const known of knownRemotePlayersByObserver.values()) known.delete(id | 0);
     state.players.delete(id);
   }
@@ -239,6 +252,89 @@ export function createGameServer() {
     knownRemotePlayersByObserver.set(observerId, known);
   }
 
+  function netV2StatusSignature(packet) {
+    const players = Array.isArray(packet?.players) ? packet.players : [];
+    return JSON.stringify({
+      ack: packet?.ackInputSeq | 0,
+      players: players.map((p) => [
+        p.id | 0,
+        Math.round(Number(p.vitals?.hp || 0)),
+        Math.round(Number(p.vitals?.shield || 0)),
+        Math.round(Number(p.vitals?.energy || 0)),
+        Math.round(Number(p.cooldowns?.a || 0) * 10),
+        Math.round(Number(p.cooldowns?.z || 0) * 10),
+        Math.round(Number(p.cooldowns?.e || 0) * 10),
+        Math.round(Number(p.cooldowns?.r || 0) * 10),
+        Math.round(Number(p.rocketCooldownLeft || 0) * 10),
+        p.selectedKind || '',
+        p.selectedId | 0,
+        p.autoTargetKind || '',
+        p.autoTargetId | 0,
+        Array.isArray(p.statuses) ? p.statuses.length : 0
+      ])
+    });
+  }
+
+  function netV2SessionSignature(packet) {
+    const players = Array.isArray(packet?.players) ? packet.players : [];
+    return JSON.stringify({
+      players: players.map((p) => [
+        p.id | 0,
+        p.worldId || '',
+        p.sx | 0,
+        p.sy | 0,
+        p.frameId || '',
+        p.gameMode || '',
+        p.testWorldId || '',
+        p.battleSessionId || '',
+        p.sessionSetup?.pending ? 1 : 0,
+        p.sessionSetup?.step || '',
+        p.sessionSetup?.authStatus || '',
+        p.authStatus || '',
+        p.dockedStationId | 0,
+        p.dockPhase || ''
+      ])
+    });
+  }
+
+  function sendNetV2StatusSessionPackets(id, p, timeMs, sendPacket, options = {}) {
+    if (!NET_V2_RESET_ENABLED || !p) return;
+
+    const ackSeq = p.lastInputSeq | 0;
+    if ((lastInputAckByPlayer.get(id) | 0) !== ackSeq) {
+      const ackPacket = buildNetV2InputAckPacket(state, id, timeMs);
+      if (ackPacket && sendPacket(id, ackPacket)) lastInputAckByPlayer.set(id, ackSeq);
+    }
+
+    const statusPacket = buildNetV2PlayerStatusPacket(state, id, timeMs);
+    if (statusPacket) {
+      const sig = netV2StatusSignature(statusPacket);
+      const prevSig = lastStatusV2SignatureByPlayer.get(id) || '';
+      const prevAt = lastStatusV2ByPlayer.get(id) || 0;
+      const changed = sig !== prevSig;
+      const minInterval = changed ? NET_V2_STATUS_ACTIVE_RATE_MS : NET_V2_STATUS_IDLE_RATE_MS;
+      if (options.forceStatus || timeMs - prevAt >= minInterval) {
+        if (sendPacket(id, statusPacket)) {
+          lastStatusV2ByPlayer.set(id, timeMs);
+          lastStatusV2SignatureByPlayer.set(id, sig);
+        }
+      }
+    }
+
+    const sessionPacket = buildNetV2PlayerSessionPacket(state, id, timeMs);
+    if (sessionPacket) {
+      const sig = netV2SessionSignature(sessionPacket);
+      const prevSig = lastSessionV2SignatureByPlayer.get(id) || '';
+      const prevAt = lastSessionV2ByPlayer.get(id) || 0;
+      if (options.forceSession || sig !== prevSig || timeMs - prevAt >= NET_V2_SESSION_HEARTBEAT_MS) {
+        if (sendPacket(id, sessionPacket)) {
+          lastSessionV2ByPlayer.set(id, timeMs);
+          lastSessionV2SignatureByPlayer.set(id, sig);
+        }
+      }
+    }
+  }
+
   function netV2StateSignature(packet) {
     const players = Array.isArray(packet?.players) ? packet.players : [];
     const stablePlayers = players.map((p) => [
@@ -329,23 +425,15 @@ export function createGameServer() {
         if (NET_V2_RESET_ENABLED && sectorChanged) {
           syncNetV2PlayerLifecycleForObserver(id, timeMs, sendSnapshot, { sectorChanged: true, skipEnterPackets: true });
         }
+        if (NET_V2_RESET_ENABLED && !needsSectorBootstrap) {
+          sendNetV2StatusSessionPackets(id, p, timeMs, sendSnapshot);
+          continue;
+        }
+
         const snap = NET_V2_RESET_ENABLED
-          ? (needsSectorBootstrap
-            ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld, sectorBootstrap: true })
-            : buildNetV2StatePacket(state, id, timeMs))
+          ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld, sectorBootstrap: true })
           : buildSnapshot(state, id, timeMs, { fullUi, staticWorld });
         snap.ackInputSeq = p.lastInputSeq | 0;
-
-        if (NET_V2_RESET_ENABLED && !needsSectorBootstrap) {
-          const signature = netV2StateSignature(snap);
-          const previousSignature = lastStateV2SignatureByPlayer.get(id) || '';
-          const previousAt = lastStateV2ByPlayer.get(id) || 0;
-          const changed = signature !== previousSignature;
-          const minInterval = changed ? NET_V2_ACTIVE_STATE_RATE_MS : NET_V2_IDLE_STATE_RATE_MS;
-          if (timeMs - previousAt < minInterval) continue;
-          lastStateV2ByPlayer.set(id, timeMs);
-          lastStateV2SignatureByPlayer.set(id, signature);
-        }
         snap.net = {
           ...(snap.net || {}),
           fullUi,
@@ -363,6 +451,7 @@ export function createGameServer() {
         const sent = sendSnapshot(id, snap);
         if (sent && NET_V2_RESET_ENABLED && needsSectorBootstrap) {
           knownRemotePlayersByObserver.set(id, visibleRemoteIdSet(p));
+          sendNetV2StatusSessionPackets(id, p, timeMs, sendSnapshot, { forceStatus: true, forceSession: true });
         }
         if (sent && process.env.NET_DEBUG === '1') {
           const prevLog = lastNetStatsAtByPlayer.get(id) || 0;

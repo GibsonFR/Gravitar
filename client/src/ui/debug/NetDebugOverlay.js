@@ -127,6 +127,9 @@ export class NetDebugOverlay {
         <span>StateV2/s</span><b>${fmtRate(s.stateV2PerSec)}</b>
         <span>Pose/s</span><b>${fmtRate(s.posePacketsPerSec)}</b>
         <span>Life/s</span><b>${fmtRate(s.lifecyclePacketsPerSec)} · ${s.lastLifecyclePacket?.type || '—'}</b>
+        <span>Ack/s</span><b>${fmtRate(s.ackPacketsPerSec)}</b>
+        <span>Status/s</span><b>${fmtRate(s.statusPacketsPerSec)} · P:${s.lastStatusPacket?.players || 0}</b>
+        <span>Session/s</span><b>${fmtRate(s.sessionPacketsPerSec)} · P:${s.lastSessionPacket?.players || 0}</b>
         <span>Pose gap</span><b>${fmtMs(s.posePacketGapMs)} / ${fmtMs(s.posePacketGapMaxMs)}</b>
         <span>Input/s</span><b>${fmtRate(s.inputsPerSec)}</b>
         <span>Pending input</span><b>${s.inputHistory?.pending ?? (s.pendingInputs | 0)}</b>

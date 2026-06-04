@@ -32,7 +32,19 @@ export class NetStats {
     this.stateV2InWindow = 0;
     this.posePacketsInWindow = 0;
     this.lifecyclePacketsInWindow = 0;
+    this.ackPacketsInWindow = 0;
+    this.statusPacketsInWindow = 0;
+    this.sessionPacketsInWindow = 0;
+    this.ackPacketsInWindow = 0;
+    this.statusPacketsInWindow = 0;
+    this.sessionPacketsInWindow = 0;
     this.lifecyclePacketsInWindow = 0;
+    this.ackPacketsInWindow = 0;
+    this.statusPacketsInWindow = 0;
+    this.sessionPacketsInWindow = 0;
+    this.ackPacketsInWindow = 0;
+    this.statusPacketsInWindow = 0;
+    this.sessionPacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -61,6 +73,9 @@ export class NetStats {
     this.stateV2PerSec = 0;
     this.posePacketsPerSec = 0;
     this.lifecyclePacketsPerSec = 0;
+    this.ackPacketsPerSec = 0;
+    this.statusPacketsPerSec = 0;
+    this.sessionPacketsPerSec = 0;
     this.inputsPerSec = 0;
     this.commandsPerSec = 0;
     this.cmdAcksPerSec = 0;
@@ -114,6 +129,8 @@ export class NetStats {
     this.logisticEventAgeMaxMs = 0;
     this.lastSnapshotEventCounts = {};
     this.lastLifecyclePacket = null;
+    this.lastStatusPacket = null;
+    this.lastSessionPacket = null;
     this.clientEntityCounts = {};
     this.clientEventCounts = {};
     this.inputSeq = 0;
@@ -288,6 +305,71 @@ export class NetStats {
       kind: 'packet_out',
       type: key,
       bytes: finite(bytes, 0)
+    });
+  }
+
+  recordAckPacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.ackPacketsInWindow += 1;
+    this.serverTick = finite(msg?.tick, this.serverTick);
+    this.serverTime = finite(msg?.time, this.serverTime);
+    if (Number.isFinite(Number(msg?.ackInputSeq))) {
+      this.ackInputSeq = Number(msg.ackInputSeq) | 0;
+      this.inputHistory?.ack?.(this.ackInputSeq);
+      this.pendingInputs = this.inputHistory?.stats?.().pending ?? Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
+    }
+    this.pushDebugHistory({
+      kind: 'input_ack_v2',
+      type: msg?.t || 'input_ack_v2',
+      bytes: b,
+      ackInputSeq: this.ackInputSeq,
+      serverTime: this.serverTime,
+      serverTick: this.serverTick
+    });
+  }
+
+  recordStatusPacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.statusPacketsInWindow += 1;
+    this.lastStatusPacket = {
+      players: Array.isArray(msg?.players) ? msg.players.length : 0,
+      ackInputSeq: msg?.ackInputSeq | 0,
+      time: msg?.time || 0
+    };
+    this.serverTick = finite(msg?.tick, this.serverTick);
+    this.serverTime = finite(msg?.time, this.serverTime);
+    if (Number.isFinite(Number(msg?.ackInputSeq))) {
+      this.ackInputSeq = Number(msg.ackInputSeq) | 0;
+      this.inputHistory?.ack?.(this.ackInputSeq);
+      this.pendingInputs = this.inputHistory?.stats?.().pending ?? Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
+    }
+    this.pushDebugHistory({
+      kind: 'player_status_v2',
+      type: msg?.t || 'player_status_v2',
+      bytes: b,
+      players: this.lastStatusPacket.players,
+      ackInputSeq: this.ackInputSeq,
+      serverTime: this.serverTime,
+      serverTick: this.serverTick
+    });
+  }
+
+  recordSessionPacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.sessionPacketsInWindow += 1;
+    this.lastSessionPacket = {
+      players: Array.isArray(msg?.players) ? msg.players.length : 0,
+      time: msg?.time || 0
+    };
+    this.serverTick = finite(msg?.tick, this.serverTick);
+    this.serverTime = finite(msg?.time, this.serverTime);
+    this.pushDebugHistory({
+      kind: 'player_session_v2',
+      type: msg?.t || 'player_session_v2',
+      bytes: b,
+      players: this.lastSessionPacket.players,
+      serverTime: this.serverTime,
+      serverTick: this.serverTick
     });
   }
 
@@ -569,6 +651,9 @@ export class NetStats {
     this.stateV2PerSec = this.stateV2InWindow / elapsed;
     this.posePacketsPerSec = this.posePacketsInWindow / elapsed;
     this.lifecyclePacketsPerSec = this.lifecyclePacketsInWindow / elapsed;
+    this.ackPacketsPerSec = this.ackPacketsInWindow / elapsed;
+    this.statusPacketsPerSec = this.statusPacketsInWindow / elapsed;
+    this.sessionPacketsPerSec = this.sessionPacketsInWindow / elapsed;
     this.inputsPerSec = this.inputsOutWindow / elapsed;
     this.commandsPerSec = this.commandsOutWindow / elapsed;
     this.cmdAcksPerSec = this.cmdAcksInWindow / elapsed;
@@ -585,6 +670,11 @@ export class NetStats {
       stateV2PerSec: this.stateV2PerSec,
       posePacketsPerSec: this.posePacketsPerSec,
       lifecyclePacketsPerSec: this.lifecyclePacketsPerSec,
+      ackPacketsPerSec: this.ackPacketsPerSec,
+      statusPacketsPerSec: this.statusPacketsPerSec,
+      sessionPacketsPerSec: this.sessionPacketsPerSec,
+      lastStatusPacket: this.lastStatusPacket,
+      lastSessionPacket: this.lastSessionPacket,
       lastLifecyclePacket: this.lastLifecyclePacket,
       packetsInPerSec: this.packetsInPerSec,
       packetsOutPerSec: this.packetsOutPerSec,
@@ -608,7 +698,19 @@ export class NetStats {
     this.stateV2InWindow = 0;
     this.posePacketsInWindow = 0;
     this.lifecyclePacketsInWindow = 0;
+    this.ackPacketsInWindow = 0;
+    this.statusPacketsInWindow = 0;
+    this.sessionPacketsInWindow = 0;
+    this.ackPacketsInWindow = 0;
+    this.statusPacketsInWindow = 0;
+    this.sessionPacketsInWindow = 0;
     this.lifecyclePacketsInWindow = 0;
+    this.ackPacketsInWindow = 0;
+    this.statusPacketsInWindow = 0;
+    this.sessionPacketsInWindow = 0;
+    this.ackPacketsInWindow = 0;
+    this.statusPacketsInWindow = 0;
+    this.sessionPacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -643,6 +745,11 @@ export class NetStats {
       stateV2PerSec: this.stateV2PerSec,
       posePacketsPerSec: this.posePacketsPerSec,
       lifecyclePacketsPerSec: this.lifecyclePacketsPerSec,
+      ackPacketsPerSec: this.ackPacketsPerSec,
+      statusPacketsPerSec: this.statusPacketsPerSec,
+      sessionPacketsPerSec: this.sessionPacketsPerSec,
+      lastStatusPacket: this.lastStatusPacket,
+      lastSessionPacket: this.lastSessionPacket,
       lastLifecyclePacket: this.lastLifecyclePacket,
       packetsInPerSec: this.packetsInPerSec,
       packetsOutPerSec: this.packetsOutPerSec,
