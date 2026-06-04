@@ -549,6 +549,10 @@ export function updatePlayer(state, p, dt, timeMs = null) {
         const d2 = t.kind === 'structure' ? distanceSqToStructureRect(t, p.x, p.y) : distSq(p.x, p.y, t.x, t.y);
         const fireRange = aaRange + targetRadius * 0.35;
         if (d2 <= fireRange * fireRange) {
+          if (p.hasMoveTarget) {
+            p.moveIntentSeq = (p.moveIntentSeq | 0) + 1;
+            p.moveIntentEndedAt = Date.now();
+          }
           p.hasMoveTarget = false;
           if ((!blocksAttacks(p) || isForcedTauntAttack(state, p, t)) && timeMs >= p.nextShotAt) fireAutoAttack(state, p, t, timeMs);
         } else {

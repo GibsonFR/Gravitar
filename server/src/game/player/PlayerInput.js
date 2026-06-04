@@ -103,6 +103,8 @@ function setApproachTarget(player, target, desiredRange) {
   player.groundMarkerX = player.moveTx;
   player.groundMarkerY = player.moveTy;
   player.groundMarkerTimer = 0.65;
+  player.moveIntentSeq = (player.moveIntentSeq | 0) + 1;
+  player.moveIntentStartedAt = Date.now();
   return true;
 }
 
@@ -121,29 +123,45 @@ function setMoveTarget(player, x, y, options = {}) {
 
 function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
   if (player.sessionSetupPending || timeMs < (player.ignoreClientPoseUntil ?? 0)) return;
-  if (!Number.isFinite(msg.cx) || !Number.isFinite(msg.cy)) return;
 
-  // V83: client-authority assumée pour la pose locale.
-  // Le serveur ne doit plus tirer depuis une ancienne position parce qu'il a raté/rejeté
-  // une frame. On garde seulement des bornes grossières, puis la logique collision/secteur
-  // du serveur corrige les cas impossibles.
-  const oldX = player.x;
-  const oldY = player.y;
-  const oldSx = player.sx | 0;
-  const oldSy = player.sy | 0;
-  const seq = msg.sectorSeq | 0;
-  const lastSeq = player.lastClientSectorSeq | 0;
-  if (seq >= lastSeq) {
-    player.lastClientSectorSeq = seq;
-    player.x = msg.cx;
-    player.y = msg.cy;
-    if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
-    if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
-    if (clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy)) revertClientPose(player, oldX, oldY, oldSx, oldSy);
+  // Net V2 movement authority split:
+  // - normal movement = server simulation from move intention;
+  // - client cx/cy = diagnostic/correction hint only;
+  // - ability/dash = short client-authoritative pose accepted.
+  //
+  // The old behavior copied cx/cy on every ordinary input. That made remote
+  // observers depend on input frequency: spam-click/hold looked smooth, but a
+  // single click produced sparse server recalc/jumps. We now keep standard
+  // movement independent from client input cadence.
+  const clientPoseAuthority = !!abilityFresh || (Number.isFinite(player.clientAuthoritativeUntil) && timeMs <= player.clientAuthoritativeUntil);
+
+  if (clientPoseAuthority && Number.isFinite(msg.cx) && Number.isFinite(msg.cy)) {
+    const oldX = player.x;
+    const oldY = player.y;
+    const oldSx = player.sx | 0;
+    const oldSy = player.sy | 0;
+    const seq = msg.sectorSeq | 0;
+    const lastSeq = player.lastClientSectorSeq | 0;
+    if (seq >= lastSeq) {
+      player.lastClientSectorSeq = seq;
+      player.x = msg.cx;
+      player.y = msg.cy;
+      if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
+      if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
+      if (clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy)) revertClientPose(player, oldX, oldY, oldSx, oldSy);
+    }
+    if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
+    if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
+  } else {
+    if (Number.isFinite(msg.cx) && Number.isFinite(msg.cy)) {
+      player.lastClientHintX = msg.cx;
+      player.lastClientHintY = msg.cy;
+      player.lastClientHintAt = timeMs;
+    }
+    if (Number.isFinite(msg.cvx)) player.lastClientHintVx = msg.cvx;
+    if (Number.isFinite(msg.cvy)) player.lastClientHintVy = msg.cvy;
   }
 
-  if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
-  if (Number.isFinite(msg.cvy)) player.vy = msg.cvy;
   if (Number.isFinite(msg.crot)) {
     player.rot = msg.crot;
     player.visualRot = msg.crot;
@@ -152,13 +170,6 @@ function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
   if (Number.isFinite(msg.cthrust)) player.localThrust = msg.cthrust;
   player.lastClientPoseAt = timeMs;
 
-  // Net V2 movement model:
-  // - ordinary movement is driven by a server-side move target and integrated every server tick;
-  // - client pose packets are accepted as validation/correction hints, but must not freeze
-  //   server simulation for 650 ms, otherwise a single click only updates observers when
-  //   the client sends its sparse idle input;
-  // - ability/dash packets may still keep short local authority because the client has
-  //   already played an immediate burst movement locally.
   if (abilityFresh) player.clientAuthoritativeUntil = Math.max(player.clientAuthoritativeUntil || 0, timeMs + 1400);
 }
 

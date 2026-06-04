@@ -667,53 +667,31 @@ export class WorldStore {
       remotePlayerLowLatency: true
     });
 
-    if (!player.hasMoveTarget) return sampled;
+    // Primary path: pose packets are now the authoritative remote-motion stream.
+    // Intent rendering is only a fallback if the interpolation buffer is actually
+    // late. It must not fight the normal interpolation path every frame.
+    if (!player.hasMoveTarget || !sampled?._interpolationLateMs || sampled._interpolationLateMs < 45) return sampled;
 
     const tx = Number(player.moveTx);
     const ty = Number(player.moveTy);
     if (!Number.isFinite(tx) || !Number.isFinite(ty)) return sampled;
 
-    // Unified remote movement:
-    // The observer should not depend on whether the remote player keeps sending
-    // mouse-held inputs or only sent a single click. Once the server announces
-    // an active move target, the observer renders a continuous client-side motion
-    // toward that target between authoritative pose packets.
-    const now = performance.now();
-    const poseAt = Number(player._remotePoseLocalAt || now);
-    const elapsedMs = Math.max(0, Math.min(180, now - poseAt));
-
-    const baseX = Number.isFinite(Number(player._remotePoseX)) ? Number(player._remotePoseX) : Number(sampled.x || player.x || 0);
-    const baseY = Number.isFinite(Number(player._remotePoseY)) ? Number(player._remotePoseY) : Number(sampled.y || player.y || 0);
-
-    const dx = tx - baseX;
-    const dy = ty - baseY;
+    const dx = tx - Number(sampled.x || 0);
+    const dy = ty - Number(sampled.y || 0);
     const d = Math.hypot(dx, dy);
-    if (d <= 8) {
-      return {
-        ...sampled,
-        x: tx,
-        y: ty,
-        vx: 0,
-        vy: 0
-      };
-    }
+    if (d <= 8) return sampled;
 
-    const poseSpeed = Math.hypot(Number(player._remotePoseVx || 0), Number(player._remotePoseVy || 0));
-    const engineSpeed = Number(player.engine || sampled.engine || 260);
-    const speed = Math.max(0, Math.min(engineSpeed * 1.15, poseSpeed > 5 ? poseSpeed : engineSpeed));
-    const step = Math.min(d, speed * (elapsedMs / 1000));
-
-    const x = baseX + (dx / d) * step;
-    const y = baseY + (dy / d) * step;
+    const speed = Math.max(0, Math.min(Number(player.engine || sampled.engine || 260), Math.hypot(Number(sampled.vx || player.vx || 0), Number(sampled.vy || player.vy || 0)) || Number(player.engine || sampled.engine || 260)));
+    const extraMs = Math.min(110, Math.max(0, Number(sampled._interpolationLateMs || 0)));
+    const step = Math.min(d, speed * (extraMs / 1000));
 
     return {
       ...sampled,
-      x,
-      y,
+      x: Number(sampled.x || 0) + (dx / d) * step,
+      y: Number(sampled.y || 0) + (dy / d) * step,
       vx: (dx / d) * speed,
       vy: (dy / d) * speed,
-      _intentRendered: true,
-      _intentElapsedMs: elapsedMs
+      _intentFallbackRendered: true
     };
   }
 

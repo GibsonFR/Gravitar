@@ -113,6 +113,8 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
       player.hasMoveTarget = true;
       player.holdMoveAllowed = false;
       player.groundMarkerTimer = 0;
+      player.moveIntentSeq = (player.moveIntentSeq | 0) + 1;
+      player.moveIntentStartedAt = Date.now();
       return 'interact';
     }
   }
@@ -124,5 +126,7 @@ export function applyPrimaryClick(state, player, screenX, screenY) {
   player.groundMarkerX = world.x;
   player.groundMarkerY = world.y;
   player.groundMarkerTimer = 0.85;
+  player.moveIntentSeq = (player.moveIntentSeq | 0) + 1;
+  player.moveIntentStartedAt = Date.now();
   return 'move';
 }
