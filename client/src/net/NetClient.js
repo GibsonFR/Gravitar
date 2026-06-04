@@ -84,6 +84,7 @@ export class NetClient {
       if (raw) this.netStats.recordInboundBytes(raw.length);
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
+      this.netStats.recordInboundPacket(msg?.t || 'unknown', raw.length);
       if (msg.t === 'hello') {
         if (msg.sessionToken) this.setSessionToken(msg.sessionToken);
         this.store.applyHello(msg.id, msg.sessionToken || '', !!msg.resumed);
@@ -118,6 +119,7 @@ export class NetClient {
     const payload = JSON.stringify(obj);
     this.ws.send(payload);
     this.netStats.recordOutboundBytes(payload.length);
+    this.netStats.recordOutboundPacket(obj?.t || 'unknown', payload.length);
     if (obj?.t === 'input') this.netStats.recordInput(obj, payload.length, this.ws.bufferedAmount || 0);
     else if (obj?.t === 'cmd') this.netStats.recordCommand(payload.length, this.ws.bufferedAmount || 0);
     return true;

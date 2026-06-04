@@ -850,6 +850,7 @@ export function startApp() {
   }
 
   function frame() {
+    net.getNetStats().recordFrame();
     const t = performance.now() / 1000;
     const ctx = view.ctx;
     audio.playPending(store.consumePendingSfx());

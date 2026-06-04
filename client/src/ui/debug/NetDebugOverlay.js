@@ -28,14 +28,25 @@ function topSectionLine(bytes = {}) {
   return items.length ? items.join(' ') : '—';
 }
 
+function topPacketLine(counts = {}) {
+  const items = Object.entries(counts || {})
+    .filter(([, v]) => Number(v) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .slice(0, 4)
+    .map(([k, v]) => `${k}:${Number(v).toFixed(Number(v) < 10 ? 1 : 0)}`);
+  return items.length ? items.join(' ') : '—';
+}
+
 export class NetDebugOverlay {
   constructor(netStats) {
     this.netStats = netStats;
     this.el = document.createElement('div');
-    this.el.className = 'net-debug-overlay is-hidden';
+    this.el.className = 'net-debug-overlay';
     this.lastRenderAt = 0;
-    this.visible = false;
+    this.visible = true;
     document.body.appendChild(this.el);
+    this.netStats?.setVisible?.(true);
+    this.render(true);
   }
 
   setVisible(value) {
@@ -56,8 +67,16 @@ export class NetDebugOverlay {
     this.lastRenderAt = now;
     const s = this.netStats.snapshot();
     this.el.innerHTML = `
-      <div class="net-debug-overlay__title">NET V263</div>
+      <div class="net-debug-overlay__title">DEBUG NET/PERF</div>
       <div class="net-debug-overlay__grid">
+        <span>FPS</span><b>${fmtRate(s.fps)} · ${fmtMs(s.frameMsAvg)}</b>
+        <span>Frame max</span><b>${fmtMs(s.frameMsMax)}</b>
+        <span>Packets in</span><b>${fmtRate(s.packetsInPerSec)}/s · ${s.totalPacketsIn || 0}</b>
+        <span>Packets out</span><b>${fmtRate(s.packetsOutPerSec)}/s · ${s.totalPacketsOut || 0}</b>
+        <span>Packets types in</span><b>${topPacketLine(s.packetTypeInPerSec)}</b>
+        <span>Packets types out</span><b>${topPacketLine(s.packetTypeOutPerSec)}</b>
+        <span>Total in/out</span><b>${fmtBytes(s.totalBytesIn)} / ${fmtBytes(s.totalBytesOut)}</b>
+        <span>Last packet</span><b>${s.lastPacketType || '—'} · ${fmtBytes(s.lastPacketInBytes)}</b>
         <span>RTT</span><b>${fmtMs(s.rttMs)}</b>
         <span>Jitter</span><b>${fmtMs(s.jitterMs)}</b>
         <span>Snap gap</span><b>${fmtMs(s.snapshotGapMs)}</b>
@@ -80,6 +99,7 @@ export class NetDebugOverlay {
         <span>Entities</span><b>${countLine(s.entityCounts)}</b>
         <span>Interp buf</span><b>E:${s.interpolation?.entities || 0} S:${s.interpolation?.samples || 0}</b>
         <span>Events/s</span><b>${fmtRate(s.eventsPerSec)}</b>
+        <span>Server events</span><b>${fmtRate(s.serverEventsPerSec)} · L:${fmtRate(s.logisticEventsPerSec)} P:${fmtRate(s.projectileEventsPerSec)}</b>
         <span>Event dedup</span><b>${s.eventDeduper?.accepted || 0}/${s.eventDeduper?.duplicates || 0}</b>
         <span>Event HUD</span><b>A:${s.eventDrivenHud?.abilityUpdates || 0} D:${s.eventDrivenHud?.damageUpdates || 0} S:${s.eventDrivenHud?.statusUpdates || 0} P:${s.eventDrivenHud?.passiveUpdates || 0}</b>
         <span>Last reject</span><b>${s.eventDrivenHud?.lastAbilityReject ? `${s.eventDrivenHud.lastAbilityReject.slot}:${s.eventDrivenHud.lastAbilityReject.reason}` : '—'}</b>
@@ -89,7 +109,7 @@ export class NetDebugOverlay {
         <span>Input max</span><b>${s.inputHistory?.maxPendingObserved ?? 0} / ${fmtMs(s.inputHistory?.maxPendingAgeObservedMs)}</b>
         <span>Tick</span><b>${s.serverTick | 0}</b>
       </div>
-      <div class="net-debug-overlay__hint">F9 : masquer · audit instrumentation seulement</div>
+      <div class="net-debug-overlay__hint">F9 : masquer/afficher · overlay permanent debug</div>
     `;
   }
 }

@@ -25,22 +25,52 @@ export class NetStats {
 
     this.bytesInWindow = 0;
     this.bytesOutWindow = 0;
+    this.packetsInWindow = 0;
+    this.packetsOutWindow = 0;
+    this.framesWindow = 0;
     this.snapshotsInWindow = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
     this.eventsInWindow = 0;
     this.sfxInWindow = 0;
+    this.serverEventsInWindow = 0;
+    this.logisticEventsInWindow = 0;
+    this.projectileEventsInWindow = 0;
+    this.serverEventsInWindow = 0;
+    this.logisticEventsInWindow = 0;
+    this.projectileEventsInWindow = 0;
 
     this.bytesInPerSec = 0;
     this.bytesOutPerSec = 0;
+    this.packetsInPerSec = 0;
+    this.packetsOutPerSec = 0;
+    this.fps = 0;
+    this.frameMs = 0;
+    this.frameMsAvg = 0;
+    this.frameMsMax = 0;
+    this.lastFrameAt = 0;
     this.snapshotsPerSec = 0;
     this.inputsPerSec = 0;
     this.commandsPerSec = 0;
     this.cmdAcksPerSec = 0;
     this.eventsPerSec = 0;
     this.sfxPerSec = 0;
+    this.serverEventsPerSec = 0;
+    this.logisticEventsPerSec = 0;
+    this.projectileEventsPerSec = 0;
 
+    this.lastPacketInBytes = 0;
+    this.lastPacketOutBytes = 0;
+    this.lastPacketType = '';
+    this.packetTypeInWindow = {};
+    this.packetTypeOutWindow = {};
+    this.packetTypeInPerSec = {};
+    this.packetTypeOutPerSec = {};
+    this.totalPacketsIn = 0;
+    this.totalPacketsOut = 0;
+    this.totalBytesIn = 0;
+    this.totalBytesOut = 0;
     this.lastSnapshotBytes = 0;
     this.avgSnapshotBytes = 0;
     this.maxSnapshotBytes = 0;
@@ -112,14 +142,45 @@ export class NetStats {
     this.setEnabled(this.visible || this.enabled);
   }
 
+  recordFrame() {
+    const now = nowMs();
+    if (this.lastFrameAt > 0) {
+      const ms = Math.max(0, now - this.lastFrameAt);
+      this.frameMs = ms;
+      this.frameMsAvg = ema(this.frameMsAvg, ms, 0.10);
+      this.frameMsMax = Math.max(this.frameMsMax, ms);
+    }
+    this.lastFrameAt = now;
+    this.framesWindow += 1;
+  }
+
   recordInboundBytes(bytes) {
     const b = finite(bytes, 0);
     this.bytesInWindow += b;
+    this.totalBytesIn += b;
   }
 
   recordOutboundBytes(bytes) {
     const b = finite(bytes, 0);
     this.bytesOutWindow += b;
+    this.totalBytesOut += b;
+  }
+
+  recordInboundPacket(type = '', bytes = 0) {
+    this.packetsInWindow += 1;
+    this.totalPacketsIn += 1;
+    this.lastPacketInBytes = finite(bytes, 0);
+    this.lastPacketType = String(type || '');
+    const key = String(type || 'unknown');
+    this.packetTypeInWindow[key] = (this.packetTypeInWindow[key] || 0) + 1;
+  }
+
+  recordOutboundPacket(type = '', bytes = 0) {
+    this.packetsOutWindow += 1;
+    this.totalPacketsOut += 1;
+    this.lastPacketOutBytes = finite(bytes, 0);
+    const key = String(type || 'unknown');
+    this.packetTypeOutWindow[key] = (this.packetTypeOutWindow[key] || 0) + 1;
   }
 
   recordSnapshot(msg, bytes = 0) {
@@ -162,8 +223,16 @@ export class NetStats {
     };
     this.snapshotSections = msg?.net?.slim?.sectionCounts || Object.fromEntries(Object.entries(msg || {}).map(([k, v]) => [k, Array.isArray(v) ? v.length : (v && typeof v === 'object' ? 1 : 0)]));
     this.snapshotSectionBytes = msg?.net?.slim?.sectionBytes || {};
-    this.eventsInWindow += (Array.isArray(msg?.events) ? msg.events.length : 0) + (Array.isArray(msg?.combatFx) ? msg.combatFx.length : 0) + (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0);
-    this.sfxInWindow += (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0) + (Array.isArray(msg?.me?.sfx) ? msg.me.sfx.length : 0);
+    const genericEvents = (Array.isArray(msg?.events) ? msg.events.length : 0);
+    const combatFx = (Array.isArray(msg?.combatFx) ? msg.combatFx.length : 0);
+    const worldSfx = (Array.isArray(msg?.worldSfx) ? msg.worldSfx.length : 0);
+    const logistics = (Array.isArray(msg?.logisticTransferEvents) ? msg.logisticTransferEvents.length : 0);
+    const projectiles = (Array.isArray(msg?.projectileEvents) ? msg.projectileEvents.length : 0);
+    this.eventsInWindow += genericEvents + combatFx + worldSfx + logistics + projectiles;
+    this.serverEventsInWindow += logistics + projectiles;
+    this.logisticEventsInWindow += logistics;
+    this.projectileEventsInWindow += projectiles;
+    this.sfxInWindow += worldSfx + (Array.isArray(msg?.me?.sfx) ? msg.me.sfx.length : 0);
   }
 
   recordInput(obj, bytes = 0, wsBufferedAmount = 0) {
@@ -243,6 +312,9 @@ export class NetStats {
     if (elapsed < 1) return;
     this.bytesInPerSec = this.bytesInWindow / elapsed;
     this.bytesOutPerSec = this.bytesOutWindow / elapsed;
+    this.packetsInPerSec = this.packetsInWindow / elapsed;
+    this.packetsOutPerSec = this.packetsOutWindow / elapsed;
+    this.fps = this.framesWindow / elapsed;
     this.snapshotsPerSec = this.snapshotsInWindow / elapsed;
     this.inputsPerSec = this.inputsOutWindow / elapsed;
     this.commandsPerSec = this.commandsOutWindow / elapsed;
@@ -251,12 +323,21 @@ export class NetStats {
     this.sfxPerSec = this.sfxInWindow / elapsed;
     this.bytesInWindow = 0;
     this.bytesOutWindow = 0;
+    this.packetsInWindow = 0;
+    this.packetsOutWindow = 0;
+    this.framesWindow = 0;
     this.snapshotsInWindow = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
     this.eventsInWindow = 0;
     this.sfxInWindow = 0;
+    this.serverEventsInWindow = 0;
+    this.logisticEventsInWindow = 0;
+    this.projectileEventsInWindow = 0;
+    this.serverEventsInWindow = 0;
+    this.logisticEventsInWindow = 0;
+    this.projectileEventsInWindow = 0;
     this.windowStartedAt = now;
     this.pendingInputs = this.inputHistory?.stats?.().pending ?? Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
   }
@@ -274,6 +355,21 @@ export class NetStats {
       snapshotGapMs: this.snapshotGapMs,
       snapshotGapJitterMs: this.snapshotGapJitterMs,
       snapshotsPerSec: this.snapshotsPerSec,
+      packetsInPerSec: this.packetsInPerSec,
+      packetsOutPerSec: this.packetsOutPerSec,
+      totalPacketsIn: this.totalPacketsIn,
+      totalPacketsOut: this.totalPacketsOut,
+      totalBytesIn: this.totalBytesIn,
+      totalBytesOut: this.totalBytesOut,
+      lastPacketInBytes: this.lastPacketInBytes,
+      lastPacketOutBytes: this.lastPacketOutBytes,
+      lastPacketType: this.lastPacketType,
+      packetTypeInPerSec: { ...this.packetTypeInPerSec },
+      packetTypeOutPerSec: { ...this.packetTypeOutPerSec },
+      fps: this.fps,
+      frameMs: this.frameMs,
+      frameMsAvg: this.frameMsAvg,
+      frameMsMax: this.frameMsMax,
       inputsPerSec: this.inputsPerSec,
       commandsPerSec: this.commandsPerSec,
       cmdAcksPerSec: this.cmdAcksPerSec,
@@ -297,6 +393,9 @@ export class NetStats {
       hardReconciliationCount: this.hardReconciliationCount,
       entityCounts: { ...this.entityCounts },
       eventsPerSec: this.eventsPerSec,
+      serverEventsPerSec: this.serverEventsPerSec,
+      logisticEventsPerSec: this.logisticEventsPerSec,
+      projectileEventsPerSec: this.projectileEventsPerSec,
       sfxPerSec: this.sfxPerSec,
       wsBufferedAmount: this.wsBufferedAmount,
       skippedSnapshots: this.skippedSnapshots,
