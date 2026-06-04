@@ -477,6 +477,12 @@ function generateTestHubContent(state, sx, sy, timeMs, h) {
     radius: 56,
     autoTrigger: true
   });
+  spawnPortal(state, sx, sy, 760, 1320, SPECIAL_SECTORS.TEST_FACTORIO_LOGISTICS.sx, SPECIAL_SECTORS.TEST_FACTORIO_LOGISTICS.sy, '⇄', {
+    label: 'Test logistique Factorio',
+    mode: 'test_factorio_logistics',
+    radius: 56,
+    autoTrigger: true
+  });
   spawnPortal(state, sx, sy, -380, 320, SPECIAL_SECTORS.STRESS_ARENA.sx, SPECIAL_SECTORS.STRESS_ARENA.sy, '⚡', {
     label: 'Stress test réseau',
     mode: 'stress_test',
@@ -801,6 +807,87 @@ function generateTestRocketMixerContent(state, sx, sy, timeMs, h) {
   resources.forEach(([resourceKey, x, y], i) => {
     spawnAsteroidProc(state, sx, sy, {
       x, y, radius: 44 + (i % 3) * 8, resourceKey, yieldValue: 28, seed: h ^ (0xd900 + i), sig: `test_rocket_mixer_${resourceKey}_${i}`
+    });
+  });
+}
+
+
+
+function spawnTestStructure(state, type, sx, sy, x, y, options = {}) {
+  const st = createStructure(state, type, sx, sy, x, y, {
+    ownerId: 0,
+    ownerKey: 'test',
+    ownerName: 'Test',
+    worldId: 'endless',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ...options
+  });
+  if (!st) return null;
+  state.structures.set(st.id, st);
+  return st;
+}
+
+function generateTestFactorioLogisticsContent(state, sx, sy, timeMs, h) {
+  spawnPortal(state, sx, sy, -1700, -1600, SPECIAL_SECTORS.TEST_HUB.sx, SPECIAL_SECTORS.TEST_HUB.sy, '⌂', {
+    label: 'Retour hub test',
+    radius: 52,
+    autoTrigger: true
+  });
+
+  spawnStation(state, sx, sy, 1450, -1350, true, h ^ 0xfacc10, timeMs);
+
+  const chest = (x, y, resources = {}) => spawnTestStructure(state, 'storage', sx, sy, x, y, {
+    storage: { kind: 'resources', capacity: 240, resources: { ...resources } }
+  });
+  const belt = (type, x, y, orientation = 'r', resources = {}) => spawnTestStructure(state, type, sx, sy, x, y, {
+    orientation,
+    storage: { kind: 'conveyor', capacity: 1, resources: { ...resources } }
+  });
+  const arm = (type, x, y, orientation = 'r') => spawnTestStructure(state, type, sx, sy, x, y, { orientation });
+
+  chest(-448, -192, { ironOre: 80, copper: 40 });
+  arm('robot_arm', -384, -192, 'r');
+  belt('conveyor', -320, -192, 'r');
+  belt('conveyor', -256, -192, 'r');
+  belt('fast_conveyor', -192, -192, 'r');
+  belt('splitter', -128, -192, 'r');
+  belt('fast_conveyor', -64, -224, 'r');
+  belt('fast_conveyor', 0, -224, 'r');
+  arm('fast_arm', 64, -224, 'r');
+  chest(128, -224, {});
+  belt('conveyor', -64, -160, 'r');
+  belt('conveyor', 0, -160, 'r');
+  arm('robot_arm', 64, -160, 'r');
+  chest(128, -160, {});
+
+  chest(-448, 64, { silicon: 40 });
+  chest(-448, 192, { quartz: 40 });
+  arm('robot_arm', -384, 64, 'r');
+  arm('robot_arm', -384, 192, 'r');
+  belt('conveyor', -320, 64, 'r');
+  belt('conveyor', -320, 192, 'r');
+  belt('merger', -256, 128, 'r');
+  belt('fast_conveyor', -192, 128, 'r');
+  belt('fast_conveyor', -128, 128, 'r');
+  arm('fast_arm', -64, 128, 'r');
+  chest(0, 128, {});
+
+  chest(-448, 384, { ironIngot: 40 });
+  arm('long_arm', -320, 384, 'r');
+  belt('conveyor', -192, 384, 'r');
+  belt('conveyor', -128, 384, 'r');
+  arm('long_arm', 0, 384, 'r');
+  chest(128, 384, {});
+
+  belt('conveyor', -448, -448, 'r', { ironOre: 1 });
+
+  const resources = [
+    ['ironOre', 520, -420], ['copper', 700, -180], ['silicon', 560, 120], ['quartz', 760, 360]
+  ];
+  resources.forEach(([resourceKey, x, y], i) => {
+    spawnAsteroidProc(state, sx, sy, {
+      x, y, radius: 44 + (i % 2) * 8, resourceKey, yieldValue: 28, seed: h ^ (0xfa000 + i), sig: `test_factorio_logistics_${resourceKey}_${i}`
     });
   });
 }
@@ -1306,6 +1393,7 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   const testRocketWorkshop = sx === SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sx && sy === SPECIAL_SECTORS.TEST_ROCKET_WORKSHOP.sy;
   const testRocketMixer = sx === SPECIAL_SECTORS.TEST_ROCKET_MIXER.sx && sy === SPECIAL_SECTORS.TEST_ROCKET_MIXER.sy;
   const testLogisticDrones = sx === SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sx && sy === SPECIAL_SECTORS.TEST_LOGISTIC_DRONES.sy;
+  const testFactorioLogistics = sx === SPECIAL_SECTORS.TEST_FACTORIO_LOGISTICS.sx && sy === SPECIAL_SECTORS.TEST_FACTORIO_LOGISTICS.sy;
   const testTurrets = sx === SPECIAL_SECTORS.TEST_TURRETS.sx && sy === SPECIAL_SECTORS.TEST_TURRETS.sy;
   const testBiomeSector = getTestBiomeSector(sx, sy);
   const mobBestiary = sx === SPECIAL_SECTORS.MOB_BESTIARY.sx && sy === SPECIAL_SECTORS.MOB_BESTIARY.sy;
@@ -1385,6 +1473,10 @@ export function generateSectorContent(state, sx, sy, timeMs) {
   }
   if (testLogisticDrones) {
     generateTestLogisticDronesContent(state, sx, sy, timeMs, h);
+    return;
+  }
+  if (testFactorioLogistics) {
+    generateTestFactorioLogisticsContent(state, sx, sy, timeMs, h);
     return;
   }
   if (testTurrets) {
