@@ -104,6 +104,18 @@ function playerStateCompact(player, selfId = 0) {
     radius: q(player.radius || 22),
     engine: q(player.engine || 250),
     frameId: player.frameId || '',
+    frameName: player.frameName || '',
+    gameMode: player.gameMode || '',
+    testWorldId: player.testWorldId || '',
+    battleSessionId: player.battleSessionId || '',
+    sessionSetup: {
+      pending: !!player.sessionSetupPending,
+      step: player.sessionSetupStep || '',
+      authStatus: player.authStatus || null
+    },
+    authStatus: player.authStatus || null,
+    dockedStationId: player.dockedStationId | 0 || 0,
+    dockPhase: player.dockPhase || 'none',
     selectedKind: player.selectedKind || '',
     selectedId: player.selectedId | 0,
     autoTargetKind: player.autoTargetKind || '',
