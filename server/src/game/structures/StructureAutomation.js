@@ -245,6 +245,13 @@ function conveyorItem(belt) {
   return preview?.key || '';
 }
 
+function preferredConveyorSlot(belt) {
+  const def = getStructureDef(belt?.type);
+  const outputs = Array.isArray(def?.automationOutputs) && def.automationOutputs.length ? def.automationOutputs : ['front'];
+  const index = Math.max(0, belt?.automationOutputIndex | 0) % outputs.length;
+  return outputs[index] || outputs[0] || 'front';
+}
+
 function conveyorTargets(state, belt, key) {
   const ports = conveyorOutputPoints(belt);
   const start = Math.max(0, belt.automationOutputIndex | 0);
@@ -252,7 +259,7 @@ function conveyorTargets(state, belt, key) {
   const targets = [];
   for (const port of ordered) {
     const target = findStructureAt(state, belt, port.point);
-    if (target && canConveyorPut(target, key)) targets.push({ target, outDir: null, slot: port.slot });
+    if (target && canConveyorPut(target, key)) targets.push({ target, slot: port.slot });
   }
   return targets;
 }
@@ -267,11 +274,25 @@ function updateConveyorVisual(belt, timeMs) {
   }
   if (!belt.automationMoving || belt.automationMoving.key !== key) {
     const travelMs = Number(getStructureDef(belt.type)?.automationIntervalMs) || 700;
-    belt.automationMoving = { key, startedAt: timeMs, totalMs: travelMs };
+    belt.automationMoving = {
+      key,
+      startedAt: timeMs,
+      totalMs: travelMs,
+      slot: preferredConveyorSlot(belt)
+    };
   }
   const totalMs = Math.max(1, Number(belt.automationMoving.totalMs) || 700);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(belt.automationMoving.startedAt || timeMs)) / totalMs));
-  belt.automationItem = { ...resourceMeta(key), phase: belt.automationStatus === 'blocked' ? 'blocked' : 'belt', progress, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
+  belt.automationItem = {
+    ...resourceMeta(key),
+    phase: belt.automationStatus === 'blocked' ? 'blocked' : 'belt',
+    progress,
+    startedAt: Number(belt.automationMoving.startedAt || timeMs),
+    totalMs,
+    slot: belt.automationMoving.slot || preferredConveyorSlot(belt),
+    structureType: String(belt?.type || '').toLowerCase(),
+    at: timeMs
+  };
 }
 
 function updateConveyor(state, belt, timeMs) {
@@ -285,8 +306,17 @@ function updateConveyor(state, belt, timeMs) {
   if (!targets.length) {
     belt.automationStatus = 'blocked';
     belt.automationBlockedAt = timeMs;
-    belt.automationMoving.startedAt = timeMs - totalMs;
-    belt.automationItem = { ...resourceMeta(key), phase: 'blocked', progress: 1, startedAt: Number(belt.automationMoving.startedAt || timeMs), totalMs, at: timeMs };
+    if (belt.automationMoving) belt.automationMoving.startedAt = timeMs - totalMs;
+    belt.automationItem = {
+      ...resourceMeta(key),
+      phase: 'blocked',
+      progress: 1,
+      startedAt: Number(belt.automationMoving?.startedAt || timeMs),
+      totalMs,
+      slot: belt.automationMoving?.slot || preferredConveyorSlot(belt),
+      structureType: String(belt?.type || '').toLowerCase(),
+      at: timeMs
+    };
     return false;
   }
   const chosen = targets[0];
@@ -313,7 +343,15 @@ function ensureArmVisual(arm, timeMs) {
   const totalMs = Math.max(1, Number(arm.automationJob.totalMs) || 900);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(arm.automationJob.startedAt || timeMs)) / totalMs));
   const phase = arm.automationStatus === 'blocked' ? 'arm_blocked' : 'arm';
-  arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase, progress, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
+  arm.automationItem = {
+    ...resourceMeta(arm.automationJob.key),
+    phase,
+    progress,
+    startedAt: Number(arm.automationJob.startedAt || timeMs),
+    totalMs,
+    reachTiles: arm.automationJob.reachTiles || 1,
+    at: timeMs
+  };
 }
 
 function updateRobotArm(state, arm, timeMs) {
@@ -329,7 +367,15 @@ function updateRobotArm(state, arm, timeMs) {
       arm.automationStatus = 'blocked';
       arm.automationBlockedAt = timeMs;
       arm.automationJob.startedAt = timeMs - totalMs;
-      arm.automationItem = { ...resourceMeta(arm.automationJob.key), phase: 'arm_blocked', progress: 1, startedAt: Number(arm.automationJob.startedAt || timeMs), totalMs, at: timeMs };
+      arm.automationItem = {
+        ...resourceMeta(arm.automationJob.key),
+        phase: 'arm_blocked',
+        progress: 1,
+        startedAt: Number(arm.automationJob.startedAt || timeMs),
+        totalMs,
+        reachTiles: reach,
+        at: timeMs
+      };
       return false;
     }
     putOne(target, arm.automationJob.key);
@@ -354,7 +400,7 @@ function updateRobotArm(state, arm, timeMs) {
   }
   const key = takeOneMatching(source, (candidate) => canPut(target, candidate));
   if (!key) return false;
-  arm.automationJob = { key, startedAt: timeMs, totalMs };
+  arm.automationJob = { key, startedAt: timeMs, totalMs, reachTiles: reach };
   arm.automationStatus = '';
   arm.lastAutomationAt = timeMs;
   ensureArmVisual(arm, timeMs);
