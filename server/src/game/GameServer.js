@@ -33,6 +33,7 @@ import { buildEndlessSave } from './accounts/AccountStore.js';
 
 const ACCOUNT_AUTOSAVE_INTERVAL_MS = Number(process.env.GRAVITAR_AUTOSAVE_MS || 30000);
 const NET_V2_RESET_ENABLED = process.env.GRAVITAR_NET_V2_RESET !== '0';
+const NET_V2_STATE_RATE_MS = Math.max(50, Number(process.env.GRAVITAR_NET_V2_STATE_RATE_MS || 100));
 
 export function createGameServer() {
   const state = createGameState();
@@ -47,6 +48,7 @@ export function createGameServer() {
   const lastStaticWorldByPlayer = new Map();
   const lastSectorKeyByPlayer = new Map();
   const lastNetStatsAtByPlayer = new Map();
+  const lastStateV2ByPlayer = new Map();
   let lastAccountAutosaveAt = 0;
 
 
@@ -88,6 +90,7 @@ export function createGameServer() {
     lastStaticWorldByPlayer.delete(id);
     lastSectorKeyByPlayer.delete(id);
     lastNetStatsAtByPlayer.delete(id);
+    lastStateV2ByPlayer.delete(id);
     state.players.delete(id);
   }
 
@@ -186,6 +189,11 @@ export function createGameServer() {
         if (staticWorld) lastStaticWorldByPlayer.set(id, timeMs);
         lastSectorKeyByPlayer.set(id, sectorKey);
         const needsSectorBootstrap = sectorChanged || staticWorld || fullUi;
+        if (NET_V2_RESET_ENABLED && !needsSectorBootstrap) {
+          const previousStateAt = lastStateV2ByPlayer.get(id) || 0;
+          if (timeMs - previousStateAt < NET_V2_STATE_RATE_MS) continue;
+          lastStateV2ByPlayer.set(id, timeMs);
+        }
         const snap = NET_V2_RESET_ENABLED
           ? (needsSectorBootstrap
             ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld, sectorBootstrap: true })

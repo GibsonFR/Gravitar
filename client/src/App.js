@@ -491,6 +491,10 @@ export function startApp() {
   });
 
   let lastSend = 0;
+  let lastInputPacketAt = 0;
+  let lastInputSignature = '';
+  const NET_V2_INPUT_INTERVAL_MS = 33;
+  const NET_V2_IDLE_INPUT_INTERVAL_MS = 250;
   let lastFrameTime = performance.now() / 1000;
   const camera = { x: 0, y: 0, initialized: false, sx: null, sy: null, forceCenterFrames: 0 };
 
@@ -756,6 +760,35 @@ export function startApp() {
     input.suppressRightHoldUntilUp = false;
   }
 
+  function makeInputSignature(primaryHold, mouseForServer, actionCount) {
+    const me = store.getMe();
+    const localMoveX = Math.round((store.localPrediction?.moveX ?? 0) * 100) / 100;
+    const localMoveY = Math.round((store.localPrediction?.moveY ?? 0) * 100) / 100;
+    const selectedKind = store.localPrediction?.selectedKind || store.myState?.selectedKind || '';
+    const selectedId = store.localPrediction?.selectedId || store.myState?.selectedId || 0;
+    const attackKind = store.localPrediction?.attackKind || '';
+    const attackId = store.localPrediction?.attackId || 0;
+    return [
+      primaryHold ? 1 : 0,
+      input.clickQueued ? 1 : 0,
+      input.targetClickQueued ? 1 : 0,
+      input.interactTap ? 1 : 0,
+      input.rocketTap ? 1 : 0,
+      input.moveWorldQueued ? 1 : 0,
+      actionCount | 0,
+      localMoveX,
+      localMoveY,
+      Math.round(Number(mouseForServer?.x || 0) / 8),
+      Math.round(Number(mouseForServer?.y || 0) / 8),
+      selectedKind,
+      selectedId | 0,
+      attackKind,
+      attackId | 0,
+      Math.round(Number(me?.x || 0) / 3),
+      Math.round(Number(me?.y || 0) / 3)
+    ].join('|');
+  }
+
   function sendInput(primaryHold) {
     const me = store.getMe();
     if (input.interactTap) {
@@ -801,6 +834,16 @@ export function startApp() {
         }
       }
     }
+
+    const nowMs = performance.now();
+    const inputSignature = makeInputSignature(primaryHold, mouseForServer, actionBatch.length);
+    const hasImmediateAction = actionBatch.length > 0 || input.clickQueued || input.targetClickQueued || input.interactTap || input.rocketTap || input.moveWorldQueued;
+    const changed = inputSignature !== lastInputSignature;
+    const minInterval = changed || primaryHold ? NET_V2_INPUT_INTERVAL_MS : NET_V2_IDLE_INPUT_INTERVAL_MS;
+    if (!hasImmediateAction && nowMs - lastInputPacketAt < minInterval) return;
+    lastInputPacketAt = nowMs;
+    lastInputSignature = inputSignature;
+
     net.send({
       t: 'input',
       inputSeq: (input.inputSeq = (input.inputSeq | 0) + 1),
@@ -977,7 +1020,7 @@ export function startApp() {
     statusEl.textContent = store.myId ? '' : 'Connexion…';
 
     const now = performance.now();
-    if (now - lastSend >= 4) {
+    if (now - lastSend >= 16) {
       lastSend = now;
       if (store.myState?.sessionSetup?.pending ?? true) clearQueuedInput();
       else sendInput(input.rightDown && input.holdActive && !input.suppressRightHoldUntilUp && !store.getLoadingState?.().active);
