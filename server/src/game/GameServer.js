@@ -111,7 +111,6 @@ export function createGameServer() {
     lastStatusV2SignatureByPlayer.delete(id);
     lastSessionV2ByPlayer.delete(id);
     lastSessionV2SignatureByPlayer.delete(id);
-    for (const known of knownRemotePlayersByObserver.values()) known.delete(id | 0);
     state.players.delete(id);
   }
 

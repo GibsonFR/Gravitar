@@ -1544,6 +1544,15 @@ export class WorldStore {
     this.players.set(id, next);
   }
 
+  pruneRemotePlayersNotIn(ids = [], reason = 'authoritative_player_list') {
+    const keep = new Set((Array.isArray(ids) ? ids : []).map((id) => id | 0).filter(Boolean));
+    if (this.myId) keep.add(this.myId | 0);
+    for (const id of [...this.players.keys()]) {
+      if ((id | 0) !== (this.myId | 0) && !keep.has(id | 0)) this.removeRemotePlayer(id);
+    }
+    this.lastRemotePlayerPruneReason = reason;
+  }
+
   removeRemotePlayer(id) {
     id = id | 0;
     if (!id || id === (this.myId | 0)) return;
@@ -1652,6 +1661,9 @@ export class WorldStore {
         this.applyPlayerStateV2(p, { preservePose: true });
         if (isSelf) this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });
       }
+      if (msg?.net?.authoritativePlayers) {
+        this.pruneRemotePlayersNotIn(msg.players.map((p) => p?.id | 0), 'player_status_v2');
+      }
     }
   }
 
@@ -1673,6 +1685,9 @@ export class WorldStore {
         const isSelf = (p.id | 0) === (this.myId | 0);
         this.applyPlayerStateV2(p, { preservePose: true });
         if (isSelf) this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });
+      }
+      if (msg?.net?.authoritativePlayers) {
+        this.pruneRemotePlayersNotIn(msg.players.map((p) => p?.id | 0), 'player_session_v2');
       }
     }
   }

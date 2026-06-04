@@ -457,7 +457,8 @@ export function buildNetV2PlayerStatusPacket(state, playerId, timeMs) {
     ackInputSeq: me.lastInputSeq | 0,
     net: {
       netV2Reset: true,
-      packet: 'player_status_v2'
+      packet: 'player_status_v2',
+      authoritativePlayers: true
     }
   };
 }
@@ -479,7 +480,8 @@ export function buildNetV2PlayerSessionPacket(state, playerId, timeMs) {
     players,
     net: {
       netV2Reset: true,
-      packet: 'player_session_v2'
+      packet: 'player_session_v2',
+      authoritativePlayers: true
     }
   };
 }
