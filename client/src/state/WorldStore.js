@@ -1730,8 +1730,7 @@ export class WorldStore {
 
     for (const slot of ['A', 'Z', 'E', 'R']) {
       const rawLeft = Math.max(0, Number(cd[slot]) || 0);
-      const left = Math.max(0, rawLeft - ageSec);
-      const safeLeft = left > 0.02 ? left + 0.015 : 0;
+      const safeLeft = rawLeft > 0.02 ? rawLeft : 0;
 
       this.myState.cooldowns[slot] = safeLeft;
       const hud = this.myState.abilityHud?.[slot];
@@ -1871,6 +1870,9 @@ export class WorldStore {
     this.modes = msg.modes ?? this.modes;
     this.playerDirectory = msg.playerDirectory ?? this.playerDirectory ?? [];
     this.myState = this._mergeMyState(msg.me ?? null);
+    if (msg.protocol === 'net_v2_reset' || msg.net?.netV2Reset) {
+      this.applySectorBootstrap(msg.sectorBootstrap);
+    }
     this.syncLocalAbilityCooldownAuthority(this.myState);
     if (hasAuthoritativeControlStatus(this.myState)) {
       this.localPrediction.hasMoveTarget = false;
@@ -2071,13 +2073,16 @@ export class WorldStore {
     if (!Number.isFinite(dt) || dt <= 0) return;
     this.tickPendingCommands();
     if (!this.myState) return;
+    // Net V2 cooldown policy:
+    // ability cooldown display is server-owned. Do not locally decrement it here,
+    // otherwise player_status_v2 and the local UI timer fight each other.
+    // The HUD follows the last value sent by player_status_v2 / ability protocol.
     const cooldowns = this.myState.cooldowns || null;
     if (cooldowns) {
       for (const slot of ['A', 'Z', 'E', 'R']) {
         if (!Number.isFinite(cooldowns[slot])) continue;
-        cooldowns[slot] = Math.max(0, cooldowns[slot] - dt);
         const hudSlot = this.myState.abilityHud?.[slot];
-        if (hudSlot) hudSlot.cooldownLeft = cooldowns[slot];
+        if (hudSlot) hudSlot.cooldownLeft = Math.max(0, cooldowns[slot]);
       }
     }
     if (Number.isFinite(this.myState._optimisticHintLeft)) {
@@ -2123,15 +2128,10 @@ export class WorldStore {
     this.localPrediction.localAbilityAuthorityUntil = Math.max(this.localPrediction.localAbilityAuthorityUntil || 0, now + Math.min(160, authorityMs));
     if (!this.localPrediction.localAbilityReadyAt) this.localPrediction.localAbilityReadyAt = {};
     if (!this.localPrediction.localAbilityLastCastAt) this.localPrediction.localAbilityLastCastAt = {};
-    if (Number.isFinite(cooldownLeft)) {
-      this.localPrediction.localAbilityReadyAt[s] = Math.max(this.localPrediction.localAbilityReadyAt[s] || 0, now + cooldownLeft * 1000);
-      this.localPrediction.localAbilityLastCastAt[s] = now;
-    }
-    if (!this.myState.cooldowns) this.myState.cooldowns = {};
-    if (Number.isFinite(cooldownLeft)) this.myState.cooldowns[s] = Math.max(0, cooldownLeft);
-    if (this.myState.abilityHud?.[s] && Number.isFinite(cooldownLeft)) {
-      this.myState.abilityHud[s].cooldownLeft = Math.max(0, cooldownLeft);
-    }
+    // Do not create a second local cooldown timer. The server will answer with
+    // player_status_v2 / ability protocol; until then, the cast has only visual/audio feedback.
+    this.localPrediction.localAbilityReadyAt[s] = 0;
+    this.localPrediction.localAbilityLastCastAt[s] = now;
     this.localPrediction.localFrameState = { ...(this.localPrediction.localFrameState || {}), ...(this.myState.frameState || {}) };
     this.localPrediction.localDerived = { ...(this.localPrediction.localDerived || {}), ...(this.myState.derived || {}) };
   }

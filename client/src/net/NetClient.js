@@ -97,7 +97,8 @@ export class NetClient {
       if (msg.t === 'snap') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordSnapshot(msg, raw.length);
-        this.store.applySnapshot(msg);
+        if (msg.protocol === 'net_v2_reset' || msg.net?.netV2Reset) this.store.applyStateV2?.(msg);
+        else this.store.applySnapshot(msg);
       }
       if (msg.t === 'state_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
