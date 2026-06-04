@@ -1538,7 +1538,7 @@ export function drawStructure(ctx, view, s, camX, camY, t = 0, structures = null
       ctx.lineTo(0, h * 0.42);
     }
     ctx.stroke();
-    if (isConveyor || isRobotArm || isExtractor) {
+    if (isExtractor) {
       drawAutomationItem(ctx, view, s, w, h, t);
     }
   }

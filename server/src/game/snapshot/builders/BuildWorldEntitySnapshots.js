@@ -169,6 +169,21 @@ function firstStructureResourcePreview(structure) {
   return null;
 }
 
+
+function isLogisticBeltOrArm(structure) {
+  const kind = getAutomationKindSnapshot(structure);
+  return kind === 'conveyor' || kind === 'robot_arm';
+}
+
+function logisticSnapshotStatusOnly(structure) {
+  return {
+    id: structure.id,
+    automationKind: getAutomationKindSnapshot(structure),
+    automationPulse: structure.automationPulse || 0,
+    automationStatus: getAutomationStatusSnapshot(structure)
+  };
+}
+
 function getAutomationKindSnapshot(structure) {
   return getStructureDef(structure?.type)?.automationKind || '';
 }
@@ -186,38 +201,44 @@ export function buildStructureAutomationSnapshots(structures, inSector) {
   return [...structures.values()]
     .filter(inSector)
     .filter((structure) => getAutomationKindSnapshot(structure))
-    .map((structure) => ({
-      id: structure.id,
-      storageUsed: structure.storage?.resources ? Object.values(structure.storage.resources).reduce((a, b) => a + (b | 0), 0) : 0,
-      storagePreview: firstStructureResourcePreview(structure),
-      automationItem: structure.automationItem || null,
-      automationKind: getAutomationKindSnapshot(structure),
-      automationPulse: structure.automationPulse || 0,
-      automationStatus: getAutomationStatusSnapshot(structure),
-      depositResourceKey: structure.depositResourceKey || '',
-      depositLabel: structure.depositLabel || RESOURCE_DEFS[structure.depositResourceKey]?.name || structure.depositResourceKey || '',
-      depositColorHex: structure.depositColorHex || RESOURCE_DEFS[structure.depositResourceKey]?.colorHex || structure.borderColor || '',
-      depositInfinite: structure.type === 'resource_deposit',
-      depositRemaining: structure.depositRemaining | 0 || 0,
-      depositMax: structure.depositMax | 0 || 0,
-      depositId: structure.depositId | 0 || 0,
-      extractionProgress: Math.max(0, Math.min(1, Number(structure.extractionProgress || 0)))
-    }));
+    .map((structure) => {
+      if (isLogisticBeltOrArm(structure)) return logisticSnapshotStatusOnly(structure);
+      return {
+        id: structure.id,
+        storageUsed: structure.storage?.resources ? Object.values(structure.storage.resources).reduce((a, b) => a + (b | 0), 0) : 0,
+        storagePreview: firstStructureResourcePreview(structure),
+        automationItem: structure.automationItem || null,
+        automationKind: getAutomationKindSnapshot(structure),
+        automationPulse: structure.automationPulse || 0,
+        automationStatus: getAutomationStatusSnapshot(structure),
+        depositResourceKey: structure.depositResourceKey || '',
+        depositLabel: structure.depositLabel || RESOURCE_DEFS[structure.depositResourceKey]?.name || structure.depositResourceKey || '',
+        depositColorHex: structure.depositColorHex || RESOURCE_DEFS[structure.depositResourceKey]?.colorHex || structure.borderColor || '',
+        depositInfinite: structure.type === 'resource_deposit',
+        depositRemaining: structure.depositRemaining | 0 || 0,
+        depositMax: structure.depositMax | 0 || 0,
+        depositId: structure.depositId | 0 || 0,
+        extractionProgress: Math.max(0, Math.min(1, Number(structure.extractionProgress || 0)))
+      };
+    });
 }
 
 export function buildStructureAutomationCombatSnapshots(structures, inSector) {
   return [...structures.values()]
     .filter(inSector)
     .filter((structure) => getAutomationKindSnapshot(structure))
-    .map((structure) => ({
-      id: structure.id,
-      automationKind: getAutomationKindSnapshot(structure),
-      automationPulse: structure.automationPulse || 0,
-      automationStatus: getAutomationStatusSnapshot(structure),
-      depositResourceKey: structure.depositResourceKey || '',
-      depositRemaining: structure.depositRemaining | 0 || 0,
-      depositInfinite: structure.type === 'resource_deposit'
-    }));
+    .map((structure) => {
+      if (isLogisticBeltOrArm(structure)) return logisticSnapshotStatusOnly(structure);
+      return {
+        id: structure.id,
+        automationKind: getAutomationKindSnapshot(structure),
+        automationPulse: structure.automationPulse || 0,
+        automationStatus: getAutomationStatusSnapshot(structure),
+        depositResourceKey: structure.depositResourceKey || '',
+        depositRemaining: structure.depositRemaining | 0 || 0,
+        depositInfinite: structure.type === 'resource_deposit'
+      };
+    });
 }
 
 export function buildStructureCombatSnapshots(structures, inSector, player = null) {

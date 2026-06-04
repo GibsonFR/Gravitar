@@ -1,6 +1,12 @@
 import { NetworkEventDeduper } from '../net/NetworkEventDeduper.js';
 import { EntityInterpolationStore } from './EntityInterpolationStore.js';
 
+
+function isSnapshotDrivenLogisticAutomation(entity) {
+  const kind = String(entity?.automationKind || '').toLowerCase();
+  return kind === 'conveyor' || kind === 'robot_arm';
+}
+
 function statusIdOf(entry) {
   return String(entry?.id || entry?.effectId || entry?.type || '').toLowerCase();
 }
@@ -991,10 +997,10 @@ export class WorldStore {
       const normalized = this._normalizeStructureSnapshot(snap, serverNow, current);
       this.structures.set(id, {
         ...current,
-        storageUsed: normalized.storageUsed ?? current.storageUsed,
-        storagePreview: normalized.storagePreview ?? null,
-        automationItem: normalized.automationItem ?? null,
-        _automationFadeItem: normalized._automationFadeItem ?? null,
+        storageUsed: isSnapshotDrivenLogisticAutomation(normalized) ? 0 : (normalized.storageUsed ?? current.storageUsed),
+        storagePreview: isSnapshotDrivenLogisticAutomation(normalized) ? null : (normalized.storagePreview ?? null),
+        automationItem: isSnapshotDrivenLogisticAutomation(normalized) ? null : (normalized.automationItem ?? null),
+        _automationFadeItem: isSnapshotDrivenLogisticAutomation(normalized) ? null : (normalized._automationFadeItem ?? null),
         automationKind: normalized.automationKind ?? current.automationKind,
         automationPulse: normalized.automationPulse ?? current.automationPulse,
         automationStatus: normalized.automationStatus ?? current.automationStatus,
