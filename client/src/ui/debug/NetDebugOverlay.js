@@ -27,6 +27,10 @@ function eventCountLine(counts = {}) {
   return `E:${counts.events || 0} FX:${counts.combatFx || 0} WS:${counts.worldSfx || 0} L:${counts.logistics || 0} P:${counts.projectiles || 0}`;
 }
 
+function sectorBootstrapLine(counts = {}) {
+  return `A:${counts.asteroids || 0} M:${counts.mobs || 0} S:${counts.structures || 0} St:${counts.stations || 0} P:${counts.portals || 0} L:${counts.loots || 0}`;
+}
+
 function localEventLine(counts = {}) {
   return `pT:${counts.projectileTombstones || 0} pIds:${counts.projectileEventIds || 0} log:${counts.logisticVisuals || 0} fx:${counts.pendingCombatFx || 0}`;
 }
@@ -82,6 +86,7 @@ export class NetDebugOverlay {
       <div class="net-debug-overlay__title">DEBUG NET/PERF</div>
       <div class="net-debug-overlay__grid">
         <span>Protocol</span><b>${s.netV2Reset ? 'NET V2 RESET' : (s.protocol || 'legacy')}</b>
+        <span>Sector boot</span><b>${s.lastSectorBootstrap ? 'received' : '—'} · ${sectorBootstrapLine(s.sectorBootstrapCounts)}</b>
         <span>Projectile lab</span><b>${s.projectileLabMinimal ? 'MINIMAL SNAPSHOT' : 'normal'}</b>
         <span>FPS</span><b>${fmtRate(s.fps)} · ${fmtMs(s.frameMsAvg)}</b>
         <span>Frame max</span><b>${fmtMs(s.frameMsMax)}</b>

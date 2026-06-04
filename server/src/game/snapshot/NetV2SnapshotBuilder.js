@@ -1,5 +1,13 @@
 import { WORLD } from '../constants.js';
 import { getSimulationTick } from '../util/Time.js';
+import {
+  buildAsteroidSnapshots,
+  buildMobSnapshots,
+  buildPortalSnapshots,
+  buildStationSnapshots,
+  buildStructureSnapshots,
+  buildLootSnapshots
+} from './builders/BuildWorldEntitySnapshots.js';
 
 function q(v, decimals = 2) {
   const n = Number(v);
@@ -52,6 +60,41 @@ function sameWorldSector(a, b) {
     && (a.sy | 0) === (b.sy | 0);
 }
 
+function sameSector(entity, sx, sy) {
+  return !!entity && (entity.sx | 0) === (sx | 0) && (entity.sy | 0) === (sy | 0);
+}
+
+function sameWorld(entity, worldId) {
+  return String(entity?.worldId || 'endless') === String(worldId || 'endless');
+}
+
+function buildSectorBootstrap(state, me, timeMs) {
+  if (!me) return null;
+  const sx = me.sx | 0;
+  const sy = me.sy | 0;
+  const worldId = String(me.worldId || 'endless');
+  const inSector = (entity) => sameSector(entity, sx, sy);
+  const inWorldSector = (entity) => inSector(entity) && sameWorld(entity, worldId);
+
+  return {
+    id: `${worldId}:${sx}:${sy}`,
+    worldId,
+    sx,
+    sy,
+    builtAt: timeMs,
+    asteroids: buildAsteroidSnapshots(state.asteroids, inSector),
+    mobs: buildMobSnapshots(state.mobs, inSector, { compact: false }),
+    stations: buildStationSnapshots(state.stations, inSector),
+    structures: buildStructureSnapshots(state.structures, inWorldSector, me),
+    portals: buildPortalSnapshots(state.portals, inSector, state, me, timeMs),
+    loots: buildLootSnapshots(state.loots, inSector)
+  };
+}
+
+function shouldIncludeSectorBootstrap(me, options = {}) {
+  return !!me && (!!options.sectorBootstrap || !!options.staticWorld || !!options.fullUi);
+}
+
 export function buildNetV2BootstrapSnapshot(state, playerId, timeMs, options = {}) {
   const me = state.players.get(playerId) || null;
   const players = [...state.players.values()]
@@ -59,12 +102,14 @@ export function buildNetV2BootstrapSnapshot(state, playerId, timeMs, options = {
     .map((p) => playerLite(p, playerId))
     .filter(Boolean);
 
+  const includeSectorBootstrap = shouldIncludeSectorBootstrap(me, options);
   return {
     t: 'snap',
     protocol: 'net_v2_reset',
-    minimal: true,
+    minimal: !includeSectorBootstrap,
     fullUi: !!options.fullUi,
     staticWorld: !!options.staticWorld,
+    sectorBootstrap: includeSectorBootstrap ? buildSectorBootstrap(state, me, timeMs) : undefined,
     time: timeMs,
     tick: getSimulationTick(state),
     seed: state.seed | 0,
@@ -75,7 +120,8 @@ export function buildNetV2BootstrapSnapshot(state, playerId, timeMs, options = {
     ackInputSeq: me?.lastInputSeq | 0,
     net: {
       netV2Reset: true,
-      minimalSnapshot: true,
+      minimalSnapshot: !includeSectorBootstrap,
+      sectorBootstrap: includeSectorBootstrap,
       fullUi: !!options.fullUi,
       staticWorld: !!options.staticWorld,
       serverSnapBuiltAt: timeMs

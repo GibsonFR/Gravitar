@@ -90,6 +90,8 @@ export class NetStats {
     this.serverTick = 0;
     this.netV2Reset = false;
     this.lastProtocol = '';
+    this.lastSectorBootstrap = false;
+    this.sectorBootstrapCounts = {};
     this.serverTime = 0;
     this.serverEventAgeAvgMs = 0;
     this.serverEventAgeMaxMs = 0;
@@ -232,6 +234,15 @@ export class NetStats {
     this.lastSnapshotAt = now;
     this.serverTick = finite(msg?.tick, this.serverTick);
     this.netV2Reset = !!msg?.net?.netV2Reset || msg?.protocol === 'net_v2_reset';
+    this.lastSectorBootstrap = !!msg?.sectorBootstrap;
+    this.sectorBootstrapCounts = msg?.sectorBootstrap ? {
+      asteroids: Array.isArray(msg.sectorBootstrap.asteroids) ? msg.sectorBootstrap.asteroids.length : 0,
+      mobs: Array.isArray(msg.sectorBootstrap.mobs) ? msg.sectorBootstrap.mobs.length : 0,
+      stations: Array.isArray(msg.sectorBootstrap.stations) ? msg.sectorBootstrap.stations.length : 0,
+      structures: Array.isArray(msg.sectorBootstrap.structures) ? msg.sectorBootstrap.structures.length : 0,
+      portals: Array.isArray(msg.sectorBootstrap.portals) ? msg.sectorBootstrap.portals.length : 0,
+      loots: Array.isArray(msg.sectorBootstrap.loots) ? msg.sectorBootstrap.loots.length : 0
+    } : this.sectorBootstrapCounts;
     this.lastProtocol = msg?.protocol || (this.netV2Reset ? 'net_v2_reset' : this.lastProtocol);
     this.serverTime = finite(msg?.time, this.serverTime);
     if (Number.isFinite(Number(msg?.ackInputSeq))) {
@@ -481,6 +492,8 @@ export class NetStats {
       serverTick: this.serverTick,
       netV2Reset: !!this.netV2Reset,
       protocol: this.lastProtocol,
+      lastSectorBootstrap: !!this.lastSectorBootstrap,
+      sectorBootstrapCounts: { ...this.sectorBootstrapCounts },
       serverTime: this.serverTime,
       projectileLabMinimal: !!this.projectileLabMinimal,
       serverEventAgeAvgMs: this.serverEventAgeAvgMs,

@@ -1462,12 +1462,24 @@ export class WorldStore {
     }
   }
 
+  applySectorBootstrap(bootstrap) {
+    if (!bootstrap) return;
+    this.currentSectorBootstrapId = bootstrap.id || `${bootstrap.worldId || 'endless'}:${bootstrap.sx | 0}:${bootstrap.sy | 0}`;
+    if (Array.isArray(bootstrap.asteroids)) this._syncMap(this.asteroids, bootstrap.asteroids, { preserveLocalRotation: true });
+    if (Array.isArray(bootstrap.mobs)) this._syncMap(this.mobs, bootstrap.mobs);
+    if (Array.isArray(bootstrap.stations)) this._syncMap(this.stations, bootstrap.stations);
+    if (Array.isArray(bootstrap.structures)) this._syncStructures(bootstrap.structures, this._estimateServerNow());
+    if (Array.isArray(bootstrap.portals)) this._syncMap(this.portals, bootstrap.portals);
+    if (Array.isArray(bootstrap.loots)) this._syncMap(this.loots, bootstrap.loots);
+  }
+
   applyStateV2(msg) {
     const snapLocalNow = performance.now();
     this.lastSnapAt = snapLocalNow;
     this.lastServerTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : Date.now();
     this.lastServerTimeAt = snapLocalNow;
     this.myState = this._mergeMyState(msg.me ?? null);
+    this.applySectorBootstrap(msg.sectorBootstrap);
     if (this.myState?.id) this.myId = this.myState.id | 0;
 
     if (Array.isArray(msg.players)) {

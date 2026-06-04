@@ -186,7 +186,7 @@ export function createGameServer() {
         if (staticWorld) lastStaticWorldByPlayer.set(id, timeMs);
         lastSectorKeyByPlayer.set(id, sectorKey);
         const snap = NET_V2_RESET_ENABLED
-          ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld })
+          ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld, sectorBootstrap: sectorChanged || staticWorld || fullUi })
           : buildSnapshot(state, id, timeMs, { fullUi, staticWorld });
         snap.ackInputSeq = p.lastInputSeq | 0;
         snap.net = {
