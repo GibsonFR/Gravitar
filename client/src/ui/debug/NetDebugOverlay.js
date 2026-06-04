@@ -126,6 +126,7 @@ export class NetDebugOverlay {
         <span>Snap/s</span><b>${fmtRate(s.snapshotsPerSec)}</b>
         <span>StateV2/s</span><b>${fmtRate(s.stateV2PerSec)}</b>
         <span>Pose/s</span><b>${fmtRate(s.posePacketsPerSec)}</b>
+        <span>Life/s</span><b>${fmtRate(s.lifecyclePacketsPerSec)} · ${s.lastLifecyclePacket?.type || '—'}</b>
         <span>Pose gap</span><b>${fmtMs(s.posePacketGapMs)} / ${fmtMs(s.posePacketGapMaxMs)}</b>
         <span>Input/s</span><b>${fmtRate(s.inputsPerSec)}</b>
         <span>Pending input</span><b>${s.inputHistory?.pending ?? (s.pendingInputs | 0)}</b>

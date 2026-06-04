@@ -1544,9 +1544,45 @@ export class WorldStore {
     this.players.set(id, next);
   }
 
+  removeRemotePlayer(id) {
+    id = id | 0;
+    if (!id || id === (this.myId | 0)) return;
+    this.players.delete(id);
+    if (this.interpolationStore?.maps?.delete) this.interpolationStore.maps.delete(`player:${id}`);
+  }
+
+  clearRemotePlayers(reason = '') {
+    for (const id of [...this.players.keys()]) {
+      if ((id | 0) !== (this.myId | 0)) this.removeRemotePlayer(id);
+    }
+    this.lastRemotePlayerClearReason = reason;
+  }
+
+  applyPlayerEnterSectorV2(msg) {
+    const serverTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : this.lastServerTime || Date.now();
+    const players = Array.isArray(msg?.players) ? msg.players : [];
+    if (!players.length) return;
+    for (const p of players) {
+      if (!p || (p.id | 0) === (this.myId | 0)) continue;
+      this.applyPlayerStateV2(p, { preservePose: false });
+    }
+    this.interpolationStore?.pushMany?.('player', players.filter((p) => (p.id | 0) !== (this.myId | 0)), serverTime);
+  }
+
+  applyPlayerLeaveSectorV2(msg) {
+    const ids = Array.isArray(msg?.ids) ? msg.ids : [];
+    for (const id of ids) this.removeRemotePlayer(id);
+  }
+
+  applySectorUnloadV2(msg) {
+    this.clearRemotePlayers(msg?.reason || 'sector_unload');
+  }
+
   applySectorBootstrap(bootstrap) {
     if (!bootstrap) return;
-    this.currentSectorBootstrapId = bootstrap.id || `${bootstrap.worldId || 'endless'}:${bootstrap.sx | 0}:${bootstrap.sy | 0}`;
+    const nextBootstrapId = bootstrap.id || `${bootstrap.worldId || 'endless'}:${bootstrap.sx | 0}:${bootstrap.sy | 0}`;
+    if (this.currentSectorBootstrapId && this.currentSectorBootstrapId !== nextBootstrapId) this.clearRemotePlayers('sector_bootstrap_changed');
+    this.currentSectorBootstrapId = nextBootstrapId;
     if (Array.isArray(bootstrap.asteroids)) this._syncMap(this.asteroids, bootstrap.asteroids, { preserveLocalRotation: true });
     if (Array.isArray(bootstrap.mobs)) this._syncMap(this.mobs, bootstrap.mobs);
     if (Array.isArray(bootstrap.stations)) this._syncMap(this.stations, bootstrap.stations);

@@ -31,6 +31,8 @@ export class NetStats {
     this.snapshotsInWindow = 0;
     this.stateV2InWindow = 0;
     this.posePacketsInWindow = 0;
+    this.lifecyclePacketsInWindow = 0;
+    this.lifecyclePacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -58,6 +60,7 @@ export class NetStats {
     this.snapshotsPerSec = 0;
     this.stateV2PerSec = 0;
     this.posePacketsPerSec = 0;
+    this.lifecyclePacketsPerSec = 0;
     this.inputsPerSec = 0;
     this.commandsPerSec = 0;
     this.cmdAcksPerSec = 0;
@@ -110,6 +113,7 @@ export class NetStats {
     this.logisticEventAgeAvgMs = 0;
     this.logisticEventAgeMaxMs = 0;
     this.lastSnapshotEventCounts = {};
+    this.lastLifecyclePacket = null;
     this.clientEntityCounts = {};
     this.clientEventCounts = {};
     this.inputSeq = 0;
@@ -284,6 +288,29 @@ export class NetStats {
       kind: 'packet_out',
       type: key,
       bytes: finite(bytes, 0)
+    });
+  }
+
+  recordLifecyclePacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.lifecyclePacketsInWindow += 1;
+    this.lastLifecyclePacket = {
+      type: msg?.t || '',
+      ids: Array.isArray(msg?.ids) ? msg.ids.map((id) => id | 0) : [],
+      players: Array.isArray(msg?.players) ? msg.players.map((p) => p.id | 0) : [],
+      reason: msg?.reason || '',
+      time: msg?.time || 0
+    };
+    this.pushDebugHistory({
+      kind: 'lifecycle',
+      type: msg?.t || 'unknown',
+      bytes: b,
+      protocol: msg?.protocol || '',
+      ids: this.lastLifecyclePacket.ids,
+      players: this.lastLifecyclePacket.players,
+      reason: this.lastLifecyclePacket.reason,
+      serverTime: msg?.time || 0,
+      serverTick: msg?.tick || 0
     });
   }
 
@@ -541,6 +568,7 @@ export class NetStats {
     this.snapshotsPerSec = this.snapshotsInWindow / elapsed;
     this.stateV2PerSec = this.stateV2InWindow / elapsed;
     this.posePacketsPerSec = this.posePacketsInWindow / elapsed;
+    this.lifecyclePacketsPerSec = this.lifecyclePacketsInWindow / elapsed;
     this.inputsPerSec = this.inputsOutWindow / elapsed;
     this.commandsPerSec = this.commandsOutWindow / elapsed;
     this.cmdAcksPerSec = this.cmdAcksInWindow / elapsed;
@@ -556,6 +584,8 @@ export class NetStats {
       snapshotsPerSec: this.snapshotsPerSec,
       stateV2PerSec: this.stateV2PerSec,
       posePacketsPerSec: this.posePacketsPerSec,
+      lifecyclePacketsPerSec: this.lifecyclePacketsPerSec,
+      lastLifecyclePacket: this.lastLifecyclePacket,
       packetsInPerSec: this.packetsInPerSec,
       packetsOutPerSec: this.packetsOutPerSec,
       bytesInPerSec: this.bytesInPerSec,
@@ -577,6 +607,8 @@ export class NetStats {
     this.snapshotsInWindow = 0;
     this.stateV2InWindow = 0;
     this.posePacketsInWindow = 0;
+    this.lifecyclePacketsInWindow = 0;
+    this.lifecyclePacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -610,6 +642,8 @@ export class NetStats {
       snapshotsPerSec: this.snapshotsPerSec,
       stateV2PerSec: this.stateV2PerSec,
       posePacketsPerSec: this.posePacketsPerSec,
+      lifecyclePacketsPerSec: this.lifecyclePacketsPerSec,
+      lastLifecyclePacket: this.lastLifecyclePacket,
       packetsInPerSec: this.packetsInPerSec,
       packetsOutPerSec: this.packetsOutPerSec,
       totalPacketsIn: this.totalPacketsIn,

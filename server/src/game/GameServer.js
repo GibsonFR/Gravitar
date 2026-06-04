@@ -20,7 +20,7 @@ import { updateEquipmentRDStations } from './structures/StructureEquipmentRDStat
 import { createPlayer } from './player/PlayerFactory.js';
 import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
-import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket } from './snapshot/NetV2SnapshotBuilder.js';
+import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket } from './snapshot/NetV2SnapshotBuilder.js';
 import { clearWorldSfx } from './audio/WorldSfxState.js';
 import { clearCombatFx } from './combat/CombatFxState.js';
 import { clearStatusPassiveEvents } from './events/StatusPassiveEvents.js';
@@ -53,6 +53,7 @@ export function createGameServer() {
   const lastNetStatsAtByPlayer = new Map();
   const lastStateV2ByPlayer = new Map();
   const lastStateV2SignatureByPlayer = new Map();
+  const knownRemotePlayersByObserver = new Map();
   let lastAccountAutosaveAt = 0;
 
 
@@ -96,6 +97,8 @@ export function createGameServer() {
     lastNetStatsAtByPlayer.delete(id);
     lastStateV2ByPlayer.delete(id);
     lastStateV2SignatureByPlayer.delete(id);
+    knownRemotePlayersByObserver.delete(id);
+    for (const known of knownRemotePlayersByObserver.values()) known.delete(id | 0);
     state.players.delete(id);
   }
 
@@ -171,6 +174,71 @@ export function createGameServer() {
   }
 
 
+  function sectorKeyOfPlayer(player) {
+    if (!player) return '';
+    return `${player.worldId || 'endless'}:${player.sx | 0}:${player.sy | 0}`;
+  }
+
+  function visibleRemotePlayersFor(observer) {
+    if (!observer) return [];
+    const worldId = String(observer.worldId || 'endless');
+    const sx = observer.sx | 0;
+    const sy = observer.sy | 0;
+    return [...state.players.values()].filter((p) =>
+      (p.id | 0) !== (observer.id | 0) &&
+      String(p.worldId || 'endless') === worldId &&
+      (p.sx | 0) === sx &&
+      (p.sy | 0) === sy
+    );
+  }
+
+  function visibleRemoteIdSet(observer) {
+    return new Set(visibleRemotePlayersFor(observer).map((p) => p.id | 0));
+  }
+
+  function syncNetV2PlayerLifecycleForObserver(observerId, timeMs, sendPacket, options = {}) {
+    if (!NET_V2_RESET_ENABLED) return;
+    const observer = state.players.get(observerId);
+    if (!observer) return;
+
+    const currentSectorKey = sectorKeyOfPlayer(observer);
+    const previousSectorKey = lastSectorKeyByPlayer.get(observerId) || '';
+    const known = knownRemotePlayersByObserver.get(observerId) || new Set();
+    const currentRemotes = visibleRemotePlayersFor(observer);
+    const currentIds = new Set(currentRemotes.map((p) => p.id | 0));
+    const sectorChanged = !!options.sectorChanged || (!!previousSectorKey && previousSectorKey !== currentSectorKey);
+
+    if (sectorChanged) {
+      const unload = buildNetV2SectorUnloadPacket(state, observerId, previousSectorKey, [...known], timeMs, 'sector_changed');
+      if (unload) sendPacket(observerId, unload);
+      known.clear();
+    }
+
+    const leaving = [];
+    for (const id of known) {
+      if (!currentIds.has(id)) leaving.push(id);
+    }
+    if (leaving.length) {
+      const leave = buildNetV2PlayerLeavePacket(state, observerId, leaving, timeMs, 'leave_sector');
+      if (leave) sendPacket(observerId, leave);
+      for (const id of leaving) known.delete(id);
+    }
+
+    // If a sector bootstrap is sent in the same tick, it already carries the
+    // initial player list through state_v2/bootstrap path. We still set known
+    // here to prevent duplicate enter packets immediately after bootstrap.
+    if (!options.skipEnterPackets) {
+      const entering = currentRemotes.filter((p) => !known.has(p.id | 0));
+      if (entering.length) {
+        const enter = buildNetV2PlayerEnterPacket(state, observerId, entering, timeMs);
+        if (enter) sendPacket(observerId, enter);
+      }
+    }
+
+    for (const id of currentIds) known.add(id);
+    knownRemotePlayersByObserver.set(observerId, known);
+  }
+
   function netV2StateSignature(packet) {
     const players = Array.isArray(packet?.players) ? packet.players : [];
     const stablePlayers = players.map((p) => [
@@ -229,6 +297,7 @@ export function createGameServer() {
       const timeMs = setSimulationTime(state, nowMs());
       for (const id of ids) {
         if (!state.players.has(id)) continue;
+        syncNetV2PlayerLifecycleForObserver(id, timeMs, sendSnapshot);
         const packet = buildNetV2PlayerPosePacket(state, id, timeMs);
         if (packet) sendSnapshot(id, packet);
       }
@@ -257,6 +326,9 @@ export function createGameServer() {
         if (staticWorld) lastStaticWorldByPlayer.set(id, timeMs);
         lastSectorKeyByPlayer.set(id, sectorKey);
         const needsSectorBootstrap = sectorChanged || staticWorld || fullUi;
+        if (NET_V2_RESET_ENABLED && sectorChanged) {
+          syncNetV2PlayerLifecycleForObserver(id, timeMs, sendSnapshot, { sectorChanged: true, skipEnterPackets: true });
+        }
         const snap = NET_V2_RESET_ENABLED
           ? (needsSectorBootstrap
             ? buildNetV2BootstrapSnapshot(state, id, timeMs, { fullUi, staticWorld, sectorBootstrap: true })
@@ -289,6 +361,9 @@ export function createGameServer() {
           p.forceFullUiSnapshotReason = '';
         }
         const sent = sendSnapshot(id, snap);
+        if (sent && NET_V2_RESET_ENABLED && needsSectorBootstrap) {
+          knownRemotePlayersByObserver.set(id, visibleRemoteIdSet(p));
+        }
         if (sent && process.env.NET_DEBUG === '1') {
           const prevLog = lastNetStatsAtByPlayer.get(id) || 0;
           if (timeMs - prevLog >= 10000) {

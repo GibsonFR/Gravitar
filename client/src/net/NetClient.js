@@ -109,6 +109,21 @@ export class NetClient {
         this.netStats.recordPosePacket?.(msg, raw.length);
         this.store.applyPlayerPoseV2?.(msg);
       }
+      if (msg.t === 'player_enter_sector_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordLifecyclePacket?.(msg, raw.length);
+        this.store.applyPlayerEnterSectorV2?.(msg);
+      }
+      if (msg.t === 'player_leave_sector_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordLifecyclePacket?.(msg, raw.length);
+        this.store.applyPlayerLeaveSectorV2?.(msg);
+      }
+      if (msg.t === 'sector_unload_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordLifecyclePacket?.(msg, raw.length);
+        this.store.applySectorUnloadV2?.(msg);
+      }
       if (msg.t === 'chat') this.store.applyChatMessage(msg);
       if (msg.t === 'cmd_ack') {
         this.netStats.recordCommandAck();

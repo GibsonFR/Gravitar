@@ -302,3 +302,69 @@ export function buildNetV2PlayerPosePacket(state, playerId, timeMs) {
     }
   };
 }
+
+
+export function buildNetV2PlayerEnterPacket(state, observerId, players, timeMs) {
+  const me = state.players.get(observerId) || null;
+  const list = (Array.isArray(players) ? players : [players])
+    .filter(Boolean)
+    .filter((p) => (p.id | 0) !== (observerId | 0))
+    .filter((p) => sameWorldSector(p, me))
+    .map((p) => playerStateCompact(p, observerId))
+    .filter(Boolean);
+
+  if (!list.length) return null;
+
+  return {
+    t: 'player_enter_sector_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    players: list,
+    net: {
+      netV2Reset: true,
+      packet: 'player_enter_sector_v2'
+    }
+  };
+}
+
+export function buildNetV2PlayerLeavePacket(state, observerId, playerIds, timeMs, reason = 'leave_sector') {
+  const ids = (Array.isArray(playerIds) ? playerIds : [playerIds])
+    .map((id) => id | 0)
+    .filter((id) => id && id !== (observerId | 0));
+
+  if (!ids.length) return null;
+
+  return {
+    t: 'player_leave_sector_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    ids,
+    reason: String(reason || 'leave_sector'),
+    net: {
+      netV2Reset: true,
+      packet: 'player_leave_sector_v2'
+    }
+  };
+}
+
+export function buildNetV2SectorUnloadPacket(state, observerId, previousSectorKey, previousPlayerIds, timeMs, reason = 'sector_changed') {
+  const ids = (Array.isArray(previousPlayerIds) ? previousPlayerIds : [...(previousPlayerIds || [])])
+    .map((id) => id | 0)
+    .filter((id) => id && id !== (observerId | 0));
+
+  return {
+    t: 'sector_unload_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    previousSectorKey: String(previousSectorKey || ''),
+    ids,
+    reason: String(reason || 'sector_changed'),
+    net: {
+      netV2Reset: true,
+      packet: 'sector_unload_v2'
+    }
+  };
+}
