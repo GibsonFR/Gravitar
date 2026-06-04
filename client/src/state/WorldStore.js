@@ -2001,6 +2001,10 @@ export class WorldStore {
     entry.ackedAt = performance.now();
     entry.ok = !!msg.ok;
     entry.cmd = String(msg.cmd || entry.cmd || '');
+    if (msg.ok && entry.cmd === 'commit_session_setup') {
+      this.myState = this.myState || {};
+      this.myState.sessionSetup = { ...(this.myState.sessionSetup || {}), pending: false, step: '' };
+    }
     if (!msg.ok) {
       if (entry.cmd === 'move_structure') this._rollbackOptimisticStructureMove(entry.payload?.structureId);
       this.myState = this.myState || {};

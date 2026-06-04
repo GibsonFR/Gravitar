@@ -31,6 +31,16 @@ function playerLite(player, selfId = 0) {
     vy: q(player.vy || 0, 3),
     rot: q(player.rot || 0, 4),
     frameId: player.frameId || '',
+    gameMode: player.gameMode || '',
+    testWorldId: player.testWorldId || '',
+    battleSessionId: player.battleSessionId || '',
+    sessionSetup: {
+      pending: !!player.sessionSetupPending,
+      step: player.sessionSetupStep || '',
+      authStatus: player.authStatus || null
+    },
+    dockedStationId: player.dockedStationId | 0 || 0,
+    dockPhase: player.dockPhase || 'none',
     selectedKind: player.selectedKind || '',
     selectedId: player.selectedId | 0,
     autoTargetKind: player.autoTargetKind || '',

@@ -226,6 +226,17 @@ export function startApp() {
     }
     return cmdId;
   };
+  const sendDeploySetup = (payload = {}) => {
+    const cmdId = store.noteCommandPending?.('commit_session_setup', payload, { deployV2: true }) || '';
+    const sent = net.send({ t: 'deploy_v2', cmdId, ...(payload || {}) });
+    if (!sent) {
+      statusEl.textContent = 'Déploiement non envoyé : connexion serveur indisponible.';
+      store.markCommandFailed?.(cmdId, 'disconnected');
+      return '';
+    }
+    return cmdId;
+  };
+
   playersPanel.bindChat((text) => net.send({ t: 'chat', text }));
 
   window.addEventListener('keydown', (ev) => {
@@ -335,7 +346,7 @@ export function startApp() {
   uiRoot.appendChild(stationWindow.el);
 
   const sessionSetup = new SessionSetupOverlay((payload) => {
-    sendCmd('commit_session_setup', payload);
+    sendDeploySetup(payload);
   }, () => {
     sendCmd('cancel_battle_queue', {});
   }, (payload) => {

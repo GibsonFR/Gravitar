@@ -101,6 +101,43 @@ export function createWsGameServer(httpServer, game) {
         return;
       }
       if (msg.t === 'input') game.handleInput(id, msg);
+      if (msg.t === 'deploy_v2') {
+        let ok = false;
+        let error = '';
+        try {
+          const result = game.handleCommand(id, { ...msg, t: 'cmd', cmd: 'commit_session_setup' });
+          if (typeof result === 'object' && result) {
+            ok = !!result.ok;
+            error = String(result.error || '');
+          } else {
+            ok = !!result;
+          }
+        } catch (err) {
+          ok = false;
+          error = 'server_exception';
+          console.error('[ws:deploy_v2:error]', err?.stack || err);
+        }
+        if (ws.readyState === ws.OPEN) {
+          const ack = JSON.stringify({
+            t: 'cmd_ack',
+            protocol: game.isNetV2ResetEnabled?.() ? 'net_v2_reset' : 'legacy',
+            cmdId: String(msg.cmdId || '').slice(0, 48),
+            cmd: 'commit_session_setup',
+            ok: !!ok,
+            error,
+            time: Date.now()
+          });
+          ws.send(ack);
+          accountOut(Buffer.byteLength(ack));
+          const statePacket = game.buildStateV2?.(id, Date.now());
+          if (statePacket) {
+            const payload = JSON.stringify(statePacket);
+            ws.send(payload);
+            accountOut(Buffer.byteLength(payload));
+          }
+        }
+        return;
+      }
       if (msg.t === 'state_req_v2') {
         const packet = game.buildStateV2?.(id, Date.now());
         if (packet && ws.readyState === ws.OPEN) {
