@@ -33,6 +33,8 @@ import { buildEndlessSave } from './accounts/AccountStore.js';
 
 const ACCOUNT_AUTOSAVE_INTERVAL_MS = Number(process.env.GRAVITAR_AUTOSAVE_MS || 30000);
 const NET_V2_RESET_ENABLED = process.env.GRAVITAR_NET_V2_RESET !== '0';
+const NET_V2_ACTIVE_STATE_RATE_MS = Math.max(50, Number(process.env.GRAVITAR_NET_V2_ACTIVE_STATE_RATE_MS || 100));
+const NET_V2_IDLE_STATE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_IDLE_STATE_RATE_MS || 1000));
 
 export function createGameServer() {
   const state = createGameState();
@@ -47,6 +49,8 @@ export function createGameServer() {
   const lastStaticWorldByPlayer = new Map();
   const lastSectorKeyByPlayer = new Map();
   const lastNetStatsAtByPlayer = new Map();
+  const lastStateV2ByPlayer = new Map();
+  const lastStateV2SignatureByPlayer = new Map();
   let lastAccountAutosaveAt = 0;
 
 
@@ -88,6 +92,8 @@ export function createGameServer() {
     lastStaticWorldByPlayer.delete(id);
     lastSectorKeyByPlayer.delete(id);
     lastNetStatsAtByPlayer.delete(id);
+    lastStateV2ByPlayer.delete(id);
+    lastStateV2SignatureByPlayer.delete(id);
     state.players.delete(id);
   }
 
@@ -162,6 +168,36 @@ export function createGameServer() {
     return count;
   }
 
+
+  function netV2StateSignature(packet) {
+    const players = Array.isArray(packet?.players) ? packet.players : [];
+    const stablePlayers = players.map((p) => [
+      p.id | 0,
+      p.sx | 0,
+      p.sy | 0,
+      Math.round(Number(p.x || 0) * 10),
+      Math.round(Number(p.y || 0) * 10),
+      Math.round(Number(p.vx || 0) * 10),
+      Math.round(Number(p.vy || 0) * 10),
+      Math.round(Number(p.rot || 0) * 100),
+      p.selectedKind || '',
+      p.selectedId | 0,
+      p.autoTargetKind || '',
+      p.autoTargetId | 0,
+      Math.round(Number(p.stats?.hp || 0)),
+      Math.round(Number(p.stats?.shield || 0)),
+      Math.round(Number(p.stats?.energy || 0)),
+      Math.round(Number(p.cooldowns?.a || 0) * 10),
+      Math.round(Number(p.cooldowns?.z || 0) * 10),
+      Math.round(Number(p.cooldowns?.e || 0) * 10),
+      Math.round(Number(p.cooldowns?.r || 0) * 10)
+    ]);
+    return JSON.stringify({
+      ack: packet?.ackInputSeq | 0,
+      players: stablePlayers
+    });
+  }
+
   function tickLoop(getConnectedIds, sendSnapshot) {
     if (!running) return;
 
@@ -204,6 +240,17 @@ export function createGameServer() {
             : buildNetV2StatePacket(state, id, timeMs))
           : buildSnapshot(state, id, timeMs, { fullUi, staticWorld });
         snap.ackInputSeq = p.lastInputSeq | 0;
+
+        if (NET_V2_RESET_ENABLED && !needsSectorBootstrap) {
+          const signature = netV2StateSignature(snap);
+          const previousSignature = lastStateV2SignatureByPlayer.get(id) || '';
+          const previousAt = lastStateV2ByPlayer.get(id) || 0;
+          const changed = signature !== previousSignature;
+          const minInterval = changed ? NET_V2_ACTIVE_STATE_RATE_MS : NET_V2_IDLE_STATE_RATE_MS;
+          if (timeMs - previousAt < minInterval) continue;
+          lastStateV2ByPlayer.set(id, timeMs);
+          lastStateV2SignatureByPlayer.set(id, signature);
+        }
         snap.net = {
           ...(snap.net || {}),
           fullUi,

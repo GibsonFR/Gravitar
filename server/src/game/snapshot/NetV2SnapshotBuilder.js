@@ -86,6 +86,58 @@ function playerLite(player, selfId = 0) {
   };
 }
 
+function playerStateCompact(player, selfId = 0) {
+  if (!player) return null;
+  return {
+    id: player.id | 0,
+    pseudo: player.pseudo || `Pilote ${player.id | 0}`,
+    kind: 'player',
+    worldId: String(player.worldId || 'endless'),
+    sx: player.sx | 0,
+    sy: player.sy | 0,
+    x: q(player.x),
+    y: q(player.y),
+    vx: q(player.vx || 0, 3),
+    vy: q(player.vy || 0, 3),
+    rot: q(player.visualRot ?? player.rot ?? 0, 4),
+    aimRot: q(player.aimRot ?? player.rot ?? 0, 4),
+    radius: q(player.radius || 22),
+    engine: q(player.engine || 250),
+    frameId: player.frameId || '',
+    selectedKind: player.selectedKind || '',
+    selectedId: player.selectedId | 0,
+    autoTargetKind: player.autoTargetKind || '',
+    autoTargetId: player.autoTargetId | 0,
+    isSelf: (player.id | 0) === (selfId | 0),
+    stats: {
+      hp: q(player.stats?.hp ?? player.hp ?? 0),
+      maxHp: q(player.stats?.maxHp ?? player.maxHp ?? 0),
+      shield: q(player.stats?.shield ?? 0),
+      maxShield: q(player.stats?.maxShield ?? 0),
+      energy: q(player.stats?.energy ?? 0),
+      maxEnergy: q(player.stats?.maxEnergy ?? 0)
+    },
+    vitals: {
+      hp: q(player.stats?.hp ?? player.hp ?? 0),
+      maxHp: q(player.stats?.maxHp ?? player.maxHp ?? 0),
+      shield: q(player.stats?.shield ?? 0),
+      maxShield: q(player.stats?.maxShield ?? 0),
+      energy: q(player.stats?.energy ?? 0),
+      maxEnergy: q(player.stats?.maxEnergy ?? 0)
+    },
+    cooldowns: {
+      a: q(player.cooldownALeft || 0),
+      z: q(player.cooldownZLeft || 0),
+      e: q(player.cooldownELeft || 0),
+      r: q(player.cooldownRLeft || 0)
+    },
+    rocketCooldownLeft: q(player.rocketCooldownLeft || 0),
+    groundMarkerX: q(player.groundMarkerX || 0),
+    groundMarkerY: q(player.groundMarkerY || 0),
+    groundMarkerTimer: q(player.groundMarkerTimer || 0)
+  };
+}
+
 function sameWorldSector(a, b) {
   return !!a && !!b
     && String(a.worldId || 'endless') === String(b.worldId || 'endless')
@@ -166,20 +218,22 @@ export function buildNetV2StatePacket(state, playerId, timeMs) {
   const me = state.players.get(playerId) || null;
   const players = [...state.players.values()]
     .filter((p) => sameWorldSector(p, me))
-    .map((p) => playerLite(p, playerId))
+    .map((p) => playerStateCompact(p, playerId))
     .filter(Boolean);
 
   return {
     t: 'state_v2',
     protocol: 'net_v2_reset',
+    compact: true,
     time: timeMs,
     tick: getSimulationTick(state),
-    me: playerLite(me, playerId),
+    me: playerStateCompact(me, playerId),
     players,
     ackInputSeq: me?.lastInputSeq | 0,
     net: {
       netV2Reset: true,
-      packet: 'state_v2'
+      packet: 'state_v2',
+      compact: true
     }
   };
 }

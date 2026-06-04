@@ -23,35 +23,12 @@ export class NetStats {
     this.lastPingSentAt = 0;
     this.pingSeq = 0;
 
-    this.pushDebugHistory({
-      kind: 'aggregate',
-      fps: this.fps,
-      frameMsAvg: this.frameMsAvg,
-      frameMsMax: this.frameMsMax,
-      rttMs: this.rttMs,
-      jitterMs: this.jitterMs,
-      snapshotsPerSec: this.snapshotsPerSec,
-      stateV2PerSec: this.stateV2PerSec,
-      packetsInPerSec: this.packetsInPerSec,
-      packetsOutPerSec: this.packetsOutPerSec,
-      bytesInPerSec: this.bytesInPerSec,
-      bytesOutPerSec: this.bytesOutPerSec,
-      inputsPerSec: this.inputsPerSec,
-      pendingInputs: this.pendingInputs,
-      avgSnapshotBytes: this.avgSnapshotBytes,
-      maxSnapshotBytes: this.maxSnapshotBytes,
-      clientEntityCounts: { ...this.clientEntityCounts },
-      clientEventCounts: { ...this.clientEventCounts },
-      packetTypeInPerSec: { ...this.packetTypeInPerSec },
-      packetTypeOutPerSec: { ...this.packetTypeOutPerSec }
-    });
     this.bytesInWindow = 0;
     this.bytesOutWindow = 0;
     this.packetsInWindow = 0;
     this.packetsOutWindow = 0;
     this.framesWindow = 0;
     this.snapshotsInWindow = 0;
-    this.stateV2InWindow = 0;
     this.stateV2InWindow = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
@@ -552,6 +529,7 @@ export class NetStats {
     this.packetsOutWindow = 0;
     this.framesWindow = 0;
     this.snapshotsInWindow = 0;
+    this.stateV2InWindow = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
