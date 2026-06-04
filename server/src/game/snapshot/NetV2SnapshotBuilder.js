@@ -79,10 +79,10 @@ function playerLite(player, selfId = 0) {
     level: player.progression?.level ?? 1,
     frameState: player.frameState || {},
     cooldowns: {
-      a: q(player.cooldownALeft || 0),
-      z: q(player.cooldownZLeft || 0),
-      e: q(player.cooldownELeft || 0),
-      r: q(player.cooldownRLeft || 0)
+      A: q(player.cooldownALeft || 0),
+      Z: q(player.cooldownZLeft || 0),
+      E: q(player.cooldownELeft || 0),
+      R: q(player.cooldownRLeft || 0)
     }
   };
 }
@@ -139,10 +139,10 @@ function playerStateCompact(player, selfId = 0) {
       maxEnergy: q(player.stats?.maxEnergy ?? 0)
     },
     cooldowns: {
-      a: q(player.cooldownALeft || 0),
-      z: q(player.cooldownZLeft || 0),
-      e: q(player.cooldownELeft || 0),
-      r: q(player.cooldownRLeft || 0)
+      A: q(player.cooldownALeft || 0),
+      Z: q(player.cooldownZLeft || 0),
+      E: q(player.cooldownELeft || 0),
+      R: q(player.cooldownRLeft || 0)
     },
     rocketCooldownLeft: q(player.rocketCooldownLeft || 0),
     groundMarkerX: q(player.groundMarkerX || 0),
@@ -195,10 +195,10 @@ function playerStatusCompact(player, selfId = 0) {
       maxEnergy: q(player.stats?.maxEnergy ?? 0)
     },
     cooldowns: {
-      a: q(player.cooldownALeft || 0),
-      z: q(player.cooldownZLeft || 0),
-      e: q(player.cooldownELeft || 0),
-      r: q(player.cooldownRLeft || 0)
+      A: q(player.cooldownALeft || 0),
+      Z: q(player.cooldownZLeft || 0),
+      E: q(player.cooldownELeft || 0),
+      R: q(player.cooldownRLeft || 0)
     },
     rocketCooldownLeft: q(player.rocketCooldownLeft || 0),
     statuses: Array.isArray(player.statuses) ? player.statuses : [],
@@ -545,6 +545,23 @@ export function buildNetV2CombatEventsPacket(state, playerId, events, timeMs) {
     net: {
       netV2Reset: true,
       packet: 'combat_events_v2'
+    }
+  };
+}
+
+
+export function buildNetV2NetworkEventsPacket(state, playerId, events, timeMs) {
+  const list = (Array.isArray(events) ? events : []).filter(Boolean);
+  if (!list.length) return null;
+  return {
+    t: 'network_events_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    events: list,
+    net: {
+      netV2Reset: true,
+      packet: 'network_events_v2'
     }
   };
 }

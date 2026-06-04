@@ -418,6 +418,7 @@ export class WorldStore {
       if (action === 'impact' || action === 'destroy') {
         this.projectileEventTombstones.set(projectileId, now + 2500);
         this.projectiles.delete(projectileId);
+        this.interpolationStore?.maps?.delete?.(`projectile:${projectileId}`);
         if (action === 'impact') {
           this.pendingProjectileImpacts.push({
             projectileId,
@@ -536,6 +537,14 @@ export class WorldStore {
         if (now > Number(until || 0)) this.logisticCompletedVisualItems.delete(id);
       }
     }
+  }
+
+  applyNetworkEventsV2(msg) {
+    const snapLocalNow = performance.now();
+    this.lastSnapAt = snapLocalNow;
+    this.lastServerTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : this.lastServerTime;
+    this.lastServerTimeAt = snapLocalNow;
+    if (Array.isArray(msg?.events)) this.applyNetworkEvents(msg.events);
   }
 
   applyNetworkEvents(events = []) {
@@ -1652,6 +1661,22 @@ export class WorldStore {
     this.interpolationStore?.pushMany?.('player', remotePlayers, serverTime);
   }
 
+  normalizePlayerCooldownKeys(player) {
+    if (!player?.cooldowns) return player;
+    const cd = player.cooldowns;
+    const normalized = { ...cd };
+    if (Number.isFinite(Number(cd.a)) && !Number.isFinite(Number(normalized.A))) normalized.A = Number(cd.a);
+    if (Number.isFinite(Number(cd.z)) && !Number.isFinite(Number(normalized.Z))) normalized.Z = Number(cd.z);
+    if (Number.isFinite(Number(cd.e)) && !Number.isFinite(Number(normalized.E))) normalized.E = Number(cd.e);
+    if (Number.isFinite(Number(cd.r)) && !Number.isFinite(Number(normalized.R))) normalized.R = Number(cd.r);
+    normalized.A = Math.max(0, Number(normalized.A) || 0);
+    normalized.Z = Math.max(0, Number(normalized.Z) || 0);
+    normalized.E = Math.max(0, Number(normalized.E) || 0);
+    normalized.R = Math.max(0, Number(normalized.R) || 0);
+    player.cooldowns = normalized;
+    return player;
+  }
+
   applyInputAckV2(msg) {
     const snapLocalNow = performance.now();
     this.lastSnapAt = snapLocalNow;
@@ -1668,6 +1693,7 @@ export class WorldStore {
     if (Number.isFinite(Number(msg?.ackInputSeq))) this.ackInputSeq = Number(msg.ackInputSeq) | 0;
 
     if (msg?.me) {
+      this.normalizePlayerCooldownKeys(msg.me);
       this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
       if (this.myState?.id) this.myId = this.myState.id | 0;
       this.applyPlayerStateV2(msg.me);
@@ -1676,6 +1702,7 @@ export class WorldStore {
     if (Array.isArray(msg?.players)) {
       for (const p of msg.players) {
         if (!p) continue;
+        this.normalizePlayerCooldownKeys(p);
         const isSelf = (p.id | 0) === (this.myId | 0);
         this.applyPlayerStateV2(p, { preservePose: true });
         if (isSelf) this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });
@@ -1693,6 +1720,7 @@ export class WorldStore {
     this.lastServerTimeAt = snapLocalNow;
 
     if (msg?.me) {
+      this.normalizePlayerCooldownKeys(msg.me);
       this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
       if (this.myState?.id) this.myId = this.myState.id | 0;
       this.applyPlayerStateV2(msg.me);
@@ -1701,6 +1729,7 @@ export class WorldStore {
     if (Array.isArray(msg?.players)) {
       for (const p of msg.players) {
         if (!p) continue;
+        this.normalizePlayerCooldownKeys(p);
         const isSelf = (p.id | 0) === (this.myId | 0);
         this.applyPlayerStateV2(p, { preservePose: true });
         if (isSelf) this.myState = this._mergeMyState({ ...(this.myState || {}), ...p });

@@ -20,12 +20,15 @@ import { updateEquipmentRDStations } from './structures/StructureEquipmentRDStat
 import { createPlayer } from './player/PlayerFactory.js';
 import { applyInputMessage } from './player/PlayerInput.js';
 import { buildSnapshot } from './snapshot/SnapshotBuilder.js';
-import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket, buildNetV2InputAckPacket, buildNetV2PlayerStatusPacket, buildNetV2PlayerSessionPacket, buildNetV2ProjectileEventsPacket, buildNetV2CombatEventsPacket } from './snapshot/NetV2SnapshotBuilder.js';
-import { clearWorldSfx } from './audio/WorldSfxState.js';
+import { buildNetworkEventsFromLegacy } from './events/NetworkEventStream.js';
+import { buildNetV2BootstrapSnapshot, buildNetV2StatePacket, buildNetV2PlayerPosePacket, buildNetV2PlayerEnterPacket, buildNetV2PlayerLeavePacket, buildNetV2SectorUnloadPacket, buildNetV2InputAckPacket, buildNetV2PlayerStatusPacket, buildNetV2PlayerSessionPacket, buildNetV2ProjectileEventsPacket, buildNetV2CombatEventsPacket, buildNetV2NetworkEventsPacket } from './snapshot/NetV2SnapshotBuilder.js';
+import { clearWorldSfx, peekWorldSfx } from './audio/WorldSfxState.js';
+import { drainPlayerSfx } from './audio/PlayerSfxState.js';
 import { clearCombatFx, peekCombatFx } from './combat/CombatFxState.js';
-import { clearStatusPassiveEvents } from './events/StatusPassiveEvents.js';
+import { clearStatusPassiveEvents, peekStatusEventsForPlayer, peekPassiveEventsForPlayer } from './events/StatusPassiveEvents.js';
 import { pruneLogisticTransferEvents } from './events/LogisticTransferEvents.js';
 import { peekProjectileEventsForPlayer } from './events/ProjectileEvents.js';
+import { drainAbilityProtocolEvents } from './events/AbilityProtocolEvents.js';
 import { applyCommand } from './commands/CommandRouter.js';
 import { ensureSectorLoaded } from './sector/SectorEnsure.js';
 import { visitSectorOnPlayer } from './map/PlayerMapState.js';
@@ -65,6 +68,7 @@ export function createGameServer() {
   const lastSessionV2SignatureByPlayer = new Map();
   const sentProjectileEventIdsByPlayer = new Map();
   const sentCombatEventIdsByPlayer = new Map();
+  const sentNetworkEventIdsByPlayer = new Map();
   let lastAccountAutosaveAt = 0;
 
 
@@ -116,6 +120,7 @@ export function createGameServer() {
     lastSessionV2SignatureByPlayer.delete(id);
     sentProjectileEventIdsByPlayer.delete(id);
     sentCombatEventIdsByPlayer.delete(id);
+    sentNetworkEventIdsByPlayer.delete(id);
     state.players.delete(id);
   }
 
@@ -297,6 +302,35 @@ export function createGameServer() {
     });
   }
 
+  function visibleWorldSfxForPlayer(player) {
+    if (!player) return [];
+    const sx = player.sx | 0;
+    const sy = player.sy | 0;
+    const worldId = String(player.worldId || 'endless');
+    return peekWorldSfx(state).filter((ev) => {
+      if (!ev) return false;
+      if ((ev.sx | 0) !== sx || (ev.sy | 0) !== sy) return false;
+      const evWorld = String(ev.worldId || worldId);
+      return evWorld === worldId;
+    });
+  }
+
+  function sendNetV2NetworkEvents(id, player, timeMs, sendPacket) {
+    if (!NET_V2_RESET_ENABLED || !player) return;
+    const worldSfx = visibleWorldSfxForPlayer(player);
+    const playerSfx = drainPlayerSfx(player);
+    const abilityProtocolEvents = drainAbilityProtocolEvents(player);
+    const statusEvents = peekStatusEventsForPlayer(state, player);
+    const passiveEvents = peekPassiveEventsForPlayer(state, player);
+    if (!worldSfx.length && !playerSfx.length && !abilityProtocolEvents.length && !statusEvents.length && !passiveEvents.length) return;
+
+    const events = buildNetworkEventsFromLegacy(state, id, timeMs, worldSfx, [], playerSfx, abilityProtocolEvents, statusEvents, passiveEvents);
+    const unsent = takeUnsentById(sentNetworkEventIdsByPlayer, id, events, 8192);
+    if (!unsent.length) return;
+    const packet = buildNetV2NetworkEventsPacket(state, id, unsent, timeMs);
+    if (packet) sendPacket(id, packet);
+  }
+
   function sendNetV2ProjectileCombatPackets(id, player, timeMs, sendPacket) {
     if (!NET_V2_RESET_ENABLED || !player) return;
 
@@ -455,6 +489,7 @@ export function createGameServer() {
       for (const id of ids) {
         if (!state.players.has(id)) continue;
         syncNetV2PlayerLifecycleForObserver(id, timeMs, sendSnapshot);
+        sendNetV2NetworkEvents(id, state.players.get(id), timeMs, sendSnapshot);
         sendNetV2ProjectileCombatPackets(id, state.players.get(id), timeMs, sendSnapshot);
         const packet = buildNetV2PlayerPosePacket(state, id, timeMs);
         if (packet) sendSnapshot(id, packet);

@@ -911,6 +911,7 @@ export function startApp() {
     const dt = Math.min(0.05, Math.max(0, t - lastFrameTime));
     lastFrameTime = t;
     store.interpolate(dt);
+    store.tickLocalUi?.(dt);
     predictor.update(dt, input, view, camera);
     updateCamera(store.getMe(), dt);
     updateTravelOverlay();

@@ -20,7 +20,7 @@ function showBootError(error, title = 'Erreur au chargement du jeu') {
 
 async function boot() {
   try {
-    const mod = await import('./src/App.js?v=netv2loadoutrestore1');
+    const mod = await import('./src/App.js?v=netv2gameplayrestore1');
     mod.startApp();
   } catch (err) {
     showBootError(err, 'Erreur au chargement du jeu');

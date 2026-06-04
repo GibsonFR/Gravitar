@@ -134,6 +134,11 @@ export class NetClient {
         this.netStats.recordCombatPacket?.(msg, raw.length);
         this.store.applyCombatEventsV2?.(msg);
       }
+      if (msg.t === 'network_events_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordNetworkEventsPacket?.(msg, raw.length);
+        this.store.applyNetworkEventsV2?.(msg);
+      }
       if (msg.t === 'player_enter_sector_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordLifecyclePacket?.(msg, raw.length);

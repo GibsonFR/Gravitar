@@ -149,6 +149,7 @@ export class NetDebugOverlay {
         <span>Server events</span><b>${fmtRate(s.serverEventsPerSec)} · L:${fmtRate(s.logisticEventsPerSec)} P:${fmtRate(s.projectileEventsPerSec)}</b>
         <span>ProjV2/s</span><b>${fmtRate(s.projectilePacketV2PerSec)} · E:${s.lastProjectilePacket?.events || 0}</b>
         <span>CombatV2/s</span><b>${fmtRate(s.combatPacketV2PerSec)} · E:${s.lastCombatPacket?.events || 0}</b>
+        <span>NetEvtV2/s</span><b>${fmtRate(s.networkPacketV2PerSec)} · E:${s.lastNetworkEventsPacket?.events || 0}</b>
         <span>Event age</span><b>${fmtMs(s.serverEventAgeAvgMs)} / ${fmtMs(s.serverEventAgeMaxMs)}</b>
         <span>Proj ev age</span><b>${fmtMs(s.projectileEventAgeAvgMs)} / ${fmtMs(s.projectileEventAgeMaxMs)}</b>
         <span>Log ev age</span><b>${fmtMs(s.logisticEventAgeAvgMs)} / ${fmtMs(s.logisticEventAgeMaxMs)}</b>
