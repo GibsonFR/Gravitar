@@ -384,6 +384,15 @@ export class WorldStore {
           continue;
         }
 
+        if (action === 'arm_drop') {
+          // Le drop confirme la fin serveur, mais ne doit pas couper l'arc visuel du bras.
+          // Le pickup a déjà créé l'animation complète pickup -> drop ; on la laisse finir.
+          existing._localUntil = Math.max(existing._localUntil || 0, now + 120);
+          existing.exitEvent = ev;
+          this.logisticTransferVisuals.set(visualItemId, existing);
+          continue;
+        }
+
         existing._localUntil = Math.min(existing._localUntil || now, now + 35);
         existing._finished = true;
         existing.exitEvent = ev;
