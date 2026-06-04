@@ -2,7 +2,7 @@ import { getStructureDef } from './StructureDefs.js';
 import { getMachineRecipe } from '../../../../shared/content/crafting/MachineRecipes.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { EQUIPMENT_RD_ALLOWED_SCIENCES } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
-import { queueLogisticTransferEvent } from '../events/LogisticTransferEvents.js';
+import { queueLogisticTransferEvent, nextLogisticVisualItemId } from '../events/LogisticTransferEvents.js';
 
 const RESOURCE_CAPACITY_DEFAULT = 80;
 const MACHINE_INPUT_CAPACITY = 160;
@@ -265,7 +265,7 @@ function conveyorTargets(state, belt, key) {
   return targets;
 }
 
-function updateConveyorVisual(belt, timeMs) {
+function updateConveyorVisual(state, belt, timeMs) {
   const key = conveyorItem(belt);
   if (!key) {
     belt.automationItem = null;
@@ -275,29 +275,32 @@ function updateConveyorVisual(belt, timeMs) {
   }
   if (!belt.automationMoving || belt.automationMoving.key !== key) {
     const travelMs = Number(getStructureDef(belt.type)?.automationIntervalMs) || 700;
+    const visualItemId = nextLogisticVisualItemId(state);
     belt.automationMoving = {
       key,
+      visualItemId,
       startedAt: timeMs,
       totalMs: travelMs,
       slot: preferredConveyorSlot(belt)
     };
+    queueLogisticTransferEvent(state, 'conveyor_enter', {
+      visualItemId,
+      resourceKey: key,
+      colorHex: resourceMeta(key).colorHex,
+      carrier: belt,
+      source: belt,
+      slot: belt.automationMoving.slot || preferredConveyorSlot(belt),
+      totalMs: travelMs,
+      timeMs
+    });
   }
   const totalMs = Math.max(1, Number(belt.automationMoving.totalMs) || 700);
   const progress = Math.max(0, Math.min(1, (timeMs - Number(belt.automationMoving.startedAt || timeMs)) / totalMs));
-  belt.automationItem = {
-    ...resourceMeta(key),
-    phase: belt.automationStatus === 'blocked' ? 'blocked' : 'belt',
-    progress,
-    startedAt: Number(belt.automationMoving.startedAt || timeMs),
-    totalMs,
-    slot: belt.automationMoving.slot || preferredConveyorSlot(belt),
-    structureType: String(belt?.type || '').toLowerCase(),
-    at: timeMs
-  };
+  belt.automationItem = null;
 }
 
 function updateConveyor(state, belt, timeMs) {
-  updateConveyorVisual(belt, timeMs);
+  updateConveyorVisual(state, belt, timeMs);
   const key = conveyorItem(belt);
   if (!key) return false;
   const totalMs = Math.max(1, Number(belt.automationMoving?.totalMs) || Number(getStructureDef(belt.type)?.automationIntervalMs) || 700);
@@ -325,13 +328,14 @@ function updateConveyor(state, belt, timeMs) {
   map[key] = (map[key] | 0) - 1;
   clean(map);
   putOne(chosen.target, key);
-  queueLogisticTransferEvent(state, 'conveyor_transfer', {
+  queueLogisticTransferEvent(state, 'conveyor_exit', {
+    visualItemId: belt.automationMoving?.visualItemId | 0,
     resourceKey: key,
     colorHex: resourceMeta(key).colorHex,
     source: belt,
     target: chosen.target,
     carrier: belt,
-    slot: chosen.slot || '',
+    slot: chosen.slot || belt.automationMoving?.slot || '',
     totalMs,
     timeMs
   });
@@ -347,22 +351,7 @@ function updateConveyor(state, belt, timeMs) {
 }
 
 function ensureArmVisual(arm, timeMs) {
-  if (!arm.automationJob?.key) {
-    arm.automationItem = null;
-    return;
-  }
-  const totalMs = Math.max(1, Number(arm.automationJob.totalMs) || 900);
-  const progress = Math.max(0, Math.min(1, (timeMs - Number(arm.automationJob.startedAt || timeMs)) / totalMs));
-  const phase = arm.automationStatus === 'blocked' ? 'arm_blocked' : 'arm';
-  arm.automationItem = {
-    ...resourceMeta(arm.automationJob.key),
-    phase,
-    progress,
-    startedAt: Number(arm.automationJob.startedAt || timeMs),
-    totalMs,
-    reachTiles: arm.automationJob.reachTiles || 1,
-    at: timeMs
-  };
+  arm.automationItem = null;
 }
 
 function updateRobotArm(state, arm, timeMs) {
@@ -391,6 +380,7 @@ function updateRobotArm(state, arm, timeMs) {
     }
     putOne(target, arm.automationJob.key);
     queueLogisticTransferEvent(state, 'arm_drop', {
+      visualItemId: arm.automationJob.visualItemId | 0,
       resourceKey: arm.automationJob.key,
       colorHex: resourceMeta(arm.automationJob.key).colorHex,
       source: arm,

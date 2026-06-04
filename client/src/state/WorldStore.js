@@ -39,7 +39,7 @@ export class WorldStore {
     this.stations = new Map();
     this.structures = new Map();
     this.automationVisuals = new Map();
-    this.logisticTransferVisuals = [];
+    this.logisticTransferVisuals = new Map();
     this.portals = new Map();
     this.projectiles = new Map();
     this.logisticDrones = new Map();
@@ -312,29 +312,64 @@ export class WorldStore {
 
   applyLogisticTransferEvents(events = []) {
     if (!Array.isArray(events) || !events.length) return;
+    if (!(this.logisticTransferVisuals instanceof Map)) this.logisticTransferVisuals = new Map();
     const now = performance.now();
     const serverNow = this._estimateServerNow();
+
     for (const ev of events) {
-      const id = `lt:${ev.id || 0}:${ev.action || ''}`;
-      if (this.eventDeduper?.seen?.has?.(id)) continue;
-      this.eventDeduper?.seen?.add?.(id);
+      const visualItemId = ev.visualItemId | 0;
+      if (!visualItemId) continue;
+
+      const action = String(ev.action || '').toLowerCase();
       const totalMs = Math.max(80, Number(ev.totalMs || 0) || 500);
       const elapsed = Math.max(0, serverNow - Number(ev.serverTime || serverNow));
-      this.logisticTransferVisuals.push({
-        ...ev,
-        _localStartedAt: now - Math.min(totalMs, elapsed),
-        _localUntil: now - Math.min(totalMs, elapsed) + totalMs + 180,
-        totalMs
-      });
+      const localStartedAt = now - Math.min(totalMs, elapsed);
+
+      if (action === 'conveyor_enter' || action === 'arm_pickup') {
+        this.logisticTransferVisuals.set(visualItemId, {
+          ...ev,
+          visualItemId,
+          action,
+          totalMs,
+          _localStartedAt: localStartedAt,
+          _localUntil: localStartedAt + totalMs + 120,
+          _finished: false
+        });
+        continue;
+      }
+
+      if (action === 'conveyor_exit' || action === 'arm_drop') {
+        const existing = this.logisticTransferVisuals.get(visualItemId);
+        if (existing) {
+          existing._localUntil = Math.min(existing._localUntil || now, now + 80);
+          existing._finished = true;
+          existing.exitEvent = ev;
+          this.logisticTransferVisuals.set(visualItemId, existing);
+        } else {
+          this.logisticTransferVisuals.set(visualItemId, {
+            ...ev,
+            visualItemId,
+            action,
+            totalMs,
+            _localStartedAt: now - totalMs,
+            _localUntil: now + 60,
+            _finished: true
+          });
+        }
+      }
     }
-    if (this.logisticTransferVisuals.length > 512) {
-      this.logisticTransferVisuals.splice(0, this.logisticTransferVisuals.length - 512);
+
+    while (this.logisticTransferVisuals.size > 512) {
+      const first = this.logisticTransferVisuals.keys().next().value;
+      this.logisticTransferVisuals.delete(first);
     }
   }
 
   pruneLogisticTransferVisuals(now = performance.now()) {
-    if (!Array.isArray(this.logisticTransferVisuals) || !this.logisticTransferVisuals.length) return;
-    this.logisticTransferVisuals = this.logisticTransferVisuals.filter((ev) => now <= Number(ev._localUntil || 0));
+    if (!(this.logisticTransferVisuals instanceof Map) || !this.logisticTransferVisuals.size) return;
+    for (const [id, ev] of this.logisticTransferVisuals.entries()) {
+      if (now > Number(ev._localUntil || 0)) this.logisticTransferVisuals.delete(id);
+    }
   }
 
   applyNetworkEvents(events = []) {

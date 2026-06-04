@@ -603,21 +603,24 @@ function worldPointFromStructureRef(ref, fallback = { x: 0, y: 0 }) {
 }
 
 export function drawLogisticTransferEventVisuals(ctx, view, store, camX, camY) {
-  const events = store?.logisticTransferVisuals || [];
+  const source = store?.logisticTransferVisuals;
+  const events = source instanceof Map ? Array.from(source.values()) : (Array.isArray(source) ? source : []);
   if (!events.length) return;
   const now = performance.now();
+
   for (const ev of events) {
     if (now > Number(ev._localUntil || 0)) continue;
     const p = logisticEventProgress(ev);
-    const key = ev.resourceKey || '';
     const color = ev.colorHex || ev.resourceColorHex || '#d7e5ff';
     const action = String(ev.action || '').toLowerCase();
     const carrier = ev.carrier || null;
-    const source = ev.source || null;
-    const target = ev.target || null;
+    const sourceRef = ev.source || null;
+    const targetRef = ev.target || null;
+
     let x = 0;
     let y = 0;
     let dir = { x: 1, y: 0 };
+
     if (carrier && isConveyorType(carrier.type)) {
       const fake = { ...carrier, type: carrier.type || 'conveyor', orientation: carrier.orientation || 'r' };
       const local = conveyorItemPoint(fake, Number(carrier.w || 64), Number(carrier.h || 64), p, { slot: ev.slot || 'front' });
@@ -639,18 +642,22 @@ export function drawLogisticTransferEventVisuals(ctx, view, store, camX, camY) {
       y = (Number(carrier.y) || 0) + profile.grip.x * sa + profile.grip.y * ca;
       dir = d;
     } else {
-      const a = worldPointFromStructureRef(source);
-      const b = worldPointFromStructureRef(target, a);
+      const a = worldPointFromStructureRef(sourceRef);
+      const b = worldPointFromStructureRef(targetRef, a);
       x = a.x + (b.x - a.x) * p;
       y = a.y + (b.y - a.y) * p;
     }
+
     const screen = worldToScreen(view, x, y, camX, camY);
     ctx.save();
     ctx.translate(screen.x, screen.y);
+    const alpha = ev._finished ? Math.max(0.15, Math.min(1, (Number(ev._localUntil || now) - now) / 80)) : 1;
+    ctx.globalAlpha *= alpha;
     drawResourceChip(ctx, view, color, 0, 0, 6.5 * view.dpr, dir, 1);
     ctx.restore();
   }
 }
+
 
 function drawDirectionArrow(ctx, view, s, w, h, label = false) {
   const d = dirOf(s);

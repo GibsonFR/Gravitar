@@ -10,6 +10,12 @@ function nextId(state) {
   return state.nextLogisticTransferEventId;
 }
 
+export function nextLogisticVisualItemId(state) {
+  state.nextLogisticVisualItemId = (state.nextLogisticVisualItemId | 0) + 1;
+  if (state.nextLogisticVisualItemId > 2147483000) state.nextLogisticVisualItemId = 1;
+  return state.nextLogisticVisualItemId;
+}
+
 function q(v, decimals = 1) {
   const n = Number(v);
   if (!Number.isFinite(n)) return 0;
@@ -23,6 +29,7 @@ function structureRef(st) {
     type: String(st.type || ''),
     sx: st.sx | 0,
     sy: st.sy | 0,
+    worldId: String(st.worldId || 'endless'),
     x: q(st.x),
     y: q(st.y),
     w: q(st.w || 0),
@@ -40,9 +47,9 @@ export function queueLogisticTransferEvent(state, action, options = {}) {
     type: 'logistic.transfer',
     serverTime: timeMs,
     action: String(action || ''),
+    visualItemId: options.visualItemId | 0 || nextLogisticVisualItemId(state),
     resourceKey: String(options.resourceKey || ''),
     colorHex: String(options.colorHex || ''),
-    itemSeq: state.nextLogisticTransferItemSeq = ((state.nextLogisticTransferItemSeq | 0) + 1),
     source: structureRef(options.source || null),
     target: structureRef(options.target || null),
     carrier: structureRef(options.carrier || null),
@@ -50,7 +57,7 @@ export function queueLogisticTransferEvent(state, action, options = {}) {
     totalMs: Math.max(1, Number(options.totalMs || 0) || 1)
   };
   arr.push(ev);
-  if (arr.length > 512) arr.splice(0, arr.length - 512);
+  if (arr.length > 768) arr.splice(0, arr.length - 768);
   return ev;
 }
 
@@ -63,12 +70,12 @@ export function peekLogisticTransferEventsForPlayer(state, player) {
     const ref = ev.carrier || ev.source || ev.target || null;
     if (!ref) return false;
     if ((ref.sx | 0) !== sx || (ref.sy | 0) !== sy) return false;
-    return true;
+    return String(ref.worldId || 'endless') === worldId;
   });
 }
 
 export function pruneLogisticTransferEvents(state, timeMs = Date.now()) {
   if (!Array.isArray(state?.pendingLogisticTransferEvents)) return;
-  const cutoff = Number(timeMs) - 4500;
+  const cutoff = Number(timeMs) - 5000;
   state.pendingLogisticTransferEvents = state.pendingLogisticTransferEvents.filter((ev) => Number(ev.serverTime || 0) >= cutoff);
 }
