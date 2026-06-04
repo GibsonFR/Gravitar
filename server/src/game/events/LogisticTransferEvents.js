@@ -76,6 +76,6 @@ export function peekLogisticTransferEventsForPlayer(state, player) {
 
 export function pruneLogisticTransferEvents(state, timeMs = Date.now()) {
   if (!Array.isArray(state?.pendingLogisticTransferEvents)) return;
-  const cutoff = Number(timeMs) - 5000;
+  const cutoff = Number(timeMs) - 1800;
   state.pendingLogisticTransferEvents = state.pendingLogisticTransferEvents.filter((ev) => Number(ev.serverTime || 0) >= cutoff);
 }

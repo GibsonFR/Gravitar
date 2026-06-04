@@ -651,7 +651,8 @@ export function drawLogisticTransferEventVisuals(ctx, view, store, camX, camY) {
     const screen = worldToScreen(view, x, y, camX, camY);
     ctx.save();
     ctx.translate(screen.x, screen.y);
-    const alpha = ev._finished ? Math.max(0.15, Math.min(1, (Number(ev._localUntil || now) - now) / 80)) : 1;
+    const alpha = ev._finished ? Math.max(0, Math.min(1, (Number(ev._localUntil || now) - now) / 35)) : 1;
+    if (alpha <= 0.01) continue;
     ctx.globalAlpha *= alpha;
     drawResourceChip(ctx, view, color, 0, 0, 6.5 * view.dpr, dir, 1);
     ctx.restore();

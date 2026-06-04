@@ -40,6 +40,9 @@ export class WorldStore {
     this.structures = new Map();
     this.automationVisuals = new Map();
     this.logisticTransferVisuals = new Map();
+    this.logisticTransferEventIds = new Set();
+    this.logisticTransferEventOrder = [];
+    this.logisticCompletedVisualItems = new Map();
     this.portals = new Map();
     this.projectiles = new Map();
     this.logisticDrones = new Map();
@@ -310,13 +313,34 @@ export class WorldStore {
     }
   }
 
+  _acceptLogisticTransferEvent(ev) {
+    const id = ev?.id | 0;
+    if (!id) return true;
+    const key = `logistic:${id}`;
+    if (!this.logisticTransferEventIds) this.logisticTransferEventIds = new Set();
+    if (!this.logisticTransferEventOrder) this.logisticTransferEventOrder = [];
+    if (this.logisticTransferEventIds.has(key)) return false;
+    this.logisticTransferEventIds.add(key);
+    this.logisticTransferEventOrder.push(key);
+    while (this.logisticTransferEventOrder.length > 2048) {
+      const old = this.logisticTransferEventOrder.shift();
+      if (old) this.logisticTransferEventIds.delete(old);
+    }
+    return true;
+  }
+
   applyLogisticTransferEvents(events = []) {
     if (!Array.isArray(events) || !events.length) return;
     if (!(this.logisticTransferVisuals instanceof Map)) this.logisticTransferVisuals = new Map();
+    if (!(this.logisticCompletedVisualItems instanceof Map)) this.logisticCompletedVisualItems = new Map();
+
     const now = performance.now();
     const serverNow = this._estimateServerNow();
+    const ordered = events
+      .filter((ev) => ev && this._acceptLogisticTransferEvent(ev))
+      .sort((a, b) => (Number(a.serverTime || 0) - Number(b.serverTime || 0)) || ((a.id | 0) - (b.id | 0)));
 
-    for (const ev of events) {
+    for (const ev of ordered) {
       const visualItemId = ev.visualItemId | 0;
       if (!visualItemId) continue;
 
@@ -326,6 +350,17 @@ export class WorldStore {
       const localStartedAt = now - Math.min(totalMs, elapsed);
 
       if (action === 'conveyor_enter' || action === 'arm_pickup') {
+        const completedUntil = Number(this.logisticCompletedVisualItems.get(visualItemId) || 0);
+        if (completedUntil > now) continue;
+
+        const existing = this.logisticTransferVisuals.get(visualItemId);
+        if (existing && !existing._finished) {
+          existing.exitEvent = existing.exitEvent || null;
+          existing._localUntil = Math.max(existing._localUntil || 0, localStartedAt + totalMs + 120);
+          this.logisticTransferVisuals.set(visualItemId, existing);
+          continue;
+        }
+
         this.logisticTransferVisuals.set(visualItemId, {
           ...ev,
           visualItemId,
@@ -340,22 +375,19 @@ export class WorldStore {
 
       if (action === 'conveyor_exit' || action === 'arm_drop') {
         const existing = this.logisticTransferVisuals.get(visualItemId);
-        if (existing) {
-          existing._localUntil = Math.min(existing._localUntil || now, now + 80);
-          existing._finished = true;
-          existing.exitEvent = ev;
-          this.logisticTransferVisuals.set(visualItemId, existing);
-        } else {
-          this.logisticTransferVisuals.set(visualItemId, {
-            ...ev,
-            visualItemId,
-            action,
-            totalMs,
-            _localStartedAt: now - totalMs,
-            _localUntil: now + 60,
-            _finished: true
-          });
+        this.logisticCompletedVisualItems.set(visualItemId, now + 5000);
+
+        if (!existing) {
+          // Important : un packet de sortie reçu sans entrée active ne doit jamais créer
+          // un résidu visuel en bout de tapis. Il sert uniquement à empêcher un vieux
+          // enter en retard de relancer l'animation.
+          continue;
         }
+
+        existing._localUntil = Math.min(existing._localUntil || now, now + 35);
+        existing._finished = true;
+        existing.exitEvent = ev;
+        this.logisticTransferVisuals.set(visualItemId, existing);
       }
     }
 
@@ -366,9 +398,15 @@ export class WorldStore {
   }
 
   pruneLogisticTransferVisuals(now = performance.now()) {
-    if (!(this.logisticTransferVisuals instanceof Map) || !this.logisticTransferVisuals.size) return;
-    for (const [id, ev] of this.logisticTransferVisuals.entries()) {
-      if (now > Number(ev._localUntil || 0)) this.logisticTransferVisuals.delete(id);
+    if (this.logisticTransferVisuals instanceof Map && this.logisticTransferVisuals.size) {
+      for (const [id, ev] of this.logisticTransferVisuals.entries()) {
+        if (now > Number(ev._localUntil || 0)) this.logisticTransferVisuals.delete(id);
+      }
+    }
+    if (this.logisticCompletedVisualItems instanceof Map && this.logisticCompletedVisualItems.size) {
+      for (const [id, until] of this.logisticCompletedVisualItems.entries()) {
+        if (now > Number(until || 0)) this.logisticCompletedVisualItems.delete(id);
+      }
     }
   }
 
