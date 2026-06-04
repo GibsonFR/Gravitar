@@ -346,6 +346,14 @@ export function createGameServer() {
     });
   }
 
+  function sendNetV2WorldEvents(id, player, timeMs, sendPacket) {
+    if (!NET_V2_RESET_ENABLED || !player) return;
+    const events = takeUnsentById(sentWorldEntityEventIdsByPlayer, id, peekWorldEntityEventsForPlayer(state, player), 8192);
+    if (!events.length) return;
+    const packet = buildNetV2WorldEventsPacket(state, id, events, timeMs);
+    if (packet) sendPacket(id, packet);
+  }
+
   function sendNetV2CargoPacket(id, player, timeMs, sendPacket, options = {}) {
     if (!NET_V2_RESET_ENABLED || !player) return;
 
