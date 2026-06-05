@@ -1022,7 +1022,26 @@ export function startApp() {
       else sendInput(input.rightDown && input.holdActive && !input.suppressRightHoldUntilUp && !store.getLoadingState?.().active);
     }
 
-    requestAnimationFrame(frame);
+    function flushNeutralInputOnVisibilityLoss() {
+    try {
+      input.rightDown = false;
+      input.holdActive = false;
+      input.suppressRightHoldUntilUp = false;
+      input.moveWorldQueued = false;
+      input.clickQueued = false;
+      if (store?.localPrediction) {
+        store.localPrediction.hold = false;
+      }
+      sendInput(false);
+    } catch {}
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) flushNeutralInputOnVisibilityLoss();
+  });
+  window.addEventListener('blur', flushNeutralInputOnVisibilityLoss);
+
+  requestAnimationFrame(frame);
   }
 
   requestAnimationFrame(frame);

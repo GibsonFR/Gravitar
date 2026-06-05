@@ -420,24 +420,31 @@ export class WorldStore {
         const me = isOwnProjectile ? this.getMe() : null;
         const serverSpawnX = Number(projectile.x) || 0;
         const serverSpawnY = Number(projectile.y) || 0;
-        const spawnX = isOwnProjectile && Number.isFinite(Number(me?.x)) ? Number(me.x) : serverSpawnX;
-        const spawnY = isOwnProjectile && Number.isFinite(Number(me?.y)) ? Number(me.y) : serverSpawnY;
+        // Projectiles are server-authoritative. Do not rewrite own projectile
+        // origin/direction from the predicted local ship pose.
+        const spawnX = serverSpawnX;
+        const spawnY = serverSpawnY;
 
         let vx = Number(projectile.vx || 0);
         let vy = Number(projectile.vy || 0);
-        if (isOwnProjectile) {
-          const speed = Math.max(1, Math.hypot(vx, vy));
-          const aimX = Number(projectile.aimX);
-          const aimY = Number(projectile.aimY);
-          if (Number.isFinite(aimX) && Number.isFinite(aimY)) {
-            const dx = aimX - spawnX;
-            const dy = aimY - spawnY;
-            const len = Math.hypot(dx, dy);
-            if (len > 0.001) {
-              vx = (dx / len) * speed;
-              vy = (dy / len) * speed;
-            }
+
+        const visualKind = String(projectile.visualKind || '').toLowerCase();
+        if (!projectile._localSpawnSfxQueued && isOwnProjectile) {
+          const sfxType = visualKind === 'rocket' ? 'rocket' : (visualKind === 'auto' || !visualKind ? 'auto_attack' : '');
+          if (sfxType) {
+            this.pendingSfx.push({
+              type: sfxType,
+              sx: projectile.sx | 0,
+              sy: projectile.sy | 0,
+              x: spawnX,
+              y: spawnY,
+              variant: projectile.id | 0,
+              frameId: projectile.sourceFrameId || '',
+              sourceKind: 'projectile.spawn',
+              visualKind
+            });
           }
+          projectile._localSpawnSfxQueued = true;
         }
         const serverNow = this._estimateServerNow();
         const eventServerTime = Number(ev.serverTime || 0) || this.lastServerTime || Date.now();
@@ -1673,6 +1680,33 @@ export class WorldStore {
     this.lastRemotePlayerClearReason = reason;
   }
 
+  applyMobPoseV2(msg) {
+    const mobs = Array.isArray(msg?.mobs) ? msg.mobs : [];
+    if (!mobs.length) return;
+    const expected = this.currentSectorBootstrapId || '';
+    const sectorId = `${msg.worldId || 'endless'}:${msg.sx | 0}:${msg.sy | 0}`;
+    if (expected && sectorId !== expected) return;
+
+    const serverTime = Number(msg.time || this.lastServerTime || Date.now());
+    this.interpolationStore?.pushMany?.('mob', mobs, serverTime);
+
+    for (const m of mobs) {
+      const id = m?.id | 0;
+      if (!id) continue;
+      const current = this.mobs.get(id) || { kind: 'mob', id };
+      this.mobs.set(id, {
+        ...current,
+        ...m,
+        kind: 'mob',
+        id,
+        _serverX: Number(m.x || 0),
+        _serverY: Number(m.y || 0),
+        _tx: Number(m.x || 0),
+        _ty: Number(m.y || 0)
+      });
+    }
+  }
+
   applyPlayerEnterSectorV2(msg) {
     const serverTime = Number.isFinite(Number(msg?.time)) ? Number(msg.time) : this.lastServerTime || Date.now();
     const players = Array.isArray(msg?.players) ? msg.players : [];
@@ -1987,6 +2021,8 @@ export class WorldStore {
     if (msg?.me) {
       this.normalizePlayerCooldownKeys(msg.me);
       this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
+      if (msg.me.progression) this.myState.progression = msg.me.progression;
+      if (msg.me.combat) this.myState.combat = msg.me.combat;
       if (this.myState?.id) this.myId = this.myState.id | 0;
       this.syncLocalCooldownAuthorityFromStatus(msg.me, msg);
       this.applyPlayerStateV2(msg.me);

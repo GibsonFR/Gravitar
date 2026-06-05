@@ -159,11 +159,18 @@ export function createGameServer() {
       console.error('[cmd:error]', msg?.cmd || 'unknown', err?.stack || err);
     }
 
-    // Station/account/UI commands need a fresh full snapshot, but only once.
-    // This gives immediate UI refresh after ack without streaming the whole station UI at 60 Hz.
-    p.forceFullUiSnapshot = true;
-    p.forceFullUiSnapshotAt = timeMs;
-    p.forceFullUiSnapshotReason = String(msg?.cmd || '').slice(0, 32);
+    // Most station/account/UI commands still need a fresh full UI bootstrap.
+    // Ability upgrades are small progression/loadout mutations and must stay packet-only:
+    // player_session_v2/player_status_v2 carry updated skill points/ability data.
+    const cmdName = String(msg?.cmd || '');
+    if (cmdName === 'upgrade_ability') {
+      p.forceSessionV2 = true;
+      p.forceStatusV2 = true;
+    } else {
+      p.forceFullUiSnapshot = true;
+      p.forceFullUiSnapshotAt = timeMs;
+      p.forceFullUiSnapshotReason = cmdName.slice(0, 32);
+    }
     p.lastCommandError = error;
     if (ok && p.accountKey && p.gameMode === GAME_MODES.ENDLESS && String(p.worldId || 'endless') === 'endless') {
       const cmd = String(msg?.cmd || '');
@@ -465,7 +472,13 @@ export function createGameServer() {
         Math.round(Number(p.frameState?.trailEndY || 0)),
         Math.round(Number(p.frameState?.veilLeft || 0) * 10),
         Math.round(Number(p.frameState?.pulseLeft || 0) * 10),
-        p.frameState?.pulseKind || ''
+        p.frameState?.pulseKind || '',
+        Math.round(Number(p.progression?.xp || 0)),
+        Math.round(Number(p.progression?.nextXp || 0)),
+        p.progression?.skillPoints | 0,
+        Math.round(Number(p.progression?.xpPulseLeft || 0) * 10),
+        p.combat?.inCombat ? 1 : 0,
+        Math.round(Number(p.combat?.combatLeft || 0) * 10)
       ])
     });
   }
@@ -508,8 +521,9 @@ export function createGameServer() {
       const prevAt = lastStatusV2ByPlayer.get(id) || 0;
       const changed = sig !== prevSig;
       const minInterval = changed ? NET_V2_STATUS_ACTIVE_RATE_MS : NET_V2_STATUS_IDLE_RATE_MS;
-      if (options.forceStatus || timeMs - prevAt >= minInterval) {
+      if (options.forceStatus || p.forceStatusV2 || timeMs - prevAt >= minInterval) {
         if (sendPacket(id, statusPacket)) {
+          p.forceStatusV2 = false;
           lastStatusV2ByPlayer.set(id, timeMs);
           lastStatusV2SignatureByPlayer.set(id, sig);
         }
@@ -522,8 +536,9 @@ export function createGameServer() {
       const prevSig = lastSessionV2SignatureByPlayer.get(id) || '';
       const prevAt = lastSessionV2ByPlayer.get(id) || 0;
       const heartbeatDue = NET_V2_SESSION_HEARTBEAT_MS > 0 && timeMs - prevAt >= NET_V2_SESSION_HEARTBEAT_MS;
-      if (options.forceSession || sig !== prevSig || heartbeatDue) {
+      if (options.forceSession || p.forceSessionV2 || sig !== prevSig || heartbeatDue) {
         if (sendPacket(id, sessionPacket)) {
+          p.forceSessionV2 = false;
           lastSessionV2ByPlayer.set(id, timeMs);
           lastSessionV2SignatureByPlayer.set(id, sig);
         }

@@ -162,6 +162,20 @@ function getLauncherProfile(player) {
   return getLauncherDef(player)?.launcherProfile || null;
 }
 
+function getActionOriginForPlayer(p, timeMs = 0) {
+  const origin = { x: Number(p?.x || 0), y: Number(p?.y || 0), sx: p?.sx | 0, sy: p?.sy | 0 };
+  const hx = Number(p?.lastClientHintX);
+  const hy = Number(p?.lastClientHintY);
+  const hsx = p?.lastClientHintSx | 0;
+  const hsy = p?.lastClientHintSy | 0;
+  const hintAt = Number(p?.lastClientHintAt || 0);
+  if (!Number.isFinite(hx) || !Number.isFinite(hy) || !hintAt) return origin;
+  if ((timeMs || 0) - hintAt > 260) return origin;
+  if (hsx !== (p.sx | 0) || hsy !== (p.sy | 0)) return origin;
+  if (Math.hypot(hx - origin.x, hy - origin.y) > 560) return origin;
+  return { x: hx, y: hy, sx: hsx, sy: hsy };
+}
+
 function fireAutoAttack(state, p, target, timeMs) {
   const weapon = getWeaponProfile(p);
   if (!weapon) {
@@ -218,11 +232,14 @@ function fireAutoAttack(state, p, target, timeMs) {
       ...(frameAuto.extras ?? {}),
       onHitStatuses,
       crit,
-      visualKind: 'auto'
+      visualKind: 'auto',
+      intendedTargetKind: target.kind || p.autoTargetKind || '',
+      intendedTargetId: target.id | 0,
+      lockTarget: true
     }
   );
 
-  queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, p.sx, p.sy, p.x, p.y, 0, { frameId: p.frameId, sourceKind: 'player' });
+  queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, p.sx, p.sy, p.x, p.y, 0, { frameId: p.frameId, sourceKind: 'player', visualKind: 'auto' });
 }
 
 
@@ -260,7 +277,8 @@ function fireRocket(state, p, worldX, worldY, timeMs) {
 
   const volley = Math.max(1, launcher.volley | 0);
   const dispersionDeg = Math.max(0, launcher.dispersionDeg ?? 0);
-  const dir = norm(worldX - p.x, worldY - p.y);
+  const origin = getActionOriginForPlayer(p, timeMs);
+  const dir = norm(worldX - origin.x, worldY - origin.y);
   const baseAngle = Math.atan2(dir.y, dir.x);
   const ammo = ammoDef.ammoProfile || {};
   const rocketSpeed = launcher.projectileSpeed ?? ROCKET_BASIC.speed;
@@ -275,8 +293,8 @@ function fireRocket(state, p, worldX, worldY, timeMs) {
     if (!consumeRocketAmmo(p, ammoDef.id, 1, timeMs)) break;
     const t = volley === 1 ? 0 : (i / (volley - 1)) - 0.5;
     const angle = baseAngle + (dispersionDeg * Math.PI / 180) * t;
-    const tx = p.x + Math.cos(angle) * 1000;
-    const ty = p.y + Math.sin(angle) * 1000;
+    const tx = origin.x + Math.cos(angle) * 1000;
+    const ty = origin.y + Math.sin(angle) * 1000;
     spawnProjectile(
       state,
       p,
@@ -294,7 +312,10 @@ function fireRocket(state, p, worldX, worldY, timeMs) {
         onSplashStatuses: statusSpecs.onSplashStatuses,
         visualKind: 'rocket',
         visualAmmoId: ammoDef.id,
-        visualAmmoEffect: ammo.effectType || 'explosive'
+        visualAmmoEffect: ammo.effectType || 'explosive',
+        intendedTargetKind: p.selectedKind || p.autoTargetKind || '',
+        intendedTargetId: p.selectedId || p.autoTargetId || 0,
+        lockTarget: !!(p.selectedId || p.autoTargetId)
       }
     );
     fired += 1;

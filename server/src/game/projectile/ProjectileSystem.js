@@ -177,6 +177,22 @@ function resolvePlayerActionOrigin(owner, timeMs) {
   return { x: hx, y: hy, sx: hsx, sy: hsy, source: 'client_hint', serverX: origin.x, serverY: origin.y, delta: Math.round(d * 10) / 10 };
 }
 
+function getProjectileIntendedTarget(state, proj) {
+  const kind = String(proj?.intendedTargetKind || '').toLowerCase();
+  const id = proj?.intendedTargetId | 0;
+  if (!kind || !id) return null;
+  let target = null;
+  if (kind === 'asteroid') target = state.asteroids?.get?.(id) || null;
+  else if (kind === 'mob') target = state.mobs?.get?.(id) || null;
+  else if (kind === 'player') target = state.players?.get?.(id) || null;
+  else if (kind === 'structure') target = state.structures?.get?.(id) || null;
+  if (!target) return null;
+  if ((target.sx | 0) !== (proj.sx | 0) || (target.sy | 0) !== (proj.sy | 0)) return null;
+  if (String(target.worldId || 'endless') !== String(proj.worldId || 'endless')) return null;
+  if (target.stats && Number(target.stats.hp || 0) <= 0) return null;
+  return target;
+}
+
 export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, speed, rangeLeft, splashRadius, timeMs, extras = null) {
   const origin = resolvePlayerActionOrigin(owner, timeMs);
   const dir = norm(tx - origin.x, ty - origin.y);
@@ -223,6 +239,9 @@ export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, spee
     visualSlot: extras?.visualSlot ?? extras?.sourceAbilitySlot ?? '',
     visualAmmoEffect: extras?.visualAmmoEffect ?? '',
     visualAmmoId: extras?.visualAmmoId ?? '',
+    intendedTargetKind: String(extras?.intendedTargetKind || ''),
+    intendedTargetId: extras?.intendedTargetId | 0,
+    lockTarget: !!extras?.lockTarget,
     crit: !!extras?.crit,
     bonusLifestealRatio: Math.max(0, extras?.bonusLifestealRatio || 0),
     empoweredAutoUsed: !!extras?.empoweredAutoUsed,
@@ -256,6 +275,28 @@ export function updateProjectiles(state, dt, timeMs = null) {
     const structureProjectile = proj.sourceKind === 'structure';
     const sourcePlayerForPvp = state.players.get(proj.sourceId) ?? null;
     const sourceOwnerKey = String(proj.sourceOwnerKey || sourceStructureForCollision?.ownerKey || '').toLowerCase();
+
+    const intendedTarget = getProjectileIntendedTarget(state, proj);
+    if (intendedTarget && proj.lockTarget) {
+      const dx = Number(intendedTarget.x || 0) - Number(proj.x || 0);
+      const dy = Number(intendedTarget.y || 0) - Number(proj.y || 0);
+      const len = Math.hypot(dx, dy);
+      const speed = Math.max(1, Math.hypot(proj.vx || 0, proj.vy || 0));
+      if (len > 0.001) {
+        // Small authoritative steering for server-fired target-locked attacks.
+        // This prevents auto/rocket shots from visually spawning while the
+        // server projectile narrowly misses because of stale target/origin drift.
+        const steer = Math.min(0.24, Math.max(0.04, dt * 9));
+        const tvx = (dx / len) * speed;
+        const tvy = (dy / len) * speed;
+        proj.vx = proj.vx * (1 - steer) + tvx * steer;
+        proj.vy = proj.vy * (1 - steer) + tvy * steer;
+      }
+      const r = Number(intendedTarget.radius || 18) + Number(proj.radius || 3) + 18;
+      if (segmentHitsCircle(oldX, oldY, proj.x, proj.y, intendedTarget.x, intendedTarget.y, r)) {
+        hit = intendedTarget;
+      }
+    }
 
     // Les murs de base doivent bloquer tous les tirs/projectiles.
     // Le noyau et les autres structures ne sont touchés que s'ils sont effectivement attaquables.

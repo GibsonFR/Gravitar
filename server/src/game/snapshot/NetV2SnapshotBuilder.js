@@ -212,6 +212,22 @@ function playerStatusCompact(player, selfId = 0, state = null) {
     rocketCooldownLeft: q(player.rocketCooldownLeft || 0),
     statuses: buildStatusSnapshot(player, 8),
     frameState: buildFrameUiState(player, Date.now()) || player.frameState || {},
+    progression: player.progression ? {
+      level: player.progression.level ?? 1,
+      xp: q(player.progression.xp ?? 0),
+      nextXp: q(player.progression.nextXp ?? 1),
+      skillPoints: player.progression.skillPoints ?? 0,
+      recentXpGain: q(player.progression.recentXpGain ?? 0),
+      recentXpReason: player.progression.recentXpReason || '',
+      xpPulseLeft: q(player.progression.xpPulseLeft ?? 0),
+      levelUpFlashLeft: q(player.progression.levelUpFlashLeft ?? 0)
+    } : undefined,
+    combat: {
+      inCombat: Number(player.combatUntil || player.lastCombatAt || player.lastHitAt || 0) > Date.now(),
+      combatLeft: q(Math.max(0, (Number(player.combatUntil || 0) - Date.now()) / 1000)),
+      lastCombatAt: player.lastCombatAt || 0,
+      lastHitAt: player.lastHitAt || 0
+    },
     selectedKind: player.selectedKind || '',
     selectedId: player.selectedId | 0,
     autoTargetKind: player.autoTargetKind || '',
