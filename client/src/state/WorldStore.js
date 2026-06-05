@@ -59,6 +59,7 @@ export class WorldStore {
     this.logisticDrones = new Map();
     this.areaEffects = new Map();
     this.loots = new Map();
+    this.lootPickupTombstones = new Map();
     this.pendingSfx = [];
     this.pendingCombatFx = [];
     this.pendingProjectileImpacts = [];
@@ -419,25 +420,15 @@ export class WorldStore {
         const me = isOwnProjectile ? this.getMe() : null;
         const serverSpawnX = Number(projectile.x) || 0;
         const serverSpawnY = Number(projectile.y) || 0;
-        const spawnX = isOwnProjectile && Number.isFinite(Number(me?.x)) ? Number(me.x) : serverSpawnX;
-        const spawnY = isOwnProjectile && Number.isFinite(Number(me?.y)) ? Number(me.y) : serverSpawnY;
+        // Projectiles are server-authoritative. Do not rewrite own projectile
+        // origin/direction from the predicted local ship pose: that created
+        // wrong trajectories and fake shots. The small visual latency is safer
+        // than showing a projectile the server did not really simulate.
+        const spawnX = serverSpawnX;
+        const spawnY = serverSpawnY;
 
         let vx = Number(projectile.vx || 0);
         let vy = Number(projectile.vy || 0);
-        if (isOwnProjectile) {
-          const speed = Math.max(1, Math.hypot(vx, vy));
-          const aimX = Number(projectile.aimX);
-          const aimY = Number(projectile.aimY);
-          if (Number.isFinite(aimX) && Number.isFinite(aimY)) {
-            const dx = aimX - spawnX;
-            const dy = aimY - spawnY;
-            const len = Math.hypot(dx, dy);
-            if (len > 0.001) {
-              vx = (dx / len) * speed;
-              vy = (dy / len) * speed;
-            }
-          }
-        }
         const serverNow = this._estimateServerNow();
         const eventServerTime = Number(ev.serverTime || 0) || this.lastServerTime || Date.now();
         const elapsedMs = Math.max(0, Math.min(1200, serverNow - eventServerTime));
@@ -1743,22 +1734,10 @@ export class WorldStore {
         if (!asteroid) continue;
         const hp = Math.max(0, Number(ev.hpAfter || 0));
         const maxHp = Math.max(0, Number(ev.maxHp || asteroid.vitals?.maxHp || asteroid.stats?.maxHp || 0));
-        asteroid.vitals = {
-          ...(asteroid.vitals || {}),
-          hp,
-          maxHp
-        };
-        asteroid.stats = {
-          ...(asteroid.stats || {}),
-          hp,
-          maxHp
-        };
+        asteroid.vitals = { ...(asteroid.vitals || {}), hp, maxHp };
+        asteroid.stats = { ...(asteroid.stats || {}), hp, maxHp };
         asteroid._lastDamageAt = performance.now();
-        if (hp <= 0) {
-          // Keep removal authoritative on asteroid_destroyed when available, but
-          // do not leave a zero-HP ghost if the destroy packet is delayed/missed.
-          asteroid._pendingDestroyAt = performance.now();
-        }
+        if (hp <= 0) asteroid._pendingDestroyAt = performance.now();
         continue;
       }
 
@@ -1775,20 +1754,26 @@ export class WorldStore {
         const loot = ev.loot || null;
         const id = loot?.id | 0;
         if (!id) continue;
-        this.loots.set(id, {
+        if ((this.lootPickupTombstones?.get(id) || 0) > performance.now()) continue;
+        const item = {
           ...loot,
           id,
           kind: 'loot',
           radius: Number(loot.radius || 10),
-          amount: Number(loot.amount || 0)
-        });
-        this.interpolationStore?.pushMany?.('loot', [this.loots.get(id)], Number(msg.time || this.lastServerTime || Date.now()));
+          amount: Number(loot.amount || 0),
+          vx: Number(loot.vx || 0),
+          vy: Number(loot.vy || 0),
+          _spawnedLocalAt: performance.now()
+        };
+        this.loots.set(id, item);
+        this.interpolationStore?.pushMany?.('loot', [item], Number(msg.time || this.lastServerTime || Date.now()));
         continue;
       }
 
       if (type === 'loot_removed') {
         const id = ev.lootId | 0;
         if (id) {
+          this.lootPickupTombstones?.set(id, performance.now() + 2500);
           this.loots.delete(id);
           this.interpolationStore?.maps?.delete?.(`loot:${id}`);
         }
@@ -1799,10 +1784,7 @@ export class WorldStore {
 
   applyCargoV2(msg) {
     if (!msg?.inv) return;
-    this.myState = {
-      ...(this.myState || {}),
-      inv: msg.inv
-    };
+    this.myState = { ...(this.myState || {}), inv: msg.inv };
   }
 
   applyCargoDeltaV2(msg) {
@@ -1818,23 +1800,26 @@ export class WorldStore {
     };
 
     const rows = Array.isArray(inv.resources) ? [...inv.resources] : [];
-    const byKey = new Map(rows.map((row) => [String(row.key || ''), { ...row }]));
+    const byKey = new Map(rows.map((row) => [String(row.key || row.resource || ''), { ...row }]));
 
     for (const change of Array.isArray(msg?.changes) ? msg.changes : []) {
       const key = String(change?.resource || change?.key || '');
       if (!key) continue;
       const amount = Math.max(0, Number(change.amount || 0));
       const existing = byKey.get(key) || { key, name: key, amount: 0, cargoPerUnit: 1, colorHex: '#d0d7e4', sellable: true, sellTotalValue: 0 };
+      existing.key = existing.key || key;
+      existing.name = existing.name || key;
       existing.amount = amount;
       byKey.set(key, existing);
     }
 
-    const cargoUsed = Number.isFinite(Number(msg?.used)) ? Number(msg.used) : Number(inv.cargoUsed || 0);
-    const cargoMax = Number(inv.cargoMax || 0);
+    const cargoUsed = Number.isFinite(Number(msg?.used)) ? Number(msg.used) : Number(inv.cargoUsed || inv.used || 0);
+    const cargoMax = Number(inv.cargoMax || inv.max || 0);
 
     this.myState.inv = {
       ...inv,
       cargoUsed,
+      used: cargoUsed,
       cargoFill01: Math.max(0, Math.min(1, cargoUsed / Math.max(1, cargoMax || 1))),
       resources: [...byKey.values()]
     };
@@ -2268,8 +2253,56 @@ export class WorldStore {
     return projectile.ttl > 0;
   }
 
+  _updateLocalLoot(loot, dt) {
+    const now = performance.now();
+    if ((this.lootPickupTombstones?.get(loot.id | 0) || 0) > now) return false;
+
+    const me = this.getMe?.() || null;
+    const age = Math.max(0, (now - Number(loot._spawnedLocalAt || now)) / 1000);
+    const friction = Math.pow(Number(loot.drag || 0.80), dt * 60);
+    loot.vx = (Number(loot.vx || 0)) * friction;
+    loot.vy = (Number(loot.vy || 0)) * friction;
+
+    if (Math.abs(loot.vx) < 0.5) loot.vx = 0;
+    if (Math.abs(loot.vy) < 0.5) loot.vy = 0;
+
+    if (me && (me.sx | 0) === (loot.sx | 0) && (me.sy | 0) === (loot.sy | 0) && age > 0.05) {
+      const dx = Number(me.x || 0) - Number(loot.x || 0);
+      const dy = Number(me.y || 0) - Number(loot.y || 0);
+      const dist = Math.hypot(dx, dy);
+      const pickupRadius = Math.max(30, Number(me.radius || 18) + Number(loot.radius || 6) + Number(loot.pickupPadding || 12) + 10);
+      const magnetRadius = Math.max(150, Number(me.magnetRange || 180));
+      if (dist <= pickupRadius) {
+        loot._localPickupPending = true;
+        loot._fadeUntil = now + 160;
+        this.lootPickupTombstones?.set(loot.id | 0, now + 700);
+        return false;
+      }
+      if (dist <= magnetRadius && dist > 0.001) {
+        const pull01 = 1 - Math.max(0, Math.min(1, dist / magnetRadius));
+        const accel = 1100 + 1300 * pull01;
+        loot.vx += (dx / dist) * accel * dt;
+        loot.vy += (dy / dist) * accel * dt;
+      }
+    }
+
+    const speed = Math.hypot(loot.vx || 0, loot.vy || 0);
+    if (speed > 820) {
+      loot.vx = (loot.vx / speed) * 820;
+      loot.vy = (loot.vy / speed) * 820;
+    }
+    loot.x += (loot.vx || 0) * dt;
+    loot.y += (loot.vy || 0) * dt;
+    return true;
+  }
+
   _smoothMap(map, alpha, dt = 0) {
     for (const entity of [...map.values()]) {
+      if (map === this.loots) {
+        const keep = this._updateLocalLoot(entity, dt);
+        if (!keep) { map.delete(entity.id); continue; }
+        continue;
+      }
       if (entity.localOnly) {
         const keep = entity.kind === 'projectile' || map === this.projectiles
           ? this._updateLocalProjectile(entity, dt)
@@ -2282,7 +2315,7 @@ export class WorldStore {
         if (!keep) { map.delete(entity.id); continue; }
         continue;
       }
-      if (Number.isFinite(entity.vx) && Number.isFinite(entity.vy) && entity.id !== this.myId) {
+      if (Number.isFinite(entity.vx) && Number.isFinite(entity.vy) && entity.id !== this.myId && map !== this.loots) {
         entity.x += entity.vx * dt;
         entity.y += entity.vy * dt;
       }

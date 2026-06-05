@@ -17,15 +17,23 @@ export function updateLootMotion(state, loot, dt) {
     const magnetRange = getPlayerMagnetRange(magnetPlayer);
     if (dist > 0.1 && magnetRange > 0) {
       const dir = norm(dx, dy);
-      const accel = 220 + 320 * (1 - clamp(dist / magnetRange, 0, 1));
+      const accel = 760 + 920 * (1 - clamp(dist / magnetRange, 0, 1));
       loot.vx += dir.x * accel * dt;
       loot.vy += dir.y * accel * dt;
     }
   }
 
-  const drag = Math.pow(loot.drag ?? 0.94, dt * 60);
+  const drag = Math.pow(loot.drag ?? 0.82, dt * 60);
   loot.vx *= drag;
   loot.vy *= drag;
+  const speed = Math.hypot(loot.vx || 0, loot.vy || 0);
+  const maxSpeed = 720;
+  if (speed > maxSpeed) {
+    loot.vx = (loot.vx / speed) * maxSpeed;
+    loot.vy = (loot.vy / speed) * maxSpeed;
+  }
+  if (Math.abs(loot.vx) < 0.35) loot.vx = 0;
+  if (Math.abs(loot.vy) < 0.35) loot.vy = 0;
   loot.x += loot.vx * dt;
   loot.y += loot.vy * dt;
 }

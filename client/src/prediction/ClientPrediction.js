@@ -475,14 +475,14 @@ export class ClientPrediction {
     if (!canSpendEnergy(me, myState, slot)) return;
 
     const cd = getCooldownMax(myState, slot);
-    setLocalAbilityReadyAt(this.store, slot, performance.now() + cd * 1000);
-    if (!myState.cooldowns) myState.cooldowns = {};
-    myState.cooldowns[slot] = cd;
-    if (hud) hud.cooldownLeft = cd;
+    // Server-authoritative ability protocol: do not start a visible local
+    // cooldown/energy commit before ability.accepted/cooldown returns.
+    // Otherwise a rejected/delayed cast looks like it fired locally.
+    setLocalAbilityReadyAt(this.store, slot, 0);
     const now = performance.now();
     this.store.noteLocalAbilityCast?.(slot, cd, { authorityMs: getAbilityLocalAuthorityMs(myState, slot) });
     me._keepLocalPoseUntil = Math.max(me._keepLocalPoseUntil || 0, now + 2600);
-    spendEnergyLocal(me, myState, slot);
+    // Energy is also committed by server status, not local prediction.
 
     const target = getSelectedTarget(this.store);
     const aim = target.entity || worldMouse;

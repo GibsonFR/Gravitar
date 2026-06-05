@@ -12,9 +12,9 @@ function buildLootDefForResource(key, def) {
     amount: 1,
     radius: 6,
     pickupPadding: 4,
-    pickupImmunitySec: 0.45,
+    pickupImmunitySec: 0.08,
     lifetimeSec: 40,
-    drag: 0.94,
+    drag: 0.82,
     color: hexToRgb(def?.colorHex)
   };
 }

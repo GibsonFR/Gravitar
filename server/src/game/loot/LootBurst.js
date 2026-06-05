@@ -9,9 +9,9 @@ export function spawnLootBurstInSector(state, sx, sy, x, y, lootKey, count, time
   const n = Math.max(0, count | 0);
   if (n <= 0) return 0;
 
-  const off = Math.max(0, opts?.offsetRadius ?? 10);
-  const speedBase = Math.max(0, opts?.speedBase ?? 45);
-  const speedJitter = Math.max(0, opts?.speedJitter ?? 30);
+  const off = Math.max(0, opts?.offsetRadius ?? 6);
+  const speedBase = Math.max(0, opts?.speedBase ?? 14);
+  const speedJitter = Math.max(0, opts?.speedJitter ?? 10);
 
   let spawned = 0;
   for (let i = 0; i < n; i++) {
