@@ -449,17 +449,21 @@ export class WorldStore {
         const serverNow = this._estimateServerNow();
         const eventServerTime = Number(ev.serverTime || 0) || this.lastServerTime || Date.now();
         const elapsedMs = Math.max(0, Math.min(1200, serverNow - eventServerTime));
+        const elapsedSec = Math.max(0, Math.min(0.24, elapsedMs / 1000));
+        const renderX = spawnX + vx * elapsedSec;
+        const renderY = spawnY + vy * elapsedSec;
         const next = {
           ...current,
           ...projectile,
           id: projectileId,
           kind: 'projectile',
-          x: spawnX,
-          y: spawnY,
+          x: renderX,
+          y: renderY,
           vx,
           vy,
-          _tx: spawnX,
-          _ty: spawnY,
+          rangeLeft: Math.max(0, Number(projectile.rangeLeft || 0) - Math.hypot(vx * elapsedSec, vy * elapsedSec)),
+          _tx: renderX,
+          _ty: renderY,
           _serverX: serverSpawnX,
           _serverY: serverSpawnY,
           _packetSpawnLocalAt: performance.now() - elapsedMs,
@@ -1820,6 +1824,20 @@ export class WorldStore {
           this.lootPickupTombstones?.set(id, performance.now() + 2500);
           this.loots.delete(id);
           this.interpolationStore?.maps?.delete?.(`loot:${id}`);
+        }
+        continue;
+      }
+
+      if (type === 'area_spawned') {
+        const area = ev.area || null;
+        const id = area?.id | 0;
+        if (id) {
+          this.areaEffects.set(id, {
+            ...area,
+            id,
+            kind: area.kind || 'area_effect',
+            durationLeft: Number(area.durationLeft || 0)
+          });
         }
         continue;
       }

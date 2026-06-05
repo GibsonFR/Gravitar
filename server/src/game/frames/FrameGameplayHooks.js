@@ -14,7 +14,7 @@ import {
 import { WEAPON_PULSE_MK1 } from '../../../../shared/content/combat/WeaponDefs.js';
 import { getAbilityInvestedLevel } from '../progression/AbilityInvestment.js';
 import { applyStatus, getStatusEntry, hasStatus, removeStatus } from '../status/StatusRack.js';
-import { queuePassiveChangedEvent } from '../events/StatusPassiveEvents.js';
+import { queuePassiveChangedEvent, queueStatusAppliedEvent } from '../events/StatusPassiveEvents.js';
 import { cleanseControlOnly } from '../status/StatusCleanse.js';
 import { STATUS_EFFECT_IDS as I } from '../../../../shared/content/status/StatusEffectIds.js';
 import { applyDashMove, applyPullMove, blocksDash } from '../status/StatusMotion.js';
@@ -457,11 +457,11 @@ function consumeSigilRunes(target, count) {
   return spent;
 }
 
-function applySigilRunes(source, target, tuning, stacks, timeMs) {
+function applySigilRunes(state, source, target, tuning, stacks, timeMs) {
   const fs = getSigilState(source);
   const durationMult = fs?.ultLeft > 0 ? (1 + (getSigilR(source).ultRuneDurationBonusPct ?? 0)) : 1;
   const duration = tuning.passive.runeDuration * durationMult;
-  applyStatus(target, I.MARK, duration, {
+  const result = applyStatus(target, I.MARK, duration, {
     sourceId: source.id,
     hostile: true,
     markKey: SIGIL_MARK_KEY,
@@ -469,6 +469,18 @@ function applySigilRunes(source, target, tuning, stacks, timeMs) {
     stacks,
     maxStacks: tuning.passive.maxRunes,
     timeMs
+  });
+  // FrameGameplayHooks uses StatusRack directly, so Net V2 must manually emit
+  // the status event here. Otherwise Sigil runes exist server-side but never
+  // reach the client until a later bootstrap/snapshot.
+  queueStatusAppliedEvent(state, source, target, result, {
+    effectId: I.MARK,
+    markKey: SIGIL_MARK_KEY,
+    duration,
+    hostile: true,
+    label: 'Rune',
+    stacks,
+    value: 0
   });
 }
 
@@ -799,7 +811,7 @@ function tickSigilTrail(state, player, dt, timeMs) {
       });
     }
 
-    applySigilRunes(player, target, a, 1, timeMs);
+    applySigilRunes(state, player, target, a, 1, timeMs);
     maybeSlowFromSigilRunes(player, target, a, timeMs);
     maybeDetonateSigilRunes(state, player, target, timeMs, {
       sourceSlot: 'E',
@@ -1253,7 +1265,7 @@ function handleSigilProjectileImpact(state, owner, target, projectile, timeMs) {
 
   if (projectile.sourceAbilitySlot !== 'A') {
     if (projectile.sourceAbilitySlot === -1) {
-      applySigilRunes(owner, target, a, 1, timeMs);
+      applySigilRunes(state, owner, target, a, 1, timeMs);
       maybeSlowFromSigilRunes(owner, target, a, timeMs);
     }
     return;
@@ -1261,7 +1273,7 @@ function handleSigilProjectileImpact(state, owner, target, projectile, timeMs) {
 
   const hadRevealRunes = a.aRevealThreshold > 0 && runesBefore >= a.aRevealThreshold;
   const hadHealCutRunes = a.aHealCutThreshold > 0 && runesBefore >= a.aHealCutThreshold;
-  applySigilRunes(owner, target, a, a.aImpactRunes, timeMs);
+  applySigilRunes(state, owner, target, a, a.aImpactRunes, timeMs);
   const runesAfter = getSigilRuneCount(target);
   if (hadRevealRunes) {
     applyStatus(target, I.REVEAL, a.aRevealDuration, {
@@ -1379,7 +1391,7 @@ export function onAreaEffectTickForFrame(state, owner, target, effect, timeMs) {
   const runesBefore = getSigilRuneCount(target);
 
   applySigilRuneBonusDamage(state, owner, target, a, timeMs, 'Z', runesBefore);
-  if (z.zRunePulseStacks > 0) applySigilRunes(owner, target, a, z.zRunePulseStacks, timeMs);
+  if (z.zRunePulseStacks > 0) applySigilRunes(state, owner, target, a, z.zRunePulseStacks, timeMs);
   maybeSlowFromSigilRunes(owner, target, a, timeMs);
   maybeDetonateSigilRunes(state, owner, target, timeMs, {
     sourceSlot: 'Z',
@@ -1548,14 +1560,17 @@ function castSigilA(state, player, timeMs, options = {}) {
   if (!options.resolvingCast && beginFrameCast(player, 'A', a, timeMs)) return true;
   if (!options.resolvingCast && !consumeEnergy(player.stats, a.energyCost)) return false;
 
+  const origin = getActionOriginForAbility(player, timeMs);
   const world = getCastMouseWorld(player, options.cast);
-  const dir = norm(world.x - player.x, world.y - player.y);
+  const dir = norm(world.x - origin.x, world.y - origin.y);
   const fs = getSigilState(player);
   let damage = getWeaponReferenceDamage(player) * a.aImpactDamagePct + a.aImpactDamageFlat;
   if (fs.veilLeft > 0 && a.aEmpowerFromVeilDamagePct > 0) damage *= 1 + a.aEmpowerFromVeilDamagePct;
 
-  spawnProjectile(state, player, player.x + dir.x * a.aProjectileRange, player.y + dir.y * a.aProjectileRange, { r: 197, g: 120, b: 255 }, damage, Math.max(4, a.aProjectileWidth * 0.22), a.aProjectileSpeed, a.aProjectileRange, 0, timeMs, {
+  spawnProjectile(state, player, origin.x + dir.x * a.aProjectileRange, origin.y + dir.y * a.aProjectileRange, { r: 197, g: 120, b: 255 }, damage, Math.max(4, a.aProjectileWidth * 0.22), a.aProjectileSpeed, a.aProjectileRange, 0, timeMs, {
     sourceAbilitySlot: 'A',
+    visualKind: 'ability',
+    visualSlot: 'A',
     pierceLeft: Math.max(0, a.aPierceCount),
     hitIds: new Set(),
     sourceFrameId: player.frameId
@@ -1605,11 +1620,12 @@ function castSigilZ(state, player, timeMs) {
   if (player.cooldownZLeft > 0) return false;
   if (!consumeEnergy(player.stats, z.energyCost)) return false;
 
+  const origin = getActionOriginForAbility(player, timeMs);
   const world = getAbilityMouseWorld(player);
-  const dir = norm(world.x - player.x, world.y - player.y);
-  const dist = Math.min(z.zCastRange, Math.hypot(world.x - player.x, world.y - player.y));
-  const x = player.x + dir.x * dist;
-  const y = player.y + dir.y * dist;
+  const dir = norm(world.x - origin.x, world.y - origin.y);
+  const dist = Math.min(z.zCastRange, Math.hypot(world.x - origin.x, world.y - origin.y));
+  const x = origin.x + dir.x * dist;
+  const y = origin.y + dir.y * dist;
   const damage = z.zZoneDamageFlatPerSecond + getWeaponReferenceDamage(player) * z.zZoneDamageWeaponPctPerSecond;
 
   const effect = createAreaEffect(state, player, {

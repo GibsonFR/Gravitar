@@ -1,4 +1,5 @@
 import { newEntityId } from '../../state/GameState.js';
+import { queueAreaEffectSpawnedEvent } from '../../events/WorldEntityEvents.js';
 
 export function createAreaEffect(state, owner, spec) {
   const id = newEntityId(state);
@@ -24,5 +25,6 @@ export function createAreaEffect(state, owner, spec) {
     onTickStatuses: spec.onTickStatuses ?? null
   };
   state.areaEffects.set(id, effect);
+  queueAreaEffectSpawnedEvent(state, effect);
   return effect;
 }
