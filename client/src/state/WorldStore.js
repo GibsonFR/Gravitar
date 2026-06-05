@@ -1823,20 +1823,21 @@ export class WorldStore {
         }
         continue;
       }
-
-      if (type === 'area_spawned') {
-        const area = ev.area || null;
-        const id = area?.id | 0;
-        if (id) this.areaEffects.set(id, { ...area, id, kind: area.kind || 'area_effect' });
-        continue;
-      }
-
-      if (type === 'area_removed') {
-        const id = ev.areaId | 0;
-        if (id) this.areaEffects.delete(id);
-        continue;
-      }
     }
+  }
+
+  consumeLootPickupRequests() {
+    const out = [];
+    const now = performance.now();
+    for (const loot of this.loots.values()) {
+      if (!loot?._localPickupPending) continue;
+      const id = loot.id | 0;
+      if (!id) continue;
+      if (loot._pickupRequestCooldownUntil && loot._pickupRequestCooldownUntil > now) continue;
+      loot._pickupRequestCooldownUntil = now + 180;
+      out.push(id);
+    }
+    return out;
   }
 
   applyCargoV2(msg) {
@@ -2555,6 +2556,16 @@ export class WorldStore {
     }
   }
 
+  _updateLocalAreaEffects(dt) {
+    for (const [id, effect] of [...this.areaEffects.entries()]) {
+      if (Number.isFinite(Number(effect.durationLeft))) {
+        effect.durationLeft = Math.max(0, Number(effect.durationLeft || 0) - dt);
+        if (effect.durationLeft <= 0) this.areaEffects.delete(id);
+      }
+      if (Number.isFinite(Number(effect.tickLeft))) effect.tickLeft = Math.max(0, Number(effect.tickLeft || 0) - dt);
+    }
+  }
+
   interpolate(dt) {
     const dynamicAlpha = Math.max(0.05, Math.min(1, 1 - Math.exp(-22 * Math.max(0, dt))));
     const fastAlpha = Math.max(0.08, Math.min(1, 1 - Math.exp(-32 * Math.max(0, dt))));
@@ -2563,6 +2574,7 @@ export class WorldStore {
     this._smoothMap(this.projectiles, fastAlpha, dt);
     this._smoothMap(this.logisticDrones, fastAlpha, dt);
     this._smoothMap(this.areaEffects, fastAlpha, dt);
+    this._updateLocalAreaEffects?.(dt);
     this._smoothMap(this.loots, fastAlpha, dt);
     this._tickAsteroids(dt);
     this.tickLocalUi(dt);

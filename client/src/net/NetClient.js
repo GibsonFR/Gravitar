@@ -191,6 +191,13 @@ export class NetClient {
     };
   }
 
+  sendLootPickup(lootId) {
+    const id = lootId | 0;
+    if (!id) return false;
+    this.lootPickupSeq = (this.lootPickupSeq | 0) + 1;
+    return this.send({ t: 'loot_pickup_v2', seq: this.lootPickupSeq, lootId: id });
+  }
+
   send(obj) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
     const payload = JSON.stringify(obj);

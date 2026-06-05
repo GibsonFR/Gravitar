@@ -44,12 +44,9 @@ export function tryResolveLootPickup(state, loot) {
       if (def.categoryId !== ITEM_CATEGORY_IDS.AMMO && hasOwnedItem(p, def.id)) continue;
     } else if (!canAddResource(p.inv, loot.resource, loot.amount)) continue;
 
-    // Net V2 pickup policy: once a loot is in the same sector and the player has
-    // capacity, the server may validate it. The client can render magnet/orb
-    // movement freely, but cargo is confirmed by this authoritative same-sector
-    // pickup. This removes the mismatch where the orb follows visually but the
-    // server still thinks it is at its original drop position.
+    const pickR = Math.max(60, loot.radius + p.radius + extra + 42);
     const d2 = distSq(pickupPose.x, pickupPose.y, loot.x, loot.y);
+    if (d2 > pickR * pickR) continue;
     if (d2 < bestD2) {
       bestD2 = d2;
       bestPlayer = p;
@@ -79,4 +76,41 @@ export function tryResolveLootPickup(state, loot) {
   }
   queuePlayerSfx(bestPlayer, SFX_EVENT_TYPES.COLLECT, (Math.random() * 6) | 0, { resourceKey: pickedResourceKey, itemId: pickedItemId });
   return { playerId: bestPlayer.id | 0, resourceKey: pickedResourceKey, itemId: pickedItemId, amount: loot.amount || 0 };
+}
+
+
+export function tryResolveExplicitLootPickup(state, player, lootId) {
+  const id = lootId | 0;
+  if (!state || !player || !id) return false;
+  const loot = state.loots?.get?.(id);
+  if (!loot) return false;
+  if (loot.pickupImmunityLeft > 0.02) return false;
+  if ((player.sx | 0) !== (loot.sx | 0) || (player.sy | 0) !== (loot.sy | 0)) return false;
+  if (String(player.worldId || 'endless') !== String(loot.worldId || 'endless')) return false;
+  if (!player.inv) return false;
+
+  let pickedResourceKey = '';
+  let pickedItemId = '';
+
+  if (loot.itemId) {
+    const def = getItemDef(loot.itemId);
+    if (!def) return false;
+    if (def.categoryId !== ITEM_CATEGORY_IDS.AMMO && hasOwnedItem(player, def.id)) return false;
+    pickedItemId = def.id;
+    if (def.categoryId === ITEM_CATEGORY_IDS.AMMO) {
+      addRocketAmmo(player, def.id, Math.max(1, def.ammoProfile?.packSize | 0), state?.time?.currentMs || 0);
+    } else {
+      player.equipment.ownedItemIds = sortEquipmentIdsStable([...(player.equipment.ownedItemIds ?? []), def.id]);
+      player.equipment.lastChangedAt = state?.time?.currentMs || 0;
+    }
+    player.uiHint = `Loot : ${def.name}`;
+    player.uiHintTimer = 3.0;
+  } else {
+    if (!canAddResource(player.inv, loot.resource, loot.amount)) return false;
+    pickedResourceKey = String(loot.resource || '');
+    addResource(player.inv, loot.resource, loot.amount);
+  }
+
+  queuePlayerSfx(player, SFX_EVENT_TYPES.COLLECT, (Math.random() * 6) | 0, { resourceKey: pickedResourceKey, itemId: pickedItemId });
+  return { playerId: player.id | 0, loot, resourceKey: pickedResourceKey, itemId: pickedItemId, amount: loot.amount || 0 };
 }

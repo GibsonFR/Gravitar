@@ -708,6 +708,7 @@ export function createGameServer() {
     removePlayer,
     handleInput,
     handleCommand,
+    handleLootPickup,
     buildStateV2(playerId, timeMs = getSimulationTimeMs(state, nowMs())) {
       return buildNetV2StatePacket(state, playerId, timeMs);
     },

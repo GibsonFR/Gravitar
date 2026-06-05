@@ -913,6 +913,9 @@ export function startApp() {
     lastFrameTime = t;
     store.interpolate(dt);
     store.tickLocalUi?.(dt);
+    for (const lootId of store.consumeLootPickupRequests?.() || []) {
+      net.sendLootPickup?.(lootId);
+    }
     predictor.update(dt, input, view, camera);
     updateCamera(store.getMe(), dt);
     updateTravelOverlay();

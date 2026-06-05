@@ -144,6 +144,22 @@ export function createWsGameServer(httpServer, game) {
         }
         return;
       }
+      if (msg.t === 'loot_pickup_v2') {
+        const result = game.handleLootPickup?.(id, msg) || { ok: false, error: 'unsupported' };
+        if (msg.seq && ws.readyState === ws.OPEN) {
+          const payload = JSON.stringify({
+            t: 'loot_pickup_ack_v2',
+            seq: msg.seq | 0,
+            lootId: msg.lootId | 0,
+            ok: !!result.ok,
+            error: result.error || '',
+            time: Date.now()
+          });
+          ws.send(payload);
+          accountOut(Buffer.byteLength(payload));
+        }
+        return;
+      }
       if (msg.t === 'state_req_v2') {
         const packet = game.buildStateV2?.(id, Date.now());
         if (packet && ws.readyState === ws.OPEN) {

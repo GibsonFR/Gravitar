@@ -15,7 +15,6 @@ import { WEAPON_PULSE_MK1 } from '../../../../shared/content/combat/WeaponDefs.j
 import { getAbilityInvestedLevel } from '../progression/AbilityInvestment.js';
 import { applyStatus, getStatusEntry, hasStatus, removeStatus } from '../status/StatusRack.js';
 import { queuePassiveChangedEvent } from '../events/StatusPassiveEvents.js';
-import { queueAreaEffectRemovedEvent } from '../events/WorldEntityEvents.js';
 import { cleanseControlOnly } from '../status/StatusCleanse.js';
 import { STATUS_EFFECT_IDS as I } from '../../../../shared/content/status/StatusEffectIds.js';
 import { applyDashMove, applyPullMove, blocksDash } from '../status/StatusMotion.js';
@@ -1587,7 +1586,6 @@ function castSigilZ(state, player, timeMs) {
           });
         }
       });
-      queueAreaEffectRemovedEvent(state, zone, 'sigil_recast_close');
       state.areaEffects.delete(fs.zoneEffectId);
       fs.zoneEffectId = 0;
       const r = getSigilR(player);
