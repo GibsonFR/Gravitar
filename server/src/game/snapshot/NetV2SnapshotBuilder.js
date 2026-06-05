@@ -12,6 +12,7 @@ import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot
 import { buildStatusSnapshot } from '../status/StatusView.js';
 import { buildFrameUiState } from '../frames/FrameGameplayHooks.js';
 import { buildInventorySnapshot } from '../inventory/InventorySnapshot.js';
+import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 
 function q(v, decimals = 2) {
   const n = Number(v);
@@ -696,6 +697,16 @@ export function buildNetV2CargoDeltaPacket(state, playerId, previousSummary, tim
   }
   for (const [resource, amount] of prevMap) {
     if (!curMap.has(resource)) changed.push({ resource, amount: 0, delta: -Number(amount || 0) });
+  }
+  for (const ch of changed) {
+    const def = RESOURCE_DEFS[ch.resource] || {};
+    ch.key = ch.resource;
+    ch.name = def.name || ch.resource;
+    ch.cargoPerUnit = def.cargoPerUnit || 1;
+    ch.colorHex = def.colorHex || '#d0d7e4';
+    ch.sellable = def.sellPrice > 0;
+    ch.sellUnitPrice = def.sellPrice || 0;
+    ch.sellTotalValue = ch.sellable ? ch.amount * ch.sellUnitPrice : 0;
   }
   if (!changed.length && Number(current.used || 0) === Number(previous.used || 0)) return null;
   return {

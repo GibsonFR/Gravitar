@@ -22,7 +22,7 @@ import { consumeEnergy, healStatBlock } from '../stats/StatBlockRuntime.js';
 import { spawnProjectile } from '../projectile/ProjectileSystem.js';
 import { applyDamage } from '../combat/DamageSystem.js';
 import { distSq, norm } from '../util/Math.js';
-import { getAbilityMouseWorld } from '../abilities/AbilityMouseWorld.js';
+import { getAbilityMouseWorld as getRawAbilityMouseWorld } from '../abilities/AbilityMouseWorld.js';
 import { createAreaEffect } from '../abilities/area/AreaEffectFactory.js';
 
 const VANGUARD_MARK_KEY = 'vanguard_a';
@@ -64,6 +64,31 @@ function getBulwarkState(player) {
 function getWeaponReferenceDamage(player) {
   const base = player?.progressionBonuses?.autoAttackBaseDamage ?? WEAPON_PULSE_MK1.damage;
   return base * (player?.progressionBonuses?.damageMult ?? 1);
+}
+
+function getActionOriginForAbility(player, timeMs = 0) {
+  const origin = {
+    x: Number(player?.x || 0),
+    y: Number(player?.y || 0),
+    sx: player?.sx | 0,
+    sy: player?.sy | 0
+  };
+  const hx = Number(player?.lastClientHintX);
+  const hy = Number(player?.lastClientHintY);
+  const hsx = player?.lastClientHintSx | 0;
+  const hsy = player?.lastClientHintSy | 0;
+  const hintAt = Number(player?.lastClientHintAt || 0);
+  if (!Number.isFinite(hx) || !Number.isFinite(hy) || !hintAt) return origin;
+  if ((timeMs || 0) - hintAt > 260) return origin;
+  if (hsx !== (player.sx | 0) || hsy !== (player.sy | 0)) return origin;
+  if (Math.hypot(hx - origin.x, hy - origin.y) > 560) return origin;
+  return { x: hx, y: hy, sx: hsx, sy: hsy };
+}
+
+function getAbilityMouseWorld(player) {
+  const pending = player?._activeAbilityRequest || null;
+  if (pending && Number.isFinite(pending.aimX) && Number.isFinite(pending.aimY)) return { x: pending.aimX, y: pending.aimY };
+  return getRawAbilityMouseWorld(player);
 }
 
 function getCastMouseWorld(player, cast = null) {
@@ -1386,8 +1411,9 @@ function castVanguardA(state, player, timeMs, options = {}) {
   if (!options.resolvingCast && beginFrameCast(player, 'A', a, timeMs)) return true;
   if (!options.resolvingCast && !consumeEnergy(player.stats, a.energyCost)) return false;
 
+  const origin = getActionOriginForAbility(player, timeMs);
   const world = getCastMouseWorld(player, options.cast);
-  const dir = norm(world.x - player.x, world.y - player.y);
+  const dir = norm(world.x - origin.x, world.y - origin.y);
   const fs = getVanguardState(player);
   const combo = fs.comboWindowLeft > 0;
   if (combo) fs.comboWindowLeft = 0;
@@ -1405,7 +1431,7 @@ function castVanguardA(state, player, timeMs, options = {}) {
   fs.empoweredCharges = Math.min(maxEmpoweredCharges, (fs.empoweredCharges | 0) + a.empowerCharges);
   fs.empoweredMaxCharges = maxEmpoweredCharges;
 
-  spawnProjectile(state, player, player.x + dir.x * a.projectileRange, player.y + dir.y * a.projectileRange, { r: 130, g: 225, b: 255 }, damage, Math.max(4, a.projectileWidth * 0.22), speed, a.projectileRange, 0, timeMs, {
+  spawnProjectile(state, player, origin.x + dir.x * a.projectileRange, origin.y + dir.y * a.projectileRange, { r: 130, g: 225, b: 255 }, damage, Math.max(4, a.projectileWidth * 0.22), speed, a.projectileRange, 0, timeMs, {
     sourceAbilitySlot: 'A',
     linkedAbilitySynergyActive: combo,
     pierceLeft: a.pierceCount,
@@ -1698,11 +1724,12 @@ function castBulwarkZ(state, player, timeMs, options = {}) {
   consumeBulwarkMaxPlatesForAbility(player);
   const fs = getBulwarkState(player);
   if (fs) fs.harpoonUnitPhaseLeft = Math.max(fs.harpoonUnitPhaseLeft || 0, z.harpoonTauntDuration);
+  const origin = getActionOriginForAbility(player, timeMs);
   const world = getCastMouseWorld(player, options.cast);
-  const dir = norm(world.x - player.x, world.y - player.y);
+  const dir = norm(world.x - origin.x, world.y - origin.y);
   const armor = getBulwarkArmor(player);
   const damage = z.harpoonDamageFlat + getWeaponReferenceDamage(player) * z.harpoonDamageWeaponPct + armor * z.harpoonDamageArmorPct;
-  spawnProjectile(state, player, player.x + dir.x * z.harpoonRange, player.y + dir.y * z.harpoonRange, { r: 234, g: 190, b: 112 }, damage, Math.max(5, z.harpoonWidth * 0.22), z.harpoonProjectileSpeed, z.harpoonRange, 0, timeMs, {
+  spawnProjectile(state, player, origin.x + dir.x * z.harpoonRange, origin.y + dir.y * z.harpoonRange, { r: 234, g: 190, b: 112 }, damage, Math.max(5, z.harpoonWidth * 0.22), z.harpoonProjectileSpeed, z.harpoonRange, 0, timeMs, {
     sourceAbilitySlot: 'Z',
     pierceLeft: 0,
     hitIds: new Set(),

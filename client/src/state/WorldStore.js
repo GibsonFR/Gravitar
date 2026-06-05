@@ -1816,22 +1816,31 @@ export class WorldStore {
       const key = String(change?.resource || change?.key || '');
       if (!key) continue;
       const amount = Math.max(0, Number(change.amount || 0));
-      const existing = byKey.get(key) || { key, name: key, amount: 0, cargoPerUnit: 1, colorHex: '#d0d7e4', sellable: true, sellTotalValue: 0 };
+      const existing = byKey.get(key) || { key, name: key, amount: 0, cargoPerUnit: 1, colorHex: '#d0d7e4', sellable: true, sellUnitPrice: 0, sellTotalValue: 0 };
       existing.key = existing.key || key;
-      existing.name = existing.name || key;
+      existing.name = change.name || existing.name || key;
       existing.amount = amount;
+      existing.cargoPerUnit = Number(change.cargoPerUnit || existing.cargoPerUnit || 1);
+      existing.colorHex = change.colorHex || existing.colorHex || '#d0d7e4';
+      existing.sellable = change.sellable ?? existing.sellable ?? true;
+      existing.sellUnitPrice = Number(change.sellUnitPrice || existing.sellUnitPrice || 0);
+      existing.sellTotalValue = Number.isFinite(Number(change.sellTotalValue))
+        ? Number(change.sellTotalValue)
+        : (existing.sellable ? existing.amount * existing.sellUnitPrice : 0);
       byKey.set(key, existing);
     }
 
     const cargoUsed = Number.isFinite(Number(msg?.used)) ? Number(msg.used) : Number(inv.cargoUsed || inv.used || 0);
     const cargoMax = Number(inv.cargoMax || inv.max || 0);
 
+    const resources = [...byKey.values()].filter((r) => Number(r.amount || 0) > 0);
     this.myState.inv = {
       ...inv,
       cargoUsed,
       used: cargoUsed,
       cargoFill01: Math.max(0, Math.min(1, cargoUsed / Math.max(1, cargoMax || 1))),
-      resources: [...byKey.values()]
+      totalSellValue: resources.reduce((sum, r) => sum + Number(r.sellTotalValue || 0), 0),
+      resources
     };
   }
 

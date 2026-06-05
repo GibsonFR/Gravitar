@@ -416,7 +416,15 @@ function updateAbilityCasting(state, player, dt, timeMs) {
       // stream and observers keep receiving server-simulated pose packets.
       player._activeClientAppliedAbility = null;
     }
+    player._activeAbilityRequest = {
+      slot,
+      seq: req.seq | 0,
+      aimX: req.aimX,
+      aimY: req.aimY,
+      timeMs
+    };
     const ok = tryCastAbility(state, player, slot, timeMs);
+    player._activeAbilityRequest = null;
     if (ok) {
       queueAbilityProtocolEvent(player, 'accepted', slot, {
         seq: req.seq | 0,
