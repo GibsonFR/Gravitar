@@ -44,9 +44,12 @@ export function tryResolveLootPickup(state, loot) {
       if (def.categoryId !== ITEM_CATEGORY_IDS.AMMO && hasOwnedItem(p, def.id)) continue;
     } else if (!canAddResource(p.inv, loot.resource, loot.amount)) continue;
 
-    const pickR = (loot.radius + p.radius + extra + 10);
+    // Net V2 pickup policy: once a loot is in the same sector and the player has
+    // capacity, the server may validate it. The client can render magnet/orb
+    // movement freely, but cargo is confirmed by this authoritative same-sector
+    // pickup. This removes the mismatch where the orb follows visually but the
+    // server still thinks it is at its original drop position.
     const d2 = distSq(pickupPose.x, pickupPose.y, loot.x, loot.y);
-    if (d2 > pickR * pickR) continue;
     if (d2 < bestD2) {
       bestD2 = d2;
       bestPlayer = p;

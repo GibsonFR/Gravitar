@@ -20,6 +20,9 @@ export function updateAreaEffects(state, dt) {
       effect.tickLeft += effect.tickEvery;
     }
 
-    if (effect.durationLeft <= 0) state.areaEffects.delete(effect.id);
+    if (effect.durationLeft <= 0) {
+      queueAreaEffectRemovedEvent(state, effect, 'expired');
+      state.areaEffects.delete(effect.id);
+    }
   }
 }

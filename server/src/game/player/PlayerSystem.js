@@ -187,7 +187,10 @@ function fireAutoAttack(state, p, target, timeMs) {
   if (!consumeEnergy(p.stats, weapon.energyCost ?? WEAPON_PULSE_MK1.energyCost)) return;
   const frameAuto = getFrameAutoAttackProfile(p);
   const baseAutoCooldown = Math.max(0.08, weapon.cooldown ?? p.progressionBonuses?.autoAttackBaseCooldown ?? WEAPON_PULSE_MK1.cooldown);
-  p.nextShotAt = timeMs + (baseAutoCooldown / Math.max(0.05, frameAuto.cooldownMult)) * 1000;
+  // Slight server-side forgiveness: client input/render ticks and Vanguard passive
+  // cadence can drift by a few ms. Do not make auto attacks feel like they randomly
+  // refuse to fire because nextShotAt is barely in the future.
+  p.nextShotAt = timeMs + (baseAutoCooldown / Math.max(0.05, frameAuto.cooldownMult)) * 940;
 
   const distTo = dist(p.x, p.y, target.x, target.y);
   const rangeMult = Math.max(0.5, p.progressionBonuses?.autoRangeMult ?? 1);
@@ -593,7 +596,7 @@ export function updatePlayer(state, p, dt, timeMs = null) {
             p.moveIntentEndedAt = Date.now();
           }
           p.hasMoveTarget = false;
-          if ((!blocksAttacks(p) || isForcedTauntAttack(state, p, t)) && timeMs >= p.nextShotAt) fireAutoAttack(state, p, t, timeMs);
+          if ((!blocksAttacks(p) || isForcedTauntAttack(state, p, t)) && timeMs + 140 >= (p.nextShotAt || 0)) fireAutoAttack(state, p, t, timeMs);
         } else {
           // Target-click hors portée = approche jusqu'à portée, pas tir magique à distance.
           // Un move-click explicite annule l'autoTarget avant d'arriver ici.

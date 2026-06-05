@@ -115,3 +115,53 @@ export function pruneWorldEntityEvents(state, maxAgeMs = 12000) {
   const now = state?.time?.currentMs || Date.now();
   state.worldEntityEvents.pending = pending.filter((ev) => now - (ev.time || now) <= maxAgeMs);
 }
+
+function areaEffectPayload(effect) {
+  if (!effect) return null;
+  return {
+    id: effect.id | 0,
+    kind: effect.kind || 'area_effect',
+    ownerId: effect.ownerId | 0,
+    frameId: effect.frameId || '',
+    slot: effect.slot || '',
+    sx: effect.sx | 0,
+    sy: effect.sy | 0,
+    worldId: String(effect.worldId || 'endless'),
+    x: Number(effect.x || 0),
+    y: Number(effect.y || 0),
+    radius: Number(effect.radius || 0),
+    innerRadius: Number(effect.innerRadius || 0),
+    durationLeft: Number(effect.durationLeft || 0),
+    tickEvery: Number(effect.tickEvery || 0),
+    pulseEvery: Number(effect.pulseEvery || 0),
+    damage: Number(effect.damage || 0),
+    color: effect.color || null,
+    visualStyle: effect.visualStyle || '',
+    label: effect.label || ''
+  };
+}
+
+export function queueAreaEffectSpawnedEvent(state, effect) {
+  const payload = areaEffectPayload(effect);
+  if (!payload) return null;
+  return pushWorldEntityEvent(state, {
+    type: 'area_spawned',
+    area: payload,
+    sx: payload.sx,
+    sy: payload.sy,
+    worldId: payload.worldId
+  });
+}
+
+export function queueAreaEffectRemovedEvent(state, effect, reason = 'removed') {
+  if (!effect) return null;
+  return pushWorldEntityEvent(state, {
+    type: 'area_removed',
+    areaId: effect.id | 0,
+    sx: effect.sx | 0,
+    sy: effect.sy | 0,
+    worldId: String(effect.worldId || 'endless'),
+    reason: String(reason || 'removed')
+  });
+}
+

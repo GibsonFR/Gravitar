@@ -286,13 +286,15 @@ export function updateProjectiles(state, dt, timeMs = null) {
         // Small authoritative steering for server-fired target-locked attacks.
         // This prevents auto/rocket shots from visually spawning while the
         // server projectile narrowly misses because of stale target/origin drift.
-        const steer = Math.min(0.24, Math.max(0.04, dt * 9));
+        const steer = Math.min(0.48, Math.max(0.10, dt * 16));
         const tvx = (dx / len) * speed;
         const tvy = (dy / len) * speed;
         proj.vx = proj.vx * (1 - steer) + tvx * steer;
         proj.vy = proj.vy * (1 - steer) + tvy * steer;
       }
-      const r = Number(intendedTarget.radius || 18) + Number(proj.radius || 3) + 18;
+      const visualKind = String(proj.visualKind || '').toLowerCase();
+      const intendedPadding = visualKind === 'auto' ? 72 : visualKind === 'rocket' ? 96 : 48;
+      const r = Number(intendedTarget.radius || 18) + Number(proj.radius || 3) + intendedPadding;
       if (segmentHitsCircle(oldX, oldY, proj.x, proj.y, intendedTarget.x, intendedTarget.y, r)) {
         hit = intendedTarget;
       }

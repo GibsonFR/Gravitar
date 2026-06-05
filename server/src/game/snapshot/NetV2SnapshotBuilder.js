@@ -6,7 +6,8 @@ import {
   buildPortalSnapshots,
   buildStationSnapshots,
   buildStructureSnapshots,
-  buildLootSnapshots
+  buildLootSnapshots,
+  buildAreaEffectSnapshots
 } from './builders/BuildWorldEntitySnapshots.js';
 import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot.js';
 import { buildStatusSnapshot } from '../status/StatusView.js';
@@ -340,7 +341,8 @@ function buildSectorBootstrap(state, me, timeMs) {
     stations: buildStationSnapshots(state.stations, inSector),
     structures: buildStructureSnapshots(state.structures, inWorldSector, me),
     portals: buildPortalSnapshots(state.portals, inSector, state, me, timeMs),
-    loots: buildLootSnapshots(state.loots, inSector)
+    loots: buildLootSnapshots(state.loots, inSector),
+    areaEffects: buildAreaEffectSnapshots(state.areaEffects, inWorldSector)
   };
 }
 

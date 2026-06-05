@@ -1823,6 +1823,19 @@ export class WorldStore {
         }
         continue;
       }
+
+      if (type === 'area_spawned') {
+        const area = ev.area || null;
+        const id = area?.id | 0;
+        if (id) this.areaEffects.set(id, { ...area, id, kind: area.kind || 'area_effect' });
+        continue;
+      }
+
+      if (type === 'area_removed') {
+        const id = ev.areaId | 0;
+        if (id) this.areaEffects.delete(id);
+        continue;
+      }
     }
   }
 
@@ -1904,6 +1917,7 @@ export class WorldStore {
     if (Array.isArray(bootstrap.structures)) this._syncStructures(bootstrap.structures, this._estimateServerNow());
     if (Array.isArray(bootstrap.portals)) this._syncMap(this.portals, bootstrap.portals);
     if (Array.isArray(bootstrap.loots)) this._syncMap(this.loots, bootstrap.loots);
+    if (Array.isArray(bootstrap.areaEffects)) this._syncMap(this.areaEffects, bootstrap.areaEffects);
   }
 
   applyPlayerPoseV2(msg) {
