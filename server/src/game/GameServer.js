@@ -1,4 +1,6 @@
 import { createGameState, newPlayerId } from './state/GameState.js';
+import { tryResolveExplicitLootPickup } from './loot/LootPickupSystem.js';
+import { queueLootRemovedEvent } from './events/WorldEntityEvents.js';
 import { seedWorld } from './seed/SeedWorld.js';
 import { TICK, SNAP_RATE, SNAP_FULL_UI_RATE_MS, SNAP_STATIC_WORLD_RATE_MS, SNAP_STATIC_WORLD_RATE_MS_COMBAT, SERVER_LOOP_INTERVAL_MS } from './constants.js';
 import { advanceSimulationTick, getSimulationTimeMs, nowMs, setSimulationTime } from './util/Time.js';
@@ -699,6 +701,21 @@ export function createGameServer() {
     acc = 0;
     snapAcc = 0;
     loopHandle = setInterval(() => tickLoop(getConnectedIds, sendSnapshot), SERVER_LOOP_INTERVAL_MS);
+  }
+
+
+  function handleLootPickup(playerId, msg) {
+    const player = state.players.get(playerId);
+    if (!player) return { ok: false, error: 'missing_player' };
+
+    const pickup = tryResolveExplicitLootPickup(state, player, msg?.lootId | 0);
+    if (!pickup) return { ok: false, error: 'pickup_refused' };
+
+    queueLootRemovedEvent(state, pickup.loot, 'pickup', player.id | 0);
+    state.loots.delete(pickup.loot.id);
+
+    player.forceStatusV2 = true;
+    return { ok: true };
   }
 
   return {
