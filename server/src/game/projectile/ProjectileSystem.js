@@ -149,20 +149,57 @@ function segmentHitsExpandedRect(x1, y1, x2, y2, wall, pad) {
   return false;
 }
 
+function resolvePlayerActionOrigin(owner, timeMs) {
+  const origin = {
+    x: Number(owner?.x || 0),
+    y: Number(owner?.y || 0),
+    sx: owner?.sx | 0,
+    sy: owner?.sy | 0,
+    source: 'server'
+  };
+  if (!owner || owner.kind !== 'player') return origin;
+  const hintAt = Number(owner.lastClientHintAt || 0);
+  const hx = Number(owner.lastClientHintX);
+  const hy = Number(owner.lastClientHintY);
+  const hsx = owner.lastClientHintSx | 0;
+  const hsy = owner.lastClientHintSy | 0;
+  if (!Number.isFinite(hx) || !Number.isFinite(hy) || !hintAt) return origin;
+  if ((timeMs || 0) - hintAt > 220) return origin;
+  if (hsx !== (owner.sx | 0) || hsy !== (owner.sy | 0)) return origin;
+
+  const dx = hx - origin.x;
+  const dy = hy - origin.y;
+  const d = Math.hypot(dx, dy);
+  // This is not full client authority. It is a short action-origin correction
+  // used only for firing/pickup feel when the local ship is ahead of the server
+  // simulation. Large deltas are rejected to avoid teleports/sector mismatch.
+  if (d > 520) return origin;
+  return { x: hx, y: hy, sx: hsx, sy: hsy, source: 'client_hint', serverX: origin.x, serverY: origin.y, delta: Math.round(d * 10) / 10 };
+}
+
 export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, speed, rangeLeft, splashRadius, timeMs, extras = null) {
-  const dir = norm(tx - owner.x, ty - owner.y);
-  const startX = owner.x + dir.x * (owner.radius + 8);
-  const startY = owner.y + dir.y * (owner.radius + 8);
+  const origin = resolvePlayerActionOrigin(owner, timeMs);
+  const dir = norm(tx - origin.x, ty - origin.y);
+  const startX = origin.x + dir.x * (owner.radius + 8);
+  const startY = origin.y + dir.y * (owner.radius + 8);
   const id = newEntityId(state);
 
   const projectile = {
     id,
     kind: 'projectile',
-    sx: owner.sx | 0,
-    sy: owner.sy | 0,
+    sx: origin.sx | 0,
+    sy: origin.sy | 0,
     worldId: String(owner.worldId || 'endless'),
     x: startX,
     y: startY,
+    sourceX: origin.x,
+    sourceY: origin.y,
+    sourceSx: origin.sx | 0,
+    sourceSy: origin.sy | 0,
+    sourceOrigin: origin.source,
+    sourceServerX: Number.isFinite(origin.serverX) ? origin.serverX : origin.x,
+    sourceServerY: Number.isFinite(origin.serverY) ? origin.serverY : origin.y,
+    sourceOriginDelta: Number(origin.delta || 0),
     aimX: tx,
     aimY: ty,
     vx: dir.x * speed + owner.vx * 0.1,

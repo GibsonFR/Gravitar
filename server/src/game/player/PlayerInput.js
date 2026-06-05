@@ -146,6 +146,11 @@ function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
       player.y = msg.cy;
       if (Number.isFinite(msg.csx)) player.sx = msg.csx | 0;
       if (Number.isFinite(msg.csy)) player.sy = msg.csy | 0;
+      player.lastClientHintX = msg.cx;
+      player.lastClientHintY = msg.cy;
+      player.lastClientHintSx = player.sx | 0;
+      player.lastClientHintSy = player.sy | 0;
+      player.lastClientHintAt = timeMs;
       if (clientPoseCrossesSolidWall(state, player, oldX, oldY, oldSx, oldSy)) revertClientPose(player, oldX, oldY, oldSx, oldSy);
     }
     if (Number.isFinite(msg.cvx)) player.vx = msg.cvx;
@@ -154,6 +159,8 @@ function acceptClientPose(state, player, msg, timeMs, abilityFresh) {
     if (Number.isFinite(msg.cx) && Number.isFinite(msg.cy)) {
       player.lastClientHintX = msg.cx;
       player.lastClientHintY = msg.cy;
+      player.lastClientHintSx = Number.isFinite(msg.csx) ? (msg.csx | 0) : (player.sx | 0);
+      player.lastClientHintSy = Number.isFinite(msg.csy) ? (msg.csy | 0) : (player.sy | 0);
       player.lastClientHintAt = timeMs;
     }
     if (Number.isFinite(msg.cvx)) player.lastClientHintVx = msg.cvx;

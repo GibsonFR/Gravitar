@@ -7,6 +7,21 @@ import { hasOwnedItem, sortEquipmentIdsStable } from '../equipment/EquipmentRule
 import { queuePlayerSfx } from '../audio/PlayerSfxState.js';
 import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
 
+function getPickupPose(player, timeMs) {
+  const pose = { x: Number(player.x || 0), y: Number(player.y || 0), sx: player.sx | 0, sy: player.sy | 0, source: 'server' };
+  const hx = Number(player.lastClientHintX);
+  const hy = Number(player.lastClientHintY);
+  const hsx = player.lastClientHintSx | 0;
+  const hsy = player.lastClientHintSy | 0;
+  const hintAt = Number(player.lastClientHintAt || 0);
+  if (!Number.isFinite(hx) || !Number.isFinite(hy) || !hintAt) return pose;
+  if ((timeMs || 0) - hintAt > 260) return pose;
+  if (hsx !== (player.sx | 0) || hsy !== (player.sy | 0)) return pose;
+  const d = Math.hypot(hx - pose.x, hy - pose.y);
+  if (d > 560) return pose;
+  return { x: hx, y: hy, sx: hsx, sy: hsy, source: 'client_hint' };
+}
+
 export function tryResolveLootPickup(state, loot) {
   if (loot.pickupImmunityLeft > 0) return false;
 
@@ -14,8 +29,11 @@ export function tryResolveLootPickup(state, loot) {
   let bestD2 = Infinity;
   const extra = loot.pickupPadding ?? 4;
 
+  const timeMs = state?.time?.currentMs || Date.now();
+
   for (const p of state.players.values()) {
-    if ((p.sx | 0) !== (loot.sx | 0) || (p.sy | 0) !== (loot.sy | 0)) continue;
+    const pickupPose = getPickupPose(p, timeMs);
+    if ((pickupPose.sx | 0) !== (loot.sx | 0) || (pickupPose.sy | 0) !== (loot.sy | 0)) continue;
     if (!p.inv) continue;
     let pickedResourceKey = '';
   let pickedItemId = '';
@@ -26,8 +44,8 @@ export function tryResolveLootPickup(state, loot) {
       if (def.categoryId !== ITEM_CATEGORY_IDS.AMMO && hasOwnedItem(p, def.id)) continue;
     } else if (!canAddResource(p.inv, loot.resource, loot.amount)) continue;
 
-    const pickR = (loot.radius + p.radius + extra);
-    const d2 = distSq(p.x, p.y, loot.x, loot.y);
+    const pickR = (loot.radius + p.radius + extra + 10);
+    const d2 = distSq(pickupPose.x, pickupPose.y, loot.x, loot.y);
     if (d2 > pickR * pickR) continue;
     if (d2 < bestD2) {
       bestD2 = d2;

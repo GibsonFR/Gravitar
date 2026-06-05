@@ -420,15 +420,25 @@ export class WorldStore {
         const me = isOwnProjectile ? this.getMe() : null;
         const serverSpawnX = Number(projectile.x) || 0;
         const serverSpawnY = Number(projectile.y) || 0;
-        // Projectiles are server-authoritative. Do not rewrite own projectile
-        // origin/direction from the predicted local ship pose: that created
-        // wrong trajectories and fake shots. The small visual latency is safer
-        // than showing a projectile the server did not really simulate.
-        const spawnX = serverSpawnX;
-        const spawnY = serverSpawnY;
+        const spawnX = isOwnProjectile && Number.isFinite(Number(me?.x)) ? Number(me.x) : serverSpawnX;
+        const spawnY = isOwnProjectile && Number.isFinite(Number(me?.y)) ? Number(me.y) : serverSpawnY;
 
         let vx = Number(projectile.vx || 0);
         let vy = Number(projectile.vy || 0);
+        if (isOwnProjectile) {
+          const speed = Math.max(1, Math.hypot(vx, vy));
+          const aimX = Number(projectile.aimX);
+          const aimY = Number(projectile.aimY);
+          if (Number.isFinite(aimX) && Number.isFinite(aimY)) {
+            const dx = aimX - spawnX;
+            const dy = aimY - spawnY;
+            const len = Math.hypot(dx, dy);
+            if (len > 0.001) {
+              vx = (dx / len) * speed;
+              vy = (dy / len) * speed;
+            }
+          }
+        }
         const serverNow = this._estimateServerNow();
         const eventServerTime = Number(ev.serverTime || 0) || this.lastServerTime || Date.now();
         const elapsedMs = Math.max(0, Math.min(1200, serverNow - eventServerTime));
@@ -2258,7 +2268,6 @@ export class WorldStore {
     if ((this.lootPickupTombstones?.get(loot.id | 0) || 0) > now) return false;
 
     const me = this.getMe?.() || null;
-    const age = Math.max(0, (now - Number(loot._spawnedLocalAt || now)) / 1000);
     const friction = Math.pow(Number(loot.drag || 0.80), dt * 60);
     loot.vx = (Number(loot.vx || 0)) * friction;
     loot.vy = (Number(loot.vy || 0)) * friction;
@@ -2266,17 +2275,21 @@ export class WorldStore {
     if (Math.abs(loot.vx) < 0.5) loot.vx = 0;
     if (Math.abs(loot.vy) < 0.5) loot.vy = 0;
 
-    if (me && (me.sx | 0) === (loot.sx | 0) && (me.sy | 0) === (loot.sy | 0) && age > 0.05) {
+    if (me && (me.sx | 0) === (loot.sx | 0) && (me.sy | 0) === (loot.sy | 0)) {
       const dx = Number(me.x || 0) - Number(loot.x || 0);
       const dy = Number(me.y || 0) - Number(loot.y || 0);
       const dist = Math.hypot(dx, dy);
-      const pickupRadius = Math.max(30, Number(me.radius || 18) + Number(loot.radius || 6) + Number(loot.pickupPadding || 12) + 10);
+      const pickupRadius = Math.max(30, Number(me.radius || 18) + Number(loot.radius || 6) + Number(loot.pickupPadding || 12) + 12);
       const magnetRadius = Math.max(150, Number(me.magnetRange || 180));
       if (dist <= pickupRadius) {
+        // Do not delete optimistically anymore. The pickup is visually marked,
+        // but final removal and cargo update are server-confirmed through
+        // loot_removed + cargo_delta_v2. This prevents "picked visually but not in cargo".
         loot._localPickupPending = true;
-        loot._fadeUntil = now + 160;
-        this.lootPickupTombstones?.set(loot.id | 0, now + 700);
-        return false;
+        loot.vx *= 0.25;
+        loot.vy *= 0.25;
+      } else {
+        loot._localPickupPending = false;
       }
       if (dist <= magnetRadius && dist > 0.001) {
         const pull01 = 1 - Math.max(0, Math.min(1, dist / magnetRadius));
