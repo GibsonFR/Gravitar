@@ -19,6 +19,7 @@ export const RESEARCH_BRANCHES = Object.freeze([
   { id: 'exploration', name: 'Exploration', colorHex: '#8fd8ff' },
   { id: 'biology', name: 'Biologie', colorHex: '#84e080' },
   { id: 'defense', name: 'Défense', colorHex: '#ff8f8f' },
+  { id: 'combat', name: 'Combat', colorHex: '#ff6f6f' },
   { id: 'pirate', name: 'Pirate', colorHex: '#ffbf7a' },
   { id: 'alien', name: 'Alien', colorHex: '#b58cff' }
 ]);
@@ -31,7 +32,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 6,
     energyUse: 8,
     pointCost: { basicSciencePack: 1 },
-    unlockBuildings: [],
+    unlockBuildings: ['Dalle métallique', 'Dalle renforcée', 'Plateforme industrielle', 'Rampe industrielle', 'Sol technique'],
     unlockRecipes: ['Science automatisation'],
     prereq: [],
     tier: 1
@@ -115,7 +116,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 10,
     energyUse: 14,
     pointCost: { basicSciencePack: 1, automationSciencePack: 1, energySciencePack: 1 },
-    unlockBuildings: ['Extracteur minier', 'Noyau d’avant-poste'],
+    unlockBuildings: ['Extracteur minier', 'Noyau d’avant-poste', 'Scanner de ressources'],
     unlockRecipes: [],
     prereq: ['energy_distribution', 'electronics_processing'],
     tier: 3
@@ -179,7 +180,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 12,
     energyUse: 20,
     pointCost: { automationSciencePack: 1, industrialSciencePack: 1 },
-    unlockBuildings: ['Atelier de roquettes'],
+    unlockBuildings: ['Tourelle cinétique', 'Atelier de roquettes'],
     unlockRecipes: ['Blindage composite', 'Science défense', 'Production de roquettes'],
     prereq: ['advanced_industry'],
     tier: 3
@@ -195,6 +196,102 @@ export const RESEARCH_PROJECTS = Object.freeze([
     unlockRecipes: ['Moteur électrique', 'Injecteur carburant', 'Science énergétique', 'Science avancée', 'Craft équipement avancé'],
     prereq: ['electronics_processing', 'bio_processing', 'defense_turrets'],
     tier: 4
+  },
+  {
+    id: 'industry_assemblers',
+    branch: 'industry',
+    name: 'Assemblage industriel',
+    points: 18,
+    energyUse: 24,
+    pointCost: { industrialSciencePack: 1, energySciencePack: 1 },
+    unlockBuildings: ['Assembleur mécanique', 'Assembleur électronique'],
+    unlockRecipes: ['Assemblage mécanique', 'Assemblage électronique'],
+    prereq: ['electronics_processing', 'advanced_industry'],
+    tier: 4
+  },
+  {
+    id: 'specialized_labs',
+    branch: 'industry',
+    name: 'Laboratoires spécialisés',
+    points: 20,
+    energyUse: 26,
+    pointCost: { industrialSciencePack: 1, energySciencePack: 1, biologySciencePack: 1 },
+    unlockBuildings: ['Laboratoire avancé', 'Laboratoire biologique', 'Laboratoire énergétique'],
+    unlockRecipes: [],
+    prereq: ['advanced_research'],
+    tier: 5
+  },
+  {
+    id: 'base_radar',
+    branch: 'exploration',
+    name: 'Détection de signatures',
+    points: 16,
+    energyUse: 22,
+    pointCost: { automationSciencePack: 1, energySciencePack: 1, combatSciencePack: 1 },
+    unlockBuildings: ['Radar de base'],
+    unlockRecipes: [],
+    prereq: ['resource_scanning', 'defense_turrets'],
+    tier: 4
+  },
+  {
+    id: 'defense_laser',
+    branch: 'defense',
+    name: 'Défense énergétique',
+    points: 18,
+    energyUse: 26,
+    pointCost: { industrialSciencePack: 1, energySciencePack: 1, combatSciencePack: 1 },
+    unlockBuildings: ['Tourelle laser', 'Défense anti-missile'],
+    unlockRecipes: [],
+    prereq: ['defense_turrets', 'electronics_processing'],
+    tier: 4
+  },
+  {
+    id: 'defense_missiles',
+    branch: 'defense',
+    name: 'Défense missile',
+    points: 20,
+    energyUse: 28,
+    pointCost: { industrialSciencePack: 1, combatSciencePack: 1 },
+    unlockBuildings: ['Tourelle lance-roquettes', 'Mine défensive', 'Atelier d’armement'],
+    unlockRecipes: ['Munitions de défense'],
+    prereq: ['defense_turrets'],
+    tier: 4
+  },
+  {
+    id: 'base_shielding',
+    branch: 'defense',
+    name: 'Bouclier de base',
+    points: 28,
+    energyUse: 38,
+    pointCost: { energySciencePack: 1, combatSciencePack: 1, advancedSciencePack: 1 },
+    unlockBuildings: ['Bouclier de base'],
+    unlockRecipes: [],
+    prereq: ['defense_laser', 'advanced_research'],
+    tier: 6
+  },
+  {
+    id: 'combat_siege',
+    branch: 'combat',
+    name: 'Ingénierie de siège',
+    points: 26,
+    energyUse: 34,
+    pointCost: { combatSciencePack: 2, advancedSciencePack: 1 },
+    unlockBuildings: ['Station de modules'],
+    unlockRecipes: ['Missile de brèche', 'Charge EMP', 'Foreuse de siège'],
+    prereq: ['defense_missiles', 'advanced_research'],
+    tier: 6
+  },
+  {
+    id: 'space_research',
+    branch: 'exploration',
+    name: 'Recherche spatiale',
+    points: 30,
+    energyUse: 40,
+    pointCost: { advancedSciencePack: 1, energySciencePack: 1, combatSciencePack: 1 },
+    unlockBuildings: ['Laboratoire spatial'],
+    unlockRecipes: [],
+    prereq: ['specialized_labs', 'base_radar'],
+    tier: 6
   },
   {
     id: 'pirate_reverse_engineering',
@@ -251,7 +348,7 @@ export const RESEARCH_PROJECTS = Object.freeze([
     points: 30,
     energyUse: 36,
     pointCost: { advancedSciencePack: 1, biologySciencePack: 1, combatSciencePack: 1 },
-    unlockBuildings: [],
+    unlockBuildings: ['Laboratoire d’anomalie'],
     unlockRecipes: ['Science anomalie', 'Équipement Mark IV'],
     prereq: ['equipment_mark_iii'],
     tier: 7
@@ -286,6 +383,11 @@ export const RESEARCH_PROJECTS = Object.freeze([
 
 export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   high_temp_furnace: 'industry_smelting_control',
+  foundation_metal: 'construction_foundations',
+  foundation_reinforced: 'construction_foundations',
+  industrial_platform: 'construction_foundations',
+  foundation_ramp: 'construction_foundations',
+  technical_floor: 'construction_foundations',
   conveyor: 'automation_routing',
   robot_arm: 'automation_routing',
   splitter: 'automation_sorting',
@@ -299,6 +401,7 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   electrolyzer: 'advanced_industry',
   electronics_bench: 'electronics_processing',
   mining_extractor: 'resource_scanning',
+  resource_scanner: 'resource_scanning',
   outpost_core: 'resource_scanning',
   logistic_drone_station: 'logistics_basic',
   logistic_drone_workshop: 'logistics_basic',
@@ -308,6 +411,22 @@ export const STRUCTURE_RESEARCH_REQUIREMENTS = Object.freeze({
   equipment_fabricator: 'advanced_research',
   industrial_converter: 'pirate_reverse_engineering',
   rocket_workshop: 'defense_turrets',
+  defense_turret: 'defense_missiles',
+  kinetic_turret: 'defense_turrets',
+  laser_turret: 'defense_laser',
+  anti_missile: 'defense_laser',
+  defense_mine: 'defense_missiles',
+  base_radar: 'base_radar',
+  base_shield: 'base_shielding',
+  advanced_lab: 'specialized_labs',
+  biology_lab: 'specialized_labs',
+  energy_lab: 'specialized_labs',
+  space_lab: 'space_research',
+  anomaly_lab: 'alien_anomaly_analysis',
+  mechanical_assembler: 'industry_assemblers',
+  electronic_assembler: 'industry_assemblers',
+  weapon_workshop: 'defense_missiles',
+  module_station: 'combat_siege',
   equipment_rd_station: 'equipment_rd_station'
 });
 

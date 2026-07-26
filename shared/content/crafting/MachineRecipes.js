@@ -9,6 +9,11 @@ export const MACHINE_TYPES = Object.freeze({
   SCIENCE_LAB: 'science_lab',
   INDUSTRIAL_CONVERTER: CONVERSION_MACHINE_TYPE,
   LOGISTIC_DRONE_WORKSHOP: 'logistic_drone_workshop'
+  ,
+  MECHANICAL_ASSEMBLER: 'mechanical_assembler',
+  ELECTRONIC_ASSEMBLER: 'electronic_assembler',
+  WEAPON_WORKSHOP: 'weapon_workshop',
+  MODULE_STATION: 'module_station'
 });
 
 export const MACHINE_RECIPES = Object.freeze([
@@ -318,6 +323,60 @@ export const MACHINE_RECIPES = Object.freeze([
     energyUse: 24,
     input: { unknownTechFragment: 1, precursorNanomaterial: 1, containedAntimatter: 1, advancedSciencePack: 1 },
     output: { anomalySciencePack: 1 }
+  },
+  {
+    id: 'mechanical_assembler_servomotor',
+    machineType: MACHINE_TYPES.MECHANICAL_ASSEMBLER,
+    name: 'Servomoteur renforcé',
+    seconds: 8,
+    energyUse: 12,
+    input: { steelPlate: 2, copperWire: 3 },
+    output: { servomotor: 2 }
+  },
+  {
+    id: 'mechanical_assembler_motor',
+    machineType: MACHINE_TYPES.MECHANICAL_ASSEMBLER,
+    name: 'Moteur électrique',
+    seconds: 10,
+    energyUse: 14,
+    input: { aluminiumIngot: 2, copperWire: 4, steelPlate: 1 },
+    output: { electricMotor: 1 }
+  },
+  {
+    id: 'electronic_assembler_control',
+    machineType: MACHINE_TYPES.ELECTRONIC_ASSEMBLER,
+    name: 'Circuit de contrôle',
+    seconds: 10,
+    energyUse: 16,
+    input: { printedCircuit: 2, microTransistor: 2, copperWire: 4 },
+    output: { controlCircuit: 1 }
+  },
+  {
+    id: 'electronic_assembler_processor',
+    machineType: MACHINE_TYPES.ELECTRONIC_ASSEMBLER,
+    name: 'Microprocesseur',
+    seconds: 14,
+    energyUse: 20,
+    input: { printedCircuit: 2, controlCircuit: 1, siliconWafer: 3 },
+    output: { microprocessor: 1 }
+  },
+  {
+    id: 'weapon_workshop_combat_science',
+    machineType: MACHINE_TYPES.WEAPON_WORKSHOP,
+    name: 'Science défense',
+    seconds: 15,
+    energyUse: 18,
+    input: { compositeArmor: 1, propellant: 1, controlCircuit: 1 },
+    output: { combatSciencePack: 1 }
+  },
+  {
+    id: 'module_station_advanced_science',
+    machineType: MACHINE_TYPES.MODULE_STATION,
+    name: 'Science avancée',
+    seconds: 22,
+    energyUse: 22,
+    input: { microprocessor: 1, laserLens: 1, thermalCeramic: 1, fuelInjector: 1, compositeArmor: 1 },
+    output: { advancedSciencePack: 1 }
   }
   ,
   ...CONVERSION_MACHINE_RECIPES
@@ -329,4 +388,20 @@ export function getRecipesForMachine(machineType) {
 
 export function getMachineRecipe(recipeId) {
   return MACHINE_RECIPES.find((recipe) => recipe.id === recipeId) || null;
+}
+
+const LAB_OUTPUTS_BY_SPECIALIZATION = Object.freeze({
+  advanced: new Set(['industrialSciencePack', 'combatSciencePack', 'advancedSciencePack']),
+  biology: new Set(['biologySciencePack']),
+  energy: new Set(['energySciencePack']),
+  space: new Set(['advancedSciencePack', 'anomalySciencePack']),
+  anomaly: new Set(['anomalySciencePack'])
+});
+
+export function isRecipeAllowedForLabSpecialization(recipe, specialization = '') {
+  const id = String(specialization || '').toLowerCase();
+  if (!id || recipe?.machineType !== MACHINE_TYPES.SCIENCE_LAB) return true;
+  const allowed = LAB_OUTPUTS_BY_SPECIALIZATION[id];
+  if (!allowed) return true;
+  return Object.keys(recipe?.output || {}).some((key) => allowed.has(key));
 }

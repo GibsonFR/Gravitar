@@ -285,6 +285,15 @@ export function computeRocketMixFromResources(resources = {}) {
   const name = hasOptional ? `Roquettes ${nameCore}` : 'Roquettes HE';
   const shortName = nameCore.length > 12 ? nameCore.split(' ')[0] : nameCore;
   const summary = base.effects.length ? base.effects.join(' • ') : 'standard';
+  const raidKind = charge.id === 'emp'
+    ? 'emp'
+    : body.id === 'armored' && additives.some((entry) => entry.id === 'graphite')
+      ? 'drill'
+      : body.id === 'armored'
+        ? 'breach'
+        : charge.id === 'dense'
+          ? 'siege'
+          : '';
   const warnings = [
     ...(base.warnings || []),
     ...(!valid ? ['Mix incomplet : ajoute un corps, une charge et un stabilisateur.'] : []),
@@ -313,6 +322,7 @@ export function computeRocketMixFromResources(resources = {}) {
       instability: Math.round(base.instability * 100) / 100,
       speedMult: base.speedMult,
       pierce: base.pierce || undefined,
+      raidKind: raidKind || undefined,
       summary
     },
     description: hasOptional ? 'Roquette expérimentale produite par mixage libre dans l’atelier.' : 'Charge explosive simple et fiable.'
@@ -351,6 +361,7 @@ export function computeRocketMixFromResources(resources = {}) {
       `${base.splashRadius} rayon`,
       `vitesse ×${base.speedMult.toFixed(2)}`,
       base.pierce ? `perforation ${base.pierce}` : '',
+      raidKind ? `outil de raid : ${raidKind}` : '',
       summary || 'Explosion standard',
       base.instability > 0 ? `Instabilité ${Math.round(base.instability * 100)}%` : 'Stable'
     ].filter(Boolean),
