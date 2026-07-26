@@ -6,14 +6,19 @@ import {
   buildPortalSnapshots,
   buildStationSnapshots,
   buildStructureSnapshots,
+  buildStructureAutomationSnapshots,
   buildLootSnapshots,
-  buildAreaEffectSnapshots
+  buildAreaEffectSnapshots,
+  buildLogisticDroneSnapshots
 } from './builders/BuildWorldEntitySnapshots.js';
 import { buildMeSnapshot, buildMeLiteSnapshot } from './builders/BuildMeSnapshot.js';
+import { buildPlayerDirectorySnapshot } from './builders/BuildPlayerDirectory.js';
 import { buildStatusSnapshot } from '../status/StatusView.js';
 import { buildFrameUiState } from '../frames/FrameGameplayHooks.js';
 import { buildInventorySnapshot } from '../inventory/InventorySnapshot.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
+import { buildModeSnapshot } from '../modes/GameModes.js';
+import { getSessionElapsedMs, getSessionRemainingMs } from '../bastion/BastionSession.js';
 
 function q(v, decimals = 2) {
   const n = Number(v);
@@ -83,7 +88,6 @@ function playerLite(player, selfId = 0) {
     groundMarkerY: q(player.groundMarkerY || 0),
     groundMarkerTimer: q(player.groundMarkerTimer || 0),
     level: player.progression?.level ?? 1,
-    frameState: player.frameState || {},
     cooldowns: {
       A: q(player.cooldownALeft || 0),
       Z: q(player.cooldownZLeft || 0),
@@ -330,6 +334,11 @@ function buildSectorBootstrap(state, me, timeMs) {
   const inSector = (entity) => sameSector(entity, sx, sy);
   const inWorldSector = (entity) => inSector(entity) && sameWorld(entity, worldId);
 
+  const areaEffects = [
+    ...buildAreaEffectSnapshots(state.areaEffects, inWorldSector),
+    ...buildAreaEffectSnapshots(state.testEffectZones, inWorldSector)
+  ];
+
   return {
     id: `${worldId}:${sx}:${sy}`,
     worldId,
@@ -342,7 +351,7 @@ function buildSectorBootstrap(state, me, timeMs) {
     structures: buildStructureSnapshots(state.structures, inWorldSector, me),
     portals: buildPortalSnapshots(state.portals, inSector, state, me, timeMs),
     loots: buildLootSnapshots(state.loots, inSector),
-    areaEffects: buildAreaEffectSnapshots(state.areaEffects, inWorldSector)
+    areaEffects
   };
 }
 
@@ -552,7 +561,7 @@ export function buildNetV2PlayerSessionPacket(state, playerId, timeMs) {
     protocol: 'net_v2_reset',
     time: timeMs,
     tick: getSimulationTick(state),
-    me: playerSessionCompact(me, playerId),
+    me: playerSessionCompact(me, playerId, state, timeMs),
     players,
     net: {
       netV2Reset: true,
@@ -686,6 +695,96 @@ export function buildNetV2WorldEventsPacket(state, playerId, events, timeMs) {
     net: {
       netV2Reset: true,
       packet: 'world_events_v2'
+    }
+  };
+}
+
+export function buildNetV2WorldEntitiesDeltaPacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  const sx = me.sx | 0;
+  const sy = me.sy | 0;
+  const worldId = String(me.worldId || 'endless');
+  const inSector = (entity) => sameSector(entity, sx, sy);
+  const inWorldSector = (entity) =>
+    sameSector(entity, sx, sy) && sameWorld(entity, worldId);
+
+  return {
+    t: 'world_entities_delta_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    worldId,
+    sx,
+    sy,
+    asteroids: buildAsteroidSnapshots(state.asteroids, inWorldSector),
+    mobs: buildMobSnapshots(state.mobs, inWorldSector, { compact: false }),
+    stations: buildStationSnapshots(state.stations, inSector),
+    structures: buildStructureSnapshots(state.structures, inWorldSector, me),
+    portals: buildPortalSnapshots(state.portals, inSector, state, me, timeMs),
+    loots: buildLootSnapshots(state.loots, inSector),
+    areaEffects: [
+      ...buildAreaEffectSnapshots(state.areaEffects, inWorldSector),
+      ...buildAreaEffectSnapshots(state.testEffectZones, inWorldSector)
+    ],
+    net: {
+      netV2Reset: true,
+      packet: 'world_entities_delta_v2',
+      authoritativeSectorEntities: true
+    }
+  };
+}
+
+export function buildNetV2LogisticsPacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  const sx = me.sx | 0;
+  const sy = me.sy | 0;
+  const worldId = String(me.worldId || 'endless');
+  const inWorldSector = (entity) =>
+    sameSector(entity, sx, sy) && sameWorld(entity, worldId);
+  const structureAutomation = buildStructureAutomationSnapshots(state.structures, inWorldSector);
+  const logisticDrones = buildLogisticDroneSnapshots(state.structures, inWorldSector, timeMs);
+  if (!structureAutomation.length && !logisticDrones.length) return null;
+
+  return {
+    t: 'logistics_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    worldId,
+    sx,
+    sy,
+    structureAutomation,
+    logisticDrones,
+    net: {
+      netV2Reset: true,
+      packet: 'logistics_v2',
+      authoritativeLogistics: true
+    }
+  };
+}
+
+export function buildNetV2MetaPacket(state, playerId, timeMs) {
+  const me = state.players.get(playerId) || null;
+  if (!me) return null;
+  return {
+    t: 'meta_v2',
+    protocol: 'net_v2_reset',
+    time: timeMs,
+    tick: getSimulationTick(state),
+    seed: state.seed | 0,
+    world: WORLD,
+    session: {
+      durationMs: state.sessionDurationMs ?? 60 * 60 * 1000,
+      elapsedMs: getSessionElapsedMs(state, timeMs),
+      remainingMs: getSessionRemainingMs(state, timeMs)
+    },
+    modes: buildModeSnapshot(state, me, timeMs),
+    playerDirectory: buildPlayerDirectorySnapshot(state, me),
+    net: {
+      netV2Reset: true,
+      packet: 'meta_v2'
     }
   };
 }

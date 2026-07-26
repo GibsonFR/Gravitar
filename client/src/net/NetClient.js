@@ -145,6 +145,21 @@ export class NetClient {
         this.netStats.recordWorldEventsPacket?.(msg, raw.length);
         (this.store.applyWorldEventsV2 ? this.store.applyWorldEventsV2(msg) : console.warn('[net] missing store.applyWorldEventsV2', msg));
       }
+      if (msg.t === 'world_entities_delta_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordWorldEntitiesDeltaPacket?.(msg, raw.length);
+        this.store.applyWorldEntitiesDeltaV2?.(msg);
+      }
+      if (msg.t === 'logistics_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordLogisticsPacket?.(msg, raw.length);
+        this.store.applyLogisticsV2?.(msg);
+      }
+      if (msg.t === 'meta_v2') {
+        this.networkClock.updateFromSnapshot(msg, performance.now());
+        this.netStats.recordMetaPacket?.(msg, raw.length);
+        this.store.applyMetaV2?.(msg);
+      }
       if (msg.t === 'cargo_v2' || msg.t === 'cargo_bootstrap_v2') {
         this.networkClock.updateFromSnapshot(msg, performance.now());
         this.netStats.recordCargoPacket?.(msg, raw.length);
@@ -175,6 +190,7 @@ export class NetClient {
         this.netStats.recordLifecyclePacket?.(msg, raw.length);
         this.store.applySectorUnloadV2?.(msg);
       }
+      if (msg.t === 'loot_pickup_ack_v2') this.store.applyLootPickupAckV2?.(msg);
       if (msg.t === 'chat') this.store.applyChatMessage(msg);
       if (msg.t === 'cmd_ack') {
         this.netStats.recordCommandAck();

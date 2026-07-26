@@ -645,6 +645,12 @@ export class WorldStore {
         });
       } else if (String(ev.type || '').startsWith('combat.')) {
         this.pendingCombatFx.push(ev.payload || ev);
+      } else if (ev.type === 'logistic.transfer' && ev.payload) {
+        this.applyLogisticTransferEvents([{
+          id: ev.id | 0,
+          serverTime: Number(ev.serverTime || this.lastServerTime || Date.now()),
+          ...ev.payload
+        }]);
       }
 
       if (
@@ -1841,6 +1847,14 @@ export class WorldStore {
         }
         continue;
       }
+
+      if (type === 'area_removed') {
+        const id = ev.areaId | 0;
+        if (id) {
+          this.areaEffects.delete(id);
+          this.interpolationStore?.maps?.delete?.(`areaEffect:${id}`);
+        }
+      }
     }
   }
 
@@ -1856,6 +1870,15 @@ export class WorldStore {
       out.push(id);
     }
     return out;
+  }
+
+  applyLootPickupAckV2(msg) {
+    const id = msg?.lootId | 0;
+    if (!id || msg?.ok) return;
+    const loot = this.loots.get(id);
+    if (!loot) return;
+    loot._localPickupPending = false;
+    loot._pickupRequestCooldownUntil = performance.now() + 450;
   }
 
   applyCargoV2(msg) {
@@ -1917,12 +1940,46 @@ export class WorldStore {
     if (expected && sectorId !== expected) return;
 
     const serverTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : (this.lastServerTime || Date.now());
+    this.lastServerTime = serverTime;
+    this.lastServerTimeAt = performance.now();
     if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true });
     if (Array.isArray(msg.mobs)) this._syncMobsFromWorldDelta(msg.mobs, serverTime);
+    if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
+    if (Array.isArray(msg.structures)) this._syncStructures(msg.structures, this._estimateServerNow());
+    if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
+    if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);
     if (Array.isArray(msg.loots)) {
       this.interpolationStore?.pushMany?.('loot', msg.loots, serverTime);
       this._syncMap(this.loots, msg.loots);
     }
+  }
+
+  applyLogisticsV2(msg) {
+    if (!msg) return;
+    const expected = this.currentSectorBootstrapId || '';
+    const sectorId = `${msg.worldId || 'endless'}:${msg.sx | 0}:${msg.sy | 0}`;
+    if (expected && sectorId !== expected) return;
+
+    const serverTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : (this.lastServerTime || Date.now());
+    const structureServerNow = this._estimateServerNow();
+    if (Array.isArray(msg.structureAutomation)) {
+      this._applyStructureAutomationSnapshots(msg.structureAutomation, structureServerNow);
+    }
+    if (Array.isArray(msg.logisticDrones)) {
+      this.interpolationStore?.pushMany?.('logisticDrone', msg.logisticDrones, serverTime);
+      this._syncMap(this.logisticDrones, msg.logisticDrones);
+    }
+  }
+
+  applyMetaV2(msg) {
+    if (!msg) return;
+    this.lastServerTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : this.lastServerTime;
+    this.lastServerTimeAt = performance.now();
+    if (Number.isFinite(Number(msg.seed))) this.seed = Number(msg.seed) | 0;
+    if (msg.world) this.world = msg.world;
+    if (msg.session) this.session = msg.session;
+    if (msg.modes) this.modes = msg.modes;
+    if (Array.isArray(msg.playerDirectory)) this.playerDirectory = msg.playerDirectory;
   }
 
   applySectorBootstrap(bootstrap) {
@@ -1996,13 +2053,6 @@ export class WorldStore {
     return Math.min(0.35, ageMs / 1000);
   }
 
-  serverCooldownAgeSec(msg = null) {
-    const serverTime = Number(msg?.time);
-    if (!Number.isFinite(serverTime) || serverTime <= 0 || !this.networkClock?.estimatedServerNowMs) return 0;
-    const ageMs = Math.max(0, this.networkClock.estimatedServerNowMs() - serverTime);
-    return Math.min(0.35, ageMs / 1000);
-  }
-
   syncLocalCooldownAuthorityFromStatus(player, msg = null) {
     if (!player || (player.id | 0) !== (this.myId | 0)) return;
     const now = performance.now();
@@ -2016,7 +2066,7 @@ export class WorldStore {
     if (!this.myState.cooldowns) this.myState.cooldowns = {};
 
     for (const slot of ['A', 'Z', 'E', 'R']) {
-      const rawLeft = Math.max(0, Number(cd[slot]) || 0);
+      const rawLeft = Math.max(0, (Number(cd[slot]) || 0) - ageSec);
       const safeLeft = rawLeft > 0.02 ? rawLeft : 0;
 
       this.myState.cooldowns[slot] = safeLeft;
@@ -2059,12 +2109,6 @@ export class WorldStore {
       if (this.myState?.id) this.myId = this.myState.id | 0;
       this.syncLocalCooldownAuthorityFromStatus(msg.me, msg);
       this.applyPlayerStateV2(msg.me);
-    }
-
-    if (msg?.me) {
-      this.myState = this._mergeMyState({ ...(this.myState || {}), ...msg.me });
-      if (msg.me.id) this.myId = msg.me.id | 0;
-      this.applyPlayerStateV2(msg.me, { preservePose: true });
     }
 
     if (Array.isArray(msg?.players)) {
@@ -2142,7 +2186,6 @@ export class WorldStore {
     if (this.myState?.id) this.myId = this.myState.id | 0;
     if (hasSectorBootstrap) this.applySectorBootstrap(msg.sectorBootstrap);
     if (msg.me) this.applyPlayerStateV2(msg.me, { correction: hasSectorBootstrap, snapOwnPlayer: hasSectorBootstrap });
-    if (!hasSectorBootstrap) this.applySectorBootstrap(msg.sectorBootstrap);
 
     if (Array.isArray(msg.players)) {
       for (const p of msg.players) {

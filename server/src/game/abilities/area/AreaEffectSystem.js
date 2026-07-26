@@ -2,6 +2,7 @@ import { collectAttackablesInRadius, dealAreaDamage } from '../AbilityTargetQuer
 import { applyStatusSpecsToTargets } from '../../status/StatusApplication.js';
 import { onAreaEffectTickForFrame } from '../../frames/FrameGameplayHooks.js';
 import { getSimulationTimeMs } from '../../util/Time.js';
+import { queueAreaEffectRemovedEvent } from '../../events/WorldEntityEvents.js';
 
 export function updateAreaEffects(state, dt) {
   const timeMs = getSimulationTimeMs(state);
@@ -21,6 +22,7 @@ export function updateAreaEffects(state, dt) {
     }
 
     if (effect.durationLeft <= 0) {
+      queueAreaEffectRemovedEvent(state, effect, 'expired');
       state.areaEffects.delete(effect.id);
     }
   }

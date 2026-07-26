@@ -124,7 +124,7 @@ function buildExplicitCombatEvents(state, playerId, timeMs, ev) {
   return out;
 }
 
-export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx = [], combatFx = [], playerSfx = [], abilityProtocolEvents = [], statusEvents = [], passiveEvents = []) {
+export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx = [], combatFx = [], playerSfx = [], abilityProtocolEvents = [], statusEvents = [], passiveEvents = [], logisticTransferEvents = []) {
   const events = [];
   for (const ev of worldSfx) {
     events.push(baseEvent(state, 'sfx.world', 'worldSfx', playerId, timeMs, ev, {
@@ -225,6 +225,27 @@ export function buildNetworkEventsFromLegacy(state, playerId, timeMs, worldSfx =
       passiveId: ev.passiveId || '',
       ...(ev.payload || {})
     }));
+  }
+
+  for (const ev of logisticTransferEvents) {
+    events.push({
+      id: nextEventId(state),
+      type: 'logistic.transfer',
+      source: 'logistics',
+      targetPlayerId: playerId | 0,
+      serverTime: Number(ev.serverTime || timeMs),
+      payload: {
+        action: String(ev.action || ''),
+        visualItemId: ev.visualItemId | 0,
+        resourceKey: String(ev.resourceKey || ''),
+        colorHex: String(ev.colorHex || ''),
+        source: ev.source || null,
+        target: ev.target || null,
+        carrier: ev.carrier || null,
+        slot: String(ev.slot || ''),
+        totalMs: Math.max(1, Number(ev.totalMs || 0) || 1)
+      }
+    });
   }
 
   return events;
