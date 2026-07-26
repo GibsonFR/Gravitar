@@ -4,7 +4,7 @@ import { getResourceDef } from '../../inventory/ResourceDefs.js';
 import { canAffordOffer } from './StationOfferCosts.js';
 import { ensureStationStockCurrent } from './StationStockRefresh.js';
 import { getEffectivePurchasePriceCredits, getEffectiveSellPriceCredits } from '../../bastion/BastionBuffs.js';
-import { getStationDemandForResource, getStationSupplyForResource } from '../pirate/PirateStationEconomy.js';
+import { createStationBarterOffers, getStationDemandForResource, getStationSupplyForResource } from '../pirate/PirateStationEconomy.js';
 import { getConversionRecipe } from '../../../../../shared/content/conversion/ConversionRecipeDefs.js';
 import { MOB_DEFS } from '../../../../../shared/content/mobs/MobDefs.js';
 import { ensurePlayerPirateState, hasUnlockedConversionRecipe, getPirateReputationSnapshot } from '../../player/runtime/PlayerPirateState.js';
@@ -70,6 +70,26 @@ function buildResourceSupplySnapshot(station, player) {
       canAfford: Math.max(0, player?.inv?.credits | 0) >= priceCredits && stock > 0
     };
   }).filter((entry) => entry.resourceKey);
+}
+
+function buildResourceBarterSnapshot(station, player) {
+  return createStationBarterOffers(station).map((offer) => {
+    const inputDef = getResourceDef(offer.inputResourceKey);
+    const outputDef = getResourceDef(offer.outputResourceKey);
+    const have = Math.max(0, player?.inv?.resources?.[offer.inputResourceKey] | 0);
+    const inputCargo = (inputDef?.cargoPerUnit || 1) * offer.inputAmount;
+    const outputCargo = (outputDef?.cargoPerUnit || 1) * offer.outputAmount;
+    const fitsCargo = (player?.inv?.cargoUsed || 0) - inputCargo + outputCargo <= (player?.inv?.cargoMax || 0);
+    return {
+      ...offer,
+      inputName: inputDef?.name || offer.inputResourceKey,
+      inputColorHex: inputDef?.colorHex || '#cfd7e6',
+      outputName: outputDef?.name || offer.outputResourceKey,
+      outputColorHex: outputDef?.colorHex || '#cfd7e6',
+      have,
+      canBarter: have >= offer.inputAmount && offer.stock >= offer.outputAmount && fitsCargo
+    };
+  });
 }
 
 
@@ -194,6 +214,7 @@ export function buildStationShopSnapshot(station, player, timeMs = 0) {
     demand: buildDemandSnapshot(station, player),
     resourceDemand: buildDemandSnapshot(station, player),
     resourceSupply: buildResourceSupplySnapshot(station, player),
+    resourceBarter: buildResourceBarterSnapshot(station, player),
     conversionRecipes: buildConversionRecipeSnapshot(station, player),
     quests: buildQuestSnapshot(station, player),
     localResourcePool: {

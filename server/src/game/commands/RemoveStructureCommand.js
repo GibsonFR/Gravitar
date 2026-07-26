@@ -25,6 +25,7 @@ function removeErrorHint(error) {
     case 'storage_not_empty': return 'Vide le coffre avant de le démonter';
     case 'core_not_empty':
     case 'core_has_structures': return 'Démonte les structures protégées avant le noyau';
+    case 'foundation_in_use': return 'Une structure est posée sur cette fondation';
     case 'cargo_full_for_refund': return 'Soute pleine : libère de la place pour récupérer les matériaux';
     case 'wrong_world':
     case 'wrong_sector':

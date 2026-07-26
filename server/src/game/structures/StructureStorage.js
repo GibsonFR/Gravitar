@@ -14,6 +14,8 @@ const STORAGE_TYPES = new Set([
   STRUCTURE_TYPES.EQUIPMENT_STORAGE,
   STRUCTURE_TYPES.AMMO_STORAGE,
   STRUCTURE_TYPES.DEFENSE_TURRET,
+  STRUCTURE_TYPES.KINETIC_TURRET,
+  STRUCTURE_TYPES.LASER_TURRET,
   STRUCTURE_TYPES.LOGISTIC_DRONE_STATION,
   STRUCTURE_TYPES.LOGISTIC_CHEST_PROVIDER,
   STRUCTURE_TYPES.LOGISTIC_CHEST_BUFFER,
@@ -74,6 +76,11 @@ export function canPlayerAccessStorage(state, player, structure) {
   if ((player.sx | 0) !== (structure.sx | 0) || (player.sy | 0) !== (structure.sy | 0)) return false;
   if (distanceSqToStructureRect(structure, player.x || 0, player.y || 0) > STORAGE_RANGE * STORAGE_RANGE) return false;
   if (isStructureOwner(player, structure)) return true;
+  if (structure.clanShared && structure.clanId) {
+    const playerKey = String(player.accountKey || '').toLowerCase();
+    const clan = state?.clans?.get?.(structure.clanId);
+    if (playerKey && clan?.members?.includes?.(playerKey)) return true;
+  }
   return !findAliveCoreForStructure(state, structure);
 }
 
@@ -98,7 +105,8 @@ function itemEntry(itemOrId, amount = 1) {
 }
 
 function buildResourceEntries(resources = {}) {
-  return RESOURCE_KEYS_ORDER.map((key) => {
+  const known = new Set(RESOURCE_KEYS_ORDER);
+  const entries = RESOURCE_KEYS_ORDER.map((key) => {
     const def = RESOURCE_DEFS[key];
     return {
       key,
@@ -108,6 +116,19 @@ function buildResourceEntries(resources = {}) {
       colorHex: def?.colorHex || '#d0d7e4'
     };
   }).filter((e) => e.amount > 0);
+  for (const [key, rawAmount] of Object.entries(resources || {})) {
+    const amount = Math.max(0, Math.floor(Number(rawAmount) || 0));
+    if (!key || known.has(key) || amount <= 0) continue;
+    entries.push({
+      key,
+      name: `Ressource obsolète (${key})`,
+      amount,
+      cargoPerUnit: 1,
+      colorHex: '#7f8794',
+      obsolete: true
+    });
+  }
+  return entries;
 }
 
 function buildCargoEquipment(player) {
@@ -161,7 +182,7 @@ function buildStoredAmmo(structure) {
   const out = [];
   for (const [itemId, amount] of Object.entries(structure?.storage?.ammo || {})) {
     if ((amount | 0) <= 0) continue;
-    const entry = itemEntry(itemId, amount | 0);
+    const entry = itemEntry(getStoredEquipmentDef(structure, itemId), amount | 0);
     if (entry) out.push(entry);
   }
   return out.sort((a, b) => (a.tier | 0) - (b.tier | 0) || a.name.localeCompare(b.name));
@@ -189,9 +210,10 @@ export function buildStorageSnapshot(state, player) {
     used,
     fill01: capacity > 0 ? Math.max(0, Math.min(1, used / capacity)) : 0
   };
-  if (st.type === STRUCTURE_TYPES.DEFENSE_TURRET) {
+  if (getStructureDef(st.type)?.turret) {
     const def = getStructureDef(st.type) || {};
     base.turret = {
+      weapon: String(def.turretWeapon || 'rocket'),
       mode: normalizeTurretMode(st.turretMode),
       modeLabel: getTurretModeLabel(st.turretMode),
       status: st.turretStatus || 'idle',
@@ -319,6 +341,10 @@ export function transferStorageItem(state, player, structureId, itemId, amount, 
       if (moved <= 0) return { ok: false, error: free <= 0 ? 'storage_full' : 'empty_cargo' };
       eq.rocketAmmoCountsById[id] = have - moved;
       st.storage.ammo[id] = (st.storage.ammo[id] | 0) + moved;
+      if (!getItemDef(id)) {
+        st.storage.customItemDefs ??= {};
+        st.storage.customItemDefs[id] = JSON.parse(JSON.stringify(def));
+      }
       if (eq.rocketAmmoCountsById[id] <= 0) {
         for (let i = 0; i < (eq.rocketAmmoSlotItemIds || []).length; i += 1) {
           if (eq.rocketAmmoSlotItemIds[i] === id) eq.rocketAmmoSlotItemIds[i] = '';
@@ -330,6 +356,8 @@ export function transferStorageItem(state, player, structureId, itemId, amount, 
       if (moved <= 0) return { ok: false, error: 'empty_storage' };
       st.storage.ammo[id] = have - moved;
       eq.rocketAmmoCountsById[id] = (eq.rocketAmmoCountsById[id] | 0) + moved;
+      if (st.storage.customItemDefs?.[id]) addCustomEquipmentDef(player, st.storage.customItemDefs[id]);
+      if (st.storage.ammo[id] <= 0 && st.storage.customItemDefs?.[id]) delete st.storage.customItemDefs[id];
       if (!eq.rocketAmmoSlotItemIds?.[0]) eq.rocketAmmoSlotItemIds[0] = id;
       else if (!eq.rocketAmmoSlotItemIds?.[1] && eq.rocketAmmoSlotItemIds[0] !== id) eq.rocketAmmoSlotItemIds[1] = id;
     } else return { ok: false, error: 'invalid_direction' };

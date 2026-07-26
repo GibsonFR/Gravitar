@@ -23,6 +23,23 @@ export function buildInventorySnapshot(inv, station = null) {
       colorHex: def.colorHex || '#d0d7e4'
     };
   });
+  const known = new Set(RESOURCE_KEYS_ORDER);
+  for (const [key, rawAmount] of Object.entries(inv.resources || {})) {
+    const amount = Math.max(0, Math.floor(Number(rawAmount) || 0));
+    if (!key || known.has(key) || amount <= 0) continue;
+    resources.push({
+      key,
+      name: `Ressource obsolète (${key})`,
+      amount,
+      cargoPerUnit: 1,
+      sellable: false,
+      demanded: false,
+      sellUnitPrice: 0,
+      sellTotalValue: 0,
+      colorHex: '#7f8794',
+      obsolete: true
+    });
+  }
 
   return {
     credits: inv.credits || 0,

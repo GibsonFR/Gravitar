@@ -1,6 +1,8 @@
 import { getStructureDef } from './StructureDefs.js';
-import { getMachineRecipe } from '../../../../shared/content/crafting/MachineRecipes.js';
+import { getMachineRecipe, isRecipeAllowedForLabSpecialization } from '../../../../shared/content/crafting/MachineRecipes.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
+import { queueWorldSfx } from '../audio/WorldSfxState.js';
+import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
 
 const MACHINE_SAVE_INTERVAL_MS = 5000;
 const MACHINE_INPUT_CAPACITY = 160;
@@ -94,7 +96,7 @@ function getSelectedRecipe(structure) {
   const def = getStructureDef(structure?.type);
   if (!def?.machineType) return null;
   const recipe = getMachineRecipe(structure.machineRecipeId || '');
-  if (!recipe || recipe.machineType !== def.machineType) return null;
+  if (!recipe || recipe.machineType !== def.machineType || !isRecipeAllowedForLabSpecialization(recipe, def.labSpecialization)) return null;
   return recipe;
 }
 
@@ -108,7 +110,7 @@ function canStartNextJob(structure, recipe) {
   return true;
 }
 
-function startNextJob(structure, recipe, timeMs) {
+function startNextJob(state, structure, recipe, timeMs) {
   consumeRecipeInputs(structure, recipe);
   const totalMs = Math.max(250, Math.round((Number(recipe.seconds) || 1) * 1000));
   structure.machineJob = {
@@ -120,6 +122,7 @@ function startNextJob(structure, recipe, timeMs) {
     paused: false
   };
   structure.updatedAt = timeMs;
+  queueWorldSfx(state, SFX_EVENT_TYPES.MACHINE_START, structure.sx, structure.sy, structure.x, structure.y, structure.id | 0);
   return true;
 }
 
@@ -143,7 +146,7 @@ export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
     }
 
     if (!isMachineJobActive(st) && canStartNextJob(st, recipe)) {
-      startNextJob(st, recipe, timeMs);
+      startNextJob(state, st, recipe, timeMs);
       shouldSave ||= String(st.worldId || 'endless') === 'endless';
     }
 
@@ -151,7 +154,7 @@ export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
 
     const job = st.machineJob;
     recipe = getMachineRecipe(job.recipeId || st.machineRecipeId || '');
-    if (!recipe || recipe.machineType !== def.machineType) {
+    if (!recipe || recipe.machineType !== def.machineType || !isRecipeAllowedForLabSpecialization(recipe, def.labSpecialization)) {
       st.machineJob = null;
       st.updatedAt = timeMs;
       shouldSave ||= String(st.worldId || 'endless') === 'endless';
@@ -160,11 +163,12 @@ export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
 
     if (Number(job.remainingMs) <= 0) {
       if (canFitRecipeOutput(st, recipe)) addRecipeOutput(st, recipe);
+      queueWorldSfx(state, SFX_EVENT_TYPES.MACHINE_COMPLETE, st.sx, st.sy, st.x, st.y, st.id | 0);
       st.machineJob = null;
       st.updatedAt = timeMs;
       shouldSave ||= String(st.worldId || 'endless') === 'endless';
       const nextRecipe = getSelectedRecipe(st);
-      if (canStartNextJob(st, nextRecipe)) startNextJob(st, nextRecipe, timeMs);
+      if (canStartNextJob(st, nextRecipe)) startNextJob(state, st, nextRecipe, timeMs);
       continue;
     }
 
@@ -179,11 +183,12 @@ export function updateMachineProcesses(state, dt, timeMs = Date.now()) {
 
     if (job.remainingMs <= 0) {
       addRecipeOutput(st, recipe);
+      queueWorldSfx(state, SFX_EVENT_TYPES.MACHINE_COMPLETE, st.sx, st.sy, st.x, st.y, st.id | 0);
       st.machineJob = null;
       shouldSave ||= String(st.worldId || 'endless') === 'endless';
       const nextRecipe = getSelectedRecipe(st);
       if (canStartNextJob(st, nextRecipe)) {
-        startNextJob(st, nextRecipe, timeMs);
+        startNextJob(state, st, nextRecipe, timeMs);
       }
     } else if (String(st.worldId || 'endless') === 'endless' && timeMs - (st.lastMachineSaveAt || 0) > MACHINE_SAVE_INTERVAL_MS) {
       st.lastMachineSaveAt = timeMs;

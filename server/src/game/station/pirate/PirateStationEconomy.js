@@ -120,3 +120,33 @@ export function getStationSupplyForResource(station, resourceKey) {
   const supply = station?.stock?.resourceSupply || [];
   return supply.find((entry) => String(entry?.resourceKey || '') === key) || null;
 }
+
+export function getStationBarterForResource(station, outputResourceKey) {
+  const outputKey = String(outputResourceKey || '');
+  const supply = station?.stock?.resourceSupply || [];
+  const demand = station?.stock?.demand || station?.stock?.resourceDemand || [];
+  const supplyIndex = supply.findIndex((entry) => String(entry?.resourceKey || '') === outputKey);
+  if (supplyIndex < 0 || demand.length === 0) return null;
+  const output = supply[supplyIndex];
+  let input = demand[supplyIndex % demand.length] || null;
+  if (String(input?.resourceKey || '') === outputKey && demand.length > 1) input = demand[(supplyIndex + 1) % demand.length];
+  const inputKey = String(input?.resourceKey || '');
+  if (!inputKey || inputKey === outputKey) return null;
+  const demandUnitPrice = Math.max(1, input?.priceCredits | 0 || 1);
+  const outputAmount = Math.max(1, Math.min(output?.stock ?? output?.amount ?? 0, output?.amount | 0 || 1));
+  const inputAmount = Math.max(1, Math.ceil(Math.max(1, output?.priceCredits | 0 || 1) * 0.82 / demandUnitPrice));
+  return {
+    id: `${inputKey}:${outputKey}`,
+    inputResourceKey: inputKey,
+    inputAmount,
+    outputResourceKey: outputKey,
+    outputAmount,
+    stock: Math.max(0, output?.stock ?? output?.amount ?? 0)
+  };
+}
+
+export function createStationBarterOffers(station) {
+  return (station?.stock?.resourceSupply || [])
+    .map((entry) => getStationBarterForResource(station, entry?.resourceKey))
+    .filter(Boolean);
+}

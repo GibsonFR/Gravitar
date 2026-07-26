@@ -313,7 +313,7 @@ function fireRocket(state, p, worldX, worldY, timeMs) {
       {
         onHitStatuses: statusSpecs.onHitStatuses,
         onSplashStatuses: statusSpecs.onSplashStatuses,
-        visualKind: 'rocket',
+        visualKind: ammo.raidKind ? `rocket_${ammo.raidKind}` : 'rocket',
         visualAmmoId: ammoDef.id,
         visualAmmoEffect: ammo.effectType || 'explosive',
         intendedTargetKind: p.selectedKind || p.autoTargetKind || '',

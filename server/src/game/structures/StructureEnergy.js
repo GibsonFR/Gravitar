@@ -51,7 +51,10 @@ function sameBaseWorld(a, b) {
   return String(a?.worldId || 'endless') === String(b?.worldId || 'endless')
     && (a?.sx | 0) === (b?.sx | 0)
     && (a?.sy | 0) === (b?.sy | 0)
-    && String(a?.ownerKey || '').toLowerCase() === String(b?.ownerKey || '').toLowerCase();
+    && (
+      String(a?.ownerKey || '').toLowerCase() === String(b?.ownerKey || '').toLowerCase()
+      || (!!a?.clanId && !!b?.clanId && a.clanId === b.clanId && (a.clanShared || b.clanShared))
+    );
 }
 
 function structuresInCore(state, core) {
@@ -114,7 +117,7 @@ export function updateBaseEnergy(state, dt, timeMs = Date.now()) {
   for (const core of state.structures.values()) {
     if (!isCoreType(core.type) || !isStructureAliveLocal(core)) continue;
     const children = structuresInCore(state, core);
-    let production = 0;
+    let production = Math.max(0, Number(core.energyOutput || 0));
     let consumption = 0;
     let fuelSeconds = 0;
     let solarCount = 0;
@@ -122,6 +125,11 @@ export function updateBaseEnergy(state, dt, timeMs = Date.now()) {
 
     for (const st of children) {
       st.baseCoreId = core.id | 0;
+      if (timeMs < Number(st.structureEmpUntil || 0)) {
+        st.powered = false;
+        st.energyState = { ...(st.energyState || {}), active: false, emp: true };
+        continue;
+      }
       const def = getStructureDef(st.type);
       const use = Math.max(0, Number(def?.machineType ? getMachineActiveEnergyUse(st) : (def?.rocketWorkshop ? getRocketWorkshopActiveEnergyUse(st) : (def?.researchStation ? getResearchActiveEnergyUse(st) : (def?.energyUse ?? st.energyUse)))) || 0);
       if (use > 0) consumption += use;
@@ -144,6 +152,10 @@ export function updateBaseEnergy(state, dt, timeMs = Date.now()) {
     const powered = consumption <= 0 || production >= consumption;
     for (const st of children) {
       const def = getStructureDef(st.type);
+      if (timeMs < Number(st.structureEmpUntil || 0)) {
+        st.powered = false;
+        continue;
+      }
       const activeUse = Math.max(0, Number(def?.machineType ? getMachineActiveEnergyUse(st) : (def?.rocketWorkshop ? getRocketWorkshopActiveEnergyUse(st) : (def?.researchStation ? getResearchActiveEnergyUse(st) : (def?.energyUse ?? st.energyUse)))) || 0);
       if (def?.machineType || def?.rocketWorkshop) {
         st.powered = production > 0 && (activeUse <= 0 || powered);

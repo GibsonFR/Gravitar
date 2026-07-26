@@ -2,7 +2,7 @@ import { getStructureDef } from './StructureDefs.js';
 import { isStructureOwner, distanceSqToStructureRect, findAliveCoreForStructure } from './StructureSystem.js';
 import { addResource, removeResource, canAddResource } from '../inventory/InventorySystem.js';
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
-import { getMachineRecipe, getRecipesForMachine } from '../../../../shared/content/crafting/MachineRecipes.js';
+import { getMachineRecipe, getRecipesForMachine, isRecipeAllowedForLabSpecialization } from '../../../../shared/content/crafting/MachineRecipes.js';
 import { getRecipeResearchRequirement, getResearchName, isRecipeUnlockedByResearch } from '../../../../shared/content/research/ScienceResearchDefs.js';
 import { isMachineJobActive } from './StructureMachineRuntime.js';
 import { hasUnlockedConversionRecipe } from '../player/runtime/PlayerPirateState.js';
@@ -211,7 +211,8 @@ export function buildMachineSnapshot(state, player) {
   const def = getStructureDef(st.type);
   const core = findAliveCoreForStructure(state, st);
   if (isExtractorStructure(st)) return buildExtractorSnapshot(state, player, st, def, core);
-  const allRecipes = getRecipesForMachine(def.machineType);
+  const allRecipes = getRecipesForMachine(def.machineType)
+    .filter((recipe) => isRecipeAllowedForLabSpecialization(recipe, def.labSpecialization));
   const recipes = allRecipes.map((recipe) => {
     const lock = recipeLockSnapshot(recipe, player);
     return {
@@ -281,7 +282,7 @@ export function selectMachineRecipe(state, player, structureId, recipeId, timeMs
   if (isMachineJobActive(st)) return { ok: false, error: 'machine_busy' };
   const def = getStructureDef(st.type);
   const recipe = getMachineRecipe(recipeId);
-  if (!recipe || recipe.machineType !== def.machineType) return { ok: false, error: 'bad_recipe' };
+  if (!recipe || recipe.machineType !== def.machineType || !isRecipeAllowedForLabSpecialization(recipe, def.labSpecialization)) return { ok: false, error: 'bad_recipe' };
   if (!recipeUnlockedForPlayer(recipe, player)) return { ok: false, error: 'research_required' };
   st.machineRecipeId = recipe.id;
   st.updatedAt = timeMs;
@@ -339,7 +340,7 @@ export function processMachineRecipe(state, player, structureId, recipeId = '', 
   if (!canPlayerAccessMachine(state, player, st)) return { ok: false, error: 'machine_locked' };
   const def = getStructureDef(st.type);
   const recipe = getMachineRecipe(recipeId || st.machineRecipeId || '');
-  if (!recipe || recipe.machineType !== def.machineType) return { ok: false, error: 'bad_recipe' };
+  if (!recipe || recipe.machineType !== def.machineType || !isRecipeAllowedForLabSpecialization(recipe, def.labSpecialization)) return { ok: false, error: 'bad_recipe' };
   if (!recipeUnlockedForPlayer(recipe, player)) return { ok: false, error: 'research_required' };
   st.machineRecipeId = recipe.id;
   st.machineEnabled = true;

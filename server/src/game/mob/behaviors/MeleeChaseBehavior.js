@@ -36,8 +36,8 @@ function tryMeleeAttack(state, mob, target, timeMs) {
 
   const cd = Math.max(mob.demoMob ? 2200 : 1800, Math.round((mob.attackCooldownMs | 0) * (mob.demoMob ? 2.4 : 1.65)));
   mob.nextAttackAt = timeMs + cd;
-  applyDamage(state, target, Math.max(1, mob.attackDamage * 0.72), null, { timeMs, visualKind: mob.abilityProfile ? `mob_${mob.abilityProfile}` : 'mob_melee' });
-  applyStatusSpecs(state, mob, target, getMobOnHitStatuses(mob));
+  applyDamage(state, target, Math.max(1, mob.attackDamage * 0.72), mob, { timeMs, visualKind: mob.abilityProfile ? `mob_${mob.abilityProfile}` : 'mob_melee', structureDamageMult: 0.6 });
+  if (target.kind !== 'structure') applyStatusSpecs(state, mob, target, getMobOnHitStatuses(mob));
   queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, mob.sx, mob.sy, mob.x, mob.y, mob.id | 0, {
     sourceKind: 'mob',
     mobProfile: mob.abilityProfile || 'default',
@@ -69,6 +69,6 @@ export function updateMeleeChaseMob(state, mob, target, dt, timeMs) {
     moveMobToward(mob, target.x, target.y, dt, Math.max(0, mob.attackRange - 6));
   }
   clampMobToDemoCage(mob);
-  if (tryMobSpecial(state, mob, target, timeMs)) return;
+  if (target.kind !== 'structure' && tryMobSpecial(state, mob, target, timeMs)) return;
   tryMeleeAttack(state, mob, target, timeMs);
 }

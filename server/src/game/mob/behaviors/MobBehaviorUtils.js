@@ -51,6 +51,17 @@ export function acquireTargetPlayer(state, mob) {
 
 export function getMobTarget(state, mob) {
   if (mob.demoMob) return getDemoTarget(state, mob);
+  if (mob.baseRaidTargetId) {
+    const structure = state.structures?.get?.(mob.baseRaidTargetId | 0) || null;
+    if (structure?.stats?.hp > 0
+      && (structure.sx | 0) === (mob.sx | 0)
+      && (structure.sy | 0) === (mob.sy | 0)
+      && String(structure.worldId || 'endless') === String(mob.worldId || 'endless')) {
+      mob.targetKind = 'structure';
+      return structure;
+    }
+    mob.baseRaidTargetId = 0;
+  }
   if (!mob.targetPlayerId) return null;
   const player = state.players.get(mob.targetPlayerId) ?? null;
   if (!player) return null;

@@ -6,6 +6,7 @@ import { handleSetFrame } from './SetFrameCommand.js';
 import { handleUpgradeAbility } from './UpgradeAbilityCommand.js';
 import { handleBuyItem } from './BuyItemCommand.js';
 import { handleBuyStationResource } from './BuyStationResourceCommand.js';
+import { handleBarterStationResource } from './BarterStationResourceCommand.js';
 import { handleBuyConversionRecipe } from './BuyConversionRecipeCommand.js';
 import { handleAcceptPirateQuest } from './AcceptPirateQuestCommand.js';
 import { handleCompletePirateQuest } from './CompletePirateQuestCommand.js';
@@ -70,6 +71,17 @@ import { handleLogisticChestOpen } from './LogisticChestOpenCommand.js';
 import { handleLogisticChestClose } from './LogisticChestCloseCommand.js';
 import { handleLogisticChestSetRequest } from './LogisticChestSetRequestCommand.js';
 import { handleLogisticChestTransfer } from './LogisticChestTransferCommand.js';
+import { handleAutomationOpen } from './AutomationOpenCommand.js';
+import { handleAutomationClose } from './AutomationCloseCommand.js';
+import { handleAutomationConfigure } from './AutomationConfigureCommand.js';
+import { handleCoreOpen } from './CoreOpenCommand.js';
+import { handleCoreClose } from './CoreCloseCommand.js';
+import { handleCoreUpgrade } from './CoreUpgradeCommand.js';
+import { handleClanCreate } from './ClanCreateCommand.js';
+import { handleClanJoin } from './ClanJoinCommand.js';
+import { handleClanLeave } from './ClanLeaveCommand.js';
+import { handleClanClaimCore } from './ClanClaimCoreCommand.js';
+import { handleTestClear, handleTestGive, handleTestReset, handleTestSpawnDummy, handleTestSpawnMob } from './TestToolsCommand.js';
 import { canAcceptCommand, sanitizeCommandMessage } from '../../net/protocol/CommandMessage.js';
 
 const HANDLERS = {
@@ -81,6 +93,7 @@ const HANDLERS = {
   upgrade_ability: handleUpgradeAbility,
   buy_item: handleBuyItem,
   buy_station_resource: handleBuyStationResource,
+  barter_station_resource: handleBarterStationResource,
   buy_conversion_recipe: handleBuyConversionRecipe,
   accept_pirate_quest: handleAcceptPirateQuest,
   complete_pirate_quest: handleCompletePirateQuest,
@@ -126,6 +139,21 @@ const HANDLERS = {
   logistic_chest_close: handleLogisticChestClose,
   logistic_chest_set_request: handleLogisticChestSetRequest,
   logistic_chest_transfer: handleLogisticChestTransfer,
+  automation_open: handleAutomationOpen,
+  automation_close: handleAutomationClose,
+  automation_configure: handleAutomationConfigure,
+  core_open: handleCoreOpen,
+  core_close: handleCoreClose,
+  core_upgrade: handleCoreUpgrade,
+  clan_create: handleClanCreate,
+  clan_join: handleClanJoin,
+  clan_leave: handleClanLeave,
+  clan_claim_core: handleClanClaimCore,
+  test_give: handleTestGive,
+  test_spawn_mob: handleTestSpawnMob,
+  test_spawn_dummy: handleTestSpawnDummy,
+  test_clear: handleTestClear,
+  test_reset: handleTestReset,
   research_station_open: handleResearchStationOpen,
   research_station_close: handleResearchStationClose,
   research_station_transfer: handleResearchStationTransfer,

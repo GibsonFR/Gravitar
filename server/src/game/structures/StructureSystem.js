@@ -5,6 +5,7 @@ import { updateStructureAutomation } from './StructureAutomation.js';
 import { updateRocketWorkshops } from './StructureRocketWorkshop.js';
 import { updateLogisticDroneStations } from './StructureLogistics.js';
 import { updateDefenseTurrets } from './StructureTurrets.js';
+import { getCoreTierDef } from './StructureCoreProgression.js';
 
 const CORE_REGEN_HP_PER_SEC = 8;
 const CORE_REGEN_SAVE_INTERVAL_MS = 5000;
@@ -98,7 +99,9 @@ export function findAliveCoreForStructure(state, structure) {
     if (!isStructureAlive(core)) continue;
     if (!sameStructureWorld(core, structure)) continue;
     if ((core.sx | 0) !== (structure.sx | 0) || (core.sy | 0) !== (structure.sy | 0)) continue;
-    if (String(core.ownerKey || '').toLowerCase() !== String(structure.ownerKey || '').toLowerCase()) continue;
+    const sameOwner = String(core.ownerKey || '').toLowerCase() === String(structure.ownerKey || '').toLowerCase();
+    const sameClan = !!core.clanShared && !!core.clanId && core.clanId === structure.clanId;
+    if (!sameOwner && !sameClan) continue;
     if (rectInside(rect, getStructureClaimRect(core))) return core;
   }
   return null;
@@ -116,6 +119,11 @@ export function canPlayerDamageStructure(state, player, structure) {
   if (!samePlayerWorld(player, structure)) return false;
   if ((player.sx | 0) !== (structure.sx | 0) || (player.sy | 0) !== (structure.sy | 0)) return false;
   if (isStructureOwner(player, structure)) return false;
+  if (structure.clanShared && structure.clanId) {
+    const key = getPlayerOwnerKey(player);
+    const clan = state?.clans?.get?.(structure.clanId);
+    if (key && clan?.members?.includes?.(key)) return false;
+  }
   if (structure.type === STRUCTURE_TYPES.WALL || structure.type === STRUCTURE_TYPES.DOOR) return true;
   if (isCoreType(structure.type)) return true;
   return !isStructureProtectedByCore(state, structure);
@@ -136,27 +144,30 @@ export function destroyStructure(state, structure, timeMs = Date.now()) {
   if (!state?.structures || !structure) return false;
   state.structures.delete(structure.id);
   structure.destroyedAt = timeMs;
-  if (String(structure.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+  if (!structure.transient && String(structure.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
   return true;
 }
 
 export function updateStructures(state, dt, timeMs = Date.now()) {
   if (!state?.structures) return;
   let shouldSave = false;
-  const regen = Math.max(0, Number(dt) || 0) * CORE_REGEN_HP_PER_SEC;
+  const regenDt = Math.max(0, Number(dt) || 0);
   updateBaseEnergy(state, dt, timeMs);
   updateMachineProcesses(state, dt, timeMs);
   updateRocketWorkshops(state, dt, timeMs);
   updateLogisticDroneStations(state, dt, timeMs);
   updateStructureAutomation(state, dt, timeMs);
   updateDefenseTurrets(state, dt, timeMs);
-  if (regen <= 0) return;
+  if (regenDt <= 0) return;
   for (const st of state.structures.values()) {
     if (!isCoreType(st.type)) continue;
     if (!isStructureAlive(st)) continue;
     const hp = Number(st.stats?.hp) || 0;
     const maxHp = Number(st.stats?.maxHp) || 0;
     if (maxHp <= 0 || hp >= maxHp) continue;
+    const regen = isCoreType(st.type) && st.type === STRUCTURE_TYPES.BASE_CORE
+      ? getCoreTierDef(st.coreTier).regen * regenDt
+      : CORE_REGEN_HP_PER_SEC * regenDt;
     st.stats.hp = Math.min(maxHp, hp + regen);
     st.updatedAt = timeMs;
     if (String(st.worldId || 'endless') === 'endless' && timeMs - (st.lastRegenSaveAt || 0) > CORE_REGEN_SAVE_INTERVAL_MS) {

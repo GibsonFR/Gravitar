@@ -3,8 +3,12 @@ import path from 'path';
 import crypto from 'crypto';
 import { serializePlayerMapState, hydratePlayerMapState } from '../map/PlayerMapState.js';
 import { createPlayerPirateState, ensurePlayerPirateState } from '../player/runtime/PlayerPirateState.js';
+import { CURRENT_SAVE_SCHEMA_VERSION, migrateSaveProfile } from '../persistence/SaveMigrations.js';
+import { accountProfileKeyForMode, shouldPersistProfileMode } from '../persistence/PersistenceModes.js';
 
-const ACCOUNT_STORE_VERSION = 2;
+export { accountProfileKeyForMode, shouldPersistProfileMode } from '../persistence/PersistenceModes.js';
+
+const ACCOUNT_STORE_VERSION = 3;
 const BACKUP_INTERVAL_MS = 10 * 60 * 1000;
 const MAX_BACKUPS = 24;
 
@@ -120,6 +124,7 @@ function normalizeMapState(map) {
 
 function normalizeSaveProfile(profile) {
   if (!profile || typeof profile !== 'object') return null;
+  migrateSaveProfile(profile);
   profile.pseudo = normalizeAccountName(profile.pseudo || 'Pilote') || 'Pilote';
   profile.frameId = String(profile.frameId || 'vanguard');
   profile.progression = normalizeProgression(profile.progression);
@@ -136,7 +141,7 @@ function normalizeSaveProfile(profile) {
   profile.y = pos.y;
   if (!Array.isArray(profile.completedBastionIds)) profile.completedBastionIds = [];
   profile.completedBastionIds = profile.completedBastionIds.map((v) => v | 0).filter((v, i, a) => Number.isFinite(v) && a.indexOf(v) === i);
-  profile.schemaVersion = Math.max(1, profile.schemaVersion | 0 || 1);
+  profile.schemaVersion = CURRENT_SAVE_SCHEMA_VERSION;
   profile.savedAt = Number(profile.savedAt || Date.now());
   return profile;
 }
@@ -246,13 +251,6 @@ export function getAccountStoreInfo() {
   };
 }
 
-export function accountProfileKeyForMode(mode) {
-  const m = String(mode || '').toLowerCase();
-  if (m === 'battle' || m === 'battle_next' || m === 'battle_current' || m === 'battle_server') return 'battle';
-  if (m.startsWith('test') || m.includes('test')) return 'test';
-  return 'endless';
-}
-
 function publicAuth(account, extra = {}) {
   const profiles = normalizeProfiles(account);
   return {
@@ -274,10 +272,6 @@ export function getAccountProfileSave(auth, mode) {
   if (profiles[key]) return profiles[key];
   if (key === 'endless') return auth.endless || null;
   return null;
-}
-
-export function shouldPersistProfileMode(mode) {
-  return accountProfileKeyForMode(mode) === 'endless';
 }
 
 export function createAccountStore() {
@@ -328,7 +322,7 @@ export function createAccountStore() {
       const profileKey = accountProfileKeyForMode(mode);
       if (!shouldPersistProfileMode(profileKey)) return;
       const profiles = normalizeProfiles(account);
-      const normalized = normalizeSaveProfile({ ...(snapshot || {}), savedAt: Date.now(), schemaVersion: 1 });
+      const normalized = normalizeSaveProfile({ ...(snapshot || {}), savedAt: Date.now(), schemaVersion: CURRENT_SAVE_SCHEMA_VERSION });
       if (!normalized) return;
       profiles[profileKey] = normalized;
       if (profileKey === 'endless') account.endless = normalized;
@@ -368,7 +362,7 @@ export function buildEndlessSave(player) {
     x: Number.isFinite(Number(player.x)) ? Number(player.x) : 0,
     y: Number.isFinite(Number(player.y)) ? Number(player.y) : 0,
     savedAt: Date.now(),
-    schemaVersion: 1
+    schemaVersion: CURRENT_SAVE_SCHEMA_VERSION
   };
 }
 

@@ -6,6 +6,8 @@ import { getBastionUnlockText, isBastionUnlockedForPlayer } from '../bastion/Bas
 import { buildLogisticMapSnapshot } from '../structures/StructureLogistics.js';
 import { STRUCTURE_TYPES } from '../structures/StructureDefs.js';
 import { isStructureAlive, isStructureOwner } from '../structures/StructureSystem.js';
+import { buildWorldEventMapSnapshot } from '../structures/BaseThreatSystem.js';
+import { buildTerritoryMapSnapshot } from '../clans/ClanSystem.js';
 
 export function createPlayerMapState() {
   return {
@@ -64,6 +66,7 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
   }
 
   const homeBase = buildLocalBaseMapSnapshot(player, state);
+  const detection = buildDetectionSnapshot(player, state);
 
   const bastions = (state?.bastions || []).map((b) => buildMapBastion(b, player, timeMs, state));
 
@@ -91,8 +94,50 @@ export function buildPlayerMapSnapshot(player, state = null, timeMs = 0) {
     bastions,
     players,
     homeBase,
+    deposits: detection.deposits,
+    radarActive: detection.radarActive,
+    scannerActive: detection.scannerActive,
+    worldEvents: buildWorldEventMapSnapshot(state, player),
+    territories: buildTerritoryMapSnapshot(state, player),
     logistics: buildLogisticMapSnapshot(state, player, timeMs)
   };
+}
+
+function buildDetectionSnapshot(player, state) {
+  if (!player || !state?.structures?.values) return { deposits: [], radarActive: false, scannerActive: false };
+  const owned = [...state.structures.values()].filter((structure) =>
+    isStructureAlive(structure)
+      && isStructureOwner(player, structure)
+      && String(structure.worldId || 'endless') === String(player.worldId || 'endless')
+  );
+  const scanners = owned.filter((structure) => structure.type === STRUCTURE_TYPES.RESOURCE_SCANNER && ((structure.energyUse || 0) <= 0 || structure.powered));
+  const radars = owned.filter((structure) => structure.type === STRUCTURE_TYPES.BASE_RADAR && ((structure.energyUse || 0) <= 0 || structure.powered));
+  const deposits = [];
+  for (const deposit of state.structures.values()) {
+    if (deposit.type !== STRUCTURE_TYPES.RESOURCE_DEPOSIT) continue;
+    if (String(deposit.worldId || 'endless') !== String(player.worldId || 'endless')) continue;
+    const detected = scanners.some((scanner) => {
+      const radius = Math.max(0, getScannerRadius(scanner));
+      return Math.max(Math.abs((deposit.sx | 0) - (scanner.sx | 0)), Math.abs((deposit.sy | 0) - (scanner.sy | 0))) <= radius;
+    });
+    if (!detected) continue;
+    deposits.push({
+      id: deposit.id | 0,
+      sx: deposit.sx | 0,
+      sy: deposit.sy | 0,
+      x: Math.round(Number(deposit.x || 0)),
+      y: Math.round(Number(deposit.y || 0)),
+      resourceKey: deposit.depositResourceKey || '',
+      name: deposit.depositLabel || deposit.name || 'Gisement',
+      colorHex: deposit.depositColorHex || deposit.borderColor || '#9ef0c7',
+      quality: Math.round(Math.max(0.5, Math.min(2, Number(deposit.depositQuality || 1))) * 100) / 100
+    });
+  }
+  return { deposits, radarActive: radars.length > 0, scannerActive: scanners.length > 0 };
+}
+
+function getScannerRadius(scanner) {
+  return scanner?.scannerRadiusSectors || 1;
 }
 
 

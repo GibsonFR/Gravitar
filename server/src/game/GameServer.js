@@ -37,6 +37,7 @@ import { ensureSectorLoaded } from './sector/SectorEnsure.js';
 import { visitSectorOnPlayer } from './map/PlayerMapState.js';
 import { GAME_MODES, clearPlayerBattleResidue, updateModeSessions } from './modes/GameModes.js';
 import { buildEndlessSave } from './accounts/AccountStore.js';
+import { updateBaseThreats } from './structures/BaseThreatSystem.js';
 
 const ACCOUNT_AUTOSAVE_INTERVAL_MS = Number(process.env.GRAVITAR_AUTOSAVE_MS || 30000);
 const NET_V2_RESET_ENABLED = process.env.GRAVITAR_NET_V2_RESET !== '0';
@@ -217,6 +218,7 @@ export function createGameServer() {
     updateAsteroids(state, dt, timeMs);
     updateStations(state, dt, timeMs);
     updateStructures(state, dt, timeMs);
+    updateBaseThreats(state, dt, timeMs);
     updateResearchStations(state, timeMs, Math.round(dt * 1000));
     updateEquipmentRDStations(state, timeMs, Math.round(dt * 1000));
     updateTestEffectZones(state, dt, timeMs);

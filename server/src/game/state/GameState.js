@@ -6,6 +6,7 @@ import { createModeState } from '../modes/GameModes.js';
 import { createAccountStore } from '../accounts/AccountStore.js';
 import { createStructureStore } from '../structures/StructureStore.js';
 import { createAsteroidRespawnStore } from '../asteroid/AsteroidRespawnStore.js';
+import { createClanStore } from '../clans/ClanStore.js';
 
 export function createGameState() {
   return {
@@ -24,6 +25,8 @@ export function createGameState() {
     loots: new Map(),
     stations: new Map(),
     structures: new Map(),
+    baseThreats: new Map(),
+    clans: new Map(),
     projectiles: new Map(),
     areaEffects: new Map(),
     testEffectZones: new Map(),
@@ -41,7 +44,8 @@ export function createGameState() {
     modes: createModeState(),
     accounts: createAccountStore(),
     structureStore: createStructureStore(),
-    asteroidRespawnStore: createAsteroidRespawnStore()
+    asteroidRespawnStore: createAsteroidRespawnStore(),
+    clanStore: createClanStore()
   };
 }
 

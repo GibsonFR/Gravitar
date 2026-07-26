@@ -31,6 +31,7 @@ import { triggerEquipmentHitProcs, triggerEquipmentTakeHitProcs } from '../equip
 import { canPlayerDamageStructure, destroyStructure, isStructureProtectedByCore } from '../structures/StructureSystem.js';
 import { markAsteroidDestroyedForRespawn } from '../asteroid/AsteroidRespawnState.js';
 import { queueAsteroidDamageEvent, queueAsteroidDestroyedEvent } from '../events/WorldEntityEvents.js';
+import { STRUCTURE_TYPES, getStructureDef } from '../structures/StructureDefs.js';
 
 
 function triggerItemProcsAfterDamage(state, target, sourcePlayer, finalAmount, shielded, options, timeMs) {
@@ -333,6 +334,48 @@ function grantLifesteal(sourcePlayer, dealtAmount) {
   }
 }
 
+function isMobRaidDamageAllowed(source, target) {
+  if (source?.kind !== 'mob' || target?.kind !== 'structure') return false;
+  if (!source.baseRaidCoreId) return false;
+  if (String(source.worldId || 'endless') !== String(target.worldId || 'endless')) return false;
+  if ((source.sx | 0) !== (target.sx | 0) || (source.sy | 0) !== (target.sy | 0)) return false;
+  return (source.baseRaidTargetId | 0) === (target.id | 0)
+    && [STRUCTURE_TYPES.BASE_CORE, STRUCTURE_TYPES.OUTPOST_CORE, STRUCTURE_TYPES.WALL, STRUCTURE_TYPES.DOOR].includes(target.type);
+}
+
+function ownerOnline(state, target) {
+  const owner = String(target?.ownerKey || '').toLowerCase();
+  if (!owner) return false;
+  const clan = target?.clanShared && target?.clanId ? state?.clans?.get?.(target.clanId) : null;
+  return [...(state?.players?.values?.() || [])].some((player) =>
+    (
+      String(player.accountKey || player.accountName || player.pseudo || '').toLowerCase() === owner
+      || clan?.members?.includes?.(String(player.accountKey || '').toLowerCase())
+    )
+      && String(player.worldId || 'endless') === String(target.worldId || 'endless')
+      && !player.sessionSetupPending
+  );
+}
+
+function baseShieldMultiplier(state, target) {
+  const owner = String(target?.ownerKey || '').toLowerCase();
+  if (!owner) return 1;
+  for (const shield of state?.structures?.values?.() || []) {
+    if (shield.type !== STRUCTURE_TYPES.BASE_SHIELD || shield.stats?.hp <= 0 || !shield.powered) continue;
+    const sameOwner = String(shield.ownerKey || '').toLowerCase() === owner;
+    const sameClan = !!shield.clanShared && !!target.clanShared && !!shield.clanId && shield.clanId === target.clanId;
+    if (!sameOwner && !sameClan) continue;
+    if (String(shield.worldId || 'endless') !== String(target.worldId || 'endless')) continue;
+    if ((shield.sx | 0) !== (target.sx | 0) || (shield.sy | 0) !== (target.sy | 0)) continue;
+    const def = getStructureDef(shield.type) || {};
+    const range = Math.max(0, Number(def.shieldRange || 0));
+    if (Math.hypot((shield.x || 0) - (target.x || 0), (shield.y || 0) - (target.y || 0)) <= range) {
+      return 1 - Math.max(0, Math.min(0.55, Number(def.shieldReduction || 0.28)));
+    }
+  }
+  return 1;
+}
+
 export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
   if (!target || amount <= 0) return;
   const timeMs = getSimulationTimeMs(state, options.timeMs);
@@ -410,11 +453,24 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     if (options.visualKind === 'auto') return;
     if (target.damageable === false || (target.stats?.maxHp ?? 0) <= 0) return;
     if ((target.stats?.hp ?? 0) <= 0) return;
-    if (sourcePlayer?.kind !== 'player' || !canPlayerDamageStructure(state, sourcePlayer, target)) {
+    const playerRaidAllowed = sourcePlayer?.kind === 'player' && canPlayerDamageStructure(state, sourcePlayer, target);
+    const mobRaidAllowed = isMobRaidDamageAllowed(sourcePlayer, target);
+    if (!playerRaidAllowed && !mobRaidAllowed) {
       if (sourcePlayer?.kind === 'player' && isStructureProtectedByCore(state, target)) setHint(sourcePlayer, 'Détruis le noyau de base avant de piller cette structure', 1.8);
       return;
     }
-    const structureDamage = finalAmount * Math.max(0.15, options.structureDamageMult ?? 0.55);
+    const visualKind = String(options.visualKind || '').toLowerCase();
+    let toolMultiplier = 1;
+    if (visualKind.includes('breach')) toolMultiplier = 1.65;
+    else if (visualKind.includes('siege') || visualKind.includes('drill')) toolMultiplier = 1.9;
+    else if (visualKind.includes('emp')) {
+      toolMultiplier = 0.65;
+      target.structureEmpUntil = Math.max(Number(target.structureEmpUntil || 0), timeMs + 9000);
+      target.powered = false;
+    }
+    const offlineMultiplier = playerRaidAllowed && !ownerOnline(state, target) ? 0.35 : 1;
+    const shieldMultiplier = baseShieldMultiplier(state, target);
+    const structureDamage = finalAmount * Math.max(0.15, options.structureDamageMult ?? 0.55) * toolMultiplier * offlineMultiplier * shieldMultiplier;
     queueDamageNumber(state, target, structureDamage, {
       shielded: false,
       crit: !!options.crit,
@@ -427,7 +483,7 @@ export function applyDamage(state, target, amount, sourcePlayer, options = {}) {
     target.updatedAt = timeMs;
     target.lastDamagedAt = timeMs;
     queueStructureState(state, target, 'damage');
-    if (String(target.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
+    if (!target.transient && String(target.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
     if (!died) return;
     const wasCore = target.type === 'base_core';
     queueStructureState(state, target, 'destroyed');

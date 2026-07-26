@@ -9,6 +9,8 @@ import { isSafeNoPvpSector } from '../sector/SpecialSectors.js';
 import { TURRET_MODES, normalizeTurretMode, isTurretModeEnabled } from './StructureTurretModes.js';
 import { queueWorldSfx } from '../audio/WorldSfxState.js';
 import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
+import { applyDamage } from '../combat/DamageSystem.js';
+import { destroyStructure } from './StructureSystem.js';
 
 const DEFAULT_RANGE = 820;
 const DEFAULT_COOLDOWN_MS = 2400;
@@ -27,7 +29,11 @@ function ownerKeyOf(entity) {
 }
 
 function isTurret(structure) {
-  return structure?.type === STRUCTURE_TYPES.DEFENSE_TURRET;
+  return !!getStructureDef(structure?.type)?.turret;
+}
+
+function turretNeedsAmmo(turret) {
+  return String(getStructureDef(turret?.type)?.turretWeapon || 'missile') === 'missile';
 }
 
 function getAmmoStorage(turret) {
@@ -42,7 +48,8 @@ function chooseAmmo(turret) {
   for (const [itemId, amount] of Object.entries(ammo)) {
     const qty = Math.max(0, amount | 0);
     if (qty <= 0) continue;
-    const def = getItemDef(String(itemId || '').toLowerCase());
+    const id = String(itemId || '').toLowerCase();
+    const def = turret.storage?.customItemDefs?.[id] || getItemDef(id);
     if (!def || def.categoryId !== ITEM_CATEGORY_IDS.AMMO || !def.ammoProfile) continue;
     return { itemId: def.id, def, amount: qty };
   }
@@ -75,15 +82,19 @@ function isTargetInsideOwnedClaim(state, turret, player) {
   return false;
 }
 
-function validTargetForTurret(state, turret, player, rangeSq, mode = TURRET_MODES.AUTO) {
-  if (!player || (player.stats?.hp ?? 0) <= 0) return false;
-  if (!sameWorld(turret, player)) return false;
-  if ((player.sx | 0) !== (turret.sx | 0) || (player.sy | 0) !== (turret.sy | 0)) return false;
-  if (isSafeNoPvpSector(player.sx | 0, player.sy | 0)) return false;
+function validTargetForTurret(state, turret, target, rangeSq, mode = TURRET_MODES.AUTO) {
+  if (!target || (target.stats?.hp ?? 0) <= 0) return false;
+  if (!sameWorld(turret, target)) return false;
+  if ((target.sx | 0) !== (turret.sx | 0) || (target.sy | 0) !== (turret.sy | 0)) return false;
+  if (target.kind === 'player' && isSafeNoPvpSector(target.sx | 0, target.sy | 0)) return false;
   const turretOwner = ownerKeyOf(turret);
-  if (turretOwner && ownerKeyOf(player) === turretOwner) return false;
-  if (distSq(turret.x || 0, turret.y || 0, player.x || 0, player.y || 0) > rangeSq) return false;
-  if (mode === TURRET_MODES.INTRUSION && !isTargetInsideOwnedClaim(state, turret, player)) return false;
+  if (turretOwner && ownerKeyOf(target) === turretOwner) return false;
+  if (target.kind === 'player' && turret.clanShared && turret.clanId) {
+    const clan = state?.clans?.get?.(turret.clanId);
+    if (clan?.members?.includes?.(ownerKeyOf(target))) return false;
+  }
+  if (distSq(turret.x || 0, turret.y || 0, target.x || 0, target.y || 0) > rangeSq) return false;
+  if (target.kind === 'player' && mode === TURRET_MODES.INTRUSION && !isTargetInsideOwnedClaim(state, turret, target)) return false;
   return true;
 }
 
@@ -95,6 +106,11 @@ function findTurretTarget(state, turret, range, mode = TURRET_MODES.AUTO) {
     if (!validTargetForTurret(state, turret, player, rangeSq, mode)) continue;
     const d2 = distSq(turret.x || 0, turret.y || 0, player.x || 0, player.y || 0);
     if (d2 < bestD2) { best = player; bestD2 = d2; }
+  }
+  for (const mob of state.mobs?.values?.() || []) {
+    if (!validTargetForTurret(state, turret, mob, rangeSq, mode)) continue;
+    const d2 = distSq(turret.x || 0, turret.y || 0, mob.x || 0, mob.y || 0);
+    if (d2 < bestD2) { best = mob; bestD2 = d2; }
   }
   return best;
 }
@@ -109,8 +125,8 @@ function setTurretStatus(turret, status, timeMs) {
 function fireTurretAt(state, turret, target, ammoDef, timeMs) {
   const def = getStructureDef(turret.type) || {};
   const profile = ammoDef?.ammoProfile || {};
-  const damage = Math.max(1, Number(profile.damage ?? DEFAULT_DAMAGE) || DEFAULT_DAMAGE);
-  const splash = Math.max(8, Number(profile.splashRadius ?? DEFAULT_SPLASH) || DEFAULT_SPLASH);
+  const damage = Math.max(1, Number(profile.damage ?? def.turretDamage ?? DEFAULT_DAMAGE) || DEFAULT_DAMAGE);
+  const splash = Math.max(0, Number(profile.splashRadius ?? def.turretSplash ?? DEFAULT_SPLASH) || 0);
   const speed = Math.max(120, Number(def.turretProjectileSpeed || DEFAULT_SPEED) || DEFAULT_SPEED);
   const tint = profile.tint || def.borderColor || DEFAULT_TINT;
   const statusSpecs = buildRocketAmmoStatusSpecs(ammoDef);
@@ -138,18 +154,73 @@ function fireTurretAt(state, turret, target, ammoDef, timeMs) {
       sourceOwnerKey: ownerKeyOf(turret),
       onHitStatuses: statusSpecs.onHitStatuses,
       onSplashStatuses: statusSpecs.onSplashStatuses,
-      visualKind: 'rocket',
-      visualAmmoId: ammoDef.id,
-      visualAmmoEffect: profile.effectType || 'explosive'
+      visualKind: profile.raidKind ? `${def.turretVisual || 'rocket'}_${profile.raidKind}` : (def.turretVisual || 'rocket'),
+      visualAmmoId: ammoDef?.id || '',
+      visualAmmoEffect: profile.effectType || def.turretWeapon || '',
+      intendedTargetKind: target.kind || '',
+      intendedTargetId: target.id | 0,
+      lockTarget: true
     }
   );
-  queueWorldSfx(state, SFX_EVENT_TYPES.ROCKET, turret.sx | 0, turret.sy | 0, turret.x || 0, turret.y || 0, 1);
+  queueWorldSfx(state, def.turretVisual === 'rocket' ? SFX_EVENT_TYPES.ROCKET : SFX_EVENT_TYPES.AUTO_ATTACK, turret.sx | 0, turret.sy | 0, turret.x || 0, turret.y || 0, 1);
+}
+
+function updateAntiMissile(state, structure, timeMs) {
+  const def = getStructureDef(structure.type) || {};
+  if (!structure.powered || timeMs < Number(structure.turretCooldownUntil || 0)) return false;
+  const rangeSq = Math.max(100, Number(def.turretRange || 680)) ** 2;
+  for (const projectile of state.projectiles?.values?.() || []) {
+    if (projectile.sourceKind !== 'player' && projectile.sourceKind !== 'mob') continue;
+    if ((projectile.sx | 0) !== (structure.sx | 0) || (projectile.sy | 0) !== (structure.sy | 0)) continue;
+    if (projectile.sourceKind === 'player') {
+      const sourcePlayer = state.players?.get?.(projectile.sourceId) || null;
+      const sourceKey = String(
+        projectile.sourceOwnerKey
+          || sourcePlayer?.accountKey
+          || sourcePlayer?.accountName
+          || sourcePlayer?.pseudo
+          || ''
+      ).toLowerCase();
+      if (sourceKey && sourceKey === ownerKeyOf(structure)) continue;
+    }
+    if (distSq(structure.x, structure.y, projectile.x, projectile.y) > rangeSq) continue;
+    state.projectiles.delete(projectile.id);
+    structure.turretCooldownUntil = timeMs + Math.max(300, Number(def.turretCooldownMs || 950));
+    structure.turretStatus = 'intercept';
+    structure.updatedAt = timeMs;
+    queueWorldSfx(state, SFX_EVENT_TYPES.AUTO_ATTACK, structure.sx, structure.sy, projectile.x, projectile.y, 1);
+    return true;
+  }
+  structure.turretStatus = 'idle';
+  return false;
+}
+
+function updateDefenseMine(state, mine, timeMs) {
+  const def = getStructureDef(mine.type) || {};
+  const rangeSq = Math.max(20, Number(def.mineRange || 115)) ** 2;
+  const targets = [...(state.mobs?.values?.() || []), ...(state.players?.values?.() || [])];
+  for (const target of targets) {
+    if (!validTargetForTurret(state, mine, target, rangeSq, TURRET_MODES.AUTO)) continue;
+    applyDamage(state, target, Math.max(1, Number(def.mineDamage || 90)), mine, { timeMs, visualKind: 'defense_mine', bypassShield: false });
+    queueWorldSfx(state, SFX_EVENT_TYPES.ROCKET, mine.sx, mine.sy, mine.x, mine.y, 1);
+    destroyStructure(state, mine, timeMs);
+    return true;
+  }
+  return false;
 }
 
 export function updateDefenseTurrets(state, dt, timeMs = Date.now()) {
   if (!state?.structures) return;
   let shouldSave = false;
   for (const turret of state.structures.values()) {
+    if (turret.type === STRUCTURE_TYPES.ANTI_MISSILE) {
+      shouldSave = updateAntiMissile(state, turret, timeMs) || shouldSave;
+      continue;
+    }
+    if (turret.type === STRUCTURE_TYPES.DEFENSE_MINE) {
+      shouldSave = updateDefenseMine(state, turret, timeMs) || shouldSave;
+      continue;
+    }
     if (!isTurret(turret)) continue;
     if (!isStructureAlive(turret)) continue;
     const def = getStructureDef(turret.type) || {};
@@ -164,7 +235,7 @@ export function updateDefenseTurrets(state, dt, timeMs = Date.now()) {
       if (setTurretStatus(turret, 'no_power', timeMs)) shouldSave = true;
       continue;
     }
-    const ammo = chooseAmmo(turret);
+    const ammo = turretNeedsAmmo(turret) ? chooseAmmo(turret) : { itemId: '', def: null, amount: 1 };
     if (!ammo) {
       if (setTurretStatus(turret, 'no_ammo', timeMs)) shouldSave = true;
       continue;
@@ -181,7 +252,7 @@ export function updateDefenseTurrets(state, dt, timeMs = Date.now()) {
       if (setTurretStatus(turret, 'cooldown', timeMs)) shouldSave = true;
       continue;
     }
-    if (!consumeTurretAmmo(turret, ammo.itemId)) {
+    if (turretNeedsAmmo(turret) && !consumeTurretAmmo(turret, ammo.itemId)) {
       if (setTurretStatus(turret, 'no_ammo', timeMs)) shouldSave = true;
       continue;
     }

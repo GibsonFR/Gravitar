@@ -24,6 +24,10 @@ import { buildRocketWorkshopSnapshot } from '../../structures/StructureRocketWor
 import { buildDroneStationSnapshot, buildLogisticChestSnapshot } from '../../structures/StructureLogistics.js';
 import { buildHostileBaseIntrusionSnapshot } from '../../structures/StructureIntrusion.js';
 import { buildActiveQuestSnapshot } from '../../player/ActiveQuestSnapshot.js';
+import { buildAutomationConfigSnapshot } from '../../structures/StructureAutomationConfig.js';
+import { buildCoreManagementSnapshot } from '../../structures/StructureCoreProgression.js';
+import { buildPlayerBaseThreatSnapshot } from '../../structures/BaseThreatSystem.js';
+import { buildClanSnapshot } from '../../clans/ClanSystem.js';
 
 
 function getFrameTempShieldAmount(player) {
@@ -148,6 +152,10 @@ export function buildMeSnapshot(player, timeMs, state = null, options = {}) {
     rocketWorkshop: buildRocketWorkshopSnapshot(state, player),
     droneStation: buildDroneStationSnapshot(state, player),
     logisticChest: buildLogisticChestSnapshot(state, player),
+    automation: buildAutomationConfigSnapshot(state, player),
+    coreManagement: buildCoreManagementSnapshot(state, player),
+    baseThreat: buildPlayerBaseThreatSnapshot(state, player),
+    clan: buildClanSnapshot(state, player),
     researchOverview: buildResearchOverviewSnapshot(state, player),
     map: buildPlayerMapSnapshot(player, state, timeMs),
     cooldowns: {
@@ -206,6 +214,10 @@ export function buildMeLiteSnapshot(player, timeMs, state = null, options = {}) 
     rocketWorkshop: buildRocketWorkshopSnapshot(state, player),
     droneStation: buildDroneStationSnapshot(state, player),
     logisticChest: buildLogisticChestSnapshot(state, player),
+    automation: buildAutomationConfigSnapshot(state, player),
+    coreManagement: buildCoreManagementSnapshot(state, player),
+    baseThreat: buildPlayerBaseThreatSnapshot(state, player),
+    clan: buildClanSnapshot(state, player),
     researchOverview: buildResearchOverviewSnapshot(state, player),
     cooldowns: {
       A: player.cooldownALeft,

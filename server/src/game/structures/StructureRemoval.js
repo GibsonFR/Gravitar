@@ -71,6 +71,21 @@ function isTestPlayer(player) {
   return String(player.gameMode || '').toLowerCase().includes('test') || String(player.worldId || '').toLowerCase().startsWith('test');
 }
 
+function foundationSupportsStructure(state, foundation) {
+  const def = getStructureDef(foundation?.type);
+  if (!def?.foundation) return false;
+  const floorRect = getStructureRect(foundation);
+  for (const other of state?.structures?.values?.() || []) {
+    if (!other || (other.id | 0) === (foundation.id | 0)) continue;
+    if (getStructureDef(other.type)?.foundation) continue;
+    if (!inSameWorld(other, foundation)) continue;
+    if ((other.sx | 0) !== (foundation.sx | 0) || (other.sy | 0) !== (foundation.sy | 0)) continue;
+    const rect = getStructureRect(other);
+    if (rect.left < floorRect.right && rect.right > floorRect.left && rect.top < floorRect.bottom && rect.bottom > floorRect.top) return true;
+  }
+  return false;
+}
+
 export function removeStructure(state, player, structureId, _timeMs = Date.now()) {
   const id = Number(structureId) | 0;
   if (!id) return { ok: false, error: 'invalid_structure' };
@@ -84,6 +99,7 @@ export function removeStructure(state, player, structureId, _timeMs = Date.now()
     : (st.ownerId | 0) === (player.id | 0);
   if (!owned) return { ok: false, error: 'not_owner' };
   if (isStorageStructure(st) && hasStorageItems(st)) return { ok: false, error: 'storage_not_empty' };
+  if (foundationSupportsStructure(state, st)) return { ok: false, error: 'foundation_in_use' };
   if (st.type === STRUCTURE_TYPES.BASE_CORE && coreProtectsAnyStructure(state, st)) return { ok: false, error: 'core_has_structures' };
   const d = Math.hypot((st.x || 0) - (player.x || 0), (st.y || 0) - (player.y || 0));
   if (d > 1400) return { ok: false, error: 'too_far' };

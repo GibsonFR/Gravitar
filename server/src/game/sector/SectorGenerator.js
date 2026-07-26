@@ -1399,6 +1399,7 @@ function spawnResourceDeposit(state, sx, sy, x, y, resourceKey, amount, seed, wo
     depositMax: -1,
     depositLabel: depositDisplayName(resourceKey),
     depositColorHex: RESOURCE_DEFS[resourceKey]?.colorHex || '#9ef0c7',
+    depositQuality: Math.max(0.65, Math.min(1.85, 0.72 + Math.min(0.48, Math.hypot(sx, sy) * 0.012) + ((Math.abs(seed | 0) % 71) / 100))),
     createdAt: Date.now(),
     updatedAt: Date.now()
   });

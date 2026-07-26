@@ -3,28 +3,32 @@ import { createStatBlock } from '../stats/StatBlockFactory.js';
 import { newEntityId } from '../state/GameState.js';
 import { getStructureDef } from './StructureDefs.js';
 import { normalizeTurretMode, isTurretModeEnabled } from './StructureTurretModes.js';
+import { applyCoreTier } from './StructureCoreProgression.js';
+import { canonicalResourceKey, canonicalStructureType, normalizeResourceMap } from '../persistence/SaveMigrations.js';
 
 
 function buildStructureStorage(def, saved = null) {
   const kind = def?.storageKind || '';
   if (!kind) return saved || { resources: {} };
   if (kind === 'conveyor') {
-    const resources = saved?.resources && typeof saved.resources === 'object' ? { ...saved.resources } : {};
+    const resources = normalizeResourceMap(saved?.resources);
     return { kind, resources, capacity: saved?.capacity || def.storageCapacity || 0 };
   }
   if (kind === 'fuel') {
-    const resources = saved?.resources && typeof saved.resources === 'object' ? { ...saved.resources } : {};
+    const resources = normalizeResourceMap(saved?.resources);
     return { kind, resources, capacity: saved?.capacity || def.fuelCapacity || 0 };
   }
   if (kind === 'equipment') {
     const items = Array.isArray(saved?.items) ? saved.items.map((id) => String(id || '')).filter(Boolean) : [];
-    return { kind, items, itemCapacity: def.itemCapacity || 0 };
+    const customItemDefs = cloneJsonValue(saved?.customItemDefs, {});
+    return { kind, items, itemCapacity: def.itemCapacity || 0, customItemDefs };
   }
   if (kind === 'ammo') {
     const ammo = saved?.ammo && typeof saved.ammo === 'object' ? { ...saved.ammo } : {};
-    return { kind, ammo, ammoCapacity: def.ammoCapacity || 0 };
+    const customItemDefs = cloneJsonValue(saved?.customItemDefs, {});
+    return { kind, ammo, ammoCapacity: def.ammoCapacity || 0, customItemDefs };
   }
-  const resources = saved?.resources && typeof saved.resources === 'object' ? { ...saved.resources } : {};
+  const resources = normalizeResourceMap(saved?.resources);
   return { kind: 'resources', resources, capacity: saved?.capacity || def.storageCapacity || 0 };
 }
 
@@ -33,13 +37,7 @@ function q(v, fallback = 0) {
 }
 
 function clonePositiveResourceMap(map = {}) {
-  const out = {};
-  if (!map || typeof map !== 'object') return out;
-  for (const [key, amount] of Object.entries(map)) {
-    const n = Math.max(0, Number(amount) | 0);
-    if (key && n > 0) out[String(key)] = n;
-  }
-  return out;
+  return normalizeResourceMap(map);
 }
 
 function clonePlainObject(value, fallback = null) {
@@ -72,7 +70,7 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
   const id = Number.isFinite(options.id) ? (options.id | 0) : newEntityId(state);
   const damageable = def.damageable !== false;
   const maxHp = damageable ? Math.max(1, options.maxHp || def.maxHp || 100) : 0;
-  return {
+  const structure = {
     kind: 'structure',
     id,
     type: def.id,
@@ -81,6 +79,8 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     ownerId: options.ownerId | 0 || 0,
     ownerKey: String(options.ownerKey || ''),
     ownerName: String(options.ownerName || '').slice(0, 24),
+    clanId: String(options.clanId || ''),
+    clanShared: !!options.clanShared,
     worldId: String(options.worldId || 'endless'),
     sx: sx | 0,
     sy: sy | 0,
@@ -96,8 +96,10 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     openable: !!def.openable,
     solid: !!def.solid && !options.open,
     claimRadius: def.claimRadius || 0,
+    coreTier: Math.max(1, Math.min(4, options.coreTier | 0 || 1)),
+    structureLimit: Math.max(0, options.structureLimit | 0 || 0),
     storage: buildStructureStorage(def, options.storage),
-    logisticRequests: options.logisticRequests && typeof options.logisticRequests === 'object' ? { ...options.logisticRequests } : {},
+    logisticRequests: normalizeResourceMap(options.logisticRequests),
     logisticMissionLog: Array.isArray(options.logisticMissionLog) ? options.logisticMissionLog.slice(0, 10) : [],
     logisticDroneFlights: Array.isArray(options.logisticDroneFlights) ? options.logisticDroneFlights.slice(0, 32).map((f) => ({ ...f })) : [],
     logisticDroneSlots: Array.isArray(options.logisticDroneSlots) ? options.logisticDroneSlots.map((slot) => ({ ...slot })) : [],
@@ -110,14 +112,14 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     turretStatus: String(options.turretStatus || ''),
     logisticDroneCharge: Number.isFinite(Number(options.logisticDroneCharge)) ? Math.max(0, Number(options.logisticDroneCharge) | 0) : undefined,
     logisticDroneRechargeMs: Number.isFinite(Number(options.logisticDroneRechargeMs)) ? Math.max(0, Number(options.logisticDroneRechargeMs)) : 0,
-    machineInput: options.machineInput && typeof options.machineInput === 'object' ? { ...options.machineInput } : {},
-    rocketWorkshopInput: options.rocketWorkshopInput && typeof options.rocketWorkshopInput === 'object' ? { ...options.rocketWorkshopInput } : {},
+    machineInput: normalizeResourceMap(options.machineInput),
+    rocketWorkshopInput: normalizeResourceMap(options.rocketWorkshopInput),
     rocketWorkshopOutput: options.rocketWorkshopOutput && typeof options.rocketWorkshopOutput === 'object' ? { ...options.rocketWorkshopOutput } : {},
     rocketWorkshopCustomAmmoDefs: cloneJsonValue(options.rocketWorkshopCustomAmmoDefs, {}),
     rocketWorkshopEnabled: options.rocketWorkshopEnabled !== false,
     rocketWorkshopJob: cloneJsonValue(options.rocketWorkshopJob, null),
     lastRocketWorkshopProduced: cloneJsonValue(options.lastRocketWorkshopProduced, null),
-    machineOutput: options.machineOutput && typeof options.machineOutput === 'object' ? { ...options.machineOutput } : {},
+    machineOutput: normalizeResourceMap(options.machineOutput),
     scienceInput: clonePositiveResourceMap(options.scienceInput),
     researchJob: cloneJsonValue(options.researchJob, null),
     researchEnabled: options.researchEnabled !== false,
@@ -143,7 +145,12 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     automationItem: options.automationItem && typeof options.automationItem === 'object' ? { ...options.automationItem } : null,
     automationOutputIndex: options.automationOutputIndex | 0 || 0,
     automationStatus: String(options.automationStatus || ''),
-    depositResourceKey: String(options.depositResourceKey || options.resourceKey || ''),
+    automationFilterMode: ['all', 'include', 'exclude'].includes(options.automationFilterMode) ? options.automationFilterMode : 'all',
+    automationFilterKey: String(options.automationFilterKey || ''),
+    automationInputPriorityKey: String(options.automationInputPriorityKey || ''),
+    automationOutputPriority: ['round_robin', 'upper', 'lower'].includes(options.automationOutputPriority) ? options.automationOutputPriority : 'round_robin',
+    depositResourceKey: canonicalResourceKey(options.depositResourceKey || options.resourceKey || ''),
+    depositQuality: Math.max(0.5, Math.min(2, Number(options.depositQuality || 1) || 1)),
     depositRemaining: Number.isFinite(Number(options.depositRemaining)) ? (Number(options.depositRemaining) < 0 ? -1 : Math.max(0, Number(options.depositRemaining) | 0)) : -1,
     depositMax: Number.isFinite(Number(options.depositMax)) ? (Number(options.depositMax) < 0 ? -1 : Math.max(0, Number(options.depositMax) | 0)) : -1,
     depositLabel: String(options.depositLabel || ''),
@@ -154,6 +161,7 @@ export function createStructure(state, type, sx, sy, x, y, options = {}) {
     createdAt: options.createdAt || Date.now(),
     updatedAt: options.updatedAt || Date.now()
   };
+  return applyCoreTier(structure, true);
 }
 
 export function serializeStructure(structure) {
@@ -164,6 +172,8 @@ export function serializeStructure(structure) {
     ownerId: structure.ownerId | 0,
     ownerKey: structure.ownerKey || '',
     ownerName: structure.ownerName || '',
+    clanId: structure.clanId || '',
+    clanShared: !!structure.clanShared,
     worldId: structure.worldId || 'endless',
     sx: structure.sx | 0,
     sy: structure.sy | 0,
@@ -172,6 +182,8 @@ export function serializeStructure(structure) {
     orientation: structure.orientation || 'h',
     hp: Math.max(0, Math.round(structure.stats?.hp ?? structure.stats?.maxHp ?? 0)),
     maxHp: Math.max(0, Math.round(structure.stats?.maxHp ?? 0)),
+    coreTier: structure.coreTier | 0 || 1,
+    structureLimit: structure.structureLimit | 0 || 0,
     storage: structure.storage || { resources: {} },
     logisticRequests: structure.logisticRequests || {},
     logisticMissionLog: Array.isArray(structure.logisticMissionLog) ? structure.logisticMissionLog.slice(0, 10) : [],
@@ -211,7 +223,12 @@ export function serializeStructure(structure) {
     automationItem: structure.automationItem || null,
     automationOutputIndex: structure.automationOutputIndex | 0 || 0,
     automationStatus: structure.automationStatus || '',
+    automationFilterMode: structure.automationFilterMode || 'all',
+    automationFilterKey: structure.automationFilterKey || '',
+    automationInputPriorityKey: structure.automationInputPriorityKey || '',
+    automationOutputPriority: structure.automationOutputPriority || 'round_robin',
     depositResourceKey: structure.depositResourceKey || '',
+    depositQuality: Math.max(0.5, Math.min(2, Number(structure.depositQuality || 1) || 1)),
     depositRemaining: (structure.depositRemaining | 0) < 0 ? -1 : Math.max(0, structure.depositRemaining | 0 || 0),
     depositMax: (structure.depositMax | 0) < 0 ? -1 : Math.max(0, structure.depositMax | 0 || 0),
     depositLabel: structure.depositLabel || '',
@@ -227,14 +244,18 @@ export function serializeStructure(structure) {
 export function hydrateStructure(state, saved) {
   const s = saved && typeof saved === 'object' ? saved : null;
   if (!s) return null;
-  const st = createStructure(state, s.type, s.sx, s.sy, s.x, s.y, {
+  const st = createStructure(state, canonicalStructureType(s.type), s.sx, s.sy, s.x, s.y, {
     id: s.id,
     ownerId: s.ownerId,
     ownerKey: s.ownerKey,
     ownerName: s.ownerName,
+    clanId: s.clanId || '',
+    clanShared: !!s.clanShared,
     worldId: s.worldId || 'endless',
     orientation: s.orientation,
     maxHp: s.maxHp,
+    coreTier: s.coreTier | 0 || 1,
+    structureLimit: s.structureLimit | 0 || 0,
     storage: s.storage,
     logisticRequests: s.logisticRequests || {},
     logisticMissionLog: Array.isArray(s.logisticMissionLog) ? s.logisticMissionLog : [],
@@ -274,7 +295,12 @@ export function hydrateStructure(state, saved) {
     automationItem: s.automationItem || null,
     automationOutputIndex: s.automationOutputIndex | 0 || 0,
     automationStatus: s.automationStatus || '',
+    automationFilterMode: s.automationFilterMode || 'all',
+    automationFilterKey: s.automationFilterKey || '',
+    automationInputPriorityKey: s.automationInputPriorityKey || '',
+    automationOutputPriority: s.automationOutputPriority || 'round_robin',
     depositResourceKey: s.depositResourceKey || '',
+    depositQuality: s.depositQuality || 1,
     depositRemaining: (s.depositRemaining | 0) < 0 ? -1 : (s.depositRemaining | 0 || 0),
     depositMax: (s.depositMax | 0) < 0 ? -1 : (s.depositMax | 0 || 0),
     depositLabel: s.depositLabel || '',

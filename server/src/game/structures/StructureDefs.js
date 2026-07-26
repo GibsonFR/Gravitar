@@ -37,7 +37,30 @@ export const STRUCTURE_TYPES = {
   ROBOT_ARM: 'robot_arm',
   FAST_ARM: 'fast_arm',
   LONG_ARM: 'long_arm',
-  DEFENSE_TURRET: 'defense_turret'
+  DEFENSE_TURRET: 'defense_turret',
+  FOUNDATION_METAL: 'foundation_metal',
+  FOUNDATION_REINFORCED: 'foundation_reinforced',
+  INDUSTRIAL_PLATFORM: 'industrial_platform',
+  FOUNDATION_RAMP: 'foundation_ramp',
+  TECHNICAL_FLOOR: 'technical_floor',
+  RESOURCE_SCANNER: 'resource_scanner',
+  BASE_RADAR: 'base_radar',
+  ADVANCED_LAB: 'advanced_lab',
+  BIOLOGY_LAB: 'biology_lab',
+  ENERGY_LAB: 'energy_lab',
+  SPACE_LAB: 'space_lab',
+  ANOMALY_LAB: 'anomaly_lab',
+  MECHANICAL_ASSEMBLER: 'mechanical_assembler',
+  ELECTRONIC_ASSEMBLER: 'electronic_assembler',
+  WEAPON_WORKSHOP: 'weapon_workshop',
+  MODULE_STATION: 'module_station',
+  KINETIC_TURRET: 'kinetic_turret',
+  LASER_TURRET: 'laser_turret',
+  ANTI_MISSILE: 'anti_missile',
+  DEFENSE_MINE: 'defense_mine',
+  BASE_SHIELD: 'base_shield',
+  ORGANIC_NEST: 'organic_nest',
+  EVENT_RIFT: 'event_rift'
 };
 
 export const STRUCTURE_DEFS = {
@@ -78,6 +101,57 @@ export const STRUCTURE_DEFS = {
     color: '#244d49',
     borderColor: '#8af6d3',
     cost: { steelPlate: 3, copperWire: 4, controlCircuit: 1 }
+  },
+
+  [STRUCTURE_TYPES.FOUNDATION_METAL]: {
+    id: STRUCTURE_TYPES.FOUNDATION_METAL,
+    name: 'Dalle métallique',
+    description: 'Sol industriel 1 × 1 aligné sur la grille.',
+    radius: 32, tilesX: 1, tilesY: 1, w: BASE_TILE_SIZE, h: BASE_TILE_SIZE,
+    maxHp: 0, damageable: false, solid: false, foundation: true,
+    buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    color: '#263441', borderColor: '#6588a4',
+    cost: { ironIngot: 1 }
+  },
+  [STRUCTURE_TYPES.FOUNDATION_REINFORCED]: {
+    id: STRUCTURE_TYPES.FOUNDATION_REINFORCED,
+    name: 'Dalle renforcée',
+    description: 'Fondation blindée 2 × 2.',
+    radius: 64, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, solid: false, foundation: true,
+    buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    color: '#303b46', borderColor: '#91a9bd',
+    cost: { steelPlate: 2, ironIngot: 2 }
+  },
+  [STRUCTURE_TYPES.INDUSTRIAL_PLATFORM]: {
+    id: STRUCTURE_TYPES.INDUSTRIAL_PLATFORM,
+    name: 'Plateforme industrielle',
+    description: 'Grande plateforme 3 × 3 pour organiser une chaîne de production.',
+    radius: 96, tilesX: 3, tilesY: 3, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 3,
+    maxHp: 0, damageable: false, solid: false, foundation: true,
+    buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    color: '#2f3a42', borderColor: '#b0c2ce',
+    cost: { steelPlate: 4, ironIngot: 4 }
+  },
+  [STRUCTURE_TYPES.FOUNDATION_RAMP]: {
+    id: STRUCTURE_TYPES.FOUNDATION_RAMP,
+    name: 'Rampe industrielle',
+    description: 'Passage visuel 2 × 1 non bloquant.',
+    radius: 48, tilesX: 2, tilesY: 1, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE,
+    maxHp: 0, damageable: false, solid: false, foundation: true, rotatable: true,
+    buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    color: '#33414b', borderColor: '#92aab9',
+    cost: { ironIngot: 2 }
+  },
+  [STRUCTURE_TYPES.TECHNICAL_FLOOR]: {
+    id: STRUCTURE_TYPES.TECHNICAL_FLOOR,
+    name: 'Sol technique',
+    description: 'Dalle 1 × 1 marquant les réseaux techniques.',
+    radius: 32, tilesX: 1, tilesY: 1, w: BASE_TILE_SIZE, h: BASE_TILE_SIZE,
+    maxHp: 0, damageable: false, solid: false, foundation: true,
+    buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    color: '#273943', borderColor: '#68bdd5',
+    cost: { ironIngot: 1, copperWire: 1 }
   },
 
   [STRUCTURE_TYPES.LOGISTIC_DRONE_STATION]: {
@@ -220,9 +294,88 @@ export const STRUCTURE_DEFS = {
     turretCooldownMs: 2400,
     turretProjectileSpeed: 720,
     turretProjectileRadius: 6,
+    turretDamage: 28,
+    turretSplash: 88,
+    turretVisual: 'rocket',
     color: '#3f334f',
     borderColor: '#ffb66e',
     cost: { steelPlate: 10, controlCircuit: 3, copperWire: 8, propellant: 8 }
+  },
+
+  [STRUCTURE_TYPES.KINETIC_TURRET]: {
+    id: STRUCTURE_TYPES.KINETIC_TURRET,
+    name: 'Tourelle cinétique',
+    description: 'Défense rapide contre créatures et vaisseaux proches.',
+    radius: 40, tilesX: 1, tilesY: 1, w: BASE_TILE_SIZE, h: BASE_TILE_SIZE,
+    maxHp: 360, damageable: true, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    solid: false, turret: true, turretWeapon: 'kinetic', turretRange: 560,
+    turretCooldownMs: 420, turretProjectileSpeed: 1100, turretProjectileRadius: 3,
+    turretDamage: 14, turretSplash: 0, turretVisual: 'kinetic',
+    energyUse: 4, color: '#403b35', borderColor: '#ffd083',
+    cost: { steelPlate: 6, controlCircuit: 2, copperWire: 4 }
+  },
+  [STRUCTURE_TYPES.LASER_TURRET]: {
+    id: STRUCTURE_TYPES.LASER_TURRET,
+    name: 'Tourelle laser',
+    description: 'Défense énergétique précise à moyenne portée.',
+    radius: 48, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 440, damageable: true, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    solid: false, turret: true, turretWeapon: 'laser', turretRange: 720,
+    turretCooldownMs: 850, turretProjectileSpeed: 1600, turretProjectileRadius: 4,
+    turretDamage: 23, turretSplash: 12, turretVisual: 'laser',
+    energyUse: 14, color: '#293a4c', borderColor: '#74dcff',
+    cost: { steelPlate: 8, controlCircuit: 3, laserLens: 2, copperWire: 8 }
+  },
+  [STRUCTURE_TYPES.ANTI_MISSILE]: {
+    id: STRUCTURE_TYPES.ANTI_MISSILE,
+    name: 'Défense anti-missile',
+    description: 'Intercepte les projectiles hostiles visant la base.',
+    radius: 48, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 420, damageable: true, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    solid: false, antiMissile: true, turretRange: 680, turretCooldownMs: 950,
+    energyUse: 16, color: '#30374c', borderColor: '#b7c8ff',
+    cost: { steelPlate: 8, controlCircuit: 4, copperWire: 8 }
+  },
+  [STRUCTURE_TYPES.DEFENSE_MINE]: {
+    id: STRUCTURE_TYPES.DEFENSE_MINE,
+    name: 'Mine défensive',
+    description: 'Charge de proximité consommable contre une cible hostile.',
+    radius: 24, tilesX: 1, tilesY: 1, w: BASE_TILE_SIZE, h: BASE_TILE_SIZE,
+    maxHp: 80, damageable: true, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    solid: false, defenseMine: true, mineRange: 115, mineDamage: 90,
+    color: '#4a332f', borderColor: '#ff8f78',
+    cost: { steelPlate: 1, propellant: 2, controlCircuit: 1 }
+  },
+  [STRUCTURE_TYPES.BASE_RADAR]: {
+    id: STRUCTURE_TYPES.BASE_RADAR,
+    name: 'Radar de base',
+    description: 'Détecte les signatures, portails et menaces du secteur.',
+    radius: 64, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 360, damageable: true, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    solid: false, radarRange: 2800, industrialSignal: 4, energyUse: 12,
+    color: '#26384a', borderColor: '#73d9ff',
+    cost: { steelPlate: 6, controlCircuit: 4, copperWire: 10 }
+  },
+  [STRUCTURE_TYPES.BASE_SHIELD]: {
+    id: STRUCTURE_TYPES.BASE_SHIELD,
+    name: 'Bouclier de base',
+    description: 'Réduit les dégâts subis par les structures proches.',
+    radius: 64, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 520, damageable: true, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    solid: false, shieldRange: 520, shieldReduction: 0.28, energyUse: 32,
+    color: '#253653', borderColor: '#8eafff',
+    cost: { steelPlate: 12, controlCircuit: 5, lithiumBattery: 6, copperWire: 12 }
+  },
+
+  [STRUCTURE_TYPES.RESOURCE_SCANNER]: {
+    id: STRUCTURE_TYPES.RESOURCE_SCANNER,
+    name: 'Scanner de ressources',
+    description: 'Révèle les gisements permanents des secteurs visités.',
+    radius: 48, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    solid: false, resourceScanner: true, scannerRadiusSectors: 1, energyUse: 10,
+    color: '#26434c', borderColor: '#78e1d3',
+    cost: { steelPlate: 4, controlCircuit: 3, copperWire: 8 }
   },
 
   [STRUCTURE_TYPES.WALL]: {
@@ -844,6 +997,113 @@ export const STRUCTURE_DEFS = {
     borderColor: '#d28cff',
     energyUse: 24,
     cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3, advancedSciencePack: 2 }
+  },
+
+  [STRUCTURE_TYPES.ADVANCED_LAB]: {
+    id: STRUCTURE_TYPES.ADVANCED_LAB,
+    name: 'Laboratoire avancé',
+    description: 'Produit les sciences industrielles et avancées.',
+    radius: 64, tilesX: 3, tilesY: 2, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'science_lab', labSpecialization: 'advanced', energyUse: 18,
+    color: '#293653', borderColor: '#b6c8ff',
+    cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 3 }
+  },
+  [STRUCTURE_TYPES.BIOLOGY_LAB]: {
+    id: STRUCTURE_TYPES.BIOLOGY_LAB,
+    name: 'Laboratoire biologique',
+    description: 'Traite les sciences biologiques.',
+    radius: 64, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'science_lab', labSpecialization: 'biology', energyUse: 14,
+    color: '#29483b', borderColor: '#86e6a1',
+    cost: { steelPlate: 5, opticalGlass: 3, controlCircuit: 2 }
+  },
+  [STRUCTURE_TYPES.ENERGY_LAB]: {
+    id: STRUCTURE_TYPES.ENERGY_LAB,
+    name: 'Laboratoire énergétique',
+    description: 'Produit et analyse les sciences énergétiques.',
+    radius: 64, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'science_lab', labSpecialization: 'energy', energyUse: 18,
+    color: '#4c4630', borderColor: '#ffe26f',
+    cost: { steelPlate: 6, lithiumBattery: 3, controlCircuit: 2 }
+  },
+  [STRUCTURE_TYPES.SPACE_LAB]: {
+    id: STRUCTURE_TYPES.SPACE_LAB,
+    name: 'Laboratoire spatial',
+    description: 'Recherche avancée pour les environnements lointains.',
+    radius: 64, tilesX: 3, tilesY: 2, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'science_lab', labSpecialization: 'space', energyUse: 26,
+    color: '#30334d', borderColor: '#a9b8ff',
+    cost: { steelPlate: 10, microprocessor: 3, laserLens: 2 }
+  },
+  [STRUCTURE_TYPES.ANOMALY_LAB]: {
+    id: STRUCTURE_TYPES.ANOMALY_LAB,
+    name: 'Laboratoire d’anomalie',
+    description: 'Analyse les fragments et matériaux précurseurs.',
+    radius: 64, tilesX: 3, tilesY: 3, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 3,
+    maxHp: 360, damageable: true, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'science_lab', labSpecialization: 'anomaly', energyUse: 38,
+    color: '#3c2e53', borderColor: '#c597ff',
+    cost: { steelPlate: 14, microprocessor: 4, advancedSciencePack: 3 }
+  },
+  [STRUCTURE_TYPES.MECHANICAL_ASSEMBLER]: {
+    id: STRUCTURE_TYPES.MECHANICAL_ASSEMBLER,
+    name: 'Assembleur mécanique',
+    description: 'Assemble des sous-ensembles mécaniques en continu.',
+    radius: 64, tilesX: 3, tilesY: 2, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'mechanical_assembler', energyUse: 16,
+    color: '#41443d', borderColor: '#c7d09b',
+    cost: { steelPlate: 8, servomotor: 2, controlCircuit: 2 }
+  },
+  [STRUCTURE_TYPES.ELECTRONIC_ASSEMBLER]: {
+    id: STRUCTURE_TYPES.ELECTRONIC_ASSEMBLER,
+    name: 'Assembleur électronique',
+    description: 'Assemble circuits et composants électroniques avancés.',
+    radius: 64, tilesX: 3, tilesY: 2, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'electronic_assembler', energyUse: 20,
+    color: '#273f46', borderColor: '#75e4d4',
+    cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 3 }
+  },
+  [STRUCTURE_TYPES.WEAPON_WORKSHOP]: {
+    id: STRUCTURE_TYPES.WEAPON_WORKSHOP,
+    name: 'Atelier d’armement',
+    description: 'Produit des composants de défense et des munitions.',
+    radius: 64, tilesX: 3, tilesY: 2, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 2,
+    maxHp: 360, damageable: true, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'weapon_workshop', energyUse: 22,
+    color: '#49342f', borderColor: '#ff997f',
+    cost: { steelPlate: 10, compositeArmor: 2, controlCircuit: 3 }
+  },
+  [STRUCTURE_TYPES.MODULE_STATION]: {
+    id: STRUCTURE_TYPES.MODULE_STATION,
+    name: 'Station de modules',
+    description: 'Produit les composants nécessaires aux modules de vaisseau.',
+    radius: 64, tilesX: 3, tilesY: 2, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 2,
+    maxHp: 0, damageable: false, solid: false, buildRange: 1100, gridSize: BASE_TILE_SIZE,
+    machineType: 'module_station', energyUse: 24,
+    color: '#34324d', borderColor: '#b8a9ff',
+    cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3 }
+  },
+  [STRUCTURE_TYPES.ORGANIC_NEST]: {
+    id: STRUCTURE_TYPES.ORGANIC_NEST,
+    name: 'Nid organique',
+    description: 'Source hostile attirée par l’activité industrielle.',
+    radius: 72, tilesX: 2, tilesY: 2, w: BASE_TILE_SIZE * 2, h: BASE_TILE_SIZE * 2,
+    maxHp: 780, damageable: true, solid: false, buildable: false, neutral: true,
+    color: '#4c332e', borderColor: '#d97969', cost: {}
+  },
+  [STRUCTURE_TYPES.EVENT_RIFT]: {
+    id: STRUCTURE_TYPES.EVENT_RIFT,
+    name: 'Faille instable',
+    description: 'Anomalie temporaire libérant des créatures.',
+    radius: 82, tilesX: 3, tilesY: 3, w: BASE_TILE_SIZE * 3, h: BASE_TILE_SIZE * 3,
+    maxHp: 620, damageable: true, solid: false, buildable: false, neutral: true,
+    color: '#3d2d55', borderColor: '#b67cff', cost: {}
   }
 
 

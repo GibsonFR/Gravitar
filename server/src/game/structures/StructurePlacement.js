@@ -130,6 +130,8 @@ function findPirateStationInsideClaim(state, player, sx, sy, claim) {
 function canOverlapStructure(def, st) {
   if (!def || !st) return false;
   if (def.id === 'mining_extractor' && isResourceDepositEntity(st)) return true;
+  const otherDef = getStructureDef(st.type);
+  if (!!def.foundation !== !!otherDef?.foundation && (def.foundation || otherDef?.foundation)) return true;
   return false;
 }
 
@@ -171,6 +173,7 @@ function payResources(inv, cost) {
 
 function findOwnCore(state, player, sx, sy, rect) {
   const key = ownerKey(player);
+  const playerClan = [...(state?.clans?.values?.() || [])].find((clan) => clan.members?.includes?.(key)) || null;
   const cx = (rect.left + rect.right) * 0.5;
   const cy = (rect.top + rect.bottom) * 0.5;
   let best = null;
@@ -179,7 +182,9 @@ function findOwnCore(state, player, sx, sy, rect) {
     if (!isCoreType(st.type)) continue;
     if (!inSameWorld(st, player)) continue;
     if ((st.sx | 0) !== (sx | 0) || (st.sy | 0) !== (sy | 0)) continue;
-    if (String(st.ownerKey || '').toLowerCase() !== key) continue;
+    const own = String(st.ownerKey || '').toLowerCase() === key;
+    const clanShared = !!playerClan && st.clanShared && st.clanId === playerClan.id;
+    if (!own && !clanShared) continue;
     if (!rectInside(rect, claimRect(st))) continue;
     const dx = st.x - cx;
     const dy = st.y - cy;
@@ -192,6 +197,7 @@ function findOwnCore(state, player, sx, sy, rect) {
 export function canPlaceStructure(state, player, type, x, y, orientation = 'h') {
   const def = getStructureDef(type);
   if (!def) return { ok: false, error: 'unknown_structure' };
+  if (def.buildable === false) return { ok: false, error: 'not_buildable' };
   if (!isTestPlayer(player) && !canBuildByResearch(player, type)) return { ok: false, error: buildResearchRequirementError(type), researchId: getStructureResearchRequirement(type), researchName: getResearchName(getStructureResearchRequirement(type)) };
   const sectorRestriction = !isTestPlayer(player) ? getSectorBuildRestriction(player) : '';
   if (sectorRestriction) return { ok: false, error: sectorRestriction };
@@ -208,6 +214,7 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
   if (dist > (def.buildRange || 1100)) return { ok: false, error: 'too_far' };
 
   const key = ownerKey(player);
+  let claimCore = null;
   if (isCoreType(def.id)) {
     const candidateClaim = claimRectForPlacement(def, px, py);
     if (findPirateStationInsideClaim(state, player, sx, sy, candidateClaim)) return { ok: false, error: 'pirate_station_in_claim' };
@@ -227,8 +234,24 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
     if (isOutpostCoreType(def.id) && outpostsInSector >= Math.max(1, def.maxPerOwnerPerSector | 0 || 4)) return { ok: false, error: 'outpost_limit_sector' };
     const claim = claimRectForPlacement(def, px, py);
     if (!rectInside(claim, sectorBuildRect())) return { ok: false, error: 'too_close_to_sector_edge' };
-  } else if (!findOwnCore(state, player, sx, sy, r)) {
-    return { ok: false, error: 'need_nearby_core' };
+  } else {
+    const ownCore = findOwnCore(state, player, sx, sy, r);
+    if (!ownCore) return { ok: false, error: 'need_nearby_core' };
+    claimCore = ownCore;
+    const limit = Math.max(0, ownCore.structureLimit | 0 || 0);
+    if (limit > 0) {
+      let count = 0;
+      const sharedClanId = ownCore.clanShared ? String(ownCore.clanId || '') : '';
+      for (const structure of state.structures.values()) {
+        if (!inSameWorld(structure, player)) continue;
+        const sameOwner = String(structure.ownerKey || '').toLowerCase() === String(ownCore.ownerKey || '').toLowerCase();
+        const sameClan = !!sharedClanId && structure.clanShared && String(structure.clanId || '') === sharedClanId;
+        if (!sameOwner && !sameClan) continue;
+        if ((structure.sx | 0) !== sx || (structure.sy | 0) !== sy) continue;
+        if (rectInside(entityRect(structure), claimRect(ownCore))) count += 1;
+      }
+      if (count >= limit) return { ok: false, error: 'structure_limit' };
+    }
   }
 
 
@@ -254,7 +277,7 @@ export function canPlaceStructure(state, player, type, x, y, orientation = 'h') 
     if (d < (station.radius || 80) + Math.max(def.w || def.radius * 2, def.h || def.radius * 2) * 0.5 + 80) return { ok: false, error: 'too_close_to_station' };
   }
   if (!hasResources(player.inv, def.cost)) return { ok: false, error: 'missing_resources' };
-  return { ok: true, def, overlappedDeposit };
+  return { ok: true, def, overlappedDeposit, claimCore };
 }
 
 export function placeStructure(state, player, type, x, y, orientation = 'h', timeMs = Date.now()) {
@@ -271,6 +294,8 @@ export function placeStructure(state, player, type, x, y, orientation = 'h', tim
     ownerName: player.pseudo || player.accountName || 'Pilote',
     worldId: player.worldId || 'endless',
     orientation,
+    clanId: check.claimCore?.clanShared ? String(check.claimCore.clanId || '') : '',
+    clanShared: !!check.claimCore?.clanShared,
     depositId: deposit?.id | 0 || 0,
     depositResourceKey: deposit?.depositResourceKey || '',
     createdAt: timeMs,

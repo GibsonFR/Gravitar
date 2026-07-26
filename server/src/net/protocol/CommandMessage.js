@@ -1,5 +1,6 @@
 const COMMAND_MIN_INTERVAL_MS = 0;
-const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_station_resource', 'buy_conversion_recipe', 'accept_pirate_quest', 'complete_pirate_quest', 'abandon_pirate_quest', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'move_structure', 'turret_set_mode', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'rocket_workshop_open', 'rocket_workshop_close', 'rocket_workshop_transfer', 'rocket_workshop_claim', 'rocket_workshop_start', 'rocket_workshop_toggle', 'drone_station_open', 'drone_station_close', 'drone_station_transfer', 'logistic_chest_open', 'logistic_chest_close', 'logistic_chest_set_request', 'logistic_chest_transfer', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel', 'equipment_fabricator_open', 'equipment_fabricator_close', 'equipment_fabricator_craft', 'equipment_fabricator_transfer', 'equipment_fabricator_claim', 'equipment_rd_open', 'equipment_rd_close', 'equipment_rd_start', 'equipment_rd_cancel', 'equipment_rd_transfer', 'equipment_rd_load_item', 'equipment_rd_unload_item']);
+const COMMANDS = new Set(['sell', 'sell_all', 'undock', 'jettison', 'set_frame', 'upgrade_ability', 'buy_item', 'buy_station_resource', 'buy_conversion_recipe', 'accept_pirate_quest', 'complete_pirate_quest', 'abandon_pirate_quest', 'buy_and_assign_rocket_ammo', 'equip_item', 'unequip_item', 'sell_item', 'assign_rocket_ammo', 'unassign_rocket_ammo', 'switch_rocket_slot', 'toggle_converter', 'commit_session_setup', 'auth_session_account', 'quit_session', 'cancel_battle_queue', 'equip_item_to_slot', 'build_structure', 'move_structure', 'turret_set_mode', 'remove_structure', 'repair_structure', 'storage_transfer', 'storage_open', 'storage_close', 'toggle_structure', 'machine_open', 'machine_close', 'rocket_workshop_open', 'rocket_workshop_close', 'rocket_workshop_transfer', 'rocket_workshop_claim', 'rocket_workshop_start', 'rocket_workshop_toggle', 'drone_station_open', 'drone_station_close', 'drone_station_transfer', 'logistic_chest_open', 'logistic_chest_close', 'logistic_chest_set_request', 'logistic_chest_transfer', 'automation_open', 'automation_close', 'automation_configure', 'core_open', 'core_close', 'core_upgrade', 'clan_create', 'clan_join', 'clan_leave', 'clan_claim_core', 'test_give', 'test_spawn_mob', 'test_spawn_dummy', 'test_clear', 'test_reset', 'machine_process', 'machine_select_recipe', 'machine_transfer', 'machine_toggle', 'research_station_open', 'research_station_close', 'research_station_transfer', 'research_station_start', 'research_station_toggle', 'research_tree_start', 'research_tree_cancel', 'research_start', 'research_cancel', 'equipment_fabricator_open', 'equipment_fabricator_close', 'equipment_fabricator_craft', 'equipment_fabricator_transfer', 'equipment_fabricator_claim', 'equipment_rd_open', 'equipment_rd_close', 'equipment_rd_start', 'equipment_rd_cancel', 'equipment_rd_transfer', 'equipment_rd_load_item', 'equipment_rd_unload_item']);
+COMMANDS.add('barter_station_resource');
 
 function cleanWord(value, maxLen = 48) {
   return String(value ?? '')
@@ -30,7 +31,7 @@ export function sanitizeCommandMessage(raw) {
   const msg = { t: 'cmd', cmd };
   if (raw.cmdId != null) msg.cmdId = cleanWord(raw.cmdId, 48);
 
-  if (cmd === 'sell' || cmd === 'jettison' || cmd === 'buy_station_resource') {
+  if (cmd === 'sell' || cmd === 'jettison' || cmd === 'buy_station_resource' || cmd === 'barter_station_resource') {
     msg.resourceKey = cleanWord(raw.resourceKey ?? raw.resource ?? raw.key, 48);
     msg.itemId = cleanWord(raw.itemId ?? raw.id ?? '', 128).toLowerCase();
     const amount = Number.isFinite(raw.amount) ? Math.floor(raw.amount) : Math.floor(Number(raw.amount) || 0);
@@ -84,6 +85,41 @@ export function sanitizeCommandMessage(raw) {
   if (cmd === 'move_structure' || cmd === 'turret_set_mode' || cmd === 'remove_structure' || cmd === 'repair_structure' || cmd === 'storage_open' || cmd === 'toggle_structure' || cmd === 'machine_open' || cmd === 'machine_toggle') {
     const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
     msg.structureId = Math.max(0, Math.min(2147483647, structureId));
+  }
+
+  if (cmd === 'automation_open' || cmd === 'automation_configure') {
+    const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
+    msg.structureId = Math.max(0, Math.min(2147483647, structureId));
+  }
+  if (cmd === 'core_open' || cmd === 'core_upgrade') {
+    const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
+    msg.structureId = Math.max(0, Math.min(2147483647, structureId));
+  }
+  if (cmd === 'clan_create') {
+    msg.clanName = cleanPseudo(raw.clanName || raw.name || '', 24);
+    msg.clanTag = cleanWord(raw.clanTag || raw.tag || '', 5).toUpperCase();
+  }
+  if (cmd === 'clan_join') msg.clanTag = cleanWord(raw.clanTag || raw.tag || '', 24).toUpperCase();
+  if (cmd === 'clan_claim_core') {
+    const structureId = Number.isFinite(raw.structureId) ? Math.floor(raw.structureId) : Math.floor(Number(raw.structureId) || 0);
+    msg.structureId = Math.max(0, Math.min(2147483647, structureId));
+    msg.shared = raw.shared !== false && raw.shared !== 'false' && raw.shared !== 0;
+  }
+  if (cmd === 'test_give') {
+    msg.resourceKey = cleanWord(raw.resourceKey || '', 48);
+    const amount = Number.isFinite(raw.amount) ? Math.floor(raw.amount) : Math.floor(Number(raw.amount) || 0);
+    msg.amount = Math.max(1, Math.min(9999, amount || 100));
+  }
+  if (cmd === 'test_spawn_mob') msg.mobId = cleanWord(raw.mobId || '', 48).toLowerCase();
+  if (cmd === 'automation_configure') {
+    msg.filterMode = ['all', 'include', 'exclude'].includes(cleanWord(raw.filterMode || 'all', 16).toLowerCase())
+      ? cleanWord(raw.filterMode || 'all', 16).toLowerCase()
+      : 'all';
+    msg.filterKey = cleanWord(raw.filterKey || '', 48);
+    msg.inputPriorityKey = cleanWord(raw.inputPriorityKey || '', 48);
+    msg.outputPriority = ['round_robin', 'upper', 'lower'].includes(cleanWord(raw.outputPriority || 'round_robin', 24).toLowerCase())
+      ? cleanWord(raw.outputPriority || 'round_robin', 24).toLowerCase()
+      : 'round_robin';
   }
 
 

@@ -1,5 +1,7 @@
 import { STRUCTURE_TYPES, getStructureDef } from '../structures/StructureDefs.js';
 import { isStructureOwner, distanceSqToStructureRect } from '../structures/StructureSystem.js';
+import { queueWorldSfx } from '../audio/WorldSfxState.js';
+import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
 
 const TOGGLE_RANGE = 280;
 
@@ -19,6 +21,7 @@ export function handleToggleStructure(state, player, msg, timeMs) {
   player.forceFullUiSnapshot = true;
   player.hint = st.open ? 'Porte ouverte' : 'Porte fermée';
   player._optimisticHintLeft = 1.0;
+  queueWorldSfx(state, SFX_EVENT_TYPES.DOOR, st.sx, st.sy, st.x, st.y, st.open ? 1 : 0);
   if (String(st.worldId || 'endless') === 'endless') state.structureStore?.saveFromState?.(state);
   return true;
 }

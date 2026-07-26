@@ -7,6 +7,8 @@ export function seedWorld(state) {
   state.portals.clear();
   state.loots.clear();
   state.projectiles.clear();
+  state.baseThreats?.clear?.();
+  state.clans?.clear?.();
   state.sectors.clear();
   state.asteroidCooldownUntil.clear();
   state.destroyedAsteroidSigs?.clear?.();
@@ -15,4 +17,5 @@ export function seedWorld(state) {
   initializeSessionBastions(state);
   state.structureStore?.loadIntoState?.(state);
   state.asteroidRespawnStore?.loadIntoState?.(state);
+  state.clanStore?.loadIntoState?.(state);
 }

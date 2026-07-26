@@ -301,6 +301,7 @@ function ensureTestMiningDeposits(state, player, timeMs) {
       depositRemaining: -1,
       depositMax: -1,
       depositLabel: defName,
+      depositQuality: 0.85 + (Math.abs((dep.x | 0) + (dep.y | 0)) % 65) / 100,
       createdAt: timeMs,
       updatedAt: timeMs
     });

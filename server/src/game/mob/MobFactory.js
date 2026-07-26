@@ -70,6 +70,8 @@ export function spawnMob(state, sx, sy, mobId, x, y, options = {}) {
     homeX: x,
     homeY: y,
     targetPlayerId: 0,
+    baseRaidCoreId: options.baseRaidCoreId | 0 || 0,
+    baseRaidTargetId: options.baseRaidTargetId | 0 || 0,
     nextAttackAt: Math.max(0, options.spawnTimeMs ?? 0) + 900 + Math.abs(((options.seed || id) * 31) % 2600),
     deadAt: 0,
     despawnAt: 0,

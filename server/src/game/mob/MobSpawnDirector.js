@@ -2,6 +2,7 @@ import { listMobDefs } from '../../../../shared/content/mobs/MobDefs.js';
 import { sectorFrontierLevel } from '../sector/SectorMath.js';
 import { SECTOR } from '../sector/SectorDefs.js';
 import { spawnMob } from './MobFactory.js';
+import { getSectorSummary } from '../map/SectorSummary.js';
 
 const FRONTIER_MAX = 50;
 
@@ -37,7 +38,19 @@ function frontierUnlock(def) {
   return MOB_FRONTIER_UNLOCKS_BY_TYPE.get(def.typeId | 0) ?? (def.sectorMinLevel ?? 1);
 }
 
-function mobSpawnWeight(def, frontierLevel) {
+function biomeWeight(typeId, biomeId) {
+  const preferred = {
+    metallic: [1, 2, 6, 9],
+    silicate: [3, 4, 5, 8],
+    organic: [1, 2, 7, 9, 10],
+    volatile: [2, 3, 6, 8],
+    nuclear: [5, 6, 7, 10],
+    anomaly: [4, 7, 8, 9, 10]
+  }[biomeId] || [];
+  return preferred.includes(typeId | 0) ? 1.9 : 0.72;
+}
+
+function mobSpawnWeight(def, frontierLevel, biomeId = '') {
   const unlock = frontierUnlock(def);
   if (frontierLevel < unlock) return 0;
 
@@ -66,15 +79,15 @@ function mobSpawnWeight(def, frontierLevel) {
   // L'Apex ne doit jamais apparaître avant le ring 50 en version normale.
   if ((def.typeId | 0) === 10 && frontierLevel < FRONTIER_MAX) return 0;
 
-  return Math.max(0, weight);
+  return Math.max(0, weight * biomeWeight(def.typeId, biomeId));
 }
 
-function pickMobDefForFrontier(rng, frontierLevel) {
+function pickMobDefForFrontier(rng, frontierLevel, biomeId = '') {
   const defs = listMobDefs().slice().sort((a, b) => (a.typeId ?? 0) - (b.typeId ?? 0));
   let total = 0;
   const weighted = [];
   for (const def of defs) {
-    const weight = mobSpawnWeight(def, frontierLevel);
+    const weight = mobSpawnWeight(def, frontierLevel, biomeId);
     if (weight <= 0) continue;
     total += weight;
     weighted.push({ def, weight });
@@ -107,15 +120,16 @@ export function spawnSectorMobs(state, sx, sy, rng, sectorSeed, timeMs = 0) {
   if (mapLevel <= 0) return 0;
 
   const frontierLevel = clamp(mapLevel, 1, FRONTIER_MAX);
+  const biomeId = getSectorSummary(state.seed | 0, sx, sy)?.biomeId || '';
   const baseCount = 2 + Math.min(5, Math.floor(frontierLevel / 8));
   const mobCount = baseCount + rng.nextRange(0, 2) + Math.min(3, Math.floor(frontierLevel / 18));
   let spawned = 0;
 
   for (let i = 0; i < mobCount; i++) {
-    let def = pickMobDefForFrontier(rng, frontierLevel);
+    let def = pickMobDefForFrontier(rng, frontierLevel, biomeId);
     if (i === 1 && frontierLevel <= 5) {
       const earlyDefs = listMobDefs()
-        .filter((d) => (d.typeId | 0) > 1 && mobSpawnWeight(d, frontierLevel) > 0)
+        .filter((d) => (d.typeId | 0) > 1 && mobSpawnWeight(d, frontierLevel, biomeId) > 0)
         .sort((a, b) => (a.typeId | 0) - (b.typeId | 0));
       if (earlyDefs.length) def = earlyDefs[Math.floor(rng.nextDouble() * earlyDefs.length)] || def;
     }

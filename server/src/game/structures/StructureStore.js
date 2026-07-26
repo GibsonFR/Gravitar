@@ -138,6 +138,7 @@ export function createStructureStore() {
       if (!state?.structures) return false;
       const structures = [...state.structures.values()]
         .filter((st) => String(st.worldId || 'endless') === 'endless')
+        .filter((st) => !st.transient)
         .filter((st) => st.damageable === false || st.stats?.hp > 0)
         .map(serializeStructure)
         .filter(Boolean);

@@ -1,4 +1,4 @@
-import { STRUCTURE_TYPES } from '../structures/StructureDefs.js';
+import { getStructureDef } from '../structures/StructureDefs.js';
 import { isStructureOwner, distanceSqToStructureRect } from '../structures/StructureSystem.js';
 import { normalizeTurretMode, getTurretModeLabel, isTurretModeEnabled } from '../structures/StructureTurretModes.js';
 
@@ -7,7 +7,7 @@ const TURRET_CONFIG_RANGE = 320;
 export function handleSetTurretMode(state, player, msg, timeMs = Date.now()) {
   const id = msg.structureId | 0;
   const st = state?.structures?.get?.(id);
-  if (!st || st.type !== STRUCTURE_TYPES.DEFENSE_TURRET) return { ok: false, error: 'not_turret' };
+  if (!st || !getStructureDef(st.type)?.turret) return { ok: false, error: 'not_turret' };
   if (!player) return { ok: false, error: 'missing_player' };
   if (String(player.worldId || 'endless') !== String(st.worldId || 'endless')) return { ok: false, error: 'wrong_world' };
   if ((player.sx | 0) !== (st.sx | 0) || (player.sy | 0) !== (st.sy | 0)) return { ok: false, error: 'wrong_sector' };

@@ -130,6 +130,14 @@ function projectileCanCollideWithStructure(state, proj, structure, sourcePlayer)
   if (!structure || (structure.stats?.hp ?? 0) <= 0) return false;
   if ((structure.sx | 0) !== (proj.sx | 0) || (structure.sy | 0) !== (proj.sy | 0)) return false;
   if (sourcePlayer && String(sourcePlayer.worldId || 'endless') !== String(structure.worldId || 'endless')) return false;
+  const structureOwner = String(structure.ownerKey || '').toLowerCase();
+  const projectileOwner = String(proj.sourceOwnerKey || '').toLowerCase();
+  if (proj.sourceKind === 'structure' && projectileOwner && structureOwner === projectileOwner) return false;
+  if (proj.sourceKind === 'mob') {
+    const sourceMob = state.mobs?.get?.(proj.sourceId) || null;
+    if ((proj.intendedTargetId | 0) === (structure.id | 0) || (sourceMob?.baseRaidTargetId | 0) === (structure.id | 0)) return true;
+    return (structure.type === STRUCTURE_TYPES.WALL || structure.type === STRUCTURE_TYPES.DOOR) && structure.solid;
+  }
   if ((structure.type === STRUCTURE_TYPES.WALL || structure.type === STRUCTURE_TYPES.DOOR) && structure.solid) return true;
   if (!sourcePlayer) return false;
   return canPlayerDamageStructure(state, sourcePlayer, structure);
@@ -234,7 +242,7 @@ export function spawnProjectile(state, owner, tx, ty, tint, damage, radius, spee
     autoAttackImpactRoll: !!extras?.autoAttackImpactRoll,
     linkedAbilitySynergyActive: !!extras?.linkedAbilitySynergyActive,
     sourceFrameId: extras?.sourceFrameId ?? owner.frameId ?? '',
-    sourceOwnerKey: String(extras?.sourceOwnerKey || owner.ownerKey || ''),
+    sourceOwnerKey: String(extras?.sourceOwnerKey || owner.ownerKey || owner.accountKey || owner.accountName || owner.pseudo || ''),
     visualKind: extras?.visualKind ?? (extras?.sourceAbilitySlot ? 'ability' : 'auto'),
     visualSlot: extras?.visualSlot ?? extras?.sourceAbilitySlot ?? '',
     visualAmmoEffect: extras?.visualAmmoEffect ?? '',
@@ -369,7 +377,7 @@ export function updateProjectiles(state, dt, timeMs = null) {
       const sourcePlayer = state.players.get(proj.sourceId) ?? null;
       const sourceEntity = sourcePlayer ?? sourceEntityForCollision ?? null;
       if (hit.kind !== 'logistic_drone') {
-        applyDamage(state, hit, proj.damage, sourcePlayer, { timeMs, crit: !!proj.crit, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
+        applyDamage(state, hit, proj.damage, sourceEntity, { timeMs, crit: !!proj.crit, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0 });
       }
       const hitStillExists = hit.kind !== 'mob' || state.mobs.has(hit.id);
       if (hitStillExists && hit.kind !== 'structure' && hit.kind !== 'logistic_drone') {
@@ -420,11 +428,11 @@ export function updateProjectiles(state, dt, timeMs = null) {
         }
 
         for (const st of state.structures?.values?.() || []) {
-          if (!sourcePlayer || !canPlayerDamageStructure(state, sourcePlayer, st)) continue;
+          if (!projectileCanCollideWithStructure(state, proj, st, sourcePlayer)) continue;
           if ((st.sx | 0) !== (proj.sx | 0) || (st.sy | 0) !== (proj.sy | 0)) continue;
           const d2 = distanceSqToStructureRect(st, proj.x, proj.y);
           if (d2 <= splashSq) {
-            applyDamage(state, st, proj.damage * (0.65 + 0.35 * (1 - d2 / splashSq)), sourcePlayer, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0, structureDamageMult: 0.7 });
+            applyDamage(state, st, proj.damage * (0.65 + 0.35 * (1 - d2 / splashSq)), sourceEntity, { timeMs, sourceSlot: proj.sourceAbilitySlot || '', visualKind: proj.visualKind || '', bonusLifestealRatio: proj.bonusLifestealRatio || 0, structureDamageMult: 0.7 });
           }
         }
       }

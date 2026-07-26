@@ -69,6 +69,8 @@ function tryRangedAttack(state, mob, target, timeMs) {
       visualKind: mob.abilityProfile ? `mob_${mob.abilityProfile}` : 'mob_auto',
       onHitStatuses: getMobOnHitStatuses(mob),
       onSplashStatuses: getMobOnHitStatuses(mob),
+      intendedTargetKind: target.kind || '',
+      intendedTargetId: target.id | 0,
       maxLifetimeMs: mob.demoMob ? 1800 : 2400
     }
   );
@@ -108,5 +110,5 @@ export function updateRangedKiteMob(state, mob, target, dt, timeMs) {
   if (!moved) clearMobVelocity(mob);
   clampMobToDemoCage(mob);
 
-  if (!tryMobSpecial(state, mob, target, timeMs)) tryRangedAttack(state, mob, target, timeMs);
+  if (target.kind === 'structure' || !tryMobSpecial(state, mob, target, timeMs)) tryRangedAttack(state, mob, target, timeMs);
 }

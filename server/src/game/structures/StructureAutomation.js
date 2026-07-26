@@ -3,6 +3,7 @@ import { getMachineRecipe } from '../../../../shared/content/crafting/MachineRec
 import { RESOURCE_DEFS } from '../inventory/ResourceDefs.js';
 import { EQUIPMENT_RD_ALLOWED_SCIENCES } from '../../../../shared/content/equipment/EquipmentCraftingDefs.js';
 import { queueLogisticTransferEvent, nextLogisticVisualItemId } from '../events/LogisticTransferEvents.js';
+import { automationAllowsResource } from './StructureAutomationConfig.js';
 
 const RESOURCE_CAPACITY_DEFAULT = 80;
 const MACHINE_INPUT_CAPACITY = 160;
@@ -255,7 +256,11 @@ function preferredConveyorSlot(belt) {
 
 function conveyorTargets(state, belt, key) {
   const ports = conveyorOutputPoints(belt);
-  const start = Math.max(0, belt.automationOutputIndex | 0);
+  const priority = String(belt.automationOutputPriority || 'round_robin');
+  const preferredIndex = ports.findIndex((port) => port.slot === priority);
+  const start = priority === 'round_robin' || preferredIndex < 0
+    ? Math.max(0, belt.automationOutputIndex | 0)
+    : preferredIndex;
   const ordered = ports.map((_, i) => ports[(start + i) % ports.length]);
   const targets = [];
   for (const port of ordered) {
@@ -396,11 +401,14 @@ function updateRobotArm(state, arm, timeMs) {
     arm.automationStatus = !source ? 'no_input' : 'no_output';
     return false;
   }
-  if (!hasOutput(source, (key) => canPut(target, key))) {
+  const allowed = (key) => automationAllowsResource(arm, key) && canPut(target, key);
+  if (!hasOutput(source, allowed)) {
     arm.automationStatus = hasOutput(source) ? 'blocked' : 'no_input';
     return false;
   }
-  const key = takeOneMatching(source, (candidate) => canPut(target, candidate));
+  const priorityKey = String(arm.automationInputPriorityKey || '');
+  let key = priorityKey && allowed(priorityKey) ? takeOneMatching(source, (candidate) => candidate === priorityKey) : '';
+  if (!key) key = takeOneMatching(source, allowed);
   if (!key) return false;
 
   const visualItemId = nextLogisticVisualItemId(state);
@@ -533,7 +541,8 @@ function updateExtractor(state, extractor, timeMs) {
     return changed;
   }
 
-  const amount = Math.max(1, Number(def?.extractionYield) || 1);
+  const quality = Math.max(0.5, Math.min(2, Number(deposit.depositQuality || 1) || 1));
+  const amount = Math.max(1, Math.floor((Number(def?.extractionYield) || 1) * quality + (Math.random() < (quality % 1) ? 1 : 0)));
   map[key] = (map[key] | 0) + amount;
   extractor.lastExtractionAt = timeMs;
   extractor.extractionProgress = 0;

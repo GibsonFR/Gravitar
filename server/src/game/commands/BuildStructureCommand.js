@@ -1,4 +1,6 @@
 import { placeStructure } from '../structures/StructurePlacement.js';
+import { queueWorldSfx } from '../audio/WorldSfxState.js';
+import { SFX_EVENT_TYPES } from '../audio/SfxEventTypes.js';
 
 function finite(value, fallback) {
   const n = Number(value);
@@ -16,6 +18,8 @@ export function handleBuildStructure(state, player, msg, timeMs) {
   player.forceFullUiSnapshotReason = result.ok ? 'build_structure' : result.error;
   if (!result.ok) player.hint = buildErrorHint(result.error);
   else player.hint = `${result.structure?.name || 'Structure'} posée`;
+  const sfxStructure = result.structure || player;
+  queueWorldSfx(state, result.ok ? SFX_EVENT_TYPES.BUILD : SFX_EVENT_TYPES.BUILD_ERROR, sfxStructure.sx, sfxStructure.sy, sfxStructure.x, sfxStructure.y, result.ok ? 1 : 0);
   player._optimisticHintLeft = 1.2;
   return !!result.ok;
 }
@@ -28,6 +32,7 @@ function buildErrorHint(error) {
     case 'blocked':
     case 'blocked_by_structure': return 'Placement bloqué';
     case 'missing_resources': return 'Ressources insuffisantes';
+    case 'structure_limit': return 'Limite de structures du noyau atteinte';
     case 'too_close_to_base': return 'Trop proche d’une autre base';
     case 'too_close_to_sector_edge': return 'Trop proche du bord du secteur';
     case 'too_close_to_station': return 'Trop proche d’une station';
