@@ -528,6 +528,7 @@ export function buildNetV2PlayerStatusPacket(state, playerId, timeMs) {
   const me = state.players.get(playerId) || null;
   if (!me) return null;
   const players = [...state.players.values()]
+    .filter((p) => (p.id | 0) !== (playerId | 0))
     .filter((p) => sameWorldSector(p, me))
     .map((p) => playerStatusCompact(p, playerId, state))
     .filter(Boolean);
@@ -552,6 +553,7 @@ export function buildNetV2PlayerSessionPacket(state, playerId, timeMs) {
   const me = state.players.get(playerId) || null;
   if (!me) return null;
   const players = [...state.players.values()]
+    .filter((p) => (p.id | 0) !== (playerId | 0))
     .filter((p) => sameWorldSector(p, me))
     .map((p) => playerSessionCompact(p, playerId, state, timeMs))
     .filter(Boolean);

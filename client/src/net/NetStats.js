@@ -38,85 +38,10 @@ export class NetStats {
     this.worldDeltaPacketsInWindow = 0;
     this.worldEventsPacketsInWindow = 0;
     this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
     this.cargoPacketsInWindow = 0;
     this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.ackPacketsInWindow = 0;
-    this.statusPacketsInWindow = 0;
-    this.sessionPacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.lifecyclePacketsInWindow = 0;
-    this.ackPacketsInWindow = 0;
-    this.statusPacketsInWindow = 0;
-    this.sessionPacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.ackPacketsInWindow = 0;
-    this.statusPacketsInWindow = 0;
-    this.sessionPacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
+    this.metaPacketsInWindow = 0;
+    this.logisticsPacketsInWindow = 0;
     this.lastPosePacketAt = 0;
     this.posePacketGapMs = 0;
     this.posePacketGapMaxMs = 0;
@@ -130,22 +55,6 @@ export class NetStats {
     this.projectileEventsInWindow = 0;
     this.projectilePacketV2InWindow = 0;
     this.combatPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.projectilePacketV2InWindow = 0;
-    this.combatPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.serverEventsInWindow = 0;
-    this.logisticEventsInWindow = 0;
-    this.projectileEventsInWindow = 0;
-    this.projectilePacketV2InWindow = 0;
-    this.combatPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.projectilePacketV2InWindow = 0;
-    this.combatPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
     this.networkPacketV2InWindow = 0;
 
     this.bytesInPerSec = 0;
@@ -169,6 +78,8 @@ export class NetStats {
     this.cargoDeltaPacketsPerSec = 0;
     this.cargoPacketsPerSec = 0;
     this.mobPosePacketsPerSec = 0;
+    this.metaPacketsPerSec = 0;
+    this.logisticsPacketsPerSec = 0;
     this.inputsPerSec = 0;
     this.commandsPerSec = 0;
     this.cmdAcksPerSec = 0;
@@ -235,6 +146,8 @@ export class NetStats {
     this.lastCargoDeltaPacket = null;
     this.lastCargoPacket = null;
     this.lastMobPosePacket = null;
+    this.lastMetaPacket = null;
+    this.lastLogisticsPacket = null;
     this.clientEntityCounts = {};
     this.clientEventCounts = {};
     this.inputSeq = 0;
@@ -344,7 +257,7 @@ export class NetStats {
     const history = this.getDebugHistory();
     const payload = {
       kind: 'gravitar_net_debug_log',
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       durationMs: this.debugHistoryMs,
       current: snapshot,
@@ -607,11 +520,22 @@ export class NetStats {
 
   recordWorldEntitiesDeltaPacket(msg, bytes = 0) {
     const b = finite(bytes, 0);
+    const removals = msg?.removedEntityIds || {};
+    const removed = Object.values(removals)
+      .reduce((total, ids) => total + (Array.isArray(ids) ? ids.length : 0), 0);
     this.worldDeltaPacketsInWindow += 1;
     this.lastWorldDeltaPacket = {
       asteroids: Array.isArray(msg?.asteroids) ? msg.asteroids.length : 0,
       mobs: Array.isArray(msg?.mobs) ? msg.mobs.length : 0,
+      stations: Array.isArray(msg?.stations) ? msg.stations.length : 0,
+      structures: Array.isArray(msg?.structures) ? msg.structures.length : 0,
+      portals: Array.isArray(msg?.portals) ? msg.portals.length : 0,
       loots: Array.isArray(msg?.loots) ? msg.loots.length : 0,
+      areaEffects: Array.isArray(msg?.areaEffects) ? msg.areaEffects.length : 0,
+      removed,
+      sparse: !!msg?.net?.sparse,
+      fullReconcile: !!msg?.net?.fullReconcile,
+      changeCount: msg?.changeCount | 0,
       sector: `${msg?.worldId || 'endless'}:${msg?.sx | 0}:${msg?.sy | 0}`,
       bytes: b
     };
@@ -619,10 +543,45 @@ export class NetStats {
       kind: 'world_entities_delta_v2',
       type: msg?.t || 'world_entities_delta_v2',
       bytes: b,
-      asteroids: this.lastWorldDeltaPacket.asteroids,
-      mobs: this.lastWorldDeltaPacket.mobs,
-      loots: this.lastWorldDeltaPacket.loots,
+      ...this.lastWorldDeltaPacket,
       sector: this.lastWorldDeltaPacket.sector,
+      serverTime: msg?.time || 0,
+      serverTick: msg?.tick || 0
+    });
+  }
+
+  recordMetaPacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.metaPacketsInWindow += 1;
+    this.lastMetaPacket = {
+      bytes: b,
+      mode: msg?.modes?.currentMode || '',
+      players: Array.isArray(msg?.playerDirectory) ? msg.playerDirectory.length : 0,
+      battleSessions: Array.isArray(msg?.modes?.battleSessions) ? msg.modes.battleSessions.length : 0,
+      testWorlds: Array.isArray(msg?.modes?.testWorlds) ? msg.modes.testWorlds.length : 0
+    };
+    this.pushDebugHistory({
+      kind: 'meta_v2',
+      type: msg?.t || 'meta_v2',
+      ...this.lastMetaPacket,
+      serverTime: msg?.time || 0,
+      serverTick: msg?.tick || 0
+    });
+  }
+
+  recordLogisticsPacket(msg, bytes = 0) {
+    const b = finite(bytes, 0);
+    this.logisticsPacketsInWindow += 1;
+    this.lastLogisticsPacket = {
+      bytes: b,
+      automation: Array.isArray(msg?.structureAutomation) ? msg.structureAutomation.length : 0,
+      drones: Array.isArray(msg?.logisticDrones) ? msg.logisticDrones.length : 0,
+      sector: `${msg?.worldId || 'endless'}:${msg?.sx | 0}:${msg?.sy | 0}`
+    };
+    this.pushDebugHistory({
+      kind: 'logistics_v2',
+      type: msg?.t || 'logistics_v2',
+      ...this.lastLogisticsPacket,
       serverTime: msg?.time || 0,
       serverTick: msg?.tick || 0
     });
@@ -906,7 +865,6 @@ export class NetStats {
 
   recordCommand(bytes = 0, wsBufferedAmount = 0) {
     this.commandsOutWindow += 1;
-    this.recordOutboundBytes(bytes);
     this.wsBufferedAmount = finite(wsBufferedAmount, 0);
   }
 
@@ -984,11 +942,25 @@ export class NetStats {
     this.cargoDeltaPacketsPerSec = this.cargoDeltaPacketsInWindow / elapsed;
     this.cargoPacketsPerSec = this.cargoPacketsInWindow / elapsed;
     this.mobPosePacketsPerSec = this.mobPosePacketsInWindow / elapsed;
+    this.metaPacketsPerSec = this.metaPacketsInWindow / elapsed;
+    this.logisticsPacketsPerSec = this.logisticsPacketsInWindow / elapsed;
     this.inputsPerSec = this.inputsOutWindow / elapsed;
     this.commandsPerSec = this.commandsOutWindow / elapsed;
     this.cmdAcksPerSec = this.cmdAcksInWindow / elapsed;
     this.eventsPerSec = this.eventsInWindow / elapsed;
     this.sfxPerSec = this.sfxInWindow / elapsed;
+    this.serverEventsPerSec = this.serverEventsInWindow / elapsed;
+    this.logisticEventsPerSec = this.logisticEventsInWindow / elapsed;
+    this.projectileEventsPerSec = this.projectileEventsInWindow / elapsed;
+    this.projectilePacketV2PerSec = this.projectilePacketV2InWindow / elapsed;
+    this.combatPacketV2PerSec = this.combatPacketV2InWindow / elapsed;
+    this.networkPacketV2PerSec = this.networkPacketV2InWindow / elapsed;
+    this.packetTypeInPerSec = Object.fromEntries(
+      Object.entries(this.packetTypeInWindow).map(([type, count]) => [type, count / elapsed])
+    );
+    this.packetTypeOutPerSec = Object.fromEntries(
+      Object.entries(this.packetTypeOutWindow).map(([type, count]) => [type, count / elapsed])
+    );
     this.pushDebugHistory({
       kind: 'aggregate',
       fps: this.fps,
@@ -1010,9 +982,13 @@ export class NetStats {
       lastCargoDeltaPacket: this.lastCargoDeltaPacket,
       cargoPacketsPerSec: this.cargoPacketsPerSec,
       mobPosePacketsPerSec: this.mobPosePacketsPerSec,
+      metaPacketsPerSec: this.metaPacketsPerSec,
+      logisticsPacketsPerSec: this.logisticsPacketsPerSec,
       lastCargoPacket: this.lastCargoPacket,
       lastMobPosePacket: this.lastMobPosePacket,
       lastWorldDeltaPacket: this.lastWorldDeltaPacket,
+      lastMetaPacket: this.lastMetaPacket,
+      lastLogisticsPacket: this.lastLogisticsPacket,
       lastStatusPacket: this.lastStatusPacket,
       lastSessionPacket: this.lastSessionPacket,
       lastLifecyclePacket: this.lastLifecyclePacket,
@@ -1044,88 +1020,10 @@ export class NetStats {
     this.worldDeltaPacketsInWindow = 0;
     this.worldEventsPacketsInWindow = 0;
     this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
     this.cargoPacketsInWindow = 0;
     this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.ackPacketsInWindow = 0;
-    this.statusPacketsInWindow = 0;
-    this.sessionPacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.lifecyclePacketsInWindow = 0;
-    this.ackPacketsInWindow = 0;
-    this.statusPacketsInWindow = 0;
-    this.sessionPacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.ackPacketsInWindow = 0;
-    this.statusPacketsInWindow = 0;
-    this.sessionPacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.worldDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.worldEventsPacketsInWindow = 0;
-    this.cargoDeltaPacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.cargoPacketsInWindow = 0;
-    this.mobPosePacketsInWindow = 0;
-    this.lastPosePacketAt = 0;
-    this.posePacketGapMs = 0;
-    this.posePacketGapMaxMs = 0;
+    this.metaPacketsInWindow = 0;
+    this.logisticsPacketsInWindow = 0;
     this.inputsOutWindow = 0;
     this.commandsOutWindow = 0;
     this.cmdAcksInWindow = 0;
@@ -1137,22 +1035,8 @@ export class NetStats {
     this.projectilePacketV2InWindow = 0;
     this.combatPacketV2InWindow = 0;
     this.networkPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.projectilePacketV2InWindow = 0;
-    this.combatPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.serverEventsInWindow = 0;
-    this.logisticEventsInWindow = 0;
-    this.projectileEventsInWindow = 0;
-    this.projectilePacketV2InWindow = 0;
-    this.combatPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.projectilePacketV2InWindow = 0;
-    this.combatPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
-    this.networkPacketV2InWindow = 0;
+    this.packetTypeInWindow = {};
+    this.packetTypeOutWindow = {};
     this.windowStartedAt = now;
     this.pendingInputs = this.inputHistory?.stats?.().pending ?? Math.max(0, (this.inputSeq | 0) - (this.ackInputSeq | 0));
   }
@@ -1183,9 +1067,13 @@ export class NetStats {
       lastCargoDeltaPacket: this.lastCargoDeltaPacket,
       cargoPacketsPerSec: this.cargoPacketsPerSec,
       mobPosePacketsPerSec: this.mobPosePacketsPerSec,
+      metaPacketsPerSec: this.metaPacketsPerSec,
+      logisticsPacketsPerSec: this.logisticsPacketsPerSec,
       lastCargoPacket: this.lastCargoPacket,
       lastMobPosePacket: this.lastMobPosePacket,
       lastWorldDeltaPacket: this.lastWorldDeltaPacket,
+      lastMetaPacket: this.lastMetaPacket,
+      lastLogisticsPacket: this.lastLogisticsPacket,
       lastStatusPacket: this.lastStatusPacket,
       lastSessionPacket: this.lastSessionPacket,
       lastLifecyclePacket: this.lastLifecyclePacket,

@@ -953,7 +953,7 @@ export class WorldStore {
     return dx <= 1.5 && dy <= 1.5 && orientation === targetOrientation;
   }
 
-  _syncStructures(arr, serverNow) {
+  _syncStructures(arr, serverNow, options = {}) {
     const seen = new Set();
     const now = performance.now();
     for (const raw of arr) {
@@ -1009,9 +1009,11 @@ export class WorldStore {
       }
       this.structures.set(id, merged);
     }
-    for (const id of this.structures.keys()) {
-      const item = this.structures.get(id);
-      if (!seen.has(id) && !item?.localOnly) this.structures.delete(id);
+    if (options.authoritative !== false) {
+      for (const id of this.structures.keys()) {
+        const item = this.structures.get(id);
+        if (!seen.has(id) && !item?.localOnly) this.structures.delete(id);
+      }
     }
   }
 
@@ -1394,9 +1396,11 @@ export class WorldStore {
       const preserveLocalPosition = options.preserveOwnPlayerPosition && isOwn;
       map.set(item.id, this._mergeEntity(map.get(item.id), item, { snapPosition, preserveLocalPosition }));
     }
-    for (const id of map.keys()) {
-      const item = map.get(id);
-      if (!seen.has(id) && !item?.localOnly) map.delete(id);
+    if (options.authoritative !== false) {
+      for (const id of map.keys()) {
+        const item = map.get(id);
+        if (!seen.has(id) && !item?.localOnly) map.delete(id);
+      }
     }
   }
 
@@ -1737,7 +1741,7 @@ export class WorldStore {
     this.clearRemotePlayers(msg?.reason || 'sector_unload');
   }
 
-  _syncMobsFromWorldDelta(mobs, serverTime) {
+  _syncMobsFromWorldDelta(mobs, serverTime, options = {}) {
     if (!Array.isArray(mobs)) return;
     const seen = new Set();
 
@@ -1766,11 +1770,13 @@ export class WorldStore {
       });
     }
 
-    for (const id of [...this.mobs.keys()]) {
-      const item = this.mobs.get(id);
-      if (!seen.has(id) && !item?.localOnly) {
-        this.mobs.delete(id);
-        this.interpolationStore?.maps?.delete?.(`mob:${id}`);
+    if (options.authoritative !== false) {
+      for (const id of [...this.mobs.keys()]) {
+        const item = this.mobs.get(id);
+        if (!seen.has(id) && !item?.localOnly) {
+          this.mobs.delete(id);
+          this.interpolationStore?.maps?.delete?.(`mob:${id}`);
+        }
       }
     }
   }
@@ -1942,15 +1948,37 @@ export class WorldStore {
     const serverTime = Number.isFinite(Number(msg.time)) ? Number(msg.time) : (this.lastServerTime || Date.now());
     this.lastServerTime = serverTime;
     this.lastServerTimeAt = performance.now();
-    if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true });
-    if (Array.isArray(msg.mobs)) this._syncMobsFromWorldDelta(msg.mobs, serverTime);
-    if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations);
-    if (Array.isArray(msg.structures)) this._syncStructures(msg.structures, this._estimateServerNow());
-    if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals);
-    if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects);
+    const authoritative = msg.net?.authoritativeSectorEntities !== false && !msg.net?.sparse;
+    if (Array.isArray(msg.asteroids)) this._syncMap(this.asteroids, msg.asteroids, { preserveLocalRotation: true, authoritative });
+    if (Array.isArray(msg.mobs)) this._syncMobsFromWorldDelta(msg.mobs, serverTime, { authoritative });
+    if (Array.isArray(msg.stations)) this._syncMap(this.stations, msg.stations, { authoritative });
+    if (Array.isArray(msg.structures)) this._syncStructures(msg.structures, this._estimateServerNow(), { authoritative });
+    if (Array.isArray(msg.portals)) this._syncMap(this.portals, msg.portals, { authoritative });
+    if (Array.isArray(msg.areaEffects)) this._syncMap(this.areaEffects, msg.areaEffects, { authoritative });
     if (Array.isArray(msg.loots)) {
       this.interpolationStore?.pushMany?.('loot', msg.loots, serverTime);
-      this._syncMap(this.loots, msg.loots);
+      this._syncMap(this.loots, msg.loots, { authoritative });
+    }
+
+    const removals = msg.removedEntityIds || {};
+    const removeFrom = (map, ids, interpolationKind = '') => {
+      if (!Array.isArray(ids)) return;
+      for (const rawId of ids) {
+        const id = rawId | 0;
+        if (!id) continue;
+        map.delete(id);
+        if (interpolationKind) this.interpolationStore?.maps?.delete?.(`${interpolationKind}:${id}`);
+      }
+    };
+    removeFrom(this.asteroids, removals.asteroids, 'asteroid');
+    removeFrom(this.mobs, removals.mobs, 'mob');
+    removeFrom(this.stations, removals.stations, 'station');
+    removeFrom(this.structures, removals.structures, 'structure');
+    removeFrom(this.portals, removals.portals, 'portal');
+    removeFrom(this.loots, removals.loots, 'loot');
+    removeFrom(this.areaEffects, removals.areaEffects, 'areaEffect');
+    if (Array.isArray(removals.structures)) {
+      for (const rawId of removals.structures) this.localPrediction.pendingStructureMoves?.delete?.(rawId | 0);
     }
   }
 

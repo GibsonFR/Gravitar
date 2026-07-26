@@ -45,12 +45,12 @@ const NET_V2_IDLE_STATE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_
 const NET_V2_POSE_RATE_MS = Math.max(25, Number(process.env.GRAVITAR_NET_V2_POSE_RATE_MS || 33));
 const NET_V2_STATUS_ACTIVE_RATE_MS = Math.max(80, Number(process.env.GRAVITAR_NET_V2_STATUS_ACTIVE_RATE_MS || 150));
 const NET_V2_STATUS_IDLE_RATE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_STATUS_IDLE_RATE_MS || 1000));
-const NET_V2_SESSION_HEARTBEAT_MS = Math.max(0, Number(process.env.GRAVITAR_NET_V2_SESSION_HEARTBEAT_MS || SNAP_FULL_UI_RATE_MS));
+const NET_V2_SESSION_HEARTBEAT_MS = Math.max(0, Number(process.env.GRAVITAR_NET_V2_SESSION_HEARTBEAT_MS || 60000));
 const NET_V2_WORLD_DELTA_MS = Math.max(100, Number(process.env.GRAVITAR_NET_V2_WORLD_DELTA_MS || 250));
 const NET_V2_WORLD_RECONCILE_MS = Math.max(1000, Number(process.env.GRAVITAR_NET_V2_WORLD_RECONCILE_MS || 3000));
 const NET_V2_LOGISTICS_RATE_MS = Math.max(50, Number(process.env.GRAVITAR_NET_V2_LOGISTICS_RATE_MS || 100));
 const NET_V2_LOGISTICS_IDLE_MS = Math.max(250, Number(process.env.GRAVITAR_NET_V2_LOGISTICS_IDLE_MS || 1000));
-const NET_V2_META_ACTIVE_RATE_MS = Math.max(200, Number(process.env.GRAVITAR_NET_V2_META_ACTIVE_RATE_MS || 250));
+const NET_V2_META_ACTIVE_RATE_MS = Math.max(200, Number(process.env.GRAVITAR_NET_V2_META_ACTIVE_RATE_MS || 1000));
 const NET_V2_META_IDLE_RATE_MS = Math.max(500, Number(process.env.GRAVITAR_NET_V2_META_IDLE_RATE_MS || 1000));
 
 export function createGameServer() {
@@ -81,7 +81,9 @@ export function createGameServer() {
   const sentLogisticEventIdsByPlayer = new Map();
   const lastWorldDeltaCheckByPlayer = new Map();
   const lastWorldDeltaV2ByPlayer = new Map();
+  const lastWorldFullReconcileByPlayer = new Map();
   const lastWorldDeltaV2SignatureByPlayer = new Map();
+  const lastWorldDeltaV2PacketByPlayer = new Map();
   const lastLogisticsCheckByPlayer = new Map();
   const lastLogisticsV2ByPlayer = new Map();
   const lastLogisticsV2SignatureByPlayer = new Map();
@@ -147,7 +149,9 @@ export function createGameServer() {
     sentLogisticEventIdsByPlayer.delete(id);
     lastWorldDeltaCheckByPlayer.delete(id);
     lastWorldDeltaV2ByPlayer.delete(id);
+    lastWorldFullReconcileByPlayer.delete(id);
     lastWorldDeltaV2SignatureByPlayer.delete(id);
+    lastWorldDeltaV2PacketByPlayer.delete(id);
     lastLogisticsCheckByPlayer.delete(id);
     lastLogisticsV2ByPlayer.delete(id);
     lastLogisticsV2SignatureByPlayer.delete(id);
@@ -428,74 +432,149 @@ export function createGameServer() {
     if (packet) sendPacket(id, packet);
   }
 
-  function netV2WorldDeltaSignature(packet) {
-    if (!packet) return '';
+  const NET_V2_WORLD_ENTITY_SECTIONS = [
+    'asteroids',
+    'mobs',
+    'stations',
+    'structures',
+    'portals',
+    'loots',
+    'areaEffects'
+  ];
+
+  function netV2WorldEntitySignature(section, entity) {
     const statusKey = (statuses) => (Array.isArray(statuses) ? statuses : []).map((s) => [
       s?.id || s?.effectId || '',
       s?.key || '',
       s?.stacks | 0,
       Math.round(Number(s?.durationLeft || 0))
     ]);
+
+    if (section === 'asteroids') return JSON.stringify([
+      entity.id | 0,
+      Math.round(Number(entity.vitals?.hp || 0)),
+      Math.round(Number(entity.vitals?.shield || 0)),
+      Math.round(Number(entity.x || 0)),
+      Math.round(Number(entity.y || 0)),
+      statusKey(entity.statuses)
+    ]);
+    if (section === 'mobs') return JSON.stringify([
+      entity.id | 0,
+      entity.typeId | 0,
+      Math.round(Number(entity.vitals?.hp || 0)),
+      Math.round(Number(entity.vitals?.shield || 0)),
+      statusKey(entity.statuses),
+      entity.specialCue || '',
+      Math.round(Number(entity.specialCueLeft || 0) * 2)
+    ]);
+    if (section === 'stations') return JSON.stringify([
+      entity.id | 0,
+      entity.tech | 0,
+      entity.specialtyId || ''
+    ]);
+    if (section === 'structures') return JSON.stringify([
+      entity.id | 0,
+      entity.type || '',
+      Math.round(Number(entity.x || 0)),
+      Math.round(Number(entity.y || 0)),
+      entity.orientation || '',
+      Math.round(Number(entity.vitals?.hp || 0)),
+      entity.powered ? 1 : 0,
+      entity.open ? 1 : 0,
+      entity.machineEnabled ? 1 : 0,
+      Math.round(Number(entity.machineJob?.progress || 0) * 20),
+      Math.round(Number(entity.researchProgress || 0) * 20),
+      entity.turretStatus || '',
+      entity.turretTargetId | 0,
+      entity.turretEnabled ? 1 : 0,
+      entity.turretMode || ''
+    ]);
+    if (section === 'portals') return JSON.stringify([
+      entity.id | 0,
+      entity.unlocked ? 1 : 0,
+      entity.unlockText || ''
+    ]);
+    if (section === 'loots') return JSON.stringify([
+      entity.id | 0,
+      entity.resource || entity.itemId || '',
+      Math.round(Number(entity.amount || 0) * 100)
+    ]);
+    if (section === 'areaEffects') return JSON.stringify([
+      entity.id | 0,
+      entity.kind || '',
+      entity.phase || '',
+      Math.round(Number(entity.cooldownLeft || 0)),
+      Math.round(Number(entity.activeSeconds || 0)),
+      Math.round(Number(entity.dormantSeconds || 0))
+    ]);
+    return JSON.stringify([entity?.id | 0]);
+  }
+
+  function netV2WorldDeltaSignature(packet) {
+    if (!packet) return '';
     return JSON.stringify({
       sector: [packet.worldId || '', packet.sx | 0, packet.sy | 0],
-      asteroids: (Array.isArray(packet.asteroids) ? packet.asteroids : []).map((a) => [
-        a.id | 0,
-        Math.round(Number(a.vitals?.hp || 0)),
-        Math.round(Number(a.vitals?.shield || 0)),
-        Math.round(Number(a.x || 0)),
-        Math.round(Number(a.y || 0)),
-        statusKey(a.statuses)
-      ]),
-      mobs: (Array.isArray(packet.mobs) ? packet.mobs : []).map((m) => [
-        m.id | 0,
-        m.typeId | 0,
-        Math.round(Number(m.vitals?.hp || 0)),
-        Math.round(Number(m.vitals?.shield || 0)),
-        statusKey(m.statuses),
-        m.specialCue || '',
-        Math.round(Number(m.specialCueLeft || 0) * 2)
-      ]),
-      stations: (Array.isArray(packet.stations) ? packet.stations : []).map((s) => [
-        s.id | 0,
-        s.tech | 0,
-        s.specialtyId || ''
-      ]),
-      structures: (Array.isArray(packet.structures) ? packet.structures : []).map((s) => [
-        s.id | 0,
-        s.type || '',
-        Math.round(Number(s.x || 0)),
-        Math.round(Number(s.y || 0)),
-        s.orientation || '',
-        Math.round(Number(s.vitals?.hp || 0)),
-        s.powered ? 1 : 0,
-        s.open ? 1 : 0,
-        s.machineEnabled ? 1 : 0,
-        Math.round(Number(s.machineJob?.progress || 0) * 20),
-        Math.round(Number(s.researchProgress || 0) * 20),
-        s.turretStatus || '',
-        s.turretTargetId | 0,
-        s.turretEnabled ? 1 : 0,
-        s.turretMode || ''
-      ]),
-      portals: (Array.isArray(packet.portals) ? packet.portals : []).map((p) => [
-        p.id | 0,
-        p.unlocked ? 1 : 0,
-        p.unlockText || ''
-      ]),
-      loots: (Array.isArray(packet.loots) ? packet.loots : []).map((l) => [
-        l.id | 0,
-        l.resource || l.itemId || '',
-        Math.round(Number(l.amount || 0) * 100)
-      ]),
-      areaEffects: (Array.isArray(packet.areaEffects) ? packet.areaEffects : []).map((a) => [
-        a.id | 0,
-        a.kind || '',
-        a.phase || '',
-        Math.round(Number(a.cooldownLeft || 0)),
-        Math.round(Number(a.activeSeconds || 0)),
-        Math.round(Number(a.dormantSeconds || 0))
+      sections: NET_V2_WORLD_ENTITY_SECTIONS.map((section) => [
+        section,
+        (Array.isArray(packet[section]) ? packet[section] : [])
+          .map((entity) => netV2WorldEntitySignature(section, entity))
       ])
     });
+  }
+
+  function buildSparseNetV2WorldDelta(packet, previousPacket) {
+    if (!packet || !previousPacket) return packet;
+    const sparse = {
+      t: packet.t,
+      protocol: packet.protocol,
+      time: packet.time,
+      tick: packet.tick,
+      worldId: packet.worldId,
+      sx: packet.sx,
+      sy: packet.sy,
+      net: {
+        ...(packet.net || {}),
+        authoritativeSectorEntities: false,
+        sparse: true,
+        fullReconcile: false
+      }
+    };
+    const removedEntityIds = {};
+    let changeCount = 0;
+
+    for (const section of NET_V2_WORLD_ENTITY_SECTIONS) {
+      const current = Array.isArray(packet[section]) ? packet[section] : [];
+      const previous = Array.isArray(previousPacket[section]) ? previousPacket[section] : [];
+      const previousById = new Map(previous.map((entity) => [entity.id | 0, entity]));
+      const currentIds = new Set();
+      const changed = [];
+
+      for (const entity of current) {
+        const entityId = entity?.id | 0;
+        if (!entityId) continue;
+        currentIds.add(entityId);
+        const old = previousById.get(entityId);
+        if (!old || netV2WorldEntitySignature(section, entity) !== netV2WorldEntitySignature(section, old)) {
+          changed.push(entity);
+        }
+      }
+
+      const removed = previous
+        .map((entity) => entity?.id | 0)
+        .filter((entityId) => entityId && !currentIds.has(entityId));
+      if (changed.length) {
+        sparse[section] = changed;
+        changeCount += changed.length;
+      }
+      if (removed.length) {
+        removedEntityIds[section] = removed;
+        changeCount += removed.length;
+      }
+    }
+
+    if (Object.keys(removedEntityIds).length) sparse.removedEntityIds = removedEntityIds;
+    sparse.changeCount = changeCount;
+    return changeCount ? sparse : null;
   }
 
   function sendNetV2WorldEntitiesDelta(id, player, timeMs, sendPacket, options = {}) {
@@ -508,14 +587,29 @@ export function createGameServer() {
     const sig = netV2WorldDeltaSignature(packet);
     const prevSig = lastWorldDeltaV2SignatureByPlayer.get(id) || '';
     const prevAt = lastWorldDeltaV2ByPlayer.get(id) || 0;
+    const previousPacket = lastWorldDeltaV2PacketByPlayer.get(id) || null;
+    const previousFullAt = lastWorldFullReconcileByPlayer.get(id) || 0;
     const changed = sig !== prevSig;
-    const due = changed
-      ? timeMs - prevAt >= NET_V2_WORLD_DELTA_MS
-      : timeMs - prevAt >= NET_V2_WORLD_RECONCILE_MS;
-    if (!options.force && !due) return;
-    if (sendPacket(id, packet)) {
+    const fullReconcile = !!options.force || !previousPacket || timeMs - previousFullAt >= NET_V2_WORLD_RECONCILE_MS;
+    if (!fullReconcile && (!changed || timeMs - prevAt < NET_V2_WORLD_DELTA_MS)) return;
+
+    const outgoing = fullReconcile
+      ? {
+          ...packet,
+          net: {
+            ...(packet.net || {}),
+            authoritativeSectorEntities: true,
+            sparse: false,
+            fullReconcile: true
+          }
+        }
+      : buildSparseNetV2WorldDelta(packet, previousPacket);
+    if (!outgoing) return;
+    if (sendPacket(id, outgoing)) {
       lastWorldDeltaV2ByPlayer.set(id, timeMs);
+      if (fullReconcile) lastWorldFullReconcileByPlayer.set(id, timeMs);
       lastWorldDeltaV2SignatureByPlayer.set(id, sig);
+      lastWorldDeltaV2PacketByPlayer.set(id, packet);
     }
   }
 
@@ -597,7 +691,8 @@ export function createGameServer() {
         battleNextInMs: Math.floor(Number(modes.battleNextInMs || 0) / 1000),
         battleSessions: (Array.isArray(modes.battleSessions) ? modes.battleSessions : []).map((s) => ({
           ...s,
-          remainingMs: Math.floor(Number(s.remainingMs || 0) / 1000)
+          remainingMs: Math.floor(Number(s.remainingMs || 0) / 1000),
+          startedAgoMs: Math.floor(Number(s.startedAgoMs || 0) / 1000)
         }))
       },
       players: (Array.isArray(packet?.playerDirectory) ? packet.playerDirectory : []).map((p) => [
@@ -649,82 +744,90 @@ export function createGameServer() {
     }
   }
 
+  function netV2StatusPlayerSignature(p) {
+    if (!p) return null;
+    return [
+      p.id | 0,
+      Math.round(Number(p.vitals?.hp || 0)),
+      Math.round(Number(p.vitals?.shield || 0)),
+      Math.round(Number(p.vitals?.energy || 0)),
+      Math.round(Number(p.cooldowns?.A || p.cooldowns?.a || 0) * 10),
+      Math.round(Number(p.cooldowns?.Z || p.cooldowns?.z || 0) * 10),
+      Math.round(Number(p.cooldowns?.E || p.cooldowns?.e || 0) * 10),
+      Math.round(Number(p.cooldowns?.R || p.cooldowns?.r || 0) * 10),
+      Math.round(Number(p.rocketCooldownLeft || 0) * 10),
+      p.selectedKind || '',
+      p.selectedId | 0,
+      p.autoTargetKind || '',
+      p.autoTargetId | 0,
+      ...(Array.isArray(p.statuses) ? p.statuses.map((s) => [
+        s?.id || s?.effectId || '',
+        s?.key || '',
+        s?.markKey || '',
+        Math.round(Number(s?.durationLeft || 0) * 10),
+        s?.stacks | 0,
+        s?.label || ''
+      ]) : []),
+      p.frameState?.kind || '',
+      Math.round(Number(p.frameState?.trailLeft || 0) * 10),
+      Math.round(Number(p.frameState?.trailStartX || 0)),
+      Math.round(Number(p.frameState?.trailStartY || 0)),
+      Math.round(Number(p.frameState?.trailEndX || 0)),
+      Math.round(Number(p.frameState?.trailEndY || 0)),
+      Math.round(Number(p.frameState?.veilLeft || 0) * 10),
+      Math.round(Number(p.frameState?.pulseLeft || 0) * 10),
+      p.frameState?.pulseKind || '',
+      Math.round(Number(p.progression?.xp || 0)),
+      Math.round(Number(p.progression?.nextXp || 0)),
+      p.progression?.skillPoints | 0,
+      Math.round(Number(p.progression?.xpPulseLeft || 0) * 10),
+      p.combat?.inCombat ? 1 : 0,
+      Math.round(Number(p.combat?.combatLeft || 0) * 10)
+    ];
+  }
+
   function netV2StatusSignature(packet) {
-    const players = Array.isArray(packet?.players) ? packet.players : [];
     return JSON.stringify({
       ack: packet?.ackInputSeq | 0,
-      players: players.map((p) => [
-        p.id | 0,
-        Math.round(Number(p.vitals?.hp || 0)),
-        Math.round(Number(p.vitals?.shield || 0)),
-        Math.round(Number(p.vitals?.energy || 0)),
-        Math.round(Number(p.cooldowns?.A || p.cooldowns?.a || 0) * 10),
-        Math.round(Number(p.cooldowns?.Z || p.cooldowns?.z || 0) * 10),
-        Math.round(Number(p.cooldowns?.E || p.cooldowns?.e || 0) * 10),
-        Math.round(Number(p.cooldowns?.R || p.cooldowns?.r || 0) * 10),
-        Math.round(Number(p.rocketCooldownLeft || 0) * 10),
-        p.selectedKind || '',
-        p.selectedId | 0,
-        p.autoTargetKind || '',
-        p.autoTargetId | 0,
-        ...(Array.isArray(p.statuses) ? p.statuses.map((s) => [
-          s?.id || s?.effectId || '',
-          s?.key || '',
-          s?.markKey || '',
-          Math.round(Number(s?.durationLeft || 0) * 10),
-          s?.stacks | 0,
-          s?.label || ''
-        ]) : []),
-        p.frameState?.kind || '',
-        Math.round(Number(p.frameState?.trailLeft || 0) * 10),
-        Math.round(Number(p.frameState?.trailStartX || 0)),
-        Math.round(Number(p.frameState?.trailStartY || 0)),
-        Math.round(Number(p.frameState?.trailEndX || 0)),
-        Math.round(Number(p.frameState?.trailEndY || 0)),
-        Math.round(Number(p.frameState?.veilLeft || 0) * 10),
-        Math.round(Number(p.frameState?.pulseLeft || 0) * 10),
-        p.frameState?.pulseKind || '',
-        Math.round(Number(p.progression?.xp || 0)),
-        Math.round(Number(p.progression?.nextXp || 0)),
-        p.progression?.skillPoints | 0,
-        Math.round(Number(p.progression?.xpPulseLeft || 0) * 10),
-        p.combat?.inCombat ? 1 : 0,
-        Math.round(Number(p.combat?.combatLeft || 0) * 10)
-      ])
+      me: netV2StatusPlayerSignature(packet?.me),
+      players: (Array.isArray(packet?.players) ? packet.players : []).map(netV2StatusPlayerSignature)
     });
   }
 
-  function netV2SessionSignatureFromPlayers(players) {
+  function netV2SessionPlayerSignature(p) {
+    if (!p) return null;
+    return [
+      p.id | 0,
+      p.worldId || '',
+      p.sx | 0,
+      p.sy | 0,
+      p.frameId || '',
+      p.gameMode || '',
+      p.testWorldId || '',
+      p.battleSessionId || '',
+      (p.sessionSetup?.pending ?? p.sessionSetupPending) ? 1 : 0,
+      p.sessionSetup?.step || p.sessionSetupStep || '',
+      p.sessionSetup?.authStatus || p.authStatus || '',
+      p.authStatus || '',
+      p.dockedStationId | 0,
+      p.dockPhase || ''
+    ];
+  }
+
+  function netV2SessionSignatureFromParts(me, players) {
     return JSON.stringify({
-      players: (Array.isArray(players) ? players : []).map((p) => [
-        p.id | 0,
-        p.worldId || '',
-        p.sx | 0,
-        p.sy | 0,
-        p.frameId || '',
-        p.gameMode || '',
-        p.testWorldId || '',
-        p.battleSessionId || '',
-        (p.sessionSetup?.pending ?? p.sessionSetupPending) ? 1 : 0,
-        p.sessionSetup?.step || p.sessionSetupStep || '',
-        p.sessionSetup?.authStatus || p.authStatus || '',
-        p.authStatus || '',
-        p.dockedStationId | 0,
-        p.dockPhase || ''
-      ])
+      me: netV2SessionPlayerSignature(me),
+      players: (Array.isArray(players) ? players : []).map(netV2SessionPlayerSignature)
     });
   }
 
   function netV2SessionSignature(packet) {
-    return netV2SessionSignatureFromPlayers(packet?.players);
+    return netV2SessionSignatureFromParts(packet?.me, packet?.players);
   }
 
   function netV2LiveSessionSignature(observer) {
     if (!observer) return '';
-    const sectorKey = sectorKeyOfPlayer(observer);
-    return netV2SessionSignatureFromPlayers(
-      [...state.players.values()].filter((candidate) => sectorKeyOfPlayer(candidate) === sectorKey)
-    );
+    return netV2SessionSignatureFromParts(observer, visibleRemotePlayersFor(observer));
   }
 
   function sendNetV2StatusSessionPackets(id, p, timeMs, sendPacket, options = {}) {
@@ -903,7 +1006,12 @@ export function createGameServer() {
         const sent = sendSnapshot(id, snap);
         if (sent && NET_V2_RESET_ENABLED && needsSectorBootstrap) {
           knownRemotePlayersByObserver.set(id, visibleRemoteIdSet(p));
-          sendNetV2StatusSessionPackets(id, p, timeMs, sendSnapshot, { forceStatus: true, forceSession: true });
+          // The bootstrap already contains the complete local session/loadout.
+          // Seed the compact signature so we do not immediately resend it.
+          lastSessionV2ByPlayer.set(id, timeMs);
+          lastSessionV2SignatureByPlayer.set(id, netV2LiveSessionSignature(p));
+          p.forceSessionV2 = false;
+          sendNetV2StatusSessionPackets(id, p, timeMs, sendSnapshot, { forceStatus: true });
           sendNetV2CargoPacket(id, p, timeMs, sendSnapshot, { force: true });
           sendNetV2WorldEvents(id, p, timeMs, sendSnapshot);
           sendNetV2WorldEntitiesDelta(id, p, timeMs, sendSnapshot, { force: true });
