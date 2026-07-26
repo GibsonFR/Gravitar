@@ -254,6 +254,39 @@ function playCollect(ctx, variant, destination = ctx.destination) {
   createTone(ctx, 'sine', root * 1.5, now + 0.056, 0.095, 0.016, destination);
 }
 
+function playIndustrial(ctx, type, variant, destination = ctx.destination) {
+  const now = ctx.currentTime;
+  const shift = 1 + ((variant % 5) - 2) * 0.025;
+  if (type === SFX_TYPES.DOOR) {
+    createTone(ctx, 'triangle', 130 * shift, now, 0.13, 0.024, destination, { endFreq: 82, attack: 0.004, release: 0.15 });
+    createNoiseHit(ctx, now + 0.015, 0.11, 0.014, destination, 'heavy');
+    return;
+  }
+  if (type === SFX_TYPES.STORAGE) {
+    createTone(ctx, 'triangle', 410 * shift, now, 0.07, 0.018, destination, { endFreq: 560, attack: 0.004, release: 0.09 });
+    createTone(ctx, 'sine', 690 * shift, now + 0.045, 0.06, 0.012, destination);
+    return;
+  }
+  if (type === SFX_TYPES.MACHINE_START || type === SFX_TYPES.AUTOMATION) {
+    createTone(ctx, 'sawtooth', 96 * shift, now, 0.14, 0.016, destination, { endFreq: 180, attack: 0.018, release: 0.16 });
+    createNoiseHit(ctx, now, 0.08, 0.008, destination, 'soft');
+    return;
+  }
+  if (type === SFX_TYPES.MACHINE_COMPLETE || type === SFX_TYPES.BUILD) {
+    createTone(ctx, 'triangle', 420 * shift, now, 0.075, 0.022, destination, { endFreq: 630, attack: 0.004, release: 0.10 });
+    createTone(ctx, 'sine', 820 * shift, now + 0.052, 0.09, 0.014, destination);
+    return;
+  }
+  if (type === SFX_TYPES.BUILD_ERROR || type === SFX_TYPES.ENERGY_ERROR) {
+    createTone(ctx, 'square', 190 * shift, now, 0.11, 0.018, destination, { endFreq: 120, attack: 0.003, release: 0.12 });
+    return;
+  }
+  if (type === SFX_TYPES.STRUCTURE_ALERT || type === SFX_TYPES.BASE_ALERT) {
+    createTone(ctx, 'sawtooth', 245 * shift, now, 0.18, 0.026, destination, { endFreq: 180, attack: 0.006, release: 0.20 });
+    createTone(ctx, 'triangle', 360 * shift, now + 0.20, 0.18, 0.022, destination, { endFreq: 250, attack: 0.006, release: 0.20 });
+  }
+}
+
 export function playSfxEvent(ctx, ev, destination = ctx.destination) {
   if (!ctx || !ev?.type) return;
   if (ev.type === SFX_TYPES.AUTO_ATTACK) return playAutoAttack(ctx, ev, destination);
@@ -265,4 +298,7 @@ export function playSfxEvent(ctx, ev, destination = ctx.destination) {
   if (ev.type === SFX_TYPES.ABILITY_R) return playAbility(ctx, ev, 'R', destination);
   if (ev.type === SFX_TYPES.DAMAGE_SHIELD) return playDamage(ctx, true, ev.variant | 0, destination);
   if (ev.type === SFX_TYPES.DAMAGE_HULL) return playDamage(ctx, false, ev.variant | 0, destination);
+  if ([SFX_TYPES.DOOR, SFX_TYPES.STORAGE, SFX_TYPES.MACHINE_START, SFX_TYPES.MACHINE_COMPLETE, SFX_TYPES.BUILD, SFX_TYPES.BUILD_ERROR, SFX_TYPES.ENERGY_ERROR, SFX_TYPES.STRUCTURE_ALERT, SFX_TYPES.BASE_ALERT, SFX_TYPES.AUTOMATION].includes(ev.type)) {
+    return playIndustrial(ctx, ev.type, ev.variant | 0, destination);
+  }
 }

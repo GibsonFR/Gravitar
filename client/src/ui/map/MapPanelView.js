@@ -38,6 +38,8 @@ export class MapPanelView {
     this.bastionList = [];
     this.playerList = [];
     this.homeBase = null;
+    this.depositList = [];
+    this.territoryList = [];
 
     this.el.innerHTML = `
       <div class="map-panel__header">
@@ -239,6 +241,18 @@ export class MapPanelView {
     this.bastionList = [];
     this.playerList = [];
     this.homeBase = null;
+    this.depositList = (mapSnap?.deposits || []).map((deposit) => ({
+      ...deposit,
+      sx: deposit.sx | 0,
+      rawSy: deposit.sy | 0,
+      sy: this._toDisplaySy(deposit.sy | 0)
+    }));
+    this.territoryList = (mapSnap?.territories || []).map((territory) => ({
+      ...territory,
+      sx: territory.sx | 0,
+      rawSy: territory.sy | 0,
+      sy: this._toDisplaySy(territory.sy | 0)
+    }));
     const sectors = mapSnap?.sectors ?? [];
     for (const s of sectors) {
       const sx = (s.sx ?? 0) | 0;
@@ -368,6 +382,7 @@ export class MapPanelView {
     const bastion = visited?.bastion || this.bastionInfo.get(`${sx},${sy}`) || null;
     const herePlayers = this.playerList.filter((p) => (p.sx | 0) === (sx | 0) && (p.sy | 0) === (sy | 0));
     const isHomeBaseSector = !!this.homeBase && (this.homeBase.sx | 0) === (sx | 0) && (this.homeBase.sy | 0) === (sy | 0);
+    const territory = this.territoryList.find((entry) => (entry.sx | 0) === (sx | 0) && (entry.sy | 0) === (sy | 0)) || null;
 
     if (!visited && !bastion && !(sx === this.curSx && sy === this.curSy)) {
       return {
@@ -381,6 +396,7 @@ export class MapPanelView {
     const typeRows = [];
     if (sx === 0 && sy === 0) typeRows.push(`${this._chip('Hub', 'is-hub')} <span>zone protégée, construction interdite</span>`);
     if (isHomeBaseSector) typeRows.push(`${this._chip('Base', 'is-base')} <span>base principale locale</span>`);
+    if (territory) typeRows.push(`${this._chip(territory.mine ? 'Territoire allié' : 'Territoire')} <span>[${this._esc(territory.clanTag)}] ${this._esc(territory.clanName)}</span>`);
     if ((visited?.stationCount | 0) > 0) typeRows.push(`${this._chip('Station')} <span>${visited.stationCount | 0} station${(visited.stationCount | 0) > 1 ? 's' : ''}</span>`);
     if (visited?.hasReturnPortal) typeRows.push(`${this._chip('Retour')} <span>portail vers le hub</span>`);
     if (bastion) {
@@ -405,6 +421,9 @@ export class MapPanelView {
       const label = visited?.resourceNames?.[i] || key;
       return `<span class="map-panel__resource-pill" title="${this._esc(key)}">${this._esc(label)}</span>`;
     });
+    const deposits = this.depositList
+      .filter((deposit) => (deposit.sx | 0) === (sx | 0) && (deposit.sy | 0) === (sy | 0))
+      .map((deposit) => `<span class="map-panel__resource-pill" style="border-color:${this._esc(deposit.colorHex || '#9ef0c7')}">${this._esc(deposit.name)} · ${Math.round((deposit.quality || 1) * 100)}%</span>`);
 
     const badge = isHomeBaseSector ? 'Base' : sx === 0 && sy === 0 ? 'Hub' : bastion ? (bastion.captured ? 'Capturé' : (bastion.unlocked ? 'Ouvert' : 'Bastion')) : ((visited?.stationCount | 0) > 0 ? 'Station' : 'Normal');
     const badgeClass = isHomeBaseSector ? 'is-base' : sx === 0 && sy === 0 ? 'is-hub' : bastion ? 'is-bastion' : '';
@@ -412,6 +431,8 @@ export class MapPanelView {
       this._renderInfoSection('Activité', playerRows, 'Aucun joueur dans ce secteur.'),
       this._renderInfoSection('Points utiles', typeRows),
       this._renderInfoSection('Ressources probables', resourceRows, 'Ressources inconnues.')
+      ,
+      this._renderInfoSection('Gisements détectés', deposits, 'Aucun gisement détecté.')
     ].join('');
 
     return { main: `[${sx},${sy}]`, badge, badgeClass, html };

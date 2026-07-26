@@ -68,6 +68,17 @@ export class TopRightDock {
     this._refresh();
   }
 
+  setVisible(id, visible) {
+    const item = this.items.get(id);
+    if (!item) return;
+    const next = !!visible;
+    if (item.visible === next) return;
+    item.visible = next;
+    item.button.hidden = !item.visible;
+    if (!item.visible && this.activeId === id) this.activeId = null;
+    this._refresh();
+  }
+
   toggle(id) {
     this.activeId = this.activeId === id ? null : id;
     this._refresh();
@@ -82,6 +93,13 @@ export class TopRightDock {
 
   _refresh() {
     for (const item of this.items.values()) {
+      if (item.visible === false) {
+        if (item.panelEl) {
+          item.panelEl.hidden = true;
+          item.panelEl.style.display = 'none';
+        }
+        continue;
+      }
       if (item.type === 'toggle') {
         const active = typeof item.isActiveFn === 'function' ? !!item.isActiveFn() : false;
         item.button.classList.toggle('is-active', active);

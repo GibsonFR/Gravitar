@@ -37,11 +37,16 @@ function turretModeControls(storage) {
     <button class="storage-panel__mode-btn ${mode === id ? 'is-active' : ''}" data-turret-mode="${esc(id)}" data-structure="${storage.id | 0}" title="${esc(title)}" type="button">${esc(label)}</button>
   `).join('');
   const target = (turret.targetId | 0) > 0 ? `#${turret.targetId | 0}` : 'aucune';
+  const weaponName = {
+    rocket: 'missiles',
+    kinetic: 'cinétique',
+    laser: 'laser'
+  }[String(turret.weapon || '').toLowerCase()] || String(turret.weapon || 'défense');
   return `
     <div class="storage-panel__turret-card">
       <div class="storage-panel__turret-head">
         <div>
-          <strong>Tourelle lance-roquettes</strong>
+          <strong>${esc(storage.name || `Tourelle ${weaponName}`)}</strong>
           <small>Mode : ${esc(turret.modeLabel || mode)} · État : ${esc(turretStatusLabel(turret.status))}</small>
         </div>
         <span class="storage-panel__turret-pill ${turret.powered ? 'is-powered' : 'is-off'}">${turret.powered ? 'alimentée' : 'sans énergie'}</span>
@@ -71,7 +76,7 @@ function resourceRows(resources = [], actionLabel, action, structureId) {
   return resources.map((r) => {
     const amount = normalizeAmount(r.amount);
     return `
-      <div class="storage-panel__row" data-resource="${esc(r.key)}" data-amount="${amount}" data-structure="${structureId | 0}">
+      <div class="storage-panel__row" data-resource="${esc(r.key)}" data-search-name="${esc(String(r.name || r.key).toLowerCase())}" data-amount="${amount}" data-structure="${structureId | 0}">
         <span class="storage-panel__swatch" style="background:${esc(r.colorHex || '#d0d7e4')}"></span>
         <span class="storage-panel__name" title="${esc(r.name || r.key)}">${esc(r.name || r.key)}</span>
         <span class="storage-panel__qty">${amount}</span>
@@ -93,7 +98,7 @@ function itemRows(items = [], actionLabel, action, structureId, kind = 'equipmen
     const equippedBadge = kind === 'equipment' && it.equipped ? `<small class="storage-panel__badge">équipé</small>` : '';
     const label = kind === 'equipment' && it.equipped && action === 'deposit' ? 'Déséquiper' : actionLabel;
     return `
-      <div class="storage-panel__row storage-panel__row--item ${it.equipped ? 'is-equipped' : ''}" data-item="${esc(it.itemId)}" data-amount="${amount}" data-structure="${structureId | 0}">
+      <div class="storage-panel__row storage-panel__row--item ${it.equipped ? 'is-equipped' : ''}" data-item="${esc(it.itemId)}" data-search-name="${esc(String(it.shortName || it.name || it.itemId).toLowerCase())}" data-amount="${amount}" data-structure="${structureId | 0}">
         <span class="storage-panel__item-dot"></span>
         <span class="storage-panel__name" title="${esc(itemTitle(it))}">${esc(it.shortName || it.name || it.itemId)}${equippedBadge}</span>
         ${qty}
@@ -109,6 +114,8 @@ export class StoragePanelView {
   constructor(sendCmd) {
     this.sendCmd = typeof sendCmd === 'function' ? sendCmd : null;
     this.lastKey = '';
+    this.search = '';
+    this.quantity = 5;
     this.scrollPreserver = null;
     this.el = document.createElement('section');
     this.el.className = 'storage-panel';
@@ -137,9 +144,17 @@ export class StoragePanelView {
         return;
       }
       const btn = target.closest('button[data-storage-act]');
+      const bulk = target.closest('button[data-storage-bulk]');
+      if (bulk) {
+        stopUiEvent(ev);
+        this.transferAll(bulk.dataset.storageBulk || 'deposit');
+        return;
+      }
       if (btn) {
         stopUiEvent(ev);
         this.transferFromButton(btn);
+      } else if (target.closest('input, select')) {
+        ev.stopPropagation();
       } else {
         stopUiEvent(ev);
       }
@@ -148,7 +163,21 @@ export class StoragePanelView {
     this.el.addEventListener('click', (ev) => {
       const target = ev.target;
       if (!(target instanceof Element)) return;
+      if (target.closest('input, select')) {
+        ev.stopPropagation();
+        return;
+      }
       if (target.closest('[data-close-storage], button[data-storage-act], .storage-panel')) stopUiEvent(ev);
+    }, { capture: true });
+    this.el.addEventListener('input', (ev) => {
+      ev.stopPropagation();
+      const input = ev.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      if (input.matches('[data-storage-search]')) {
+        this.search = input.value.slice(0, 40);
+        this.applySearch();
+      }
+      if (input.matches('[data-storage-quantity]')) this.quantity = Math.max(1, Math.min(9999, input.value | 0 || 1));
     }, { capture: true });
   }
 
@@ -163,7 +192,7 @@ export class StoragePanelView {
     const row = btn.closest('[data-resource], [data-item]');
     const structureId = row?.dataset?.structure | 0;
     const rowAmount = normalizeAmount(row?.dataset?.amount);
-    const amount = btn.dataset.amount === 'all' ? rowAmount : Math.min(1, rowAmount);
+    const amount = btn.dataset.amount === 'all' ? rowAmount : Math.min(this.quantity || 1, rowAmount);
     const act = btn.dataset.storageAct;
     if (!structureId || amount <= 0) return;
     const itemId = row?.dataset?.item || '';
@@ -184,6 +213,32 @@ export class StoragePanelView {
       amount,
       direction: act === 'withdraw' ? 'withdraw' : 'deposit'
     });
+  }
+
+  transferAll(direction) {
+    const side = direction === 'withdraw' ? 'right' : 'left';
+    const rows = [...this.el.querySelectorAll(`[data-storage-side="${side}"] .storage-panel__row`)]
+      .filter((row) => !row.hidden && normalizeAmount(row.dataset.amount) > 0);
+    for (const row of rows) {
+      const structureId = row.dataset.structure | 0;
+      const amount = normalizeAmount(row.dataset.amount);
+      const itemId = row.dataset.item || '';
+      const resourceKey = row.dataset.resource || '';
+      if (!structureId || (!itemId && !resourceKey) || amount <= 0) continue;
+      this.sendCmd?.('storage_transfer', {
+        structureId,
+        ...(itemId ? { itemId } : { resourceKey }),
+        amount,
+        direction
+      });
+    }
+  }
+
+  applySearch() {
+    const term = String(this.search || '').trim().toLowerCase();
+    for (const row of this.el.querySelectorAll('.storage-panel__row[data-search-name]')) {
+      row.hidden = !!term && !String(row.dataset.searchName || '').includes(term);
+    }
   }
 
   closeLocal() {
@@ -251,17 +306,24 @@ export class StoragePanelView {
       </div>
       <div class="storage-panel__bar"><span style="width:${Math.round(fill * 100)}%"></span></div>
       ${turretModeControls(storage)}
+      <div class="storage-panel__tools">
+        <label>Recherche <input data-storage-search maxlength="40" value="${esc(this.search)}" placeholder="Filtrer…"></label>
+        <label>Quantité <input data-storage-quantity type="number" min="1" max="9999" value="${this.quantity | 0}"></label>
+        <button type="button" class="ui-btn ui-btn--ghost" data-storage-bulk="deposit">Déposer tout</button>
+        <button type="button" class="ui-btn ui-btn--ghost" data-storage-bulk="withdraw">Retirer tout</button>
+      </div>
       <div class="storage-panel__cols">
-        <div class="storage-panel__col" data-scroll-key="storage-left">
+        <div class="storage-panel__col" data-storage-side="left" data-scroll-key="storage-left">
           <h3>${esc(leftTitle)}</h3>
           ${leftRows}
         </div>
-        <div class="storage-panel__col" data-scroll-key="storage-right">
+        <div class="storage-panel__col" data-storage-side="right" data-scroll-key="storage-right">
           <h3>${esc(rightTitle)}</h3>
           ${rightRows}
         </div>
       </div>
     `;
+    this.applySearch();
     this.scrollPreserver?.restore(scroll);
   }
 }

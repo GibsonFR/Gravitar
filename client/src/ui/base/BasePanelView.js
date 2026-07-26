@@ -730,8 +730,33 @@ export const BUILD_STRUCTURES = [
     cost: { steelPlate: 1, copperWire: 3 }
   }];
 
+BUILD_STRUCTURES.push(
+  { type: 'foundation_metal', category: 'foundation', title: 'Dalle métallique', subtitle: '1 × 1', icon: 'foundation', orientation: 'h', tilesX: 1, tilesY: 1, w: 64, h: 64, hp: 0, foundation: true, role: 'Sol industriel aligné.', stats: [], cost: { ironIngot: 1 } },
+  { type: 'foundation_reinforced', category: 'foundation', title: 'Dalle renforcée', subtitle: '2 × 2', icon: 'foundation', orientation: 'h', tilesX: 2, tilesY: 2, w: 128, h: 128, hp: 0, foundation: true, role: 'Fondation blindée.', stats: [], cost: { steelPlate: 2, ironIngot: 2 } },
+  { type: 'industrial_platform', category: 'foundation', title: 'Plateforme industrielle', subtitle: '3 × 3', icon: 'foundation', orientation: 'h', tilesX: 3, tilesY: 3, w: 192, h: 192, hp: 0, foundation: true, role: 'Organise une grande chaîne.', stats: [], cost: { steelPlate: 4, ironIngot: 4 } },
+  { type: 'foundation_ramp', category: 'foundation', title: 'Rampe industrielle', subtitle: '2 × 1', icon: 'foundation', orientation: 'r', rotatable: true, tilesX: 2, tilesY: 1, w: 128, h: 64, hp: 0, foundation: true, role: 'Passage industriel.', stats: [], cost: { ironIngot: 2 } },
+  { type: 'technical_floor', category: 'foundation', title: 'Sol technique', subtitle: '1 × 1', icon: 'foundation', orientation: 'h', tilesX: 1, tilesY: 1, w: 64, h: 64, hp: 0, foundation: true, role: 'Marque les réseaux techniques.', stats: [], cost: { ironIngot: 1, copperWire: 1 } },
+  { type: 'resource_scanner', category: 'automation', title: 'Scanner de ressources', subtitle: '', icon: 'automation', orientation: 'h', tilesX: 2, tilesY: 2, w: 128, h: 128, hp: 0, role: 'Révèle les gisements découverts.', stats: ['Énergie : 10'], cost: { steelPlate: 4, controlCircuit: 3, copperWire: 8 } },
+  { type: 'base_radar', category: 'defense', title: 'Radar de base', subtitle: '', icon: 'defense_turret', orientation: 'h', tilesX: 2, tilesY: 2, w: 128, h: 128, hp: 360, role: 'Détecte les signatures du secteur.', stats: ['Énergie : 12', 'Portée : secteur'], cost: { steelPlate: 6, controlCircuit: 4, copperWire: 10 } },
+  { type: 'kinetic_turret', category: 'defense', title: 'Tourelle cinétique', subtitle: '', icon: 'defense_turret', orientation: 'h', tilesX: 1, tilesY: 1, w: 64, h: 64, hp: 360, role: 'Défense rapide de proximité.', stats: ['Portée : 560', 'Énergie : 4'], cost: { steelPlate: 6, controlCircuit: 2, copperWire: 4 } },
+  { type: 'laser_turret', category: 'defense', title: 'Tourelle laser', subtitle: '', icon: 'defense_turret', orientation: 'h', tilesX: 2, tilesY: 2, w: 128, h: 128, hp: 440, role: 'Défense énergétique précise.', stats: ['Portée : 720', 'Énergie : 14'], cost: { steelPlate: 8, controlCircuit: 3, laserLens: 2, copperWire: 8 } },
+  { type: 'anti_missile', category: 'defense', title: 'Défense anti-missile', subtitle: '', icon: 'defense_turret', orientation: 'h', tilesX: 2, tilesY: 2, w: 128, h: 128, hp: 420, role: 'Intercepte les projectiles hostiles.', stats: ['Portée : 680', 'Énergie : 16'], cost: { steelPlate: 8, controlCircuit: 4, copperWire: 8 } },
+  { type: 'defense_mine', category: 'defense', title: 'Mine défensive', subtitle: '', icon: 'defense_turret', orientation: 'h', tilesX: 1, tilesY: 1, w: 64, h: 64, hp: 80, role: 'Charge de proximité consommable.', stats: ['Dégâts : 90'], cost: { steelPlate: 1, propellant: 2, controlCircuit: 1 } },
+  { type: 'base_shield', category: 'defense', title: 'Bouclier de base', subtitle: '', icon: 'defense_turret', orientation: 'h', tilesX: 2, tilesY: 2, w: 128, h: 128, hp: 520, role: 'Réduit les dégâts des structures proches.', stats: ['Réduction : 28 %', 'Énergie : 32'], cost: { steelPlate: 12, controlCircuit: 5, lithiumBattery: 6, copperWire: 12 } },
+  { type: 'advanced_lab', category: 'industry', title: 'Laboratoire avancé', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 3, tilesY: 2, w: 192, h: 128, hp: 0, role: 'Sciences industrielles et avancées.', stats: ['Énergie : 18'], cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 3 } },
+  { type: 'biology_lab', category: 'industry', title: 'Laboratoire biologique', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 2, tilesY: 2, w: 128, h: 128, hp: 0, role: 'Sciences biologiques.', stats: ['Énergie : 14'], cost: { steelPlate: 5, opticalGlass: 3, controlCircuit: 2 } },
+  { type: 'energy_lab', category: 'industry', title: 'Laboratoire énergétique', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 2, tilesY: 2, w: 128, h: 128, hp: 0, role: 'Sciences énergétiques.', stats: ['Énergie : 18'], cost: { steelPlate: 6, lithiumBattery: 3, controlCircuit: 2 } },
+  { type: 'space_lab', category: 'industry', title: 'Laboratoire spatial', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 3, tilesY: 2, w: 192, h: 128, hp: 0, role: 'Recherche spatiale avancée.', stats: ['Énergie : 26'], cost: { steelPlate: 10, microprocessor: 3, laserLens: 2 } },
+  { type: 'anomaly_lab', category: 'industry', title: 'Laboratoire d’anomalie', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 3, tilesY: 3, w: 192, h: 192, hp: 360, role: 'Analyse les matériaux précurseurs.', stats: ['Énergie : 38'], cost: { steelPlate: 14, microprocessor: 4, advancedSciencePack: 3 } },
+  { type: 'mechanical_assembler', category: 'industry', title: 'Assembleur mécanique', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 3, tilesY: 2, w: 192, h: 128, hp: 0, role: 'Sous-ensembles mécaniques.', stats: ['Énergie : 16'], cost: { steelPlate: 8, servomotor: 2, controlCircuit: 2 } },
+  { type: 'electronic_assembler', category: 'industry', title: 'Assembleur électronique', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 3, tilesY: 2, w: 192, h: 128, hp: 0, role: 'Électronique avancée.', stats: ['Énergie : 20'], cost: { steelPlate: 8, microprocessor: 2, controlCircuit: 3 } },
+  { type: 'weapon_workshop', category: 'industry', title: 'Atelier d’armement', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 3, tilesY: 2, w: 192, h: 128, hp: 360, role: 'Composants de défense.', stats: ['Énergie : 22'], cost: { steelPlate: 10, compositeArmor: 2, controlCircuit: 3 } },
+  { type: 'module_station', category: 'industry', title: 'Station de modules', subtitle: '', icon: 'machine', orientation: 'h', tilesX: 3, tilesY: 2, w: 192, h: 128, hp: 0, role: 'Composants de modules.', stats: ['Énergie : 24'], cost: { steelPlate: 10, microprocessor: 3, controlCircuit: 3 } }
+);
+
 const BUILD_CATEGORIES = [
   { id: 'construction', label: 'Construction de base', icon: 'core' },
+  { id: 'foundation', label: 'Fondations / sol', icon: 'foundation' },
   { id: 'storage', label: 'Stockage', icon: 'storage' },
   { id: 'power', label: 'Énergie', icon: 'power' },
   { id: 'defense', label: 'Défense', icon: 'defense_turret' },
@@ -978,7 +1003,9 @@ function isOutpostCore(type) {
 }
 
 function canPreviewOverlapStructure(def, st) {
-  return def?.type === 'mining_extractor' && st?.type === 'resource_deposit';
+  if (def?.type === 'mining_extractor' && st?.type === 'resource_deposit') return true;
+  const foundationTypes = new Set(['foundation_metal', 'foundation_reinforced', 'industrial_platform', 'foundation_ramp', 'technical_floor']);
+  return foundationTypes.has(def?.type) !== foundationTypes.has(st?.type) && (foundationTypes.has(def?.type) || foundationTypes.has(st?.type));
 }
 
 function claimRect(core) {
@@ -1012,8 +1039,10 @@ function findOwnCore(store, me, rect) {
   let bestD2 = Infinity;
   const cx = (rect.left + rect.right) * 0.5;
   const cy = (rect.top + rect.bottom) * 0.5;
+  const clanId = me?.clan?.joined ? String(me.clan.id || '') : '';
   for (const st of store?.structures?.values?.() || []) {
-    if (!isCoreType(st?.type) || !st.owned || !sameSector(st, me)) continue;
+    const accessible = !!st?.owned || (!!clanId && st?.clanShared && String(st.clanId || '') === clanId);
+    if (!isCoreType(st?.type) || !accessible || !sameSector(st, me)) continue;
     if (!rectAcceptedByClaim(rect, st)) continue;
     const dx = (st.x || 0) - cx;
     const dy = (st.y || 0) - cy;

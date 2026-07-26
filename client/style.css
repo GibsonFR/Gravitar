@@ -4700,6 +4700,73 @@ button.station-item-icon[draggable="true"]:active,
   padding: 18px;
 }
 .storage-panel.is-open { display: block; }
+
+.automation-config {
+  position: fixed;
+  z-index: 72;
+  left: 50%;
+  top: 50%;
+  width: min(430px, calc(100vw - 24px));
+  transform: translate(-50%, -50%);
+  padding: 18px;
+  border: 1px solid rgba(126, 220, 255, .34);
+  border-radius: 16px;
+  background: rgba(8, 16, 27, .97);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+  color: #e8f4ff;
+  pointer-events: auto;
+}
+.automation-config.is-hidden { display: none; }
+.automation-config, .automation-config * { box-sizing: border-box; pointer-events: auto; }
+.automation-config__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.automation-config__head small { color: #7edcff; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+.automation-config__head h2 { margin: 3px 0 0; font-size: 22px; }
+.automation-config__head button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255, 120, 120, .45); background: rgba(255, 70, 70, .14); color: #ffd6d6; font-size: 20px; cursor: pointer; }
+.automation-config__status { margin: 0 0 14px; padding: 8px 10px; border-radius: 8px; color: #9fe6ff; background: rgba(74, 168, 210, .1); }
+.automation-config label { display: grid; gap: 6px; margin-top: 11px; color: #aebed0; font-size: 12px; font-weight: 700; }
+.automation-config select { width: 100%; padding: 9px 10px; border: 1px solid rgba(126, 220, 255, .24); border-radius: 8px; background: #111e2b; color: #f1f7ff; }
+
+.core-management {
+  position: fixed; z-index: 72; left: 50%; top: 50%; width: min(520px, calc(100vw - 24px));
+  transform: translate(-50%, -50%); padding: 20px; border: 1px solid rgba(126, 220, 255, .34);
+  border-radius: 16px; background: rgba(8, 16, 27, .97); box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+  color: #e8f4ff; pointer-events: auto;
+}
+.core-management.is-hidden { display: none; }
+.core-management, .core-management * { box-sizing: border-box; pointer-events: auto; }
+.core-management__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.core-management__head small { color: #7edcff; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+.core-management__head h2 { margin: 3px 0 0; font-size: 24px; }
+.core-management__head button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255, 120, 120, .45); background: rgba(255, 70, 70, .14); color: #ffd6d6; font-size: 20px; cursor: pointer; }
+.core-management__grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 16px 0; }
+.core-management__grid span { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: 8px; background: rgba(78, 151, 189, .09); color: #afc1d4; }
+.core-management__grid strong { color: #f0f7ff; }
+.core-management__upgrade { padding: 14px; border: 1px solid rgba(126, 220, 255, .16); border-radius: 12px; background: rgba(13, 25, 39, .72); }
+.core-management__upgrade h3 { margin: 0 0 9px; }
+.core-management__cost { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.core-management__cost span { padding: 5px 8px; border-radius: 7px; background: rgba(255, 220, 125, .1); color: #ffe59a; }
+.core-management__upgrade p { color: #ffb08f; }
+.core-management__upgrade button { width: 100%; padding: 10px; border: 1px solid rgba(126, 220, 255, .38); border-radius: 9px; background: rgba(53, 145, 188, .24); color: #eaf8ff; cursor: pointer; font-weight: 800; }
+.core-management__upgrade button:disabled { opacity: .42; cursor: default; }
+.core-management__max { padding: 14px; text-align: center; color: #9ee6bd; }
+.core-management__share { width: 100%; margin: 0 0 12px; padding: 9px; border: 1px solid rgba(165, 140, 255, .35); border-radius: 9px; background: rgba(112, 80, 180, .16); color: #ded2ff; cursor: pointer; }
+
+.clan-panel { padding: 16px; color: #e8f4ff; }
+.clan-panel__hero small { color: #ba9eff; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+.clan-panel__hero h2 { margin: 4px 0 6px; }
+.clan-panel__form { display: grid; gap: 8px; margin: 14px 0; padding: 12px; border: 1px solid rgba(186, 158, 255, .16); border-radius: 11px; background: rgba(32, 25, 55, .35); }
+.clan-panel__form h3, .clan-panel > h3 { margin: 0 0 5px; font-size: 14px; }
+.clan-panel__form input { padding: 9px; border: 1px solid rgba(186, 158, 255, .24); border-radius: 8px; background: rgba(8, 14, 24, .8); color: #f4f1ff; }
+.clan-panel__territories { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.clan-panel__territories span { padding: 5px 8px; border-radius: 7px; background: rgba(126, 220, 255, .1); color: #9eeaff; }
+.clan-panel__ranking { display: grid; gap: 5px; margin-top: 8px; }
+.clan-panel__rank { display: grid; grid-template-columns: 24px 1fr; gap: 3px 8px; padding: 8px; border-radius: 8px; background: rgba(255, 255, 255, .035); }
+.clan-panel__rank small { grid-column: 2; color: #91a4b8; }
+
+.test-tools-panel { padding: 16px; color: #eaf6ff; }
+.test-tools-panel__banner { padding: 8px 10px; border: 1px solid rgba(255, 191, 94, .34); border-radius: 8px; background: rgba(255, 160, 60, .1); color: #ffd38a; font-weight: 900; letter-spacing: .08em; text-align: center; }
+.test-tools-panel h2 { margin: 14px 0 10px; }
+.test-tools-panel__grid { display: grid; gap: 8px; }
 .storage-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
 .storage-panel__eyebrow { text-transform: uppercase; letter-spacing: .12em; color: #7ad7ff; font-size: 11px; font-weight: 800; }
 .storage-panel h2 { margin: 2px 0 0; font-size: 26px; }
@@ -4712,6 +4779,10 @@ button.station-item-icon[draggable="true"]:active,
 .storage-panel__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .storage-panel__qty { text-align: right; color: #ffe59a; font-weight: 800; }
 .storage-panel__empty { color: #7f92a8; padding: 18px 4px; }
+.storage-panel__tools { display: grid; grid-template-columns: minmax(150px, 1fr) 100px auto auto; gap: 8px; align-items: end; margin: 12px 0; }
+.storage-panel__tools label { display: grid; gap: 4px; color: #90a7bd; font-size: 11px; font-weight: 700; }
+.storage-panel__tools input { min-width: 0; padding: 8px; border: 1px solid rgba(122, 215, 255, .2); border-radius: 7px; background: rgba(7, 15, 25, .86); color: #edf8ff; }
+.storage-panel__row[hidden] { display: none; }
 
 .boot-error {
   position: fixed;

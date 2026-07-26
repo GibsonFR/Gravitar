@@ -18,7 +18,7 @@ export function hitTestRadarMove(view, me, px, py) {
   return { x: me.x + nx * range, y: me.y + ny * range };
 }
 
-export function drawRadar(ctx, view, me, players, mobs, asteroids, stations, myState) {
+export function drawRadar(ctx, view, me, players, mobs, asteroids, stations, structures, portals, myState) {
   const { size, x, y, range } = getRadarLayout(view);
 
   ctx.fillStyle = rgba(8, 10, 14, 0.84);
@@ -52,6 +52,21 @@ export function drawRadar(ctx, view, me, players, mobs, asteroids, stations, myS
   for (const p of players.values()) {
     if (p.id === me.id) continue;
     blip(p.x, p.y, rgba(255, 120, 120, 0.92), 2.2);
+  }
+  const detectedDeposits = new Set((myState?.map?.deposits || [])
+    .filter((deposit) => (deposit.sx | 0) === (me.sx | 0) && (deposit.sy | 0) === (me.sy | 0))
+    .map((deposit) => deposit.id | 0));
+  for (const structure of structures?.values?.() || []) {
+    if (structure.type === 'resource_deposit') {
+      if (detectedDeposits.has(structure.id | 0)) blip(structure.x, structure.y, structure.depositColorHex || rgba(112, 230, 190, .95), 2.5);
+      continue;
+    }
+    if ((structure.type === 'base_core' || structure.type === 'outpost_core') && (structure.owned || myState?.map?.radarActive)) {
+      blip(structure.x, structure.y, structure.owned ? rgba(95, 220, 255, .98) : rgba(255, 175, 95, .95), 3.2);
+    }
+  }
+  if (myState?.map?.radarActive) {
+    for (const portal of portals?.values?.() || []) blip(portal.x, portal.y, rgba(188, 128, 255, .95), 2.8);
   }
   blip(me.x, me.y, rgba(120, 255, 195, 1), 2.8);
 

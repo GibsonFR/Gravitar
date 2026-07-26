@@ -42,16 +42,20 @@ import { PlayersPanelView } from './ui/players/PlayersPanelView.js';
 import { OptionsPanelView } from './ui/options/OptionsPanelView.js';
 import { getOptionsIconSvg } from './ui/options/OptionsIconSvg.js';
 import { BasePanelView } from './ui/base/BasePanelView.js';
+import { CoreManagementPanelView } from './ui/base/CoreManagementPanelView.js';
 import { StoragePanelView } from './ui/storage/StoragePanelView.js';
 import { MachinePanelView } from './ui/machine/MachinePanelView.js';
 import { RocketWorkshopPanelView } from './ui/rocket/RocketWorkshopPanelView.js';
 import { DroneStationPanelView } from './ui/logistics/DroneStationPanelView.js';
 import { LogisticChestPanelView } from './ui/logistics/LogisticChestPanelView.js';
+import { AutomationPanelView } from './ui/automation/AutomationPanelView.js';
 import { ResearchStationPanelView } from './ui/research/ResearchStationPanelView.js';
 import { EquipmentFabricatorPanelView } from './ui/equipment/EquipmentFabricatorPanelView.js';
 import { EquipmentRDStationPanelView } from './ui/equipment/EquipmentRDStationPanelView.js';
 import { ResearchTreePanelView } from './ui/research/ResearchTreePanelView.js';
 import { ActiveQuestPanelView } from './ui/quests/ActiveQuestPanelView.js';
+import { ClanPanelView } from './ui/clan/ClanPanelView.js';
+import { TestToolsPanelView } from './ui/test/TestToolsPanelView.js';
 import { getQuestIconSvg } from './ui/quests/QuestIconSvg.js';
 import { getBaseIconSvg } from './ui/base/BaseIconSvg.js';
 import { ClientPrediction } from './prediction/ClientPrediction.js';
@@ -290,6 +294,10 @@ export function startApp() {
   uiRoot.appendChild(droneStationPanel.el);
   const logisticChestPanel = new LogisticChestPanelView(sendCmd);
   uiRoot.appendChild(logisticChestPanel.el);
+  const automationPanel = new AutomationPanelView(sendCmd);
+  uiRoot.appendChild(automationPanel.el);
+  const coreManagementPanel = new CoreManagementPanelView(sendCmd);
+  uiRoot.appendChild(coreManagementPanel.el);
   const researchStationPanel = new ResearchStationPanelView(sendCmd);
   uiRoot.appendChild(researchStationPanel.el);
   const equipmentFabricatorPanel = new EquipmentFabricatorPanelView(sendCmd);
@@ -301,6 +309,11 @@ export function startApp() {
 
   const activeQuestPanel = new ActiveQuestPanelView(sendCmd);
   dock.registerPanel({ id: 'active-quests', title: 'Quêtes', iconMarkup: getQuestIconSvg(), panelEl: activeQuestPanel.el, shellClass: 'ui-panel-shell--active-quests', group: 'game' });
+  const clanPanel = new ClanPanelView(sendCmd);
+  dock.registerPanel({ id: 'clan', title: 'Clan', iconMarkup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2.5 19c.4-3.2 2-5 4.5-5s4.1 1.8 4.5 5M12.5 19c.4-3.2 2-5 4.5-5s4.1 1.8 4.5 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>', panelEl: clanPanel.el, group: 'game' });
+  const testToolsPanel = new TestToolsPanelView(sendCmd);
+  dock.registerPanel({ id: 'test-tools', title: 'Outils Test', iconMarkup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M11 3v6l-6 9a2 2 0 0 0 1.7 3h10.6A2 2 0 0 0 19 18l-6-9V3M8 16h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>', panelEl: testToolsPanel.el, group: 'utility' });
+  dock.setVisible('test-tools', false);
 
   window.addEventListener('keydown', (ev) => {
     const tag = String(ev.target?.tagName || '').toLowerCase();
@@ -410,13 +423,15 @@ export function startApp() {
   }
 
   function tryInteractStructureAt(px, py) {
-    const st = findStructureAtScreen(px, py, (s) => s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'logistic_drone_station' || s.type === 'logistic_chest_provider' || s.type === 'logistic_chest_requester' || s.type === 'logistic_chest_buffer' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'logistic_drone_workshop' || s.type === 'industrial_converter' || s.type === 'rocket_workshop' || s.type === 'science_lab' || s.type === 'mining_extractor' || s.type === 'research_station' || s.type === 'equipment_fabricator' || s.type === 'equipment_rd_station' || s.type === 'defense_turret');
+    const st = findStructureAtScreen(px, py, (s) => s.type === 'base_core' || s.type === 'storage' || s.type === 'equipment_storage' || s.type === 'ammo_storage' || s.type === 'logistic_drone_station' || s.type === 'logistic_chest_provider' || s.type === 'logistic_chest_requester' || s.type === 'logistic_chest_buffer' || s.type === 'fuel_tank' || s.type === 'fuel_generator' || s.type === 'door' || s.type === 'furnace' || s.type === 'high_temp_furnace' || s.type === 'chemical_refinery' || s.type === 'electrolyzer' || s.type === 'electronics_bench' || s.type === 'industrial_press' || s.type === 'mechanical_assembler' || s.type === 'electronic_assembler' || s.type === 'weapon_workshop' || s.type === 'module_station' || s.type === 'advanced_lab' || s.type === 'biology_lab' || s.type === 'energy_lab' || s.type === 'space_lab' || s.type === 'anomaly_lab' || s.type === 'logistic_drone_workshop' || s.type === 'industrial_converter' || s.type === 'rocket_workshop' || s.type === 'science_lab' || s.type === 'mining_extractor' || s.type === 'research_station' || s.type === 'equipment_fabricator' || s.type === 'equipment_rd_station' || s.type === 'defense_turret' || s.type === 'kinetic_turret' || s.type === 'laser_turret' || s.type === 'robot_arm' || s.type === 'fast_arm' || s.type === 'long_arm' || s.type === 'splitter');
     if (!st) return false;
-    if (st.type === 'logistic_drone_station') sendCmd('drone_station_open', { structureId: st.id | 0 });
+    if (st.type === 'base_core') sendCmd('core_open', { structureId: st.id | 0 });
+    else if (st.type === 'logistic_drone_station') sendCmd('drone_station_open', { structureId: st.id | 0 });
     else if (st.type === 'logistic_chest_provider' || st.type === 'logistic_chest_buffer') sendCmd('storage_open', { structureId: st.id | 0 });
     else if (st.type === 'logistic_chest_requester') sendCmd('logistic_chest_open', { structureId: st.id | 0 });
-    else if (st.type === 'storage' || st.type === 'equipment_storage' || st.type === 'ammo_storage' || st.type === 'fuel_tank' || st.type === 'fuel_generator' || st.type === 'defense_turret') sendCmd('storage_open', { structureId: st.id | 0 });
+    else if (st.type === 'storage' || st.type === 'equipment_storage' || st.type === 'ammo_storage' || st.type === 'fuel_tank' || st.type === 'fuel_generator' || st.type === 'defense_turret' || st.type === 'kinetic_turret' || st.type === 'laser_turret') sendCmd('storage_open', { structureId: st.id | 0 });
     else if (st.type === 'door') sendCmd('toggle_structure', { structureId: st.id | 0 });
+    else if (st.type === 'robot_arm' || st.type === 'fast_arm' || st.type === 'long_arm' || st.type === 'splitter') sendCmd('automation_open', { structureId: st.id | 0 });
     else if (st.type === 'research_station') sendCmd('research_station_open', { structureId: st.id | 0 });
     else if (st.type === 'equipment_fabricator') sendCmd('equipment_fabricator_open', { structureId: st.id | 0 });
     else if (st.type === 'equipment_rd_station') sendCmd('equipment_rd_open', { structureId: st.id | 0 });
@@ -999,11 +1014,16 @@ export function startApp() {
     rocketWorkshopPanel.update(store);
     droneStationPanel.update(store);
     logisticChestPanel.update(store);
+    automationPanel.update(store);
+    coreManagementPanel.update(store);
     researchStationPanel.update(store);
     equipmentFabricatorPanel.update(store);
     equipmentRDStationPanel.update(store);
     researchTreePanel.update(store);
     activeQuestPanel.update(store.myState);
+    clanPanel.update(store);
+    const isTestMode = store.modes?.currentMode === 'test' || store.modes?.currentMode === 'stress' || String(store.myState?.worldId || '').startsWith('test') || !!store.myState?.testWorldId;
+    dock.setVisible('test-tools', isTestMode);
     dock.setBadge('active-quests', store.myState?.activeQuests?.activeCount ? `${store.myState.activeQuests.activeCount | 0}` : '');
     playersPanel.update(store.playerDirectory, store.session, store.myId, store.modes, store);
     mapWindow.update(store.myState?.map, store.myState?.inv, store.seed);
@@ -1012,7 +1032,7 @@ export function startApp() {
 
     if (me && !(store.myState?.sessionSetup?.pending ?? true)) {
       drawHud(ctx, view, me, store.myState, input);
-      drawRadar(ctx, view, me, store.players, store.mobs, store.asteroids, store.stations, store.myState);
+      drawRadar(ctx, view, me, store.players, store.mobs, store.asteroids, store.stations, store.structures, store.portals, store.myState);
       drawContextHint(ctx, view, me, store.stations);
     }
 

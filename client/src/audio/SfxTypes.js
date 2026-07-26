@@ -7,5 +7,15 @@ export const SFX_TYPES = {
   ABILITY_E: 'ability_e',
   ABILITY_R: 'ability_r',
   DAMAGE_SHIELD: 'damage_shield',
-  DAMAGE_HULL: 'damage_hull'
+  DAMAGE_HULL: 'damage_hull',
+  DOOR: 'door',
+  STORAGE: 'storage',
+  MACHINE_START: 'machine_start',
+  MACHINE_COMPLETE: 'machine_complete',
+  BUILD: 'build',
+  BUILD_ERROR: 'build_error',
+  ENERGY_ERROR: 'energy_error',
+  STRUCTURE_ALERT: 'structure_alert',
+  BASE_ALERT: 'base_alert',
+  AUTOMATION: 'automation'
 };

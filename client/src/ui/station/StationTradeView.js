@@ -86,6 +86,7 @@ export class StationTradeView {
       if (act === 'sell1') this.cmdQueue.send('sell', { resourceKey: key, amount: 1 });
       if (act === 'sellall') this.cmdQueue.send('sell', { resourceKey: key, amount: Math.max(0, amt) });
       if (act === 'buyResource') this.cmdQueue.send('buy_station_resource', { resourceKey: key, amount: 1 });
+      if (act === 'barterResource') this.cmdQueue.send('barter_station_resource', { resourceKey: key });
     });
   }
 
@@ -121,9 +122,11 @@ export class StationTradeView {
       `;
     }).join('') || `<div class="station-trade__empty">${pirate ? 'Aucune ressource demandée dans votre soute.' : 'Aucune ressource.'}</div>`;
 
+    const barterByOutput = new Map((stationShop?.resourceBarter || []).map((offer) => [offer.outputResourceKey, offer]));
     const supplyRows = stationShop?.resourceSupply || [];
     this.supplyRowsEl.innerHTML = supplyRows.map((entry) => {
       const canBuy = docked && !!entry.canAfford;
+      const barter = barterByOutput.get(entry.resourceKey) || null;
       return `
         <div class="station-trade-row station-trade-row--supply" data-resource="${entry.resourceKey}" data-amount="${entry.amount || 1}">
           <div class="station-trade-row__resource">
@@ -135,6 +138,7 @@ export class StationTradeView {
           <span>${formatInt(entry.stock || 0)}</span>
           <div class="station-trade-row__actions">
             <button class="ui-btn" data-act="buyResource" ${canBuy ? '' : 'disabled'}>Acheter</button>
+            ${barter ? `<button class="ui-btn ui-btn--ghost" data-act="barterResource" title="Troc sans crédits" ${docked && barter.canBarter ? '' : 'disabled'}>Troc : ${formatInt(barter.inputAmount || 0)} ${barter.inputName || barter.inputResourceKey}</button>` : ''}
           </div>
         </div>
       `;
